@@ -17,6 +17,17 @@ const listTemplatesQuerySchema = z.object({
 });
 
 /**
+ * Zod schema for POST /api/templates request body
+ */
+const createTemplateBodySchema = z.object({
+  title: z.string().min(1).max(500),
+  description: z.string().max(2000).optional(),
+  content: z.string().min(1),
+  category: z.string().max(100).optional(),
+  visibility: z.enum(['internal', 'public']).default('internal'),
+});
+
+/**
  * Template routes with full middleware chain:
  * 1. rateLimitMiddleware - enforces rate limits (100 req/10min global)
  * 2. tenantContextMiddleware - resolves tenant from x-tenant-subdomain header
@@ -167,6 +178,151 @@ export default async function templateRoutes(fastify: FastifyInstance) {
         }
 
         fastify.log.error({ error }, 'Unexpected error in GET /api/templates');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
+   * POST /api/templates
+   * Creates a new template (admin only)
+   * 
+   * Request Body:
+   * - title (required): Template title (1-500 chars)
+   * - description (optional): Template description (max 2000 chars)
+   * - content (required): Markdown template content
+   * - category (optional): Template category (max 100 chars)
+   * - visibility (optional): 'internal' or 'public' (default: 'internal')
+   * 
+   * Authorization:
+   * - Requires valid JWT
+   * - User must be member of tenant
+   * - User must have 'admin' role
+   * 
+   * Security:
+   * - Validates user has admin role
+   * - Validates all input fields with Zod
+   * - Sets tenant_id to user's tenant (tenant-scoped templates)
+   * - Sets created_by to authenticated user
+   * - Sets is_approved to FALSE by default (requires approval for public visibility)
+   * - Prevents SQL injection via parameterized queries
+   * 
+   * Behavior:
+   * - Creates template with tenant_id = user's tenant
+   * - For 'public' visibility, is_approved defaults to FALSE (requires admin approval)
+   * - For 'internal' visibility, template is immediately available to tenant
+   * - Returns created template with full details
+   */
+  fastify.post(
+    '/api/templates',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        // Check user has admin role
+        if (user.role !== 'admin') {
+          fastify.log.warn(
+            { userId: user.id, userRole: user.role, tenantId: tenant.id },
+            'User attempted to create template without admin role'
+          );
+          return reply.code(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Only admin role can create templates',
+              details: {},
+            },
+          });
+        }
+
+        // Validate request body
+        const body = createTemplateBodySchema.parse(request.body);
+        const { title, description, content, category, visibility } = body;
+
+        // Insert template into database
+        const { data: template, error } = await supabaseAdmin
+          .from('templates')
+          .insert({
+            tenant_id: tenant.id,
+            title,
+            description: description || null,
+            content,
+            category: category || null,
+            visibility,
+            is_approved: false, // Requires approval for public marketplace
+            created_by: user.id,
+          })
+          .select(`
+            id,
+            tenant_id,
+            title,
+            description,
+            content,
+            category,
+            visibility,
+            is_approved,
+            created_by,
+            created_at,
+            updated_at,
+            users!templates_created_by_fkey (
+              id,
+              email,
+              full_name
+            )
+          `)
+          .single();
+
+        if (error) {
+          fastify.log.error(
+            { error, tenantId: tenant.id, userId: user.id },
+            'Failed to create template'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'CREATE_FAILED',
+              message: 'Failed to create template',
+              details: {},
+            },
+          });
+        }
+
+        fastify.log.info(
+          {
+            templateId: template.id,
+            tenantId: tenant.id,
+            userId: user.id,
+            visibility,
+          },
+          'Template created successfully'
+        );
+
+        return reply.code(201).send({
+          success: true,
+          data: {
+            template,
+          },
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid request body',
+              details: error.errors,
+            },
+          });
+        }
+
+        fastify.log.error({ error }, 'Unexpected error in POST /api/templates');
         return reply.code(500).send({
           error: {
             code: 'INTERNAL_ERROR',
