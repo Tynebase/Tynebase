@@ -10,7 +10,8 @@ const JobTypeSchema = z.enum([
   'document_export',
   'document_convert',
   'tenant_cleanup',
-  'test_job'
+  'test_job',
+  'rag_index'
 ]);
 
 const DispatchJobSchema = z.object({

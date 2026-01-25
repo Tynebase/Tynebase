@@ -5,6 +5,7 @@ import { tenantContextMiddleware } from '../middleware/tenantContext';
 import { authMiddleware } from '../middleware/auth';
 import { membershipGuard } from '../middleware/membershipGuard';
 import { rateLimitMiddleware } from '../middleware/rateLimit';
+import { dispatchJob } from '../utils/dispatchJob';
 
 /**
  * Zod schema for GET /api/documents query parameters
@@ -672,6 +673,51 @@ export default async function documentRoutes(fastify: FastifyInstance) {
             { error: lineageError, documentId: updatedDoc.id, userId: user.id },
             'Failed to create lineage event for document update'
           );
+        }
+
+        // Dispatch rag_index job if content or yjs_state was updated
+        const contentChanged = content !== undefined || yjs_state !== undefined;
+        if (contentChanged) {
+          try {
+            // Check for existing pending or processing rag_index jobs for this document
+            const { data: existingJobs, error: jobCheckError } = await supabaseAdmin
+              .from('job_queue')
+              .select('id, status')
+              .eq('tenant_id', tenant.id)
+              .eq('type', 'rag_index')
+              .in('status', ['pending', 'processing'])
+              .eq('payload->>document_id', updatedDoc.id);
+
+            if (jobCheckError) {
+              fastify.log.error(
+                { error: jobCheckError, documentId: updatedDoc.id },
+                'Failed to check for existing rag_index jobs'
+              );
+            } else if (existingJobs && existingJobs.length > 0) {
+              fastify.log.info(
+                { documentId: updatedDoc.id, existingJobId: existingJobs[0].id },
+                'Skipping rag_index job dispatch - job already pending/processing'
+              );
+            } else {
+              // No duplicate job found, dispatch new rag_index job
+              const job = await dispatchJob({
+                tenantId: tenant.id,
+                type: 'rag_index',
+                payload: { document_id: updatedDoc.id }
+              });
+
+              fastify.log.info(
+                { documentId: updatedDoc.id, jobId: job.id, tenantId: tenant.id },
+                'RAG index job dispatched for document update'
+              );
+            }
+          } catch (dispatchError) {
+            // Log error but don't fail the document update
+            fastify.log.error(
+              { error: dispatchError, documentId: updatedDoc.id },
+              'Failed to dispatch rag_index job - document saved but indexing may be delayed'
+            );
+          }
         }
 
         fastify.log.info(

@@ -13,13 +13,13 @@
 
 /**
  * Chunking configuration based on PRD requirements
- * Using word-based sizing for optimal RAG performance
+ * Using token-based sizing to match validator logic and API limits
  */
 export const CHUNKING_CONFIG = {
-  TARGET_CHUNK_SIZE: 600, // words (optimal balance between context and precision)
-  OVERLAP_SIZE: 50, // words (for context continuity)
-  MIN_CHUNK_SIZE: 100, // words (avoid tiny chunks - PRD requirement)
-  MAX_CHUNK_SIZE: 1000, // words (hard limit - PRD requirement)
+  TARGET_CHUNK_SIZE: 800, // tokens (optimal balance between context and precision)
+  OVERLAP_SIZE: 67, // tokens (for context continuity, ~50 words)
+  MIN_CHUNK_SIZE: 133, // tokens (avoid tiny chunks - ~100 words)
+  MAX_CHUNK_SIZE: 1333, // tokens (hard limit - ~1000 words, well under Cohere's 8191 limit)
   SEMANTIC_SIMILARITY_THRESHOLD: 0.85, // for merging adjacent chunks
   WORDS_PER_TOKEN: 0.75, // approximate conversion (1 token ≈ 0.75 words)
 };
@@ -170,8 +170,8 @@ function splitAtSemanticBoundaries(text: string, targetSize: number): string[] {
         currentTokens = 0;
       }
       
-      // Split large paragraph by sentences
-      const sentences = paragraph.match(/[^.!?]+[.!?]+/g) || [paragraph];
+      // Split large paragraph by sentences with fallback for edge cases
+      const sentences = paragraph.match(/[^.!?]+[.!?]+/g) || paragraph.split('\n').filter(s => s.trim()) || [paragraph];
       for (const sentence of sentences) {
         const sentenceWords = estimateWordCount(sentence);
         

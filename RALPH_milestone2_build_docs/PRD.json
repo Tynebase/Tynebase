@@ -618,7 +618,10 @@
       "phase": "Phase 7: RAG Pipeline",
       "title": "[API] Auto-Index on Document Save",
       "action": "Update PATCH /api/documents/:id to dispatch rag_index job",
-      "passes": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-25T16:16:06.112517",
+      "completed_at": "2026-01-25T16:18:54.014313"
     },
     {
       "id": "7.4",
