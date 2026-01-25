@@ -341,4 +341,222 @@ export default async function gdprRoutes(fastify: FastifyInstance) {
       }
     }
   );
+
+  /**
+   * PATCH /api/user/consents
+   * 
+   * Updates user consent preferences for GDPR compliance
+   * 
+   * Allows users to control:
+   * - ai_processing: Whether AI can process their data
+   * - analytics_tracking: Whether analytics can track their usage
+   * - knowledge_indexing: Whether their content can be indexed for RAG
+   * 
+   * Security:
+   * - Requires authentication
+   * - Users can only update their own consents
+   * - All consent changes are audited
+   * - Validates consent types
+   */
+  fastify.patch(
+    '/api/user/consents',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const user = (request as any).user;
+      const userId = user.id;
+      const tenantId = user.tenant_id;
+
+      const UpdateConsentsSchema = z.object({
+        ai_processing: z.boolean().optional(),
+        analytics_tracking: z.boolean().optional(),
+        knowledge_indexing: z.boolean().optional(),
+      }).refine(
+        (data) => Object.keys(data).length > 0,
+        { message: 'At least one consent field must be provided' }
+      );
+
+      try {
+        const body = UpdateConsentsSchema.parse(request.body);
+
+        fastify.log.info(
+          { userId, tenantId, consents: body },
+          'Consent update request received'
+        );
+
+        // Check if user has existing consent record
+        const { data: existingConsent, error: checkError } = await supabaseAdmin
+          .from('user_consents')
+          .select('*')
+          .eq('user_id', userId)
+          .single();
+
+        if (checkError && checkError.code !== 'PGRST116') {
+          fastify.log.error({ userId, error: checkError }, 'Failed to check existing consents');
+          throw checkError;
+        }
+
+        let result;
+
+        if (!existingConsent) {
+          // Create new consent record with provided values and defaults
+          const { data: newConsent, error: insertError } = await supabaseAdmin
+            .from('user_consents')
+            .insert({
+              user_id: userId,
+              ai_processing: body.ai_processing ?? true,
+              analytics_tracking: body.analytics_tracking ?? true,
+              knowledge_indexing: body.knowledge_indexing ?? true,
+            })
+            .select()
+            .single();
+
+          if (insertError) {
+            fastify.log.error({ userId, error: insertError }, 'Failed to create consent record');
+            throw insertError;
+          }
+
+          result = newConsent;
+          fastify.log.info({ userId, consents: newConsent }, 'Consent record created');
+        } else {
+          // Update existing consent record
+          const { data: updatedConsent, error: updateError } = await supabaseAdmin
+            .from('user_consents')
+            .update(body)
+            .eq('user_id', userId)
+            .select()
+            .single();
+
+          if (updateError) {
+            fastify.log.error({ userId, error: updateError }, 'Failed to update consents');
+            throw updateError;
+          }
+
+          result = updatedConsent;
+          fastify.log.info({ userId, consents: updatedConsent }, 'Consents updated');
+        }
+
+        // Log consent change to audit trail
+        await supabaseAdmin
+          .from('query_usage')
+          .insert({
+            tenant_id: tenantId,
+            user_id: userId,
+            query_type: 'consent_update',
+            ai_model: 'system',
+            credits_charged: 0,
+            metadata: {
+              previous_consents: existingConsent || null,
+              new_consents: body,
+              ip_address: request.ip,
+              user_agent: request.headers['user-agent'] || 'unknown',
+              updated_at: new Date().toISOString(),
+            },
+          });
+
+        fastify.log.info(
+          { userId, tenantId },
+          'Consent update logged to audit trail'
+        );
+
+        return reply.status(200).send({
+          message: 'Consents updated successfully',
+          consents: {
+            ai_processing: result.ai_processing,
+            analytics_tracking: result.analytics_tracking,
+            knowledge_indexing: result.knowledge_indexing,
+            updated_at: result.updated_at,
+          },
+          note: result.ai_processing === false 
+            ? 'AI processing disabled. AI features will be blocked for your account.'
+            : undefined,
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.status(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid request body',
+              details: error.errors.map(e => `${e.path.join('.')}: ${e.message}`),
+            },
+          });
+        }
+
+        fastify.log.error(
+          { userId, tenantId, error },
+          'Consent update failed'
+        );
+
+        return reply.status(500).send({
+          error: {
+            code: 'CONSENT_UPDATE_FAILED',
+            message: 'Failed to update consents',
+            details: error instanceof Error ? error.message : 'Unknown error',
+          },
+        });
+      }
+    }
+  );
+
+  /**
+   * GET /api/user/consents
+   * 
+   * Retrieves current user consent preferences
+   * 
+   * Security:
+   * - Requires authentication
+   * - Users can only view their own consents
+   */
+  fastify.get(
+    '/api/user/consents',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const user = (request as any).user;
+      const userId = user.id;
+
+      try {
+        const { data: consents, error } = await supabaseAdmin
+          .from('user_consents')
+          .select('ai_processing, analytics_tracking, knowledge_indexing, updated_at')
+          .eq('user_id', userId)
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          fastify.log.error({ userId, error }, 'Failed to fetch consents');
+          throw error;
+        }
+
+        // If no consent record exists, return defaults
+        if (!consents) {
+          return reply.status(200).send({
+            consents: {
+              ai_processing: true,
+              analytics_tracking: true,
+              knowledge_indexing: true,
+              updated_at: null,
+            },
+            note: 'Using default consent settings. Update via PATCH /api/user/consents',
+          });
+        }
+
+        return reply.status(200).send({
+          consents: {
+            ai_processing: consents.ai_processing,
+            analytics_tracking: consents.analytics_tracking,
+            knowledge_indexing: consents.knowledge_indexing,
+            updated_at: consents.updated_at,
+          },
+        });
+      } catch (error) {
+        fastify.log.error({ userId, error }, 'Failed to retrieve consents');
+
+        return reply.status(500).send({
+          error: {
+            code: 'CONSENT_FETCH_FAILED',
+            message: 'Failed to retrieve consents',
+            details: error instanceof Error ? error.message : 'Unknown error',
+          },
+        });
+      }
+    }
+  );
 }
