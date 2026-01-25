@@ -34,6 +34,25 @@ const createDocumentBodySchema = z.object({
 });
 
 /**
+ * Zod schema for PATCH /api/documents/:id request body
+ */
+const updateDocumentBodySchema = z.object({
+  title: z.string().min(1).max(500).optional(),
+  content: z.string().max(10485760).optional(), // Max 10MB content
+  yjs_state: z.string().optional(), // Base64 encoded binary state
+  is_public: z.boolean().optional(),
+}).refine((data) => Object.keys(data).length > 0, {
+  message: 'At least one field must be provided for update',
+});
+
+/**
+ * Zod schema for PATCH /api/documents/:id path parameters
+ */
+const updateDocumentParamsSchema = z.object({
+  id: z.string().uuid(),
+});
+
+/**
  * Document routes with full middleware chain:
  * 1. rateLimitMiddleware - enforces rate limits (100 req/10min global)
  * 2. tenantContextMiddleware - resolves tenant from x-tenant-subdomain header
@@ -443,6 +462,232 @@ export default async function documentRoutes(fastify: FastifyInstance) {
         }
 
         fastify.log.error({ error }, 'Unexpected error in POST /api/documents');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
+   * PATCH /api/documents/:id
+   * Updates an existing document's content, yjs_state, title, or is_public fields
+   * 
+   * Path Parameters:
+   * - id: Document UUID
+   * 
+   * Request Body (at least one field required):
+   * - title (optional): Updated document title (1-500 characters)
+   * - content (optional): Updated markdown content (max 10MB)
+   * - yjs_state (optional): Base64-encoded Y.js binary state for real-time collaboration
+   * - is_public (optional): Whether document is publicly accessible
+   * 
+   * Authorization:
+   * - Requires valid JWT
+   * - User must be member of tenant
+   * - User must be the document author (ownership verification)
+   * 
+   * Security:
+   * - Enforces tenant isolation via explicit tenant_id filtering
+   * - Verifies document ownership (only author can update)
+   * - Validates content size to prevent resource exhaustion
+   * - Validates all input with Zod schema
+   * - Creates immutable lineage event for audit trail
+   * - Automatically updates updated_at timestamp
+   */
+  fastify.patch(
+    '/api/documents/:id',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        // Validate path parameters
+        const params = updateDocumentParamsSchema.parse(request.params);
+        const { id } = params;
+
+        // Validate request body
+        const body = updateDocumentBodySchema.parse(request.body);
+        const { title, content, yjs_state, is_public } = body;
+
+        // Fetch document to verify ownership and tenant
+        const { data: existingDoc, error: fetchError } = await supabaseAdmin
+          .from('documents')
+          .select('id, author_id, tenant_id, title, content')
+          .eq('id', id)
+          .eq('tenant_id', tenant.id)
+          .single();
+
+        if (fetchError) {
+          if (fetchError.code === 'PGRST116') {
+            fastify.log.warn(
+              { documentId: id, tenantId: tenant.id, userId: user.id },
+              'Document not found or access denied'
+            );
+            return reply.code(404).send({
+              error: {
+                code: 'DOCUMENT_NOT_FOUND',
+                message: 'Document not found',
+                details: {},
+              },
+            });
+          }
+
+          fastify.log.error(
+            { error: fetchError, documentId: id, tenantId: tenant.id, userId: user.id },
+            'Failed to fetch document for update'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'FETCH_FAILED',
+              message: 'Failed to fetch document',
+              details: {},
+            },
+          });
+        }
+
+        // Verify ownership - only author can update
+        if (existingDoc.author_id !== user.id) {
+          fastify.log.warn(
+            { documentId: id, authorId: existingDoc.author_id, userId: user.id },
+            'User attempted to update document they do not own'
+          );
+          return reply.code(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Only the document author can update this document',
+              details: {},
+            },
+          });
+        }
+
+        // Build update object with only provided fields
+        const updateData: any = {};
+        if (title !== undefined) updateData.title = title;
+        if (content !== undefined) updateData.content = content;
+        if (is_public !== undefined) updateData.is_public = is_public;
+        
+        // Handle yjs_state - convert base64 to buffer for BYTEA storage
+        if (yjs_state !== undefined) {
+          try {
+            const buffer = Buffer.from(yjs_state, 'base64');
+            updateData.yjs_state = buffer;
+          } catch (decodeError) {
+            fastify.log.warn(
+              { documentId: id, userId: user.id },
+              'Invalid base64 encoding for yjs_state'
+            );
+            return reply.code(400).send({
+              error: {
+                code: 'INVALID_YJS_STATE',
+                message: 'yjs_state must be valid base64-encoded data',
+                details: {},
+              },
+            });
+          }
+        }
+
+        // Update document
+        const { data: updatedDoc, error: updateError } = await supabaseAdmin
+          .from('documents')
+          .update(updateData)
+          .eq('id', id)
+          .eq('tenant_id', tenant.id)
+          .select(`
+            id,
+            title,
+            content,
+            parent_id,
+            is_public,
+            status,
+            author_id,
+            published_at,
+            created_at,
+            updated_at
+          `)
+          .single();
+
+        if (updateError) {
+          fastify.log.error(
+            { error: updateError, documentId: id, tenantId: tenant.id, userId: user.id },
+            'Failed to update document'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'UPDATE_FAILED',
+              message: 'Failed to update document',
+              details: {},
+            },
+          });
+        }
+
+        // Create lineage event for document edit
+        const lineageMetadata: any = {
+          fields_updated: Object.keys(updateData),
+        };
+        
+        // Track what changed for audit purposes
+        if (title !== undefined && title !== existingDoc.title) {
+          lineageMetadata.title_changed = true;
+        }
+        if (content !== undefined && content !== existingDoc.content) {
+          lineageMetadata.content_changed = true;
+        }
+        if (yjs_state !== undefined) {
+          lineageMetadata.yjs_state_updated = true;
+        }
+
+        const { error: lineageError } = await supabaseAdmin
+          .from('document_lineage')
+          .insert({
+            document_id: updatedDoc.id,
+            event_type: 'edited',
+            actor_id: user.id,
+            metadata: lineageMetadata,
+          });
+
+        if (lineageError) {
+          fastify.log.error(
+            { error: lineageError, documentId: updatedDoc.id, userId: user.id },
+            'Failed to create lineage event for document update'
+          );
+        }
+
+        fastify.log.info(
+          { 
+            documentId: updatedDoc.id, 
+            tenantId: tenant.id, 
+            userId: user.id,
+            fieldsUpdated: Object.keys(updateData),
+          },
+          'Document updated successfully'
+        );
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            document: updatedDoc,
+          },
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid request data',
+              details: error.errors,
+            },
+          });
+        }
+
+        fastify.log.error({ error }, 'Unexpected error in PATCH /api/documents/:id');
         return reply.code(500).send({
           error: {
             code: 'INTERNAL_ERROR',
