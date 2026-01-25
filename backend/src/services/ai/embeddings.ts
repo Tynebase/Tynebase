@@ -32,6 +32,11 @@ const COHERE_RERANK_MODEL_ID = 'cohere.rerank-english-v3';
 export const EMBEDDING_DIMENSIONS = 1536;
 
 /**
+ * Timeout for reranking operations (2 seconds)
+ */
+const RERANK_TIMEOUT_MS = 2000;
+
+/**
  * Initializes the Bedrock client with EU region
  * Uses AWS Bedrock API key from environment
  * @throws Error if AWS credentials are not configured
@@ -198,6 +203,21 @@ export async function generateEmbeddingsBatch(
 }
 
 /**
+ * Wraps a promise with a timeout
+ * @param promise - Promise to wrap
+ * @param timeoutMs - Timeout in milliseconds
+ * @returns Promise that rejects if timeout is exceeded
+ */
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error('Operation timed out')), timeoutMs)
+    ),
+  ]);
+}
+
+/**
  * Document interface for reranking
  */
 export interface RerankDocument {
@@ -245,7 +265,7 @@ export async function rerankDocuments(
       body: JSON.stringify(payload),
     });
 
-    const response = await client.send(command);
+    const response = await withTimeout(client.send(command), RERANK_TIMEOUT_MS);
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
     
     if (!responseBody.results || !Array.isArray(responseBody.results)) {

@@ -92,33 +92,38 @@ export async function searchDocuments(options: SearchOptions): Promise<SearchRes
 
     // Step 4: Apply reranking if enabled
     if (useReranking && searchResults.length > 0) {
-      const topResults = searchResults.slice(0, Math.min(rerankTopN * 2, searchResults.length));
-      
-      const documentsToRerank: RerankDocument[] = topResults.map(result => ({
-        text: result.chunkContent,
-        metadata: result.metadata,
-      }));
+      try {
+        const topResults = searchResults.slice(0, Math.min(rerankTopN * 2, searchResults.length));
+        
+        const documentsToRerank: RerankDocument[] = topResults.map(result => ({
+          text: result.chunkContent,
+          metadata: result.metadata,
+        }));
 
-      const rerankedResults = await rerankDocuments(
-        query,
-        documentsToRerank,
-        rerankTopN
-      );
+        const rerankedResults = await rerankDocuments(
+          query,
+          documentsToRerank,
+          rerankTopN
+        );
 
-      const rerankedMap = new Map(
-        rerankedResults.map(r => [topResults[r.index].id, r.relevanceScore])
-      );
+        const rerankedMap = new Map(
+          rerankedResults.map(r => [topResults[r.index].id, r.relevanceScore])
+        );
 
-      searchResults = searchResults.map(result => ({
-        ...result,
-        rerankScore: rerankedMap.get(result.id),
-      }));
+        searchResults = searchResults.map(result => ({
+          ...result,
+          rerankScore: rerankedMap.get(result.id),
+        }));
 
-      searchResults.sort((a, b) => {
-        const scoreA = a.rerankScore ?? -1;
-        const scoreB = b.rerankScore ?? -1;
-        return scoreB - scoreA;
-      });
+        searchResults.sort((a, b) => {
+          const scoreA = a.rerankScore ?? -1;
+          const scoreB = b.rerankScore ?? -1;
+          return scoreB - scoreA;
+        });
+      } catch (rerankError: any) {
+        console.warn(`Reranking failed, falling back to vector search results: ${rerankError.message}`);
+        searchResults = searchResults.slice(0, rerankTopN);
+      }
     }
 
     return searchResults;

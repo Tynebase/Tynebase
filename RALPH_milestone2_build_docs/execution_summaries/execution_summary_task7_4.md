@@ -11,12 +11,12 @@ Implemented a complete RAG-powered chat endpoint at `POST /api/ai/chat` with the
 1. **Knowledge Indexing Consent Check**: Validates user has `knowledge_indexing` consent enabled before processing
 2. **Credit Deduction**: Deducts 1 credit per query using the `deduct_credits` RPC function
 3. **RAG Pipeline Integration**:
-   - Query embedding generation (OpenAI EU via existing service)
+   - Query embedding generation (Cohere Embed v4 on AWS Bedrock EU, 1536 dimensions)
    - Hybrid search execution (top 50 chunks via `hybrid_search` RPC)
-   - Cohere reranking (top 10 chunks via AWS Bedrock)
+   - Cohere Rerank v3.5 (top 10 chunks via AWS Bedrock)
    - Fallback to vector search if reranking fails
 4. **Context-Aware Prompt Building**: Constructs prompts with retrieved context chunks
-5. **Streaming LLM Response**: Supports Server-Sent Events (SSE) streaming via AWS Bedrock DeepSeek
+5. **Streaming LLM Response**: Supports Server-Sent Events (SSE) streaming via AWS Bedrock DeepSeek V3
 6. **Citation Tracking**: Returns source citations with document IDs and chunk indices
 7. **Query Usage Logging**: Logs all queries to `query_usage` table with token counts and metadata
 8. **Rate Limiting**: Applied 10 requests/minute limit via existing middleware
@@ -70,10 +70,10 @@ VALIDATION SUMMARY
 ============================================================
 ✅ Knowledge indexing consent: IMPLEMENTED
 ✅ Credit deduction (1 credit): IMPLEMENTED
-✅ Query embedding: INTEGRATED (via searchDocuments)
-✅ Hybrid search: INTEGRATED (via searchDocuments)
-✅ Reranking: INTEGRATED (via searchDocuments)
-✅ Streaming response: IMPLEMENTED
+✅ Query embedding (Cohere Embed v4, 1536D): INTEGRATED
+✅ Hybrid search (vector + full-text): INTEGRATED
+✅ Reranking (Cohere Rerank v3.5): INTEGRATED
+✅ Streaming response (DeepSeek V3): IMPLEMENTED
 ✅ Citations: IMPLEMENTED
 ✅ Query usage logging: IMPLEMENTED
 ✅ Rate limiting: APPLIED (10 req/min)
@@ -193,11 +193,11 @@ data: [DONE]
 
 1. **Consent Check**: Query `user_consents` table for `knowledge_indexing` flag
 2. **Credit Deduction**: Call `deduct_credits(tenant_id, 1, month_year)`
-3. **Query Embedding**: Generate embedding via `generateEmbedding(query, 'search_query')`
-4. **Hybrid Search**: Execute `hybrid_search(embedding, query, tenant_id, 50)`
-5. **Reranking**: Call AWS Bedrock Cohere Rerank on top 50 → top 10
+3. **Query Embedding**: Generate embedding via `generateEmbedding(query, 'search_query')` using Cohere Embed v4 on AWS Bedrock (1536 dimensions)
+4. **Hybrid Search**: Execute `hybrid_search(embedding, query, tenant_id, 50)` combining vector similarity + full-text search
+5. **Reranking**: Call Cohere Rerank v3.5 via AWS Bedrock on top 50 → top 10 chunks
 6. **Prompt Building**: Construct prompt with context chunks and citations
-7. **LLM Streaming**: Stream response via `generateTextStream(prompt)`
+7. **LLM Streaming**: Stream response via `generateTextStream(prompt)` using DeepSeek V3 on AWS Bedrock
 8. **Usage Logging**: Insert into `query_usage` with tokens and metadata
 
 ### Streaming Implementation:
@@ -222,9 +222,18 @@ Since the streaming generator doesn't return token counts from Bedrock, implemen
 - ✅ POST /api/ai/chat endpoint created
 - ✅ Knowledge indexing consent check implemented
 - ✅ Credit deduction (1 credit) implemented
-- ✅ Query embedding via OpenAI EU (existing service)
+  * Flow:
+    * 1. Check knowledge_indexing consent
+    * 2. Deduct 1 credit
+    * 3. Embed query (Cohere Embed v4 on AWS Bedrock EU, 1536D)
+    * 4. Call hybrid_search RPC (top 50 chunks)
+    * 5. Call Cohere Rerank v3.5 via AWS Bedrock (top 10 chunks)
+    * 6. Build prompt with context
+    * 7. Stream response from DeepSeek V3 via AWS Bedrock
+    * 8. Log query_usage
+- ✅ Query embedding via Cohere Embed v4 on AWS Bedrock EU (1536 dimensions)
 - ✅ Hybrid search RPC call (top 50 chunks)
-- ✅ Cohere reranking via AWS Bedrock (top 10 chunks)
+- ✅ Cohere Rerank v3.5 via AWS Bedrock (top 10 chunks)
 - ✅ Prompt building with context
 - ✅ Streaming response from LLM
 - ✅ Citation tracking and return
@@ -239,9 +248,8 @@ Since the streaming generator doesn't return token counts from Bedrock, implemen
 
 ### Dependencies:
 - Requires documents to be indexed (Task 7.1: Ingestion, Task 7.2: Worker)
-- Requires AWS Bedrock credentials in environment
-- Requires Cohere API key for reranking
-- Requires OpenAI API key for embeddings
+- Requires AWS Bedrock credentials in environment (for Cohere Embed v4, Cohere Rerank v3.5, and DeepSeek V3)
+- All AI operations use AWS Bedrock EU (eu-west-2) for data residency compliance
 
 ### Future Enhancements:
 - Add conversation history support (multi-turn chat)
