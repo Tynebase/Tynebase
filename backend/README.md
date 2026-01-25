@@ -32,13 +32,36 @@ Copy `.env.example` to `.env` and configure:
 cp .env.example .env
 ```
 
-Required environment variables:
+### Required Environment Variables
+
+The application uses Zod schema validation and will **fail to start** if required variables are missing or invalid.
+
+**Server Configuration:**
 - `PORT` - Server port (default: 8080)
-- `NODE_ENV` - Environment (development/production/test)
-- `SUPABASE_URL` - Your Supabase project URL
-- `SUPABASE_ANON_KEY` - Supabase anonymous key
-- `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key
-- `ALLOWED_ORIGINS` - Comma-separated list of allowed CORS origins
+- `NODE_ENV` - Environment: `development`, `production`, or `test` (default: development)
+- `LOG_LEVEL` - Log level: `fatal`, `error`, `warn`, `info`, `debug`, or `trace` (default: info)
+
+**Supabase Configuration (REQUIRED):**
+- `SUPABASE_URL` - Your Supabase project URL (must be valid URL)
+- `SUPABASE_ANON_KEY` - Supabase anonymous key (required)
+- `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key (required)
+
+**CORS Configuration:**
+- `ALLOWED_ORIGINS` - Comma-separated list of allowed CORS origins (default: http://localhost:3000)
+
+**Rate Limiting:**
+- `RATE_LIMIT_GLOBAL` - Global rate limit per window (default: 100)
+- `RATE_LIMIT_WINDOW_GLOBAL` - Global rate limit window in ms (default: 600000)
+- `RATE_LIMIT_AI` - AI endpoint rate limit per window (default: 10)
+- `RATE_LIMIT_WINDOW_AI` - AI rate limit window in ms (default: 60000)
+
+### Security Notes
+
+⚠️ **NEVER commit `.env` files to version control**
+- `.env` is already in `.gitignore`
+- Use `.env.example` as a template only
+- Store production secrets in secure secret management systems
+- Rotate keys regularly in production environments
 
 ## Development
 

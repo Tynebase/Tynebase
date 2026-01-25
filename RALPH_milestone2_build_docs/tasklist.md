@@ -2,16 +2,16 @@
 
 **Project:** TyneBase Backend - Milestone 2  
 **Protocol:** RALPH v2.0  
-**Last Updated:** 2026-01-25 09:57
+**Last Updated:** 2026-01-25 10:02
 
 ---
 
 ## Progress Overview
 - **Total Tasks:** 121 (excl. 8 deferred)
-- **Completed:** 13
+- **Completed:** 14
 - **In Progress:** 0
 - **Blocked:** 0
-- **Remaining:** 108
+- **Remaining:** 107
 
 ---
 
@@ -44,12 +44,16 @@
 - [x] **1.11**: [DB] Create Storage Buckets with RLS
 - [x] **1.12**: [DB] Create Hybrid Search RPC Function
 - [x] **2.1**: [API] Initialize Fastify Project
+- [x] **2.2**: [API] Setup Environment Configuration
 
 ---
 
 ## Execution History (Last 10):
 | Timestamp | Task | Action | Result |
 |-----------|------|--------|--------|
+| 2026-01-25T10:02 | 2.2 | completed | PASS |
+| 2026-01-25T09:59 | 2.2 | started | in_progress |
+| 2026-01-25T09:57 | None | commit | feat(task-2.1): initialize Fas... |
 | 2026-01-25T09:57 | 2.1 | completed | PASS |
 | 2026-01-25T09:53 | 2.1 | started | in_progress |
 | 2026-01-25T09:51 | None | commit | feat(task-1.12): create hybrid... |
@@ -57,6 +61,3 @@
 | 2026-01-25T09:48 | 1.12 | started | in_progress |
 | 2026-01-25T09:47 | None | commit | feat(task-1.11): create storag... |
 | 2026-01-25T09:47 | 1.11 | completed | PASS |
-| 2026-01-25T09:44 | 1.11 | started | in_progress |
-| 2026-01-25T09:43 | None | commit | feat(task-1.10): create credit... |
-| 2026-01-25T09:42 | 1.10 | completed | PASS |
