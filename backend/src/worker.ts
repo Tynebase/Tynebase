@@ -1,5 +1,5 @@
-import { supabaseAdmin } from './lib/supabase';
 import { env, isDev } from './config/env';
+import { claimJob } from './utils/claimJob';
 
 const WORKER_ID = `worker-${process.pid}-${Date.now()}`;
 const POLL_INTERVAL_MS = 1000;
@@ -25,34 +25,23 @@ const startWorker = async () => {
     try {
       console.log(`[Worker ${WORKER_ID}] Polling for jobs...`);
       
-      const { data: job, error } = await supabaseAdmin
-        .from('job_queue')
-        .select('*')
-        .eq('status', 'pending')
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .single();
+      const job = await claimJob(WORKER_ID);
 
-      if (error) {
-        if (error.code === 'PGRST116') {
-          if (isDev) {
-            console.log(`[Worker ${WORKER_ID}] No pending jobs found`);
-          }
-          return;
+      if (!job) {
+        if (isDev) {
+          console.log(`[Worker ${WORKER_ID}] No pending jobs found`);
         }
-        throw error;
+        return;
       }
 
-      if (job) {
-        console.log(`[Worker ${WORKER_ID}] Found job ${job.id} (type: ${job.type})`);
-        
-        if (!validateJobPayload(job)) {
-          console.error(`[Worker ${WORKER_ID}] Invalid job payload for job ${job.id}`);
-          return;
-        }
-
-        console.log(`[Worker ${WORKER_ID}] Processing job ${job.id}...`);
+      console.log(`[Worker ${WORKER_ID}] Claimed job ${job.id} (type: ${job.type})`);
+      
+      if (!validateJobPayload(job)) {
+        console.error(`[Worker ${WORKER_ID}] Invalid job payload for job ${job.id}`);
+        return;
       }
+
+      console.log(`[Worker ${WORKER_ID}] Processing job ${job.id}...`);
     } catch (error) {
       console.error(`[Worker ${WORKER_ID}] Error polling jobs:`, error);
     }
