@@ -71,16 +71,15 @@ export default async function superAdminImpersonateRoutes(fastify: FastifyInstan
         }
 
         // Find an admin user from the target tenant to impersonate
-        const { data: targetUser, error: userError } = await supabaseAdmin
+        const { data: targetUsers, error: userError } = await supabaseAdmin
           .from('users')
           .select('id, email, full_name, role, tenant_id')
           .eq('tenant_id', tenantId)
           .eq('status', 'active')
           .order('role', { ascending: true }) // Prefer admin role
-          .limit(1)
-          .single();
+          .limit(1);
 
-        if (userError || !targetUser) {
+        if (userError || !targetUsers || targetUsers.length === 0) {
           request.log.warn(
             {
               superAdminId,
@@ -96,6 +95,8 @@ export default async function superAdminImpersonateRoutes(fastify: FastifyInstan
             },
           });
         }
+
+        const targetUser = targetUsers[0];
 
         // Generate a short-lived access token using Supabase Admin API
         // We use generateLink with type 'magiclink' to get an access token
