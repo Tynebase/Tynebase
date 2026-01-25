@@ -12,15 +12,16 @@
  */
 
 /**
- * Chunking configuration based on research
+ * Chunking configuration based on PRD requirements
+ * Using word-based sizing for optimal RAG performance
  */
 export const CHUNKING_CONFIG = {
-  TARGET_CHUNK_SIZE: 400, // tokens (optimal for retrieval precision)
-  OVERLAP_SIZE: 50, // tokens (~12% overlap for context continuity)
-  MIN_CHUNK_SIZE: 50, // tokens (avoid tiny chunks)
-  MAX_CHUNK_SIZE: 600, // tokens (hard limit)
+  TARGET_CHUNK_SIZE: 600, // words (optimal balance between context and precision)
+  OVERLAP_SIZE: 50, // words (for context continuity)
+  MIN_CHUNK_SIZE: 100, // words (avoid tiny chunks - PRD requirement)
+  MAX_CHUNK_SIZE: 1000, // words (hard limit - PRD requirement)
   SEMANTIC_SIMILARITY_THRESHOLD: 0.85, // for merging adjacent chunks
-  CHARS_PER_TOKEN: 4, // approximate conversion
+  WORDS_PER_TOKEN: 0.75, // approximate conversion (1 token ≈ 0.75 words)
 };
 
 /**
@@ -131,10 +132,18 @@ function extractDocumentStructure(markdown: string): DocumentSection[] {
 }
 
 /**
- * Estimates token count from text
+ * Estimates word count from text
+ */
+function estimateWordCount(text: string): number {
+  return text.split(/\s+/).filter(w => w.length > 0).length;
+}
+
+/**
+ * Estimates token count from word count
  */
 function estimateTokenCount(text: string): number {
-  return Math.ceil(text.length / CHUNKING_CONFIG.CHARS_PER_TOKEN);
+  const wordCount = estimateWordCount(text);
+  return Math.ceil(wordCount / CHUNKING_CONFIG.WORDS_PER_TOKEN);
 }
 
 /**
@@ -151,10 +160,10 @@ function splitAtSemanticBoundaries(text: string, targetSize: number): string[] {
   let currentTokens = 0;
 
   for (const paragraph of paragraphs) {
-    const paragraphTokens = estimateTokenCount(paragraph);
+    const paragraphWords = estimateWordCount(paragraph);
     
     // If paragraph alone exceeds max size, split it further
-    if (paragraphTokens > CHUNKING_CONFIG.MAX_CHUNK_SIZE) {
+    if (paragraphWords > CHUNKING_CONFIG.MAX_CHUNK_SIZE) {
       if (currentChunk) {
         chunks.push(currentChunk.trim());
         currentChunk = '';
@@ -164,28 +173,28 @@ function splitAtSemanticBoundaries(text: string, targetSize: number): string[] {
       // Split large paragraph by sentences
       const sentences = paragraph.match(/[^.!?]+[.!?]+/g) || [paragraph];
       for (const sentence of sentences) {
-        const sentenceTokens = estimateTokenCount(sentence);
+        const sentenceWords = estimateWordCount(sentence);
         
-        if (currentTokens + sentenceTokens > targetSize && currentChunk) {
+        if (currentTokens + sentenceWords > targetSize && currentChunk) {
           chunks.push(currentChunk.trim());
           currentChunk = sentence;
-          currentTokens = sentenceTokens;
+          currentTokens = sentenceWords;
         } else {
           currentChunk += (currentChunk ? ' ' : '') + sentence;
-          currentTokens += sentenceTokens;
+          currentTokens += sentenceWords;
         }
       }
     }
     // If adding paragraph would exceed target, save current chunk
-    else if (currentTokens + paragraphTokens > targetSize && currentChunk) {
+    else if (currentTokens + paragraphWords > targetSize && currentChunk) {
       chunks.push(currentChunk.trim());
       currentChunk = paragraph;
-      currentTokens = paragraphTokens;
+      currentTokens = paragraphWords;
     }
     // Add paragraph to current chunk
     else {
       currentChunk += (currentChunk ? '\n\n' : '') + paragraph;
-      currentTokens += paragraphTokens;
+      currentTokens += paragraphWords;
     }
   }
 
@@ -200,11 +209,11 @@ function splitAtSemanticBoundaries(text: string, targetSize: number): string[] {
 /**
  * Adds overlap between chunks for context continuity
  */
-function addOverlap(chunks: string[], overlapTokens: number): string[] {
+function addOverlap(chunks: string[], overlapWords: number): string[] {
   if (chunks.length <= 1) return chunks;
 
   const overlappedChunks: string[] = [];
-  const overlapChars = overlapTokens * CHUNKING_CONFIG.CHARS_PER_TOKEN;
+  const overlapChars = overlapWords * 5; // Approximate chars per word
 
   for (let i = 0; i < chunks.length; i++) {
     let chunk = chunks[i];
@@ -231,24 +240,29 @@ function addOverlap(chunks: string[], overlapTokens: number): string[] {
  * Third pass: Merge small adjacent chunks
  */
 function mergeSmallChunks(chunks: string[], minSize: number): string[] {
+  if (chunks.length === 0) return [];
+  
   const merged: string[] = [];
-  let currentChunk = '';
+  let currentChunk = chunks[0];
+  let currentWordCount = estimateWordCount(currentChunk);
 
-  for (const chunk of chunks) {
-    const tokenCount = estimateTokenCount(chunk);
+  for (let i = 1; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    const wordCount = estimateWordCount(chunk);
+    const combinedWordCount = currentWordCount + wordCount;
     
-    if (tokenCount < minSize && currentChunk) {
+    // Merge if current chunk is too small OR next chunk is too small AND combined size is reasonable
+    if ((currentWordCount < minSize || wordCount < minSize) && combinedWordCount <= CHUNKING_CONFIG.MAX_CHUNK_SIZE) {
       currentChunk += '\n\n' + chunk;
-    } else if (tokenCount < minSize) {
-      currentChunk = chunk;
+      currentWordCount = combinedWordCount;
     } else {
-      if (currentChunk) {
-        merged.push(currentChunk);
-      }
+      merged.push(currentChunk);
       currentChunk = chunk;
+      currentWordCount = wordCount;
     }
   }
 
+  // Add the last chunk
   if (currentChunk) {
     merged.push(currentChunk);
   }
@@ -303,10 +317,10 @@ export function chunkMarkdownSemanticaly(
   for (const section of sections) {
     if (!section.content.trim()) continue;
 
-    const sectionTokens = estimateTokenCount(section.content);
+    const sectionWords = estimateWordCount(section.content);
 
     // If section is small enough, keep it as one chunk
-    if (sectionTokens <= CHUNKING_CONFIG.TARGET_CHUNK_SIZE) {
+    if (sectionWords <= CHUNKING_CONFIG.TARGET_CHUNK_SIZE) {
       const content = addContextualPrefix(
         section.content,
         documentTitle,
