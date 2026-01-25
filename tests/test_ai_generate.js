@@ -128,7 +128,7 @@ async function testAIGenerate() {
       },
       body: JSON.stringify({
         prompt: 'Write a short introduction about artificial intelligence and its impact on modern technology.',
-        model: 'gpt-5.2',
+        model: 'deepseek-v3',
         max_tokens: 500,
       }),
     });

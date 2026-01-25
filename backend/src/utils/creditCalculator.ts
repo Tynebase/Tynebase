@@ -15,21 +15,19 @@ export type AIModel =
   | 'gpt-4'
   | 'gpt-4-turbo'
   | 'gpt-3.5-turbo'
-  | 'gpt-5.2'
+  | 'deepseek-v3'
   | 'claude-3-opus'
   | 'claude-3-sonnet'
   | 'claude-3-haiku'
   | 'claude-sonnet-4.5'
-  | 'claude-opus-4.5'
   | 'gemini-3-flash';
 
 /**
  * Model multipliers for premium models
  */
 const MODEL_MULTIPLIERS: Record<string, number> = {
-  'gpt-5.2': 2,
+  'deepseek-v3': 1.5,
   'claude-sonnet-4.5': 2,
-  'claude-opus-4.5': 5,
 };
 
 /**

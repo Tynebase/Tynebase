@@ -4,7 +4,7 @@ import { rateLimitMiddleware } from '../middleware/rateLimit';
 import { tenantContextMiddleware } from '../middleware/tenantContext';
 import { authMiddleware } from '../middleware/auth';
 import { supabaseAdmin } from '../lib/supabase';
-import { generateText } from '../services/ai/openai';
+import { generateText } from '../services/ai/bedrock';
 
 const EnhanceRequestSchema = z.object({
   document_id: z.string().uuid('Invalid document ID format'),
@@ -229,7 +229,7 @@ Provide only the JSON response, no additional text.`;
         
         const aiResponse = await generateText({
           prompt,
-          model: 'gpt-5.2',
+          model: 'deepseek-v3',
           maxTokens: 2000,
           temperature: 0.3,
         });

@@ -13,7 +13,7 @@
  */
 
 import { supabaseAdmin } from '../lib/supabase';
-import { generateText } from '../services/ai/openai';
+import { generateText } from '../services/ai/bedrock';
 import { generateText as generateTextAnthropic } from '../services/ai/anthropic';
 import { generateText as generateTextVertex } from '../services/ai/vertex';
 import { completeJob } from '../utils/completeJob';
@@ -23,7 +23,7 @@ import { z } from 'zod';
 
 const AIGenerationPayloadSchema = z.object({
   prompt: z.string().min(1),
-  model: z.enum(['gpt-5.2', 'claude-sonnet-4.5', 'claude-opus-4.5', 'gemini-3-flash']),
+  model: z.enum(['deepseek-v3', 'claude-sonnet-4.5', 'gemini-3-flash']),
   max_tokens: z.number().int().positive().optional(),
   user_id: z.string().uuid(),
   estimated_credits: z.number().int().positive(),
@@ -181,7 +181,7 @@ async function callAIProvider(
     setTimeout(() => reject(new Error('AI generation timed out after 60 seconds')), timeout);
   });
 
-  if (model.startsWith('gpt-')) {
+  if (model.startsWith('deepseek-')) {
     const result = await Promise.race([
       generateText({ prompt, model: model as AIModel, maxTokens }),
       timeoutPromise,

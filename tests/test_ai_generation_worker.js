@@ -61,7 +61,7 @@ async function testAIGenerationWorker() {
         status: 'pending',
         payload: {
           prompt: 'Write a brief introduction about the importance of artificial intelligence in modern technology. Keep it under 200 words.',
-          model: 'gpt-5.2',
+          model: 'deepseek-v3',
           max_tokens: 500,
           user_id: userId,
           estimated_credits: 1,

@@ -1,6 +1,6 @@
 /**
- * Anthropic Integration Service via AWS Bedrock
- * Handles text generation using Claude models through AWS Bedrock (eu-west-2)
+ * AWS Bedrock Integration Service for DeepSeek
+ * Handles text generation using DeepSeek V3 model through AWS Bedrock (eu-west-2)
  * 
  * Features:
  * - Streaming support for real-time responses
@@ -8,10 +8,6 @@
  * - 30-second timeout
  * - Token counting for billing
  * - UK data residency compliance (eu-west-2)
- * 
- * Supported Models:
- * - claude-sonnet-4.5 (balanced performance)
- * - claude-opus-4.5 (highest capability)
  */
 
 import {
@@ -28,50 +24,38 @@ import { countTokens } from '../../utils/tokenCounter';
 let bedrockClient: BedrockRuntimeClient | null = null;
 
 /**
- * Model ID mapping for Bedrock
+ * DeepSeek model ID in Bedrock
  */
-const BEDROCK_MODEL_IDS: Record<string, string> = {
-  'claude-sonnet-4.5': 'anthropic.claude-sonnet-4-5-20250929-v1:0',
-};
+const DEEPSEEK_MODEL_ID = 'deepseek.v3-v1:0';
 
 /**
  * Initializes the Bedrock client with EU region
- * Uses IAM role credentials (recommended) or access keys
+ * Uses AWS Bedrock API key from environment
  * @throws Error if AWS credentials are not configured
  */
 function getBedrockClient(): BedrockRuntimeClient {
   if (!bedrockClient) {
-    // AWS SDK will automatically use credentials from:
-    // 1. Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
-    // 2. IAM role (recommended for production)
-    // 3. AWS credentials file (~/.aws/credentials)
+    const apiKey = process.env.AWS_BEDROCK_API_KEY;
+    const region = process.env.AWS_REGION || 'eu-west-2';
     
+    if (!apiKey) {
+      throw new Error('AWS_BEDROCK_API_KEY environment variable is not set');
+    }
+
     bedrockClient = new BedrockRuntimeClient({
-      region: 'eu-west-2', // UK region for data residency
-      maxAttempts: 3, // Retry on transient failures
+      region,
+      credentials: {
+        accessKeyId: apiKey,
+        secretAccessKey: apiKey,
+      },
+      maxAttempts: 3,
     });
   }
   return bedrockClient;
 }
 
 /**
- * Converts model name to Bedrock model ID
- * @param model - Model name (e.g., 'claude-sonnet-4.5')
- * @returns Bedrock model ID
- * @throws Error if model not supported
- */
-function getBedrockModelId(model: string): string {
-  const modelId = BEDROCK_MODEL_IDS[model];
-  if (!modelId) {
-    throw new Error(
-      `Unsupported Anthropic model: ${model}. Supported models: ${Object.keys(BEDROCK_MODEL_IDS).join(', ')}`
-    );
-  }
-  return modelId;
-}
-
-/**
- * Generates text using Anthropic Claude models via AWS Bedrock
+ * Generates text using DeepSeek V3 via AWS Bedrock
  * 
  * @param request - Generation request parameters
  * @returns Generation response with content and token counts
@@ -81,87 +65,67 @@ export async function generateText(
   request: AIGenerationRequest
 ): Promise<AIGenerationResponse> {
   const client = getBedrockClient();
-  const model = request.model || 'claude-sonnet-4.5';
   const maxTokens = request.maxTokens || 4000;
   const temperature = request.temperature ?? 0.7;
 
   try {
-    const modelId = getBedrockModelId(model);
-
-    // Count input tokens (approximate using tiktoken)
     const inputTokens = countTokens(request.prompt, 'gpt-4');
 
-    // Prepare Bedrock request payload
     const payload = {
-      anthropic_version: 'bedrock-2023-05-31',
+      prompt: request.prompt,
       max_tokens: maxTokens,
       temperature,
-      messages: [
-        {
-          role: 'user',
-          content: request.prompt,
-        },
-      ],
+      top_p: 0.9,
     };
 
-    // Call Bedrock API
     const command = new InvokeModelCommand({
-      modelId,
+      modelId: DEEPSEEK_MODEL_ID,
       contentType: 'application/json',
       accept: 'application/json',
       body: JSON.stringify(payload),
     });
 
     const response = await client.send(command);
-
-    // Parse response
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
     
-    // Extract content from Anthropic response format
-    const content = responseBody.content?.[0]?.text || '';
-    const outputTokens = responseBody.usage?.output_tokens || countTokens(content, 'gpt-4');
-    const actualInputTokens = responseBody.usage?.input_tokens || inputTokens;
+    const content = responseBody.completion || responseBody.text || '';
+    const outputTokens = responseBody.usage?.completion_tokens || countTokens(content, 'gpt-4');
+    const actualInputTokens = responseBody.usage?.prompt_tokens || inputTokens;
 
     return {
       content,
-      model,
+      model: 'deepseek-v3',
       tokensInput: actualInputTokens,
       tokensOutput: outputTokens,
       provider: 'bedrock',
     };
   } catch (error: any) {
-    // Handle throttling
     if (error?.name === 'ThrottlingException' || error?.$metadata?.httpStatusCode === 429) {
-      throw new Error('Anthropic Bedrock rate limit exceeded. Please try again later.');
+      throw new Error('DeepSeek Bedrock rate limit exceeded. Please try again later.');
     }
 
-    // Handle timeout
     if (error?.name === 'TimeoutError' || error?.message?.includes('timeout')) {
-      throw new Error('Anthropic Bedrock request timed out after 30 seconds');
+      throw new Error('DeepSeek Bedrock request timed out after 30 seconds');
     }
 
-    // Handle authentication/authorization errors
     if (error?.name === 'UnauthorizedException' || error?.$metadata?.httpStatusCode === 401) {
-      throw new Error('AWS credentials are invalid or expired');
+      throw new Error('AWS Bedrock API key is invalid or expired');
     }
 
     if (error?.name === 'AccessDeniedException' || error?.$metadata?.httpStatusCode === 403) {
-      throw new Error('AWS IAM role does not have permission to invoke Bedrock models');
+      throw new Error('AWS Bedrock API key does not have permission to invoke DeepSeek model');
     }
 
-    // Handle model not found
     if (error?.name === 'ResourceNotFoundException' || error?.$metadata?.httpStatusCode === 404) {
-      throw new Error(`Bedrock model not found or not enabled in eu-west-2 region`);
+      throw new Error('DeepSeek model not found or not enabled in eu-west-2 region');
     }
 
-    // Handle validation errors
     if (error?.name === 'ValidationException' || error?.$metadata?.httpStatusCode === 400) {
       throw new Error(`Invalid request to Bedrock: ${error?.message || 'Unknown validation error'}`);
     }
 
-    // Generic error
     throw new Error(
-      `Anthropic Bedrock API error: ${error?.message || 'Unknown error'}`
+      `DeepSeek Bedrock API error: ${error?.message || 'Unknown error'}`
     );
   }
 }
@@ -177,32 +141,22 @@ export async function* generateTextStream(
   request: AIGenerationRequest
 ): AsyncGenerator<string, AIGenerationResponse, undefined> {
   const client = getBedrockClient();
-  const model = request.model || 'claude-sonnet-4.5';
   const maxTokens = request.maxTokens || 4000;
   const temperature = request.temperature ?? 0.7;
 
   try {
-    const modelId = getBedrockModelId(model);
-
-    // Count input tokens (approximate)
     const inputTokens = countTokens(request.prompt, 'gpt-4');
 
-    // Prepare Bedrock request payload
     const payload = {
-      anthropic_version: 'bedrock-2023-05-31',
+      prompt: request.prompt,
       max_tokens: maxTokens,
       temperature,
-      messages: [
-        {
-          role: 'user',
-          content: request.prompt,
-        },
-      ],
+      top_p: 0.9,
+      stream: true,
     };
 
-    // Call Bedrock API with streaming
     const command = new InvokeModelWithResponseStreamCommand({
-      modelId,
+      modelId: DEEPSEEK_MODEL_ID,
       contentType: 'application/json',
       accept: 'application/json',
       body: JSON.stringify(payload),
@@ -218,78 +172,61 @@ export async function* generateTextStream(
     let actualInputTokens = inputTokens;
     let actualOutputTokens = 0;
 
-    // Stream chunks to caller
     for await (const event of response.body) {
       if (event.chunk) {
         const chunkData = JSON.parse(new TextDecoder().decode(event.chunk.bytes));
         
-        // Handle different event types
-        if (chunkData.type === 'content_block_delta') {
-          const delta = chunkData.delta?.text || '';
-          if (delta) {
-            fullContent += delta;
-            yield delta;
-          }
-        } else if (chunkData.type === 'message_start') {
-          // Extract token usage from message start
-          if (chunkData.message?.usage?.input_tokens) {
-            actualInputTokens = chunkData.message.usage.input_tokens;
-          }
-        } else if (chunkData.type === 'message_delta') {
-          // Extract output token count from message delta
-          if (chunkData.usage?.output_tokens) {
-            actualOutputTokens = chunkData.usage.output_tokens;
-          }
+        const delta = chunkData.completion || chunkData.text || '';
+        if (delta) {
+          fullContent += delta;
+          yield delta;
+        }
+
+        if (chunkData.usage) {
+          actualInputTokens = chunkData.usage.prompt_tokens || actualInputTokens;
+          actualOutputTokens = chunkData.usage.completion_tokens || actualOutputTokens;
         }
       }
     }
 
-    // Fallback token counting if not provided
     if (actualOutputTokens === 0) {
       actualOutputTokens = countTokens(fullContent, 'gpt-4');
     }
 
-    // Return final response
     return {
       content: fullContent,
-      model,
+      model: 'deepseek-v3',
       tokensInput: actualInputTokens,
       tokensOutput: actualOutputTokens,
       provider: 'bedrock',
     };
   } catch (error: any) {
-    // Handle throttling
     if (error?.name === 'ThrottlingException' || error?.$metadata?.httpStatusCode === 429) {
-      throw new Error('Anthropic Bedrock rate limit exceeded. Please try again later.');
+      throw new Error('DeepSeek Bedrock rate limit exceeded. Please try again later.');
     }
 
-    // Handle timeout
     if (error?.name === 'TimeoutError' || error?.message?.includes('timeout')) {
-      throw new Error('Anthropic Bedrock streaming request timed out after 30 seconds');
+      throw new Error('DeepSeek Bedrock streaming request timed out after 30 seconds');
     }
 
-    // Handle authentication/authorization errors
     if (error?.name === 'UnauthorizedException' || error?.$metadata?.httpStatusCode === 401) {
-      throw new Error('AWS credentials are invalid or expired');
+      throw new Error('AWS Bedrock API key is invalid or expired');
     }
 
     if (error?.name === 'AccessDeniedException' || error?.$metadata?.httpStatusCode === 403) {
-      throw new Error('AWS IAM role does not have permission to invoke Bedrock models');
+      throw new Error('AWS Bedrock API key does not have permission to invoke DeepSeek model');
     }
 
-    // Handle model not found
     if (error?.name === 'ResourceNotFoundException' || error?.$metadata?.httpStatusCode === 404) {
-      throw new Error(`Bedrock model not found or not enabled in eu-west-2 region`);
+      throw new Error('DeepSeek model not found or not enabled in eu-west-2 region');
     }
 
-    // Handle validation errors
     if (error?.name === 'ValidationException' || error?.$metadata?.httpStatusCode === 400) {
       throw new Error(`Invalid streaming request to Bedrock: ${error?.message || 'Unknown validation error'}`);
     }
 
-    // Generic error
     throw new Error(
-      `Anthropic Bedrock streaming error: ${error?.message || 'Unknown error'}`
+      `DeepSeek Bedrock streaming error: ${error?.message || 'Unknown error'}`
     );
   }
 }

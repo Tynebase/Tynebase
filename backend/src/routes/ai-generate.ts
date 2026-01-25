@@ -13,9 +13,9 @@ const GenerateRequestSchema = z.object({
   prompt: z.string()
     .min(10, 'Prompt must be at least 10 characters')
     .max(10000, 'Prompt must not exceed 10,000 characters'),
-  model: z.enum(['gpt-5.2', 'claude-sonnet-4.5', 'claude-opus-4.5', 'gemini-3-flash'])
+  model: z.enum(['deepseek-v3', 'claude-sonnet-4.5', 'gemini-3-flash'])
     .optional()
-    .default('gpt-5.2'),
+    .default('deepseek-v3'),
   max_tokens: z.number()
     .int()
     .min(100)

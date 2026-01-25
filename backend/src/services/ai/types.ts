@@ -3,12 +3,11 @@
  * Defines the contract for AI provider implementations
  */
 
-export type AIProvider = 'openai' | 'anthropic' | 'vertex';
+export type AIProvider = 'bedrock' | 'vertex';
 
 export type AIModel = 
-  | 'gpt-5.2'
+  | 'deepseek-v3'
   | 'claude-sonnet-4.5'
-  | 'claude-opus-4.5'
   | 'gemini-3-flash';
 
 export type AICapability = 'text-generation' | 'video-transcription' | 'audio-transcription';

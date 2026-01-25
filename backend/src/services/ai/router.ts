@@ -3,8 +3,7 @@
  * Routes AI requests to the appropriate provider based on tenant settings
  * 
  * Supported Providers:
- * - OpenAI EU (api.eu.openai.com): gpt-5.2 (default for text generation)
- * - Anthropic Bedrock UK (eu-west-2): claude-sonnet-4.5, claude-opus-4.5
+ * - AWS Bedrock (eu-west-2): deepseek-v3 (default), claude-sonnet-4.5
  * - Vertex AI London (europe-west2): gemini-3-flash (video/audio only)
  */
 
@@ -14,26 +13,17 @@ import { AIProvider, AIModel, AIProviderConfig, TenantAISettings, AICapability }
  * Provider configurations with endpoints and capabilities
  */
 const PROVIDER_CONFIGS: Record<AIProvider, AIProviderConfig[]> = {
-  openai: [
+  bedrock: [
     {
-      provider: 'openai',
-      model: 'gpt-5.2',
-      capabilities: ['text-generation'],
-      endpoint: 'https://api.eu.openai.com',
-      region: 'eu-west-1',
-    },
-  ],
-  anthropic: [
-    {
-      provider: 'anthropic',
-      model: 'claude-sonnet-4.5',
+      provider: 'bedrock',
+      model: 'deepseek-v3',
       capabilities: ['text-generation'],
       endpoint: 'bedrock-runtime.eu-west-2.amazonaws.com',
       region: 'eu-west-2',
     },
     {
-      provider: 'anthropic',
-      model: 'claude-opus-4.5',
+      provider: 'bedrock',
+      model: 'claude-sonnet-4.5',
       capabilities: ['text-generation'],
       endpoint: 'bedrock-runtime.eu-west-2.amazonaws.com',
       region: 'eu-west-2',
@@ -53,13 +43,13 @@ const PROVIDER_CONFIGS: Record<AIProvider, AIProviderConfig[]> = {
 /**
  * Default provider for text generation
  */
-const DEFAULT_PROVIDER: AIProvider = 'openai';
-const DEFAULT_MODEL: AIModel = 'gpt-5.2';
+const DEFAULT_PROVIDER: AIProvider = 'bedrock';
+const DEFAULT_MODEL: AIModel = 'deepseek-v3';
 
 /**
  * Valid provider names for validation
  */
-const VALID_PROVIDERS: AIProvider[] = ['openai', 'anthropic', 'vertex'];
+const VALID_PROVIDERS: AIProvider[] = ['bedrock', 'vertex'];
 
 /**
  * Routes to the appropriate AI provider based on tenant settings and capability requirements
