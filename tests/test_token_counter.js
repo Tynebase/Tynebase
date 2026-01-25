@@ -1,4 +1,4 @@
-const { countTokens, countMessageTokens, estimateCost } = require('./dist/utils/tokenCounter');
+const { countTokens, countMessageTokens, estimateCost } = require('../backend/dist/utils/tokenCounter');
 
 console.log('=== Token Counter Validation ===\n');
 

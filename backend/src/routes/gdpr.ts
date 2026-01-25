@@ -1,6 +1,8 @@
 import { FastifyInstance } from 'fastify';
 import { supabaseAdmin } from '../lib/supabase';
 import { authMiddleware } from '../middleware/auth';
+import { dispatchJob } from '../utils/dispatchJob';
+import { z } from 'zod';
 
 /**
  * GDPR Compliance Routes
@@ -184,6 +186,155 @@ export default async function gdprRoutes(fastify: FastifyInstance) {
           error: {
             code: 'EXPORT_FAILED',
             message: 'Failed to export user data',
+            details: error instanceof Error ? error.message : 'Unknown error',
+          },
+        });
+      }
+    }
+  );
+
+  /**
+   * DELETE /api/gdpr/delete-account
+   * 
+   * Initiates account deletion process for GDPR compliance (Right to be Forgotten)
+   * 
+   * Process:
+   * 1. Validates confirmation token to prevent accidental deletion
+   * 2. Marks user as deleted immediately
+   * 3. Dispatches async job to anonymize/remove all user data
+   * 
+   * The job will:
+   * - Anonymize user profile data
+   * - Remove or anonymize documents
+   * - Clean up embeddings and usage history
+   * - Preserve audit trails as required by law
+   * 
+   * Security:
+   * - Requires authentication
+   * - Requires confirmation token matching user ID
+   * - Irreversible operation
+   * - Logs deletion request in audit trail
+   */
+  fastify.delete(
+    '/api/gdpr/delete-account',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const user = (request as any).user;
+      const userId = user.id;
+      const tenantId = user.tenant_id;
+
+      const DeleteAccountSchema = z.object({
+        confirmation_token: z.string().min(1, 'Confirmation token is required'),
+      });
+
+      try {
+        const body = DeleteAccountSchema.parse(request.body);
+
+        fastify.log.info(
+          { userId, tenantId },
+          'Account deletion request received'
+        );
+
+        // Validate confirmation token (must match user ID for security)
+        if (body.confirmation_token !== userId) {
+          fastify.log.warn(
+            { userId, providedToken: body.confirmation_token },
+            'Invalid confirmation token for account deletion'
+          );
+          return reply.status(400).send({
+            error: {
+              code: 'INVALID_CONFIRMATION',
+              message: 'Invalid confirmation token. Please provide your user ID as confirmation.',
+            },
+          });
+        }
+
+        // Check if user is already marked as deleted
+        const { data: existingUser, error: userCheckError } = await supabaseAdmin
+          .from('users')
+          .select('status')
+          .eq('id', userId)
+          .single();
+
+        if (userCheckError) {
+          fastify.log.error({ userId, error: userCheckError }, 'Failed to check user status');
+          throw userCheckError;
+        }
+
+        if (existingUser.status === 'deleted') {
+          return reply.status(400).send({
+            error: {
+              code: 'ALREADY_DELETED',
+              message: 'Account is already marked for deletion',
+            },
+          });
+        }
+
+        // Mark user as deleted immediately (prevents further access)
+        const { error: updateError } = await supabaseAdmin
+          .from('users')
+          .update({
+            status: 'deleted',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', userId);
+
+        if (updateError) {
+          fastify.log.error({ userId, error: updateError }, 'Failed to mark user as deleted');
+          throw updateError;
+        }
+
+        fastify.log.info({ userId }, 'User marked as deleted');
+
+        // Dispatch async job to anonymize/delete user data
+        const job = await dispatchJob({
+          tenantId,
+          type: 'gdpr_delete',
+          payload: {
+            user_id: userId,
+            requested_at: new Date().toISOString(),
+            requested_by: userId,
+            ip_address: request.ip,
+            user_agent: request.headers['user-agent'] || 'unknown',
+          },
+        });
+
+        fastify.log.info(
+          { userId, tenantId, jobId: job.id },
+          'GDPR deletion job dispatched'
+        );
+
+        return reply.status(202).send({
+          message: 'Account deletion initiated',
+          status: 'pending',
+          job_id: job.id,
+          details: {
+            user_marked_deleted: true,
+            deletion_job_queued: true,
+            estimated_completion: 'Data will be anonymized/removed within 24 hours',
+          },
+          note: 'Your account has been marked as deleted and you will be logged out. Data anonymization is in progress.',
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.status(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid request body',
+              details: error.errors.map(e => `${e.path.join('.')}: ${e.message}`),
+            },
+          });
+        }
+
+        fastify.log.error(
+          { userId, tenantId, error },
+          'Account deletion failed'
+        );
+
+        return reply.status(500).send({
+          error: {
+            code: 'DELETION_FAILED',
+            message: 'Failed to initiate account deletion',
             details: error instanceof Error ? error.message : 'Unknown error',
           },
         });
