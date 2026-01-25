@@ -2,16 +2,16 @@
 
 **Project:** TyneBase Backend - Milestone 2  
 **Protocol:** RALPH v2.0  
-**Last Updated:** 2026-01-25 10:02
+**Last Updated:** 2026-01-25 10:07
 
 ---
 
 ## Progress Overview
 - **Total Tasks:** 121 (excl. 8 deferred)
-- **Completed:** 14
+- **Completed:** 15
 - **In Progress:** 0
 - **Blocked:** 0
-- **Remaining:** 107
+- **Remaining:** 106
 
 ---
 
@@ -45,12 +45,16 @@
 - [x] **1.12**: [DB] Create Hybrid Search RPC Function
 - [x] **2.1**: [API] Initialize Fastify Project
 - [x] **2.2**: [API] Setup Environment Configuration
+- [x] **2.3**: [API] Create Subdomain Resolution Middleware
 
 ---
 
 ## Execution History (Last 10):
 | Timestamp | Task | Action | Result |
 |-----------|------|--------|--------|
+| 2026-01-25T10:07 | 2.3 | completed | PASS |
+| 2026-01-25T10:03 | 2.3 | started | in_progress |
+| 2026-01-25T10:03 | None | commit | feat(task-2.2): document envir... |
 | 2026-01-25T10:02 | 2.2 | completed | PASS |
 | 2026-01-25T09:59 | 2.2 | started | in_progress |
 | 2026-01-25T09:57 | None | commit | feat(task-2.1): initialize Fas... |
@@ -58,6 +62,3 @@
 | 2026-01-25T09:53 | 2.1 | started | in_progress |
 | 2026-01-25T09:51 | None | commit | feat(task-1.12): create hybrid... |
 | 2026-01-25T09:51 | 1.12 | completed | PASS |
-| 2026-01-25T09:48 | 1.12 | started | in_progress |
-| 2026-01-25T09:47 | None | commit | feat(task-1.11): create storag... |
-| 2026-01-25T09:47 | 1.11 | completed | PASS |
