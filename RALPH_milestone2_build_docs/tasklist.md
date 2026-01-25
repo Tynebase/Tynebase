@@ -2,16 +2,16 @@
 
 **Project:** TyneBase Backend - Milestone 2  
 **Protocol:** RALPH v2.0  
-**Last Updated:** 2026-01-25 12:42
+**Last Updated:** 2026-01-25 12:46
 
 ---
 
 ## Progress Overview
 - **Total Tasks:** 121 (excl. 8 deferred)
-- **Completed:** 40
+- **Completed:** 41
 - **In Progress:** 0
 - **Blocked:** 0
-- **Remaining:** 81
+- **Remaining:** 80
 
 ---
 
@@ -71,12 +71,16 @@
 - [x] **3.6**: [Infra] Create Multi-Stage Dockerfile
 - [x] **4.1**: [AI] Create AI Provider Router
 - [x] **4.2**: [AI] Install Token Counter
+- [x] **4.3**: [AI] Implement Credit Calculator
 
 ---
 
 ## Execution History (Last 10):
 | Timestamp | Task | Action | Result |
 |-----------|------|--------|--------|
+| 2026-01-25T12:46 | 4.3 | completed | PASS |
+| 2026-01-25T12:44 | 4.3 | started | in_progress |
+| 2026-01-25T12:42 | None | commit | feat(task-4.2): install tiktok... |
 | 2026-01-25T12:42 | 4.2 | completed | PASS |
 | 2026-01-25T12:41 | 4.2 | started | in_progress |
 | 2026-01-25T12:37 | None | commit | feat(task-4.1): create AI prov... |
@@ -84,6 +88,3 @@
 | 2026-01-25T12:35 | 4.1 | started | in_progress |
 | 2026-01-25T12:33 | None | commit | feat(task-3.6): add multi-stag... |
 | 2026-01-25T12:33 | 3.6 | completed | PASS |
-| 2026-01-25T12:32 | 3.6 | started | in_progress |
-| 2026-01-25T12:31 | None | commit | feat(task-3.5): create fly.io ... |
-| 2026-01-25T12:30 | 3.5 | completed | PASS |
