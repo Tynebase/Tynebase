@@ -277,20 +277,15 @@ git push origin ralph/milestone2-staging
 
 ---
 
-## Step 12: Continue to Next Task
+## Step 12: Report to Supervisor
 
-**Autonomous mode enabled - supervisor is watching.**
+Stop and report:
+- Task ID and title
+- Status (PASS/FAIL)
+- Summary of changes
+- Any concerns or questions
 
-After completing the execution summary, automatically proceed to the next task:
 
-// turbo
-```bash
-cd RALPH_milestone2_build_docs && python ralph_runner.py next
-```
-
-Then immediately start the next task following the workflow from Step 3.
-
-**No validation pause needed** - continue the loop automatically.
 
 ---
 
@@ -319,13 +314,3 @@ Then immediately start the next task following the workflow from Step 3.
 
 ---
 
-## Autonomous Loop Mode
-
-**This workflow runs in autonomous mode.** After each task completion:
-1. Create execution summary
-2. Mark task complete (pass/fail)
-3. Commit changes
-4. Push to staging
-5. **Automatically run `python ralph_runner.py next`** and continue
-
-The supervisor monitors progress - no manual validation needed between tasks.

@@ -5,6 +5,7 @@ import multipart from '@fastify/multipart';
 import { env } from './config/env';
 import { getLoggerConfig } from './config/logger';
 import { requestLoggerMiddleware } from './middleware/requestLogger';
+import { errorHandler } from './middleware/errorHandler';
 
 const buildServer = () => {
   const fastify = Fastify({
@@ -20,6 +21,9 @@ const start = async () => {
   try {
     // Register request logging middleware globally
     fastify.addHook('onRequest', requestLoggerMiddleware);
+
+    // Register error handler middleware globally
+    fastify.setErrorHandler(errorHandler);
 
     await fastify.register(helmet, {
       contentSecurityPolicy: {
@@ -69,6 +73,7 @@ const start = async () => {
     });
 
     await fastify.register(import('./routes/test'), { prefix: '' });
+    await fastify.register(import('./routes/test-error'), { prefix: '' });
     await fastify.register(import('./routes/auth'), { prefix: '' });
     await fastify.register(import('./routes/auth-test'), { prefix: '' });
     await fastify.register(import('./routes/superadmin-test'), { prefix: '' });

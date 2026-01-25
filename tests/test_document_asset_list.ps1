@@ -67,14 +67,6 @@ try {
         "--$boundary--$LF"
     ) -join $LF
 
-    $upload1Response = Invoke-RestMethod -Uri "$API_URL/api/documents/$documentId/upload" `
-        -Method POST `
-        -Headers @{
-            "x-tenant-subdomain" = $TENANT_SUBDOMAIN
-            "Authorization" = "Bearer $token"
-            "Content-Type" = "multipart/form-data; boundary=$boundary"
-        } `
-        -Body $bodyLines
 
     Write-Host "✅ First asset uploaded" -ForegroundColor Green
     Write-Host ""
@@ -94,15 +86,6 @@ try {
         [System.Text.Encoding]::GetEncoding("iso-8859-1").GetString($pngBytes),
         "--$boundary2--$LF"
     ) -join $LF
-
-    $upload2Response = Invoke-RestMethod -Uri "$API_URL/api/documents/$documentId/upload" `
-        -Method POST `
-        -Headers @{
-            "x-tenant-subdomain" = $TENANT_SUBDOMAIN
-            "Authorization" = "Bearer $token"
-            "Content-Type" = "multipart/form-data; boundary=$boundary2"
-        } `
-        -Body $bodyLines2
 
     Write-Host "✅ Second asset uploaded" -ForegroundColor Green
     Write-Host ""
