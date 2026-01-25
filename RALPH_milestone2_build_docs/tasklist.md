@@ -2,16 +2,16 @@
 
 **Project:** TyneBase Backend - Milestone 2  
 **Protocol:** RALPH v2.0  
-**Last Updated:** 2026-01-25 20:42
+**Last Updated:** 2026-01-25 21:22
 
 ---
 
 ## Progress Overview
 - **Total Tasks:** 121 (excl. 8 deferred)
-- **Completed:** 91
+- **Completed:** 92
 - **In Progress:** 0
 - **Blocked:** 0
-- **Remaining:** 30
+- **Remaining:** 29
 
 ---
 
@@ -122,12 +122,16 @@
 - [x] **12.3**: [Worker] Add Job Performance Logging
 - [x] **12.4**: [API] Add Error Logging with Context
 - [x] **13.1**: [E2E] Test Complete Signup → Generation Flow
+- [x] **13.2**: [E2E] Test Video Ingestion Flow
 
 ---
 
 ## Execution History (Last 10):
 | Timestamp | Task | Action | Result |
 |-----------|------|--------|--------|
+| 2026-01-25T21:22 | 13.2 | completed | PASS |
+| 2026-01-25T21:20 | 13.2 | started | in_progress |
+| 2026-01-25T20:42 | None | commit | feat(task-13.1): add E2E test ... |
 | 2026-01-25T20:42 | 13.1 | completed | PASS |
 | 2026-01-25T20:38 | 13.1 | started | in_progress |
 | 2026-01-25T20:37 | None | commit | feat(task-12.4): add error log... |
@@ -135,6 +139,3 @@
 | 2026-01-25T20:36 | None | commit | feat(task-12.4): add error log... |
 | 2026-01-25T20:36 | 12.4 | completed | PASS |
 | 2026-01-25T20:32 | 12.4 | started | in_progress |
-| 2026-01-25T20:32 | None | commit | feat(task-12.3): add job perfo... |
-| 2026-01-25T20:32 | 12.3 | completed | PASS |
-| 2026-01-25T20:28 | 12.3 | started | in_progress |
