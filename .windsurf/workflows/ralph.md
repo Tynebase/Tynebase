@@ -11,6 +11,41 @@ This workflow executes the RALPH (Rapid Autonomous Loop for Programmatic Handlin
 - Files: `PRD.md`, `RALPH.md`, `PRD.json`, `ralph_state.json`, `ralph_runner.py`
 - **Supabase CLI**: Access via `npx supabase <command>` (no global install needed)
 - **Real Credentials Available**: `backend/.env` contains actual Supabase service role and anon keys for testing
+- **Test Infrastructure**: `/tests` directory contains validation scripts and test data
+
+---
+
+## Testing Infrastructure
+
+**Location:** All test files are in `/tests` directory
+
+**Available Test Scripts:**
+- `insert_test_tenant.js` - Creates test tenant in database (Node.js)
+- `validate_credits.js` - Validates credit tracking system
+- `validate_pgvector.js` - Validates pgvector extension and embeddings
+- `validate_embeddings.sql` - SQL validation for embeddings table
+- `test_tenant_insert.sql` - SQL script for test tenant creation
+- `test_validation_1_X.sql` - Database validation scripts for Phase 1 tasks
+
+**Running Tests:**
+
+All tests should be run from the **project root directory**:
+
+```bash
+# Node.js tests (require backend/.env with real credentials)
+node tests/insert_test_tenant.js
+node tests/validate_credits.js
+node tests/validate_pgvector.js
+
+# SQL tests (use Supabase dashboard SQL editor)
+# Copy/paste content from tests/test_validation_1_X.sql files
+```
+
+**Important Notes:**
+- ✅ `backend/.env` has real Supabase credentials (service role + anon key)
+- ✅ Test tenant exists: subdomain `test`, ID `1521f0ae-4db7-4110-a993-c494535d9b00`
+- ✅ All validation scripts can be run against remote database
+- ✅ Use these scripts to verify database migrations and API functionality
 
 ---
 

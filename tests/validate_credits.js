@@ -1,6 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../backend/.env') });
 
 const supabaseUrl = process.env.SUPABASE_URL || 'https://fsybthuvikyetueizado.supabase.co';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -17,7 +18,7 @@ async function runValidation() {
     
     try {
         // Read and execute the validation SQL
-        const sql = fs.readFileSync('./supabase/test_validation_1_10.sql', 'utf8');
+        const sql = fs.readFileSync(path.join(__dirname, 'test_validation_1_10.sql'), 'utf8');
         
         const { data, error } = await supabase.rpc('exec_sql', { sql_query: sql });
         

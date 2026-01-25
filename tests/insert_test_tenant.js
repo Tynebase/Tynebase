@@ -1,6 +1,7 @@
 // Insert test tenant for middleware validation
 const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../backend/.env') });
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
