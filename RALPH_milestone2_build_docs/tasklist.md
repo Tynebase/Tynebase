@@ -2,16 +2,16 @@
 
 **Project:** TyneBase Backend - Milestone 2  
 **Protocol:** RALPH v2.0  
-**Last Updated:** 2026-01-25 12:30
+**Last Updated:** 2026-01-25 12:33
 
 ---
 
 ## Progress Overview
 - **Total Tasks:** 121 (excl. 8 deferred)
-- **Completed:** 37
+- **Completed:** 38
 - **In Progress:** 0
 - **Blocked:** 0
-- **Remaining:** 84
+- **Remaining:** 83
 
 ---
 
@@ -68,12 +68,16 @@
 - [x] **3.3**: [Worker] Implement Job Dispatcher
 - [x] **3.4**: [Worker] Implement Job Completion Handlers
 - [x] **3.5**: [Infra] Create Fly.io Configuration
+- [x] **3.6**: [Infra] Create Multi-Stage Dockerfile
 
 ---
 
 ## Execution History (Last 10):
 | Timestamp | Task | Action | Result |
 |-----------|------|--------|--------|
+| 2026-01-25T12:33 | 3.6 | completed | PASS |
+| 2026-01-25T12:32 | 3.6 | started | in_progress |
+| 2026-01-25T12:31 | None | commit | feat(task-3.5): create fly.io ... |
 | 2026-01-25T12:30 | 3.5 | completed | PASS |
 | 2026-01-25T12:29 | 3.5 | started | in_progress |
 | 2026-01-25T12:28 | None | commit | feat(task-3.4): implement job ... |
@@ -81,6 +85,3 @@
 | 2026-01-25T12:25 | 3.4 | started | in_progress |
 | 2026-01-25T12:24 | None | commit | feat(task-3.3): implement job ... |
 | 2026-01-25T12:24 | 3.3 | completed | PASS |
-| 2026-01-25T12:21 | 3.3 | started | in_progress |
-| 2026-01-25T12:18 | None | commit | feat(task-3.2): implement job ... |
-| 2026-01-25T12:18 | 3.2 | completed | PASS |
