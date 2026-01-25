@@ -2,18 +2,20 @@ import { FastifyInstance } from 'fastify';
 import { tenantContextMiddleware } from '../middleware/tenantContext';
 import { authMiddleware } from '../middleware/auth';
 import { membershipGuard } from '../middleware/membershipGuard';
+import { rateLimitMiddleware } from '../middleware/rateLimit';
 
 /**
  * Document routes with full middleware chain:
- * 1. tenantContextMiddleware - resolves tenant from x-tenant-subdomain header
- * 2. authMiddleware - verifies JWT and loads user
- * 3. membershipGuard - verifies user belongs to tenant
+ * 1. rateLimitMiddleware - enforces rate limits (100 req/10min global)
+ * 2. tenantContextMiddleware - resolves tenant from x-tenant-subdomain header
+ * 3. authMiddleware - verifies JWT and loads user
+ * 4. membershipGuard - verifies user belongs to tenant
  */
 export default async function documentRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/api/documents',
     {
-      preHandler: [tenantContextMiddleware, authMiddleware, membershipGuard],
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
     },
     async (request) => {
       return {
