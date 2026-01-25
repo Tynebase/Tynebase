@@ -728,7 +728,10 @@
       "phase": "Phase 8: Real-Time Collaboration (Hocuspocus)",
       "title": "[Collab] Trigger Re-Index on Significant Changes",
       "action": "Dispatch rag_index job if content length changed >10%",
-      "passes": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-25T18:25:50.106379",
+      "completed_at": "2026-01-25T18:27:14.116808"
     },
     {
       "id": "9.1",

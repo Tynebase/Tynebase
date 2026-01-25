@@ -2,16 +2,16 @@
 
 **Project:** TyneBase Backend - Milestone 2  
 **Protocol:** RALPH v2.0  
-**Last Updated:** 2026-01-25 18:25
+**Last Updated:** 2026-01-25 18:27
 
 ---
 
 ## Progress Overview
 - **Total Tasks:** 121 (excl. 8 deferred)
-- **Completed:** 72
+- **Completed:** 73
 - **In Progress:** 0
 - **Blocked:** 0
-- **Remaining:** 49
+- **Remaining:** 48
 
 ---
 
@@ -103,12 +103,16 @@
 - [x] **8.3**: [Collab] Implement Authentication Hook
 - [x] **8.4**: [Collab] Implement Load Document Hook
 - [x] **8.5**: [Collab] Implement Store Document Hook
+- [x] **8.6**: [Collab] Trigger Re-Index on Significant Changes
 
 ---
 
 ## Execution History (Last 10):
 | Timestamp | Task | Action | Result |
 |-----------|------|--------|--------|
+| 2026-01-25T18:27 | 8.6 | completed | PASS |
+| 2026-01-25T18:25 | 8.6 | started | in_progress |
+| 2026-01-25T18:25 | None | commit | feat(task-8.5): implement debo... |
 | 2026-01-25T18:25 | 8.5 | completed | PASS |
 | 2026-01-25T18:21 | 8.5 | started | in_progress |
 | 2026-01-25T18:19 | None | commit | feat(task-8.4): enhance onLoad... |
@@ -116,6 +120,3 @@
 | 2026-01-25T18:15 | 8.4 | started | in_progress |
 | 2026-01-25T18:14 | None | commit | feat(task-8.3): enhance Hocusp... |
 | 2026-01-25T18:14 | 8.3 | completed | PASS |
-| 2026-01-25T18:11 | 8.3 | started | in_progress |
-| 2026-01-25T18:07 | None | commit | feat(task-8.2): initialize Hoc... |
-| 2026-01-25T18:07 | 8.2 | completed | PASS |
