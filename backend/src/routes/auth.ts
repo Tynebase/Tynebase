@@ -256,25 +256,10 @@ export default async function authRoutes(fastify: FastifyInstance) {
         });
       }
 
-      // Get user profile with tenant info
+      // Get user profile
       const { data: userProfile, error: profileError } = await supabaseAdmin
         .from('users')
-        .select(`
-          id,
-          email,
-          full_name,
-          role,
-          is_super_admin,
-          status,
-          tenant_id,
-          tenants (
-            id,
-            subdomain,
-            name,
-            tier,
-            settings
-          )
-        `)
+        .select('id, email, full_name, role, is_super_admin, status, tenant_id')
         .eq('id', data.user.id)
         .single();
 
@@ -284,6 +269,24 @@ export default async function authRoutes(fastify: FastifyInstance) {
           error: {
             code: 'PROFILE_ERROR',
             message: 'Failed to retrieve user profile',
+            details: {},
+          },
+        });
+      }
+
+      // Get tenant info separately
+      const { data: tenant, error: tenantError } = await supabaseAdmin
+        .from('tenants')
+        .select('id, subdomain, name, tier, settings')
+        .eq('id', userProfile.tenant_id)
+        .single();
+
+      if (tenantError || !tenant) {
+        fastify.log.error({ error: tenantError }, 'Failed to fetch tenant');
+        return reply.code(500).send({
+          error: {
+            code: 'TENANT_ERROR',
+            message: 'Failed to retrieve tenant information',
             details: {},
           },
         });
@@ -315,7 +318,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
             role: userProfile.role,
             is_super_admin: userProfile.is_super_admin,
           },
-          tenant: userProfile.tenants,
+          tenant: tenant,
         },
       });
     } catch (error) {
@@ -402,24 +405,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
       const { data: userProfile, error } = await supabaseAdmin
         .from('users')
-        .select(`
-          id,
-          email,
-          full_name,
-          role,
-          is_super_admin,
-          status,
-          last_active_at,
-          tenant_id,
-          tenants (
-            id,
-            subdomain,
-            name,
-            tier,
-            settings,
-            storage_limit
-          )
-        `)
+        .select('id, email, full_name, role, is_super_admin, status, last_active_at, tenant_id')
         .eq('id', userId)
         .single();
 
@@ -429,6 +415,24 @@ export default async function authRoutes(fastify: FastifyInstance) {
           error: {
             code: 'USER_NOT_FOUND',
             message: 'User profile not found',
+            details: {},
+          },
+        });
+      }
+
+      // Get tenant info separately
+      const { data: tenant, error: tenantError } = await supabaseAdmin
+        .from('tenants')
+        .select('id, subdomain, name, tier, settings, storage_limit')
+        .eq('id', userProfile.tenant_id)
+        .single();
+
+      if (tenantError || !tenant) {
+        fastify.log.error({ error: tenantError }, 'Failed to fetch tenant');
+        return reply.code(500).send({
+          error: {
+            code: 'TENANT_ERROR',
+            message: 'Failed to retrieve tenant information',
             details: {},
           },
         });
@@ -452,7 +456,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
             status: userProfile.status,
             last_active_at: userProfile.last_active_at,
           },
-          tenant: userProfile.tenants,
+          tenant: tenant,
         },
       });
     } catch (error) {
