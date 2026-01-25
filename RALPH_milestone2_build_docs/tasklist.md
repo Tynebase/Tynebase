@@ -2,16 +2,16 @@
 
 **Project:** TyneBase Backend - Milestone 2  
 **Protocol:** RALPH v2.0  
-**Last Updated:** 2026-01-25 11:24
+**Last Updated:** 2026-01-25 11:29
 
 ---
 
 ## Progress Overview
 - **Total Tasks:** 121 (excl. 8 deferred)
-- **Completed:** 24
+- **Completed:** 25
 - **In Progress:** 0
 - **Blocked:** 0
-- **Remaining:** 97
+- **Remaining:** 96
 
 ---
 
@@ -55,12 +55,16 @@
 - [x] **2.10**: [API] Implement Session Info Endpoint
 - [x] **2.11**: [API] Implement Tenant Settings Update Endpoint
 - [x] **2.12**: [API] Implement Document List Endpoint
+- [x] **2.13**: [API] Implement Document Get Endpoint
 
 ---
 
 ## Execution History (Last 10):
 | Timestamp | Task | Action | Result |
 |-----------|------|--------|--------|
+| 2026-01-25T11:29 | 2.13 | completed | PASS |
+| 2026-01-25T11:26 | 2.13 | started | in_progress |
+| 2026-01-25T11:25 | None | commit | feat(task-2.12): implement doc... |
 | 2026-01-25T11:24 | 2.12 | completed | PASS |
 | 2026-01-25T11:20 | 2.12 | started | in_progress |
 | 2026-01-25T11:20 | 2.12 | started | in_progress |
@@ -68,6 +72,3 @@
 | 2026-01-25T11:17 | 2.11 | completed | PASS |
 | 2026-01-25T11:13 | 2.11 | started | in_progress |
 | 2026-01-25T11:04 | None | commit | feat(task-2.10): implement ses... |
-| 2026-01-25T11:04 | 2.10 | completed | PASS |
-| 2026-01-25T10:59 | 2.10 | started | in_progress |
-| 2026-01-25T10:57 | None | commit | feat(task-2.9): add rate limit... |

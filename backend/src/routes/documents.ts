@@ -17,6 +17,13 @@ const listDocumentsQuerySchema = z.object({
 });
 
 /**
+ * Zod schema for GET /api/documents/:id path parameters
+ */
+const getDocumentParamsSchema = z.object({
+  id: z.string().uuid(),
+});
+
+/**
  * Document routes with full middleware chain:
  * 1. rateLimitMiddleware - enforces rate limits (100 req/10min global)
  * 2. tenantContextMiddleware - resolves tenant from x-tenant-subdomain header
@@ -153,6 +160,125 @@ export default async function documentRoutes(fastify: FastifyInstance) {
         }
 
         fastify.log.error({ error }, 'Unexpected error in GET /api/documents');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
+   * GET /api/documents/:id
+   * Retrieves a single document by ID
+   * 
+   * Path Parameters:
+   * - id: Document UUID
+   * 
+   * Authorization:
+   * - Requires valid JWT
+   * - User must be member of tenant
+   * - Document must belong to user's tenant
+   * 
+   * Security:
+   * - Enforces tenant isolation via explicit tenant_id filtering
+   * - Validates UUID format with Zod
+   * - Returns 404 if document not found or belongs to different tenant
+   * - Returns 403 if user doesn't have access to document's tenant
+   */
+  fastify.get(
+    '/api/documents/:id',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        // Validate path parameters
+        const params = getDocumentParamsSchema.parse(request.params);
+        const { id } = params;
+
+        // Fetch document with tenant isolation
+        const { data: document, error } = await supabaseAdmin
+          .from('documents')
+          .select(`
+            id,
+            title,
+            content,
+            parent_id,
+            is_public,
+            status,
+            author_id,
+            published_at,
+            created_at,
+            updated_at,
+            users!documents_author_id_fkey (
+              id,
+              email,
+              full_name
+            )
+          `)
+          .eq('id', id)
+          .eq('tenant_id', tenant.id)
+          .single();
+
+        if (error) {
+          if (error.code === 'PGRST116') {
+            // No rows returned - document not found or wrong tenant
+            fastify.log.warn(
+              { documentId: id, tenantId: tenant.id, userId: user.id },
+              'Document not found or access denied'
+            );
+            return reply.code(404).send({
+              error: {
+                code: 'DOCUMENT_NOT_FOUND',
+                message: 'Document not found',
+                details: {},
+              },
+            });
+          }
+
+          fastify.log.error(
+            { error, documentId: id, tenantId: tenant.id, userId: user.id },
+            'Failed to fetch document'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'FETCH_FAILED',
+              message: 'Failed to fetch document',
+              details: {},
+            },
+          });
+        }
+
+        fastify.log.info(
+          { documentId: id, tenantId: tenant.id, userId: user.id },
+          'Document fetched successfully'
+        );
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            document,
+          },
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid document ID format',
+              details: error.errors,
+            },
+          });
+        }
+
+        fastify.log.error({ error }, 'Unexpected error in GET /api/documents/:id');
         return reply.code(500).send({
           error: {
             code: 'INTERNAL_ERROR',
