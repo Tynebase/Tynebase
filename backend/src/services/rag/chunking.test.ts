@@ -3,7 +3,7 @@
  * Validates implementation meets PRD requirements
  */
 
-import { chunkMarkdownSemanticaly, validateChunks, getChunkingStats, CHUNKING_CONFIG } from './chunking';
+import { chunkMarkdownSemanticaly, getChunkingStats, CHUNKING_CONFIG } from './chunking';
 
 /**
  * Test markdown with complex structure and realistic content sizes
@@ -15,7 +15,37 @@ This document describes the architecture and implementation details of the TyneB
 ## Overview of RAG Architecture
 
 The RAG pipeline consists of multiple stages that work together to retrieve and rank relevant information from the knowledge base. Each stage is optimized for specific aspects of the retrieval process, ensuring high-quality results while maintaining performance. The pipeline uses a hybrid approach that combines traditional full-text search with modern vector similarity search, providing the best of both worlds. This approach has been shown to improve retrieval accuracy by 50-70% compared to baseline methods.
-
+[{
+	"resource": "/c:/Users/Mai/Desktop/TyneBase/backend/src/services/rag/chunking.test.ts",
+	"owner": "typescript",
+	"code": "6133",
+	"severity": 4,
+	"message": "'validateChunks' is declared but its value is never read.",
+	"source": "ts",
+	"startLineNumber": 6,
+	"startColumn": 36,
+	"endLineNumber": 6,
+	"endColumn": 50,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/Mai/Desktop/TyneBase/backend/src/services/rag/chunking.test.ts",
+	"owner": "typescript",
+	"code": "6133",
+	"severity": 4,
+	"message": "'MAX_TOKENS_APPROX' is declared but its value is never read.",
+	"source": "ts",
+	"startLineNumber": 123,
+	"startColumn": 9,
+	"endLineNumber": 123,
+	"endColumn": 26,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+}]
 The system processes documents through a four-pass chunking algorithm that preserves document structure while creating semantically meaningful chunks. This ensures that retrieved context maintains coherence and provides useful information to the language model. The chunking process is critical for RAG performance, as poorly chunked documents can lead to incomplete or misleading context being provided to the model.
 
 ### Document Ingestion Process
@@ -120,7 +150,6 @@ function testMaxChunkSize() {
   
   const chunks = chunkMarkdownSemanticaly(COMPLEX_MARKDOWN, 'Test Document');
   const MAX_WORDS = 1000;
-  const MAX_TOKENS_APPROX = MAX_WORDS * 1.33; // ~1333 tokens
   
   let passed = true;
   for (const chunk of chunks) {

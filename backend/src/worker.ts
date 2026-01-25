@@ -3,6 +3,7 @@ import { claimJob } from './utils/claimJob';
 import { processAIGenerationJob } from './workers/aiGeneration';
 import { processVideoIngestJob } from './workers/videoIngest';
 import { processDocumentConvertJob } from './workers/documentConvert';
+import { processRagIndexJob } from './workers/ragIndex';
 
 const WORKER_ID = `worker-${process.pid}-${Date.now()}`;
 const POLL_INTERVAL_MS = 1000;
@@ -85,6 +86,10 @@ const processJob = async (job: any): Promise<void> => {
       
       case 'document_convert':
         await processDocumentConvertJob(job);
+        break;
+      
+      case 'rag_index':
+        await processRagIndexJob(job);
         break;
       
       case 'document_indexing':
