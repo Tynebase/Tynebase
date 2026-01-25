@@ -2,22 +2,22 @@
 
 **Project:** TyneBase Backend - Milestone 2  
 **Protocol:** RALPH v2.0  
-**Last Updated:** 2026-01-25 20:16
+**Last Updated:** 2026-01-25 20:21
 
 ---
 
 ## Progress Overview
 - **Total Tasks:** 121 (excl. 8 deferred)
-- **Completed:** 86
+- **Completed:** 87
 - **In Progress:** 0
 - **Blocked:** 0
-- **Remaining:** 35
+- **Remaining:** 34
 
 ---
 
 ## Current Task: None
 **Status:** Ready to begin  
-**Phase:** Phase 11: Image/Video Embeds in Documents
+**Phase:** Phase 12: Logging & Monitoring
 
 ### Implementation Notes:
 - Awaiting task assignment
@@ -117,12 +117,16 @@
 - [x] **11.1**: [API] Implement Asset Upload Endpoint
 - [x] **11.2**: [API] Implement Asset List Endpoint
 - [x] **11.3**: [API] Implement Asset Delete Endpoint
+- [x] **12.1**: [Infra] Setup Axiom Integration
 
 ---
 
 ## Execution History (Last 10):
 | Timestamp | Task | Action | Result |
 |-----------|------|--------|--------|
+| 2026-01-25T20:21 | 12.1 | completed | PASS |
+| 2026-01-25T20:17 | 12.1 | started | in_progress |
+| 2026-01-25T20:16 | None | commit | feat(task-11.3): implement ass... |
 | 2026-01-25T20:16 | 11.3 | completed | PASS |
 | 2026-01-25T20:13 | 11.3 | started | in_progress |
 | 2026-01-25T20:13 | None | commit | feat(task-11.2): implement ass... |
@@ -130,6 +134,3 @@
 | 2026-01-25T20:10 | 11.2 | started | in_progress |
 | 2026-01-25T20:10 | None | commit | feat(task-11.1): implement doc... |
 | 2026-01-25T20:10 | 11.1 | completed | PASS |
-| 2026-01-25T20:05 | 11.1 | started | in_progress |
-| 2026-01-25T20:05 | None | commit | feat(task-10.4): implement con... |
-| 2026-01-25T20:04 | 10.4 | completed | PASS |

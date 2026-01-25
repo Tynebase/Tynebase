@@ -22,6 +22,10 @@ const envSchema = z.object({
   RATE_LIMIT_WINDOW_GLOBAL: z.string().default('600000'),
   RATE_LIMIT_AI: z.string().default('10'),
   RATE_LIMIT_WINDOW_AI: z.string().default('60000'),
+  
+  // Axiom logging configuration (optional)
+  AXIOM_DATASET: z.string().optional(),
+  AXIOM_TOKEN: z.string().optional(),
 }).refine(
   (data) => {
     // Ensure either new keys or old keys are provided

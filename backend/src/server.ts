@@ -2,22 +2,12 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import multipart from '@fastify/multipart';
-import { env, isDev } from './config/env';
+import { env } from './config/env';
+import { getLoggerConfig } from './config/logger';
 
 const buildServer = () => {
   const fastify = Fastify({
-    logger: {
-      level: env.LOG_LEVEL,
-      transport: isDev
-        ? {
-            target: 'pino-pretty',
-            options: {
-              translateTime: 'HH:MM:ss Z',
-              ignore: 'pid,hostname',
-            },
-          }
-        : undefined,
-    },
+    logger: getLoggerConfig(),
   });
 
   return fastify;
