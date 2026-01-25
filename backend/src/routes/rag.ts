@@ -423,6 +423,202 @@ export default async function ragRoutes(fastify: FastifyInstance) {
   );
 
   /**
+   * GET /api/sources/health
+   * Returns indexing health statistics for the tenant
+   * 
+   * Response:
+   * - total_documents: Total number of documents
+   * - indexed_documents: Documents with last_indexed_at set
+   * - outdated_documents: Documents where updated_at > last_indexed_at
+   * - failed_jobs: Count of failed rag_index jobs
+   * - documents_needing_reindex: List of document IDs that need re-indexing
+   * 
+   * Authorization:
+   * - Requires valid JWT
+   * - User must be member of tenant
+   */
+  fastify.get(
+    '/api/sources/health',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        // Count total documents
+        const { count: totalDocuments, error: totalError } = await supabaseAdmin
+          .from('documents')
+          .select('*', { count: 'exact', head: true })
+          .eq('tenant_id', tenant.id);
+
+        if (totalError) {
+          fastify.log.error(
+            { error: totalError, tenantId: tenant.id },
+            'Failed to count total documents'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'QUERY_FAILED',
+              message: 'Failed to retrieve document statistics',
+              details: {},
+            },
+          });
+        }
+
+        // Count indexed documents (last_indexed_at IS NOT NULL)
+        const { count: indexedDocuments, error: indexedError } = await supabaseAdmin
+          .from('documents')
+          .select('*', { count: 'exact', head: true })
+          .eq('tenant_id', tenant.id)
+          .not('last_indexed_at', 'is', null);
+
+        if (indexedError) {
+          fastify.log.error(
+            { error: indexedError, tenantId: tenant.id },
+            'Failed to count indexed documents'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'QUERY_FAILED',
+              message: 'Failed to retrieve indexed document statistics',
+              details: {},
+            },
+          });
+        }
+
+        // Find outdated documents (updated_at > last_indexed_at)
+        // Fetch all indexed documents and filter in code since Supabase JS doesn't support column-to-column comparison
+        const { data: allIndexedDocs, error: allIndexedError } = await supabaseAdmin
+          .from('documents')
+          .select('id, title, updated_at, last_indexed_at')
+          .eq('tenant_id', tenant.id)
+          .not('last_indexed_at', 'is', null);
+
+        if (allIndexedError) {
+          fastify.log.error(
+            { error: allIndexedError, tenantId: tenant.id },
+            'Failed to query indexed documents for outdated check'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'QUERY_FAILED',
+              message: 'Failed to retrieve outdated document statistics',
+              details: {},
+            },
+          });
+        }
+
+        // Filter outdated documents where updated_at > last_indexed_at
+        const outdatedDocs = (allIndexedDocs || []).filter(doc => 
+          new Date(doc.updated_at) > new Date(doc.last_indexed_at)
+        );
+
+        // Count failed rag_index jobs
+        const { count: failedJobs, error: failedJobsError } = await supabaseAdmin
+          .from('job_queue')
+          .select('*', { count: 'exact', head: true })
+          .eq('tenant_id', tenant.id)
+          .eq('type', 'rag_index')
+          .eq('status', 'failed');
+
+        if (failedJobsError) {
+          fastify.log.error(
+            { error: failedJobsError, tenantId: tenant.id },
+            'Failed to count failed jobs'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'QUERY_FAILED',
+              message: 'Failed to retrieve failed job statistics',
+              details: {},
+            },
+          });
+        }
+
+        // Get documents that have never been indexed
+        const { data: neverIndexedDocs, error: neverIndexedError } = await supabaseAdmin
+          .from('documents')
+          .select('id, title, created_at')
+          .eq('tenant_id', tenant.id)
+          .is('last_indexed_at', null);
+
+        if (neverIndexedError) {
+          fastify.log.error(
+            { error: neverIndexedError, tenantId: tenant.id },
+            'Failed to query never-indexed documents'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'QUERY_FAILED',
+              message: 'Failed to retrieve never-indexed document statistics',
+              details: {},
+            },
+          });
+        }
+
+        // Combine outdated and never-indexed documents
+        const documentsNeedingReindex = [
+          ...(neverIndexedDocs || []).map(doc => ({
+            id: doc.id,
+            title: doc.title,
+            reason: 'never_indexed' as const,
+            last_indexed_at: null,
+            updated_at: doc.created_at,
+          })),
+          ...(outdatedDocs || []).map(doc => ({
+            id: doc.id,
+            title: doc.title,
+            reason: 'outdated' as const,
+            last_indexed_at: doc.last_indexed_at,
+            updated_at: doc.updated_at,
+          })),
+        ];
+
+        const stats = {
+          total_documents: totalDocuments || 0,
+          indexed_documents: indexedDocuments || 0,
+          outdated_documents: (outdatedDocs || []).length,
+          never_indexed_documents: (neverIndexedDocs || []).length,
+          failed_jobs: failedJobs || 0,
+          documents_needing_reindex: documentsNeedingReindex,
+        };
+
+        fastify.log.info(
+          {
+            tenantId: tenant.id,
+            userId: user.id,
+            stats: {
+              total: stats.total_documents,
+              indexed: stats.indexed_documents,
+              outdated: stats.outdated_documents,
+              neverIndexed: stats.never_indexed_documents,
+              failedJobs: stats.failed_jobs,
+              needingReindex: documentsNeedingReindex.length,
+            },
+          },
+          'Index health stats retrieved successfully'
+        );
+
+        return reply.code(200).send({
+          success: true,
+          data: stats,
+        });
+      } catch (error) {
+        fastify.log.error({ error }, 'Unexpected error in GET /api/sources/health');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
    * POST /api/ai/chat
    * RAG-powered chat endpoint with streaming support
    * 
