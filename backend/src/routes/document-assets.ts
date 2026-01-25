@@ -29,6 +29,14 @@ const listAssetsParamsSchema = z.object({
 });
 
 /**
+ * Zod schema for DELETE /api/documents/:id/assets/:assetId path parameters
+ */
+const deleteAssetParamsSchema = z.object({
+  id: z.string().uuid(),
+  assetId: z.string().min(1),
+});
+
+/**
  * Document Asset Upload Routes
  * Handles image and video uploads for documents
  */

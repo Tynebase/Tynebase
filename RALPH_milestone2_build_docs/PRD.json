@@ -858,7 +858,10 @@
       "phase": "Phase 11: Image/Video Embeds in Documents",
       "title": "[API] Implement Asset Delete Endpoint",
       "action": "DELETE /api/documents/:id/assets/:assetId",
-      "passes": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-25T20:13:31.693002",
+      "completed_at": "2026-01-25T20:16:47.274446"
     },
     {
       "id": "12.1",
