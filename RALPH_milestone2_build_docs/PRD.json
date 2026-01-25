@@ -668,7 +668,10 @@
       "phase": "Phase 7: RAG Pipeline",
       "title": "[API] Implement Manual Re-Index Endpoint",
       "action": "POST /api/sources/:id/reindex",
-      "passes": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-25T17:51:26.859070",
+      "completed_at": "2026-01-25T17:53:58.811925"
     },
     {
       "id": "8.1",

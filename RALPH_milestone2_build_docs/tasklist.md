@@ -2,16 +2,16 @@
 
 **Project:** TyneBase Backend - Milestone 2  
 **Protocol:** RALPH v2.0  
-**Last Updated:** 2026-01-25 16:51
+**Last Updated:** 2026-01-25 17:53
 
 ---
 
 ## Progress Overview
 - **Total Tasks:** 121 (excl. 8 deferred)
-- **Completed:** 66
+- **Completed:** 67
 - **In Progress:** 0
 - **Blocked:** 0
-- **Remaining:** 55
+- **Remaining:** 54
 
 ---
 
@@ -97,12 +97,16 @@
 - [x] **7.5**: [API] Implement Reranking with Fallback
 - [x] **7.6**: [API] Implement Query Workspace Endpoint
 - [x] **7.7**: [API] Implement Index Health Endpoint
+- [x] **7.8**: [API] Implement Manual Re-Index Endpoint
 
 ---
 
 ## Execution History (Last 10):
 | Timestamp | Task | Action | Result |
 |-----------|------|--------|--------|
+| 2026-01-25T17:53 | 7.8 | completed | PASS |
+| 2026-01-25T17:51 | 7.8 | started | in_progress |
+| 2026-01-25T16:52 | None | commit | feat(task-7.7): implement inde... |
 | 2026-01-25T16:51 | 7.7 | completed | PASS |
 | 2026-01-25T16:48 | 7.7 | started | in_progress |
 | 2026-01-25T16:41 | None | commit | feat(task-7.6): implement norm... |
@@ -110,6 +114,3 @@
 | 2026-01-25T16:38 | 7.6 | started | in_progress |
 | 2026-01-25T16:31 | None | commit | feat(task-7.5): implement rera... |
 | 2026-01-25T16:31 | 7.5 | completed | PASS |
-| 2026-01-25T16:28 | 7.5 | started | in_progress |
-| 2026-01-25T16:27 | None | commit | feat(task-7.4): implement RAG ... |
-| 2026-01-25T16:27 | 7.4 | completed | PASS |

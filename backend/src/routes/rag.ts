@@ -619,6 +619,193 @@ export default async function ragRoutes(fastify: FastifyInstance) {
   );
 
   /**
+   * POST /api/sources/:id/reindex
+   * Manually triggers re-indexing for a specific document
+   * 
+   * Path Parameters:
+   * - id: Document UUID
+   * 
+   * Authorization:
+   * - Requires valid JWT
+   * - User must be member of tenant
+   * - User must have 'admin' role
+   * 
+   * Security:
+   * - Admin only to prevent spam re-indexing
+   * - Checks for existing pending/processing jobs to prevent duplicates
+   * - Enforces tenant isolation
+   * - Validates document exists and belongs to tenant
+   * 
+   * Behavior:
+   * - Dispatches rag_index job for the document
+   * - Skips if job already pending/processing
+   * - Returns job ID for tracking
+   */
+  fastify.post(
+    '/api/sources/:id/reindex',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        // Validate path parameters
+        const paramsSchema = z.object({
+          id: z.string().uuid(),
+        });
+        const params = paramsSchema.parse(request.params);
+        const { id: documentId } = params;
+
+        // Check user has admin permission
+        if (user.role !== 'admin') {
+          fastify.log.warn(
+            { documentId, userId: user.id, userRole: user.role, tenantId: tenant.id },
+            'User attempted to trigger re-index without admin permission'
+          );
+          return reply.code(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Only admin users can trigger manual re-indexing',
+              details: {},
+            },
+          });
+        }
+
+        // Verify document exists and belongs to tenant
+        const { data: document, error: docError } = await supabaseAdmin
+          .from('documents')
+          .select('id, title, tenant_id')
+          .eq('id', documentId)
+          .eq('tenant_id', tenant.id)
+          .single();
+
+        if (docError) {
+          if (docError.code === 'PGRST116') {
+            fastify.log.warn(
+              { documentId, tenantId: tenant.id, userId: user.id },
+              'Document not found or access denied for re-index'
+            );
+            return reply.code(404).send({
+              error: {
+                code: 'DOCUMENT_NOT_FOUND',
+                message: 'Document not found',
+                details: {},
+              },
+            });
+          }
+
+          fastify.log.error(
+            { error: docError, documentId, tenantId: tenant.id, userId: user.id },
+            'Failed to fetch document for re-index'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'FETCH_FAILED',
+              message: 'Failed to verify document',
+              details: {},
+            },
+          });
+        }
+
+        // Check for existing pending or processing rag_index jobs for this document
+        const { data: existingJobs, error: jobCheckError } = await supabaseAdmin
+          .from('job_queue')
+          .select('id, status, created_at')
+          .eq('tenant_id', tenant.id)
+          .eq('type', 'rag_index')
+          .in('status', ['pending', 'processing'])
+          .eq('payload->>document_id', documentId)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (jobCheckError) {
+          fastify.log.error(
+            { error: jobCheckError, documentId, tenantId: tenant.id },
+            'Failed to check for existing rag_index jobs'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'JOB_CHECK_FAILED',
+              message: 'Failed to check for existing indexing jobs',
+              details: {},
+            },
+          });
+        }
+
+        // If job already exists, return existing job info
+        if (existingJobs && existingJobs.length > 0) {
+          const existingJob = existingJobs[0];
+          fastify.log.info(
+            { documentId, existingJobId: existingJob.id, status: existingJob.status, tenantId: tenant.id },
+            'Re-index skipped - job already pending/processing'
+          );
+          return reply.code(200).send({
+            success: true,
+            data: {
+              message: 'Re-index job already queued',
+              job_id: existingJob.id,
+              status: existingJob.status,
+              document_id: documentId,
+              document_title: document.title,
+            },
+          });
+        }
+
+        // Dispatch new rag_index job
+        const { dispatchJob } = await import('../utils/dispatchJob');
+        const job = await dispatchJob({
+          tenantId: tenant.id,
+          type: 'rag_index',
+          payload: { document_id: documentId }
+        });
+
+        fastify.log.info(
+          { 
+            documentId, 
+            documentTitle: document.title,
+            jobId: job.id, 
+            tenantId: tenant.id, 
+            userId: user.id 
+          },
+          'Manual re-index job dispatched successfully'
+        );
+
+        return reply.code(201).send({
+          success: true,
+          data: {
+            message: 'Re-index job queued successfully',
+            job_id: job.id,
+            status: job.status,
+            document_id: documentId,
+            document_title: document.title,
+          },
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid document ID format',
+              details: error.errors,
+            },
+          });
+        }
+
+        fastify.log.error({ error }, 'Unexpected error in POST /api/sources/:id/reindex');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
    * POST /api/ai/chat
    * RAG-powered chat endpoint with streaming support
    * 
