@@ -91,8 +91,32 @@ npm run type-check
 - Temp file cleanup in finally blocks
 - Type safety maintained throughout
 
-### 🔄 Runtime Testing Required
-The following tests should be performed in a deployed environment:
+### 🔄 Runtime Testing
+Use the provided test scripts to validate fallback mechanism:
+
+**Step 1: Enable Gemini failure simulation**
+```bash
+node tests/simulate_gemini_failure.js enable
+```
+
+**Step 2: Run fallback test**
+```bash
+node tests/test_video_fallback.js
+```
+
+**Step 3: Verify results**
+- Job should complete successfully
+- `used_fallback: true` in job result
+- `transcription_method: 'whisper'` in metadata
+- Document created with transcript
+- Lineage event shows fallback was used
+
+**Step 4: Restore normal operation**
+```bash
+node tests/simulate_gemini_failure.js disable
+```
+
+### Manual Testing (if needed)
 
 ## Validation Steps
 
@@ -153,9 +177,45 @@ export async function transcribeVideo() {
 ✅ **File Size Limits**: Inherits from upload endpoint validation  
 ✅ **No Secrets in Code**: All credentials from environment variables  
 
+## Test Scripts Created
+
+### `tests/test_video_fallback.js`
+Automated test that:
+- Creates a test video ingestion job with YouTube URL
+- Monitors job execution
+- Verifies fallback mechanism triggers when Gemini fails
+- Checks document creation and lineage tracking
+- Validates metadata includes `used_fallback` and `transcription_method`
+
+**Usage:**
+```bash
+node tests/test_video_fallback.js
+```
+
+### `tests/simulate_gemini_failure.js`
+Helper script to temporarily inject failure into Gemini transcription:
+```bash
+# Enable simulation (makes Gemini throw error)
+node tests/simulate_gemini_failure.js enable
+
+# Run test
+node tests/test_video_fallback.js
+
+# Disable simulation (restore normal operation)
+node tests/simulate_gemini_failure.js disable
+```
+
+## Code Cleanup
+
+### ❌ Removed Unused OpenAI Code
+- **Deleted:** `backend/src/services/ai/openai.ts` (270 lines)
+- **Reason:** Embeddings now handled by AWS Bedrock Cohere (in `embeddings.ts`)
+- **Removed dependency:** `openai@^6.16.0` from package.json
+- **Impact:** No breaking changes - OpenAI service was not being imported anywhere
+
 ## Dependencies Required
 
-- `yt-dlp-exec@^2.4.11` - Node.js wrapper for yt-dlp (NEW)
+- `yt-dlp-exec@^1.0.2` - Node.js wrapper for yt-dlp (NEW)
 - `ffmpeg` - System dependency for audio extraction (must be installed on server)
 - `@aws-sdk/client-bedrock-runtime` - Already installed
 
