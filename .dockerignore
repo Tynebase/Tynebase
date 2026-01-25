@@ -1,0 +1,47 @@
+# Node modules
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Development files
+*.md
+!README.md
+.git/
+.gitignore
+.env
+.env.*
+!.env.example
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test files
+tests/
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+
+# Documentation
+docs/
+RALPH_milestone2_build_docs/
+
+# Build artifacts
+dist/
+build/
+coverage/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Frontend (not needed in backend container)
+tynebase-frontend/
+
+# Supabase local files
+supabase/.branches/
+supabase/.temp/

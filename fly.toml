@@ -1,0 +1,75 @@
+# Fly.io configuration for TyneBase Backend
+# Documentation: https://fly.io/docs/reference/configuration/
+
+app = "tynebase-backend"
+primary_region = "lhr"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "8080"
+  LOG_LEVEL = "info"
+
+# API Process - Main Fastify server
+[processes]
+  api = "node dist/server.js"
+  worker = "node dist/worker.js"
+
+# HTTP service configuration for API process
+[[services]]
+  processes = ["api"]
+  protocol = "tcp"
+  internal_port = 8080
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["http", "tls"]
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 250
+    soft_limit = 200
+
+  [[services.tcp_checks]]
+    interval = "15s"
+    timeout = "2s"
+    grace_period = "5s"
+    restart_limit = 0
+
+  [[services.http_checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/health"
+    protocol = "http"
+    restart_limit = 0
+
+# VM Resources
+[vm]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512
+
+# Scaling configuration
+[scaling]
+  min_machines = 1
+  max_machines = 3
+
+# Secrets (set via: fly secrets set KEY=VALUE)
+# Required secrets:
+# - SUPABASE_URL
+# - SUPABASE_ANON_KEY
+# - SUPABASE_SERVICE_ROLE_KEY
+# - ALLOWED_ORIGINS (comma-separated)
+# - RATE_LIMIT_GLOBAL
+# - RATE_LIMIT_WINDOW_GLOBAL
+# - RATE_LIMIT_AI
+# - RATE_LIMIT_WINDOW_AI
