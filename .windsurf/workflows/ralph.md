@@ -10,8 +10,47 @@ This workflow executes the RALPH (Rapid Autonomous Loop for Programmatic Handlin
 - Working directory: `RALPH_milestone2_build_docs/`
 - Files: `PRD.md`, `RALPH.md`, `PRD.json`, `ralph_state.json`, `ralph_runner.py`
 - **Supabase CLI**: Access via `npx supabase <command>` (no global install needed)
-- **Real Credentials Available**: `backend/.env` contains actual Supabase service role and anon keys for testing
+- **Real Credentials Available**: `backend/.env` contains actual Supabase credentials for testing
 - **Test Infrastructure**: `/tests` directory contains validation scripts and test data
+
+---
+
+## ⚠️ CRITICAL: Supabase Authentication (READ THIS FIRST)
+
+**TyneBase has migrated to the NEW Supabase API keys. You MUST use the new authentication flow.**
+
+### ✅ CORRECT - Use New API Keys:
+```typescript
+// In backend code - ALWAYS import from lib/supabase
+import { supabaseAdmin } from '../lib/supabase';
+
+// The supabaseAdmin client automatically uses:
+// - SUPABASE_SECRET_KEY (new format: sb_secret_...)
+// - Falls back to SUPABASE_SERVICE_ROLE_KEY (deprecated)
+```
+
+### ❌ DEPRECATED - Never Use Old Keys Directly:
+```typescript
+// ❌ NEVER DO THIS - Old pattern is deprecated
+const supabase = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(url, process.env.SUPABASE_ANON_KEY);
+```
+
+### Implementation Rules:
+1. **Backend Routes**: ALWAYS import `supabaseAdmin` from `../lib/supabase`
+2. **Test Scripts**: Use `SUPABASE_SECRET_KEY` from `backend/.env`
+3. **Frontend**: Use `SUPABASE_PUBLISHABLE_KEY` (not ANON_KEY)
+4. **Never**: Create new Supabase clients with old key variables
+5. **Reference**: See `docs/Supabase_API_Key_Migration.md` for full details
+
+### Why This Matters:
+- ✅ New keys can be rotated independently without downtime
+- ✅ Better security and observability
+- ✅ Shorter, more secure key format
+- ✅ Browser detection prevents accidental secret key exposure
+- ❌ Old JWT-based keys are deprecated and will be removed
+
+**If you create any new files that use Supabase, follow the existing pattern in the codebase.**
 
 ---
 
