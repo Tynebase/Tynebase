@@ -63,7 +63,7 @@ $docPayload = @{
 $docResponse = Invoke-RestMethod -Uri "$SUPABASE_URL/rest/v1/documents" `
     -Headers @{
         "apikey" = $SUPABASE_SECRET_KEY
-        "Authorization" = "Bearer $SUPABASE_SECRET_KEY
+        "Authorization" = "Bearer $SUPABASE_SECRET_KEY"
         "Content-Type" = "application/json"
         "Prefer" = "return=representation"
     } -Method Post -Body $docPayload

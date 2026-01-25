@@ -501,4 +501,227 @@ export default async function documentAssetRoutes(fastify: FastifyInstance) {
       }
     }
   );
+
+  /**
+   * DELETE /api/documents/:id/assets/:assetId
+   * Deletes an asset (image or video) from a document
+   * 
+   * Path Parameters:
+   * - id: Document UUID
+   * - assetId: Asset filename (e.g., "1234567890_image.jpg")
+   * 
+   * Authorization:
+   * - Requires valid JWT
+   * - User must be member of tenant
+   * - Document must belong to user's tenant
+   * 
+   * Security:
+   * - Enforces tenant isolation via explicit tenant_id filtering
+   * - Verifies document exists and belongs to user's tenant
+   * - Validates asset path to prevent path traversal attacks
+   * - Only deletes assets within tenant's document folder
+   * - Prevents orphaned assets by verifying full storage path
+   * 
+   * Storage:
+   * - Deletes from bucket: tenant-documents
+   * - Path: tenant-{tenant_id}/documents/{document_id}/{assetId}
+   * 
+   * Response:
+   * - 200: Asset deleted successfully
+   * - 400: Invalid parameters or asset ID
+   * - 404: Document or asset not found
+   * - 500: Failed to delete asset or internal error
+   */
+  fastify.delete(
+    '/api/documents/:id/assets/:assetId',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        const params = deleteAssetParamsSchema.parse(request.params);
+        const { id: documentId, assetId } = params;
+
+        const { error: docError } = await supabaseAdmin
+          .from('documents')
+          .select('id')
+          .eq('id', documentId)
+          .eq('tenant_id', tenant.id)
+          .single();
+
+        if (docError) {
+          if (docError.code === 'PGRST116') {
+            fastify.log.warn(
+              { documentId, tenantId: tenant.id, userId: user.id },
+              'Document not found or access denied'
+            );
+            return reply.code(404).send({
+              error: {
+                code: 'DOCUMENT_NOT_FOUND',
+                message: 'Document not found',
+                details: {},
+              },
+            });
+          }
+
+          fastify.log.error(
+            { error: docError, documentId, tenantId: tenant.id, userId: user.id },
+            'Failed to fetch document for asset deletion'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'FETCH_FAILED',
+              message: 'Failed to fetch document',
+              details: {},
+            },
+          });
+        }
+
+        if (assetId.includes('/') || assetId.includes('\\') || assetId.includes('..')) {
+          fastify.log.warn(
+            {
+              assetId,
+              documentId,
+              tenantId: tenant.id,
+              userId: user.id,
+            },
+            'Invalid asset ID - potential path traversal attempt'
+          );
+          return reply.code(400).send({
+            error: {
+              code: 'INVALID_ASSET_ID',
+              message: 'Invalid asset ID format',
+              details: {},
+            },
+          });
+        }
+
+        const storagePath = `tenant-${tenant.id}/documents/${documentId}/${assetId}`;
+
+        fastify.log.info(
+          {
+            assetId,
+            storagePath,
+            documentId,
+            tenantId: tenant.id,
+            userId: user.id,
+          },
+          'Attempting to delete asset'
+        );
+
+        const { data: files, error: listError } = await supabaseAdmin
+          .storage
+          .from('tenant-documents')
+          .list(`tenant-${tenant.id}/documents/${documentId}`, {
+            limit: 1000,
+          });
+
+        if (listError) {
+          fastify.log.error(
+            {
+              documentId,
+              tenantId: tenant.id,
+              error: listError.message,
+            },
+            'Failed to list assets for verification'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'LIST_FAILED',
+              message: 'Failed to verify asset existence',
+              details: {},
+            },
+          });
+        }
+
+        const assetExists = files?.some(file => file.name === assetId);
+
+        if (!assetExists) {
+          fastify.log.warn(
+            {
+              assetId,
+              documentId,
+              tenantId: tenant.id,
+              userId: user.id,
+            },
+            'Asset not found'
+          );
+          return reply.code(404).send({
+            error: {
+              code: 'ASSET_NOT_FOUND',
+              message: 'Asset not found',
+              details: {},
+            },
+          });
+        }
+
+        const { error: deleteError } = await supabaseAdmin
+          .storage
+          .from('tenant-documents')
+          .remove([storagePath]);
+
+        if (deleteError) {
+          fastify.log.error(
+            {
+              storagePath,
+              assetId,
+              documentId,
+              tenantId: tenant.id,
+              error: deleteError.message,
+            },
+            'Failed to delete asset from storage'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'DELETE_FAILED',
+              message: 'Failed to delete asset',
+              details: {},
+            },
+          });
+        }
+
+        fastify.log.info(
+          {
+            assetId,
+            storagePath,
+            documentId,
+            tenantId: tenant.id,
+            userId: user.id,
+          },
+          'Asset deleted successfully'
+        );
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            message: 'Asset deleted successfully',
+            asset_id: assetId,
+            document_id: documentId,
+          },
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid parameters',
+              details: error.errors,
+            },
+          });
+        }
+
+        fastify.log.error({ error }, 'Unexpected error in DELETE /api/documents/:id/assets/:assetId');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
 }
