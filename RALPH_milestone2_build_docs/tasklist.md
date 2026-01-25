@@ -2,16 +2,16 @@
 
 **Project:** TyneBase Backend - Milestone 2  
 **Protocol:** RALPH v2.0  
-**Last Updated:** 2026-01-25 11:29
+**Last Updated:** 2026-01-25 11:33
 
 ---
 
 ## Progress Overview
 - **Total Tasks:** 121 (excl. 8 deferred)
-- **Completed:** 25
+- **Completed:** 26
 - **In Progress:** 0
 - **Blocked:** 0
-- **Remaining:** 96
+- **Remaining:** 95
 
 ---
 
@@ -56,12 +56,16 @@
 - [x] **2.11**: [API] Implement Tenant Settings Update Endpoint
 - [x] **2.12**: [API] Implement Document List Endpoint
 - [x] **2.13**: [API] Implement Document Get Endpoint
+- [x] **2.14**: [API] Implement Document Create Endpoint
 
 ---
 
 ## Execution History (Last 10):
 | Timestamp | Task | Action | Result |
 |-----------|------|--------|--------|
+| 2026-01-25T11:33 | 2.14 | completed | PASS |
+| 2026-01-25T11:30 | 2.14 | started | in_progress |
+| 2026-01-25T11:29 | None | commit | feat(task-2.13): implement doc... |
 | 2026-01-25T11:29 | 2.13 | completed | PASS |
 | 2026-01-25T11:26 | 2.13 | started | in_progress |
 | 2026-01-25T11:25 | None | commit | feat(task-2.12): implement doc... |
@@ -69,6 +73,3 @@
 | 2026-01-25T11:20 | 2.12 | started | in_progress |
 | 2026-01-25T11:20 | 2.12 | started | in_progress |
 | 2026-01-25T11:17 | None | commit | feat(task-2.11): implement ten... |
-| 2026-01-25T11:17 | 2.11 | completed | PASS |
-| 2026-01-25T11:13 | 2.11 | started | in_progress |
-| 2026-01-25T11:04 | None | commit | feat(task-2.10): implement ses... |

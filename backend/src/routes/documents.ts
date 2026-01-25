@@ -24,6 +24,16 @@ const getDocumentParamsSchema = z.object({
 });
 
 /**
+ * Zod schema for POST /api/documents request body
+ */
+const createDocumentBodySchema = z.object({
+  title: z.string().min(1).max(500),
+  content: z.string().optional(),
+  parent_id: z.string().uuid().optional(),
+  is_public: z.boolean().default(false),
+});
+
+/**
  * Document routes with full middleware chain:
  * 1. rateLimitMiddleware - enforces rate limits (100 req/10min global)
  * 2. tenantContextMiddleware - resolves tenant from x-tenant-subdomain header
@@ -279,6 +289,160 @@ export default async function documentRoutes(fastify: FastifyInstance) {
         }
 
         fastify.log.error({ error }, 'Unexpected error in GET /api/documents/:id');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
+   * POST /api/documents
+   * Creates a new document with status='draft' and records lineage event
+   * 
+   * Request Body:
+   * - title (required): Document title (1-500 characters)
+   * - content (optional): Markdown content
+   * - parent_id (optional): Parent document UUID for folder structure
+   * - is_public (optional): Whether document is publicly accessible (default: false)
+   * 
+   * Authorization:
+   * - Requires valid JWT
+   * - User must be member of tenant
+   * 
+   * Security:
+   * - Sets tenant_id from tenant context
+   * - Sets author_id from authenticated user
+   * - Validates all input with Zod schema
+   * - Creates immutable lineage event for audit trail
+   * - Enforces tenant isolation
+   */
+  fastify.post(
+    '/api/documents',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        // Validate request body
+        const body = createDocumentBodySchema.parse(request.body);
+        const { title, content, parent_id, is_public } = body;
+
+        // Verify parent_id belongs to same tenant if provided
+        if (parent_id) {
+          const { data: parentDoc, error: parentError } = await supabaseAdmin
+            .from('documents')
+            .select('id')
+            .eq('id', parent_id)
+            .eq('tenant_id', tenant.id)
+            .single();
+
+          if (parentError || !parentDoc) {
+            fastify.log.warn(
+              { parentId: parent_id, tenantId: tenant.id, userId: user.id },
+              'Parent document not found or belongs to different tenant'
+            );
+            return reply.code(400).send({
+              error: {
+                code: 'INVALID_PARENT',
+                message: 'Parent document not found or access denied',
+                details: {},
+              },
+            });
+          }
+        }
+
+        // Create document with status='draft'
+        const { data: document, error: createError } = await supabaseAdmin
+          .from('documents')
+          .insert({
+            tenant_id: tenant.id,
+            author_id: user.id,
+            title,
+            content: content || '',
+            parent_id: parent_id || null,
+            is_public,
+            status: 'draft',
+          })
+          .select(`
+            id,
+            title,
+            content,
+            parent_id,
+            is_public,
+            status,
+            author_id,
+            published_at,
+            created_at,
+            updated_at
+          `)
+          .single();
+
+        if (createError) {
+          fastify.log.error(
+            { error: createError, tenantId: tenant.id, userId: user.id },
+            'Failed to create document'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'CREATE_FAILED',
+              message: 'Failed to create document',
+              details: {},
+            },
+          });
+        }
+
+        // Create lineage event for document creation
+        const { error: lineageError } = await supabaseAdmin
+          .from('document_lineage')
+          .insert({
+            document_id: document.id,
+            event_type: 'created',
+            actor_id: user.id,
+            metadata: {
+              title,
+              has_parent: !!parent_id,
+              is_public,
+            },
+          });
+
+        if (lineageError) {
+          fastify.log.error(
+            { error: lineageError, documentId: document.id, userId: user.id },
+            'Failed to create lineage event'
+          );
+        }
+
+        fastify.log.info(
+          { documentId: document.id, tenantId: tenant.id, userId: user.id, title },
+          'Document created successfully'
+        );
+
+        return reply.code(201).send({
+          success: true,
+          data: {
+            document,
+          },
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid request body',
+              details: error.errors,
+            },
+          });
+        }
+
+        fastify.log.error({ error }, 'Unexpected error in POST /api/documents');
         return reply.code(500).send({
           error: {
             code: 'INTERNAL_ERROR',
