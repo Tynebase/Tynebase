@@ -2,16 +2,16 @@
 
 **Project:** TyneBase Backend - Milestone 2  
 **Protocol:** RALPH v2.0  
-**Last Updated:** 2026-01-25 18:19
+**Last Updated:** 2026-01-25 18:25
 
 ---
 
 ## Progress Overview
 - **Total Tasks:** 121 (excl. 8 deferred)
-- **Completed:** 71
+- **Completed:** 72
 - **In Progress:** 0
 - **Blocked:** 0
-- **Remaining:** 50
+- **Remaining:** 49
 
 ---
 
@@ -102,12 +102,16 @@
 - [x] **8.2**: [Collab] Initialize Hocuspocus Server
 - [x] **8.3**: [Collab] Implement Authentication Hook
 - [x] **8.4**: [Collab] Implement Load Document Hook
+- [x] **8.5**: [Collab] Implement Store Document Hook
 
 ---
 
 ## Execution History (Last 10):
 | Timestamp | Task | Action | Result |
 |-----------|------|--------|--------|
+| 2026-01-25T18:25 | 8.5 | completed | PASS |
+| 2026-01-25T18:21 | 8.5 | started | in_progress |
+| 2026-01-25T18:19 | None | commit | feat(task-8.4): enhance onLoad... |
 | 2026-01-25T18:19 | 8.4 | completed | PASS |
 | 2026-01-25T18:15 | 8.4 | started | in_progress |
 | 2026-01-25T18:14 | None | commit | feat(task-8.3): enhance Hocusp... |
@@ -115,6 +119,3 @@
 | 2026-01-25T18:11 | 8.3 | started | in_progress |
 | 2026-01-25T18:07 | None | commit | feat(task-8.2): initialize Hoc... |
 | 2026-01-25T18:07 | 8.2 | completed | PASS |
-| 2026-01-25T18:03 | 8.2 | started | in_progress |
-| 2026-01-25T17:57 | None | commit | feat(task-8.1): create separat... |
-| 2026-01-25T17:57 | 8.1 | completed | PASS |
