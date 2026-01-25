@@ -2,16 +2,16 @@
 
 **Project:** TyneBase Backend - Milestone 2  
 **Protocol:** RALPH v2.0  
-**Last Updated:** 2026-01-25 15:38
+**Last Updated:** 2026-01-25 15:45
 
 ---
 
 ## Progress Overview
 - **Total Tasks:** 121 (excl. 8 deferred)
-- **Completed:** 54
+- **Completed:** 55
 - **In Progress:** 0
 - **Blocked:** 0
-- **Remaining:** 67
+- **Remaining:** 66
 
 ---
 
@@ -85,12 +85,16 @@
 - [x] **6.3**: [Worker] Implement Fallback yt-dlp + Whisper Handler
 - [x] **6.4**: [API] Implement YouTube URL Endpoint
 - [x] **6.5**: [Worker] Handle YouTube URLs in Video Ingest
+- [x] **6.6**: [API] Implement Document Import Endpoint
 
 ---
 
 ## Execution History (Last 10):
 | Timestamp | Task | Action | Result |
 |-----------|------|--------|--------|
+| 2026-01-25T15:45 | 6.6 | completed | PASS |
+| 2026-01-25T15:41 | 6.6 | started | in_progress |
+| 2026-01-25T15:38 | None | commit | feat(task-6.5): handle YouTube... |
 | 2026-01-25T15:38 | 6.5 | completed | PASS |
 | 2026-01-25T15:33 | 6.5 | started | in_progress |
 | 2026-01-25T15:32 | None | commit | feat(task-6.4): implement YouT... |
@@ -98,6 +102,3 @@
 | 2026-01-25T15:28 | 6.4 | started | in_progress |
 | 2026-01-25T15:27 | None | commit | feat(task-6.3): add test scrip... |
 | 2026-01-25T15:23 | None | commit | feat(task-6.3): implement fall... |
-| 2026-01-25T15:23 | 6.3 | completed | PASS |
-| 2026-01-25T15:17 | 6.3 | started | in_progress |
-| 2026-01-25T15:16 | None | commit | feat(task-6.2): implement Gemi... |

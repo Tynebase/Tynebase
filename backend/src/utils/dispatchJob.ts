@@ -8,6 +8,7 @@ const JobTypeSchema = z.enum([
   'video_ingest_youtube',
   'document_indexing',
   'document_export',
+  'document_convert',
   'tenant_cleanup',
   'test_job'
 ]);

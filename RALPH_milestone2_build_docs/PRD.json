@@ -548,7 +548,10 @@
       "phase": "Phase 6: Video & Document Ingestion",
       "title": "[API] Implement Document Import Endpoint",
       "action": "POST /api/documents/import for PDF/DOCX/MD",
-      "passes": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-25T15:41:31.750811",
+      "completed_at": "2026-01-25T15:45:17.221614"
     },
     {
       "id": "6.7",
