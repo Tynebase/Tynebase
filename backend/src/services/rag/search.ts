@@ -93,7 +93,9 @@ export async function searchDocuments(options: SearchOptions): Promise<SearchRes
     // Step 4: Apply reranking if enabled
     if (useReranking && searchResults.length > 0) {
       try {
-        const topResults = searchResults.slice(0, Math.min(rerankTopN * 2, searchResults.length));
+        // Rerank top 50 candidates to find the best rerankTopN results
+        // Cohere Rerank v3.5 performs better with larger candidate pools
+        const topResults = searchResults.slice(0, Math.min(50, searchResults.length));
         
         const documentsToRerank: RerankDocument[] = topResults.map(result => ({
           text: result.chunkContent,
