@@ -2,16 +2,16 @@
 
 **Project:** TyneBase Backend - Milestone 2  
 **Protocol:** RALPH v2.0  
-**Last Updated:** 2026-01-25 11:37
+**Last Updated:** 2026-01-25 11:45
 
 ---
 
 ## Progress Overview
 - **Total Tasks:** 121 (excl. 8 deferred)
-- **Completed:** 27
+- **Completed:** 28
 - **In Progress:** 0
 - **Blocked:** 0
-- **Remaining:** 94
+- **Remaining:** 93
 
 ---
 
@@ -58,12 +58,16 @@
 - [x] **2.13**: [API] Implement Document Get Endpoint
 - [x] **2.14**: [API] Implement Document Create Endpoint
 - [x] **2.15**: [API] Implement Document Update Endpoint
+- [x] **2.16**: [API] Implement Document Delete Endpoint
 
 ---
 
 ## Execution History (Last 10):
 | Timestamp | Task | Action | Result |
 |-----------|------|--------|--------|
+| 2026-01-25T11:45 | 2.16 | completed | PASS |
+| 2026-01-25T11:38 | 2.16 | started | in_progress |
+| 2026-01-25T11:38 | None | commit | feat(task-2.15): implement doc... |
 | 2026-01-25T11:37 | 2.15 | completed | PASS |
 | 2026-01-25T11:34 | 2.15 | started | in_progress |
 | 2026-01-25T11:33 | None | commit | feat(task-2.14): implement doc... |
@@ -71,6 +75,3 @@
 | 2026-01-25T11:30 | 2.14 | started | in_progress |
 | 2026-01-25T11:29 | None | commit | feat(task-2.13): implement doc... |
 | 2026-01-25T11:29 | 2.13 | completed | PASS |
-| 2026-01-25T11:26 | 2.13 | started | in_progress |
-| 2026-01-25T11:25 | None | commit | feat(task-2.12): implement doc... |
-| 2026-01-25T11:24 | 2.12 | completed | PASS |

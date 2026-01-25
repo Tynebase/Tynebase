@@ -53,6 +53,13 @@ const updateDocumentParamsSchema = z.object({
 });
 
 /**
+ * Zod schema for DELETE /api/documents/:id path parameters
+ */
+const deleteDocumentParamsSchema = z.object({
+  id: z.string().uuid(),
+});
+
+/**
  * Document routes with full middleware chain:
  * 1. rateLimitMiddleware - enforces rate limits (100 req/10min global)
  * 2. tenantContextMiddleware - resolves tenant from x-tenant-subdomain header
@@ -688,6 +695,157 @@ export default async function documentRoutes(fastify: FastifyInstance) {
         }
 
         fastify.log.error({ error }, 'Unexpected error in PATCH /api/documents/:id');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
+   * DELETE /api/documents/:id
+   * Deletes a document and cascades to embeddings and lineage
+   * 
+   * Path Parameters:
+   * - id: Document UUID
+   * 
+   * Authorization:
+   * - Requires valid JWT
+   * - User must be member of tenant
+   * - User must be the document author (ownership verification)
+   * 
+   * Security:
+   * - Enforces tenant isolation via explicit tenant_id filtering
+   * - Verifies document ownership (only author can delete)
+   * - Validates UUID format with Zod
+   * - Cascade deletes embeddings and lineage via database constraints
+   * - Returns 404 if document not found or belongs to different tenant
+   * - Returns 403 if user is not the document author
+   * 
+   * Database Behavior:
+   * - Hard delete (no soft delete/deleted_at column)
+   * - ON DELETE CASCADE removes related embeddings automatically
+   * - ON DELETE CASCADE removes related lineage events automatically
+   */
+  fastify.delete(
+    '/api/documents/:id',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        // Validate path parameters
+        const params = deleteDocumentParamsSchema.parse(request.params);
+        const { id } = params;
+
+        // Fetch document to verify ownership and tenant
+        const { data: existingDoc, error: fetchError } = await supabaseAdmin
+          .from('documents')
+          .select('id, author_id, tenant_id, title')
+          .eq('id', id)
+          .eq('tenant_id', tenant.id)
+          .single();
+
+        if (fetchError) {
+          if (fetchError.code === 'PGRST116') {
+            fastify.log.warn(
+              { documentId: id, tenantId: tenant.id, userId: user.id },
+              'Document not found or access denied'
+            );
+            return reply.code(404).send({
+              error: {
+                code: 'DOCUMENT_NOT_FOUND',
+                message: 'Document not found',
+                details: {},
+              },
+            });
+          }
+
+          fastify.log.error(
+            { error: fetchError, documentId: id, tenantId: tenant.id, userId: user.id },
+            'Failed to fetch document for deletion'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'FETCH_FAILED',
+              message: 'Failed to fetch document',
+              details: {},
+            },
+          });
+        }
+
+        // Verify ownership - only author can delete
+        if (existingDoc.author_id !== user.id) {
+          fastify.log.warn(
+            { documentId: id, authorId: existingDoc.author_id, userId: user.id },
+            'User attempted to delete document they do not own'
+          );
+          return reply.code(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Only the document author can delete this document',
+              details: {},
+            },
+          });
+        }
+
+        // Delete document (cascade deletes embeddings and lineage)
+        const { error: deleteError } = await supabaseAdmin
+          .from('documents')
+          .delete()
+          .eq('id', id)
+          .eq('tenant_id', tenant.id);
+
+        if (deleteError) {
+          fastify.log.error(
+            { error: deleteError, documentId: id, tenantId: tenant.id, userId: user.id },
+            'Failed to delete document'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'DELETE_FAILED',
+              message: 'Failed to delete document',
+              details: {},
+            },
+          });
+        }
+
+        fastify.log.info(
+          { 
+            documentId: id, 
+            tenantId: tenant.id, 
+            userId: user.id,
+            title: existingDoc.title,
+          },
+          'Document deleted successfully'
+        );
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            message: 'Document deleted successfully',
+            documentId: id,
+          },
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid document ID format',
+              details: error.errors,
+            },
+          });
+        }
+
+        fastify.log.error({ error }, 'Unexpected error in DELETE /api/documents/:id');
         return reply.code(500).send({
           error: {
             code: 'INTERNAL_ERROR',
