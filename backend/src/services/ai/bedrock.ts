@@ -39,7 +39,7 @@ function getBedrockClient(): BedrockRuntimeClient {
     const region = process.env.AWS_REGION || 'eu-west-2';
     
     if (!apiKey) {
-      throw new Error('AWS_BEDROCK_API_KEY environment variable is not set');
+      throw new Error('AWS_BEDROCK_API_KEY environment variable must be set');
     }
 
     bedrockClient = new BedrockRuntimeClient({
