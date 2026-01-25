@@ -80,6 +80,21 @@ export async function transcribeVideo(
     // Count input tokens (approximate based on prompt)
     const inputTokens = countTokens(prompt, 'gpt-4');
 
+    // Detect if this is a YouTube URL
+    const isYouTubeUrl = /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)/.test(videoUrl);
+
+    // Prepare file data part
+    const fileDataPart: any = {
+      fileData: {
+        fileUri: videoUrl,
+      },
+    };
+
+    // Only add mimeType for non-YouTube URLs (Gemini handles YouTube natively)
+    if (!isYouTubeUrl) {
+      fileDataPart.fileData.mimeType = 'video/*';
+    }
+
     // Prepare request with video URL
     const request = {
       contents: [
@@ -89,12 +104,7 @@ export async function transcribeVideo(
             {
               text: prompt,
             },
-            {
-              fileData: {
-                fileUri: videoUrl,
-                mimeType: 'video/*', // Auto-detect video format
-              },
-            },
+            fileDataPart.fileData,
           ],
         },
       ],

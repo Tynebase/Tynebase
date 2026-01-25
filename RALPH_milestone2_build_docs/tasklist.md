@@ -2,16 +2,16 @@
 
 **Project:** TyneBase Backend - Milestone 2  
 **Protocol:** RALPH v2.0  
-**Last Updated:** 2026-01-25 15:31
+**Last Updated:** 2026-01-25 15:38
 
 ---
 
 ## Progress Overview
 - **Total Tasks:** 121 (excl. 8 deferred)
-- **Completed:** 53
+- **Completed:** 54
 - **In Progress:** 0
 - **Blocked:** 0
-- **Remaining:** 68
+- **Remaining:** 67
 
 ---
 
@@ -84,12 +84,16 @@
 - [x] **6.2**: [Worker] Implement Gemini Video Ingestion Handler
 - [x] **6.3**: [Worker] Implement Fallback yt-dlp + Whisper Handler
 - [x] **6.4**: [API] Implement YouTube URL Endpoint
+- [x] **6.5**: [Worker] Handle YouTube URLs in Video Ingest
 
 ---
 
 ## Execution History (Last 10):
 | Timestamp | Task | Action | Result |
 |-----------|------|--------|--------|
+| 2026-01-25T15:38 | 6.5 | completed | PASS |
+| 2026-01-25T15:33 | 6.5 | started | in_progress |
+| 2026-01-25T15:32 | None | commit | feat(task-6.4): implement YouT... |
 | 2026-01-25T15:31 | 6.4 | completed | PASS |
 | 2026-01-25T15:28 | 6.4 | started | in_progress |
 | 2026-01-25T15:27 | None | commit | feat(task-6.3): add test scrip... |
@@ -97,6 +101,3 @@
 | 2026-01-25T15:23 | 6.3 | completed | PASS |
 | 2026-01-25T15:17 | 6.3 | started | in_progress |
 | 2026-01-25T15:16 | None | commit | feat(task-6.2): implement Gemi... |
-| 2026-01-25T15:16 | 6.2 | completed | PASS |
-| 2026-01-25T15:12 | 6.2 | started | in_progress |
-| 2026-01-25T15:08 | None | commit | feat(task-6.1): implement vide... |

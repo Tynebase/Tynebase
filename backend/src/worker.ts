@@ -78,6 +78,7 @@ const processJob = async (job: any): Promise<void> => {
         break;
       
       case 'video_ingestion':
+      case 'video_ingest_youtube':
         await processVideoIngestJob(job);
         break;
       

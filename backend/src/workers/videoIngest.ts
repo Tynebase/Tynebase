@@ -28,13 +28,17 @@ import * as path from 'path';
 import * as os from 'os';
 
 const VideoIngestPayloadSchema = z.object({
-  storage_path: z.string().min(1),
-  original_filename: z.string().min(1),
-  file_size: z.number().int().positive(),
-  mimetype: z.string().min(1),
+  storage_path: z.string().min(1).optional(),
+  original_filename: z.string().min(1).optional(),
+  file_size: z.number().int().positive().optional(),
+  mimetype: z.string().min(1).optional(),
   user_id: z.string().uuid(),
   youtube_url: z.string().url().optional(),
-});
+  url: z.string().url().optional(),
+}).refine(
+  (data) => data.storage_path || data.youtube_url || data.url,
+  { message: 'Either storage_path, youtube_url, or url must be provided' }
+);
 
 type VideoIngestPayload = z.infer<typeof VideoIngestPayloadSchema>;
 
@@ -66,15 +70,24 @@ export async function processVideoIngestJob(job: Job): Promise<void> {
 
     let videoUrl: string;
     let isYouTubeVideo = false;
+    let originalFilename: string;
+    let fileSize: number;
 
-    if (validated.youtube_url) {
-      console.log(`[Worker ${workerId}] Processing YouTube video: ${validated.youtube_url}`);
-      videoUrl = validated.youtube_url;
+    if (validated.youtube_url || validated.url) {
+      const youtubeUrl = validated.youtube_url || validated.url!;
+      console.log(`[Worker ${workerId}] Processing YouTube video: ${youtubeUrl}`);
+      videoUrl = youtubeUrl;
       isYouTubeVideo = true;
-    } else {
+      originalFilename = validated.original_filename || `YouTube Video - ${new Date().toISOString()}`;
+      fileSize = validated.file_size || 0;
+    } else if (validated.storage_path) {
       const signedUrl = await getSignedVideoUrl(validated.storage_path, workerId);
       videoUrl = signedUrl;
+      originalFilename = validated.original_filename!;
+      fileSize = validated.file_size!;
       console.log(`[Worker ${workerId}] Generated signed URL for storage path: ${validated.storage_path}`);
+    } else {
+      throw new Error('No video source provided (storage_path, youtube_url, or url)');
     }
 
     console.log(`[Worker ${workerId}] Transcribing video with Gemini...`);
@@ -108,12 +121,12 @@ export async function processVideoIngestJob(job: Job): Promise<void> {
 
     console.log(`[Worker ${workerId}] Transcription completed: ${transcript.length} characters, ${tokensUsed} tokens`);
 
-    const durationMinutes = estimateVideoDuration(transcript, validated.file_size);
+    const durationMinutes = estimateVideoDuration(transcript, fileSize);
     const creditsUsed = calculateVideoIngestionCredits(durationMinutes);
 
     console.log(`[Worker ${workerId}] Estimated duration: ${durationMinutes} minutes, Credits: ${creditsUsed}`);
 
-    const documentTitle = generateDocumentTitle(validated.original_filename, transcript);
+    const documentTitle = generateDocumentTitle(originalFilename, transcript);
 
     const { data: document, error: docError } = await supabaseAdmin
       .from('documents')
@@ -146,14 +159,14 @@ export async function processVideoIngestJob(job: Job): Promise<void> {
         event_type: 'converted_from_video',
         actor_id: validated.user_id,
         metadata: {
-          original_filename: validated.original_filename,
-          file_size: validated.file_size,
-          mimetype: validated.mimetype,
-          storage_path: validated.storage_path,
+          original_filename: originalFilename,
+          file_size: fileSize,
+          mimetype: validated.mimetype || 'video/mp4',
+          storage_path: validated.storage_path || null,
           duration_minutes: durationMinutes,
           tokens_used: tokensUsed,
           is_youtube: isYouTubeVideo,
-          youtube_url: validated.youtube_url || null,
+          youtube_url: validated.youtube_url || validated.url || null,
           used_fallback: usedFallback,
           transcription_method: usedFallback ? 'whisper' : 'gemini',
         },
@@ -173,7 +186,7 @@ export async function processVideoIngestJob(job: Job): Promise<void> {
         user_id: validated.user_id,
         query_type: 'video_ingestion',
         model: usedFallback ? 'whisper-large-v3-turbo' : 'gemini-3-flash',
-        input_tokens: usedFallback ? Math.ceil(validated.file_size / 1000) : transcriptionResult!.tokensInput,
+        input_tokens: usedFallback ? Math.ceil(fileSize / 1000) : transcriptionResult!.tokensInput,
         output_tokens: usedFallback ? tokensUsed : transcriptionResult!.tokensOutput,
         credits_used: creditsUsed,
         month_year: currentMonth,
@@ -181,7 +194,7 @@ export async function processVideoIngestJob(job: Job): Promise<void> {
           job_id: job.id,
           document_id: document.id,
           duration_minutes: durationMinutes,
-          file_size: validated.file_size,
+          file_size: fileSize,
           is_youtube: isYouTubeVideo,
           used_fallback: usedFallback,
           transcription_method: usedFallback ? 'whisper' : 'gemini',
@@ -194,7 +207,7 @@ export async function processVideoIngestJob(job: Job): Promise<void> {
       console.log(`[Worker ${workerId}] Query usage logged: ${creditsUsed} credits`);
     }
 
-    if (!isYouTubeVideo && DELETE_VIDEO_AFTER_PROCESSING) {
+    if (!isYouTubeVideo && DELETE_VIDEO_AFTER_PROCESSING && validated.storage_path) {
       try {
         await deleteVideoFromStorage(validated.storage_path, workerId);
         console.log(`[Worker ${workerId}] Video deleted from storage: ${validated.storage_path}`);

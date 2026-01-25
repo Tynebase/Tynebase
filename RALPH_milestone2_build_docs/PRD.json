@@ -538,7 +538,10 @@
       "phase": "Phase 6: Video & Document Ingestion",
       "title": "[Worker] Handle YouTube URLs in Video Ingest",
       "action": "Update workers/videoIngest.ts to handle YouTube URLs",
-      "passes": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-25T15:33:07.963412",
+      "completed_at": "2026-01-25T15:38:28.038461"
     },
     {
       "id": "6.6",
