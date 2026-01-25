@@ -28,6 +28,13 @@ const createTemplateBodySchema = z.object({
 });
 
 /**
+ * Zod schema for POST /api/templates/:id/use path parameters
+ */
+const useTemplateParamsSchema = z.object({
+  id: z.string().uuid(),
+});
+
+/**
  * Template routes with full middleware chain:
  * 1. rateLimitMiddleware - enforces rate limits (100 req/10min global)
  * 2. tenantContextMiddleware - resolves tenant from x-tenant-subdomain header
@@ -323,6 +330,194 @@ export default async function templateRoutes(fastify: FastifyInstance) {
         }
 
         fastify.log.error({ error }, 'Unexpected error in POST /api/templates');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
+   * POST /api/templates/:id/use
+   * Duplicates a template as a new draft document
+   * 
+   * Path Parameters:
+   * - id (required): Template UUID
+   * 
+   * Authorization:
+   * - Requires valid JWT
+   * - User must be member of tenant
+   * - User must have access to the template (global approved OR tenant's own)
+   * 
+   * Security:
+   * - Validates template access (approved global OR tenant's template)
+   * - Sets author_id to authenticated user (not template creator)
+   * - Sets tenant_id to user's tenant
+   * - Creates new document as draft status
+   * - Creates lineage event tracking template usage
+   * - Validates UUID format with Zod
+   * 
+   * Behavior:
+   * - Fetches template and verifies access
+   * - Creates new document with template's content
+   * - Document title = template title (user can rename after)
+   * - Document status = 'draft'
+   * - Document author_id = current user
+   * - Creates lineage event with template_id reference
+   * - Returns created document
+   */
+  fastify.post(
+    '/api/templates/:id/use',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        // Validate path parameters
+        const params = useTemplateParamsSchema.parse(request.params);
+        const { id: templateId } = params;
+
+        // Fetch template and verify access
+        // User can access: (1) approved global templates OR (2) tenant's own templates
+        const { data: template, error: templateError } = await supabaseAdmin
+          .from('templates')
+          .select('id, tenant_id, title, content, is_approved')
+          .eq('id', templateId)
+          .single();
+
+        if (templateError || !template) {
+          fastify.log.warn(
+            { templateId, tenantId: tenant.id, userId: user.id },
+            'Template not found'
+          );
+          return reply.code(404).send({
+            error: {
+              code: 'TEMPLATE_NOT_FOUND',
+              message: 'Template not found',
+              details: {},
+            },
+          });
+        }
+
+        // Verify access: global approved template OR tenant's own template
+        const isGlobalApproved = template.tenant_id === null && template.is_approved === true;
+        const isTenantTemplate = template.tenant_id === tenant.id;
+
+        if (!isGlobalApproved && !isTenantTemplate) {
+          fastify.log.warn(
+            {
+              templateId,
+              templateTenantId: template.tenant_id,
+              templateIsApproved: template.is_approved,
+              userTenantId: tenant.id,
+              userId: user.id,
+            },
+            'User attempted to use template without access'
+          );
+          return reply.code(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'You do not have access to this template',
+              details: {},
+            },
+          });
+        }
+
+        // Create new document from template
+        const { data: document, error: createError } = await supabaseAdmin
+          .from('documents')
+          .insert({
+            tenant_id: tenant.id,
+            author_id: user.id,
+            title: template.title,
+            content: template.content,
+            status: 'draft',
+            is_public: false,
+          })
+          .select(`
+            id,
+            title,
+            content,
+            parent_id,
+            is_public,
+            status,
+            author_id,
+            published_at,
+            created_at,
+            updated_at
+          `)
+          .single();
+
+        if (createError) {
+          fastify.log.error(
+            { error: createError, templateId, tenantId: tenant.id, userId: user.id },
+            'Failed to create document from template'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'CREATE_FAILED',
+              message: 'Failed to create document from template',
+              details: {},
+            },
+          });
+        }
+
+        // Create lineage event for template usage
+        const { error: lineageError } = await supabaseAdmin
+          .from('document_lineage')
+          .insert({
+            document_id: document.id,
+            event_type: 'created',
+            actor_id: user.id,
+            metadata: {
+              source: 'template',
+              template_id: templateId,
+              template_title: template.title,
+            },
+          });
+
+        if (lineageError) {
+          fastify.log.error(
+            { error: lineageError, documentId: document.id, templateId, userId: user.id },
+            'Failed to create lineage event for template usage'
+          );
+        }
+
+        fastify.log.info(
+          {
+            documentId: document.id,
+            templateId,
+            tenantId: tenant.id,
+            userId: user.id,
+          },
+          'Document created from template successfully'
+        );
+
+        return reply.code(201).send({
+          success: true,
+          data: {
+            document,
+          },
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid template ID',
+              details: error.errors,
+            },
+          });
+        }
+
+        fastify.log.error({ error }, 'Unexpected error in POST /api/templates/:id/use');
         return reply.code(500).send({
           error: {
             code: 'INTERNAL_ERROR',

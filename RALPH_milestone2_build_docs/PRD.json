@@ -318,7 +318,10 @@
       "phase": "Phase 2: API Foundation (Fastify)",
       "title": "[API] Implement Template Use Endpoint",
       "action": "POST /api/templates/:id/use to duplicate as new document",
-      "passes": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-25T12:03:28.385932",
+      "completed_at": "2026-01-25T12:05:51.380243"
     },
     {
       "id": "3.1",
