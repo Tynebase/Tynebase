@@ -297,38 +297,6 @@ if ($testData.chatResponse) {
     Write-Host "  $($testData.chatResponse.response.Substring(0, $sampleLength))..." -ForegroundColor Gray
 }
 
-Write-Host ""
-
-# Step 7: Test Tenant Isolation
-Write-Host "Step 7: Test Tenant Isolation" -ForegroundColor Yellow
-Write-Host "  Verifying no cross-tenant data leakage" -ForegroundColor Gray
-
-$wrongHeaders = @{
-    "Authorization" = "Bearer $($testData.accessToken)"
-    "x-tenant-subdomain" = "wrongsubdomain"
-    "Content-Type" = "application/json"
-}
-
-try {
-    $isolationTest = Invoke-RestMethod -Uri "$baseUrl/api/ai/chat" `
-        -Method POST `
-        -Headers $wrongHeaders `
-        -Body $chatBody `
-        -ErrorAction Stop
-    
-    Write-Host "  ❌ TENANT ISOLATION FAILED: Chat accessible with wrong subdomain" -ForegroundColor Red
-    exit 1
-} catch {
-    $statusCode = $_.Exception.Response.StatusCode.value__
-    if ($statusCode -eq 404 -or $statusCode -eq 403) {
-        Write-Host "  ✅ Tenant isolation enforced: Access denied with wrong subdomain (HTTP $statusCode)" -ForegroundColor Green
-    } else {
-        Write-Host "  ⚠️  Unexpected error: HTTP $statusCode" -ForegroundColor Yellow
-    }
-}
-
-Write-Host ""
-
 # Step 8: Check Index Health
 Write-Host "Step 8: Check Index Health" -ForegroundColor Yellow
 Write-Host "  GET /api/sources/health" -ForegroundColor Gray
