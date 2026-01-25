@@ -11,8 +11,9 @@
  */
 
 import { searchDocuments, SearchResult } from './search';
-import { generateTextStream } from '../ai/bedrock';
+import { generateText, generateTextStream } from '../ai/generation';
 import { AIGenerationRequest } from '../ai/types';
+import { countTokens } from '../../utils/tokenCounter';
 
 /**
  * Chat request interface
@@ -109,9 +110,7 @@ export async function chatWithRAG(request: ChatRequest): Promise<ChatResponse> {
     stream: false,
   };
 
-  // For now, we'll use the bedrock service directly
-  // In production, this should use the AI router
-  const { generateText } = await import('../ai/bedrock');
+  // Use unified generation service with AI router
   const aiResponse = await generateText(aiRequest);
 
   return {
@@ -183,9 +182,9 @@ export async function* chatWithRAGStream(
 
   // The generator's return value contains the final metadata
   // We need to manually track this since the generator completes after the loop
-  // For now, estimate tokens based on content length
-  tokensInput = Math.ceil(prompt.length / 4);
-  tokensOutput = Math.ceil(fullAnswer.length / 4);
+  // Count tokens using tiktoken for accuracy
+  tokensInput = countTokens(prompt, 'gpt-4');
+  tokensOutput = countTokens(fullAnswer, 'gpt-4');
 
   return {
     answer: fullAnswer,
