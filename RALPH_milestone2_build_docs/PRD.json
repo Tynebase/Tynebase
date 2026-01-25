@@ -568,7 +568,10 @@
       "phase": "Phase 6: Video & Document Ingestion",
       "title": "[Worker] Implement DOCX Conversion Handler",
       "action": "Add mammoth to workers/documentConvert.ts",
-      "passes": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-25T15:51:51.004173",
+      "completed_at": "2026-01-25T15:53:05.127270"
     },
     {
       "id": "6.9",
