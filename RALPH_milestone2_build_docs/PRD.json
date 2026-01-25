@@ -518,7 +518,10 @@
       "phase": "Phase 6: Video & Document Ingestion",
       "title": "[Worker] Implement Fallback yt-dlp + Whisper Handler",
       "action": "Add fallback logic to workers/videoIngest.ts",
-      "passes": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-25T15:17:23.083582",
+      "completed_at": "2026-01-25T15:23:16.787590"
     },
     {
       "id": "6.4",

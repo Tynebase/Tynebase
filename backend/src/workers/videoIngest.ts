@@ -17,10 +17,15 @@
 
 import { supabaseAdmin } from '../lib/supabase';
 import { transcribeVideo } from '../services/ai/vertex';
+import { transcribeAudioWithWhisper, extractAudioFromVideo } from '../services/ai/whisper';
 import { completeJob } from '../utils/completeJob';
 import { failJob } from '../utils/failJob';
 import { calculateVideoIngestionCredits } from '../utils/creditCalculator';
 import { z } from 'zod';
+import ytDlp from 'yt-dlp-exec';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 
 const VideoIngestPayloadSchema = z.object({
   storage_path: z.string().min(1),
@@ -73,13 +78,33 @@ export async function processVideoIngestJob(job: Job): Promise<void> {
     }
 
     console.log(`[Worker ${workerId}] Transcribing video with Gemini...`);
-    const transcriptionResult = await transcribeVideo(
-      videoUrl,
-      'Transcribe this video content with timestamps. Include all spoken words and important visual context. Format the output as a readable transcript with clear sections.'
-    );
+    let transcriptionResult;
+    let transcript: string;
+    let tokensUsed: number;
+    let usedFallback = false;
 
-    const transcript = transcriptionResult.content;
-    const tokensUsed = transcriptionResult.tokensInput + transcriptionResult.tokensOutput;
+    try {
+      transcriptionResult = await transcribeVideo(
+        videoUrl,
+        'Transcribe this video content with timestamps. Include all spoken words and important visual context. Format the output as a readable transcript with clear sections.'
+      );
+      transcript = transcriptionResult.content;
+      tokensUsed = transcriptionResult.tokensInput + transcriptionResult.tokensOutput;
+    } catch (geminiError: any) {
+      console.warn(`[Worker ${workerId}] Gemini transcription failed: ${geminiError.message}`);
+      console.log(`[Worker ${workerId}] Falling back to yt-dlp + Whisper...`);
+
+      try {
+        const fallbackResult = await fallbackTranscription(videoUrl, isYouTubeVideo, workerId);
+        transcript = fallbackResult.transcript;
+        tokensUsed = fallbackResult.tokensUsed;
+        usedFallback = true;
+        console.log(`[Worker ${workerId}] Fallback transcription successful`);
+      } catch (fallbackError: any) {
+        console.error(`[Worker ${workerId}] Fallback transcription also failed:`, fallbackError);
+        throw new Error(`Both Gemini and fallback transcription failed. Gemini: ${geminiError.message}, Fallback: ${fallbackError.message}`);
+      }
+    }
 
     console.log(`[Worker ${workerId}] Transcription completed: ${transcript.length} characters, ${tokensUsed} tokens`);
 
@@ -129,6 +154,8 @@ export async function processVideoIngestJob(job: Job): Promise<void> {
           tokens_used: tokensUsed,
           is_youtube: isYouTubeVideo,
           youtube_url: validated.youtube_url || null,
+          used_fallback: usedFallback,
+          transcription_method: usedFallback ? 'whisper' : 'gemini',
         },
       });
 
@@ -145,9 +172,9 @@ export async function processVideoIngestJob(job: Job): Promise<void> {
         tenant_id: job.tenant_id,
         user_id: validated.user_id,
         query_type: 'video_ingestion',
-        model: 'gemini-3-flash',
-        input_tokens: transcriptionResult.tokensInput,
-        output_tokens: transcriptionResult.tokensOutput,
+        model: usedFallback ? 'whisper-large-v3-turbo' : 'gemini-3-flash',
+        input_tokens: usedFallback ? Math.ceil(validated.file_size / 1000) : transcriptionResult!.tokensInput,
+        output_tokens: usedFallback ? tokensUsed : transcriptionResult!.tokensOutput,
         credits_used: creditsUsed,
         month_year: currentMonth,
         metadata: {
@@ -156,6 +183,8 @@ export async function processVideoIngestJob(job: Job): Promise<void> {
           duration_minutes: durationMinutes,
           file_size: validated.file_size,
           is_youtube: isYouTubeVideo,
+          used_fallback: usedFallback,
+          transcription_method: usedFallback ? 'whisper' : 'gemini',
         },
       });
 
@@ -184,6 +213,8 @@ export async function processVideoIngestJob(job: Job): Promise<void> {
         tokens_used: tokensUsed,
         transcript_length: transcript.length,
         is_youtube: isYouTubeVideo,
+        used_fallback: usedFallback,
+        transcription_method: usedFallback ? 'whisper' : 'gemini',
       },
     });
 
@@ -304,4 +335,75 @@ function generateDocumentTitle(filename: string, transcript: string): string {
     : `Video Transcript: ${cleanFilename.substring(0, 60)}...`;
   
   return title.length <= 100 ? title : title.substring(0, 97) + '...';
+}
+
+/**
+ * Fallback transcription using yt-dlp + Whisper
+ * Used when Gemini API fails
+ * 
+ * @param videoUrl - Video URL (signed URL or YouTube URL)
+ * @param isYouTube - Whether this is a YouTube video
+ * @param workerId - Worker ID for logging
+ * @returns Transcript and token count
+ */
+async function fallbackTranscription(
+  videoUrl: string,
+  isYouTube: boolean,
+  workerId: string
+): Promise<{ transcript: string; tokensUsed: number }> {
+  const tempDir = os.tmpdir();
+  const videoFileName = `video_${Date.now()}.mp4`;
+  const audioFileName = `audio_${Date.now()}.wav`;
+  const videoPath = path.join(tempDir, videoFileName);
+  const audioPath = path.join(tempDir, audioFileName);
+
+  try {
+    if (isYouTube) {
+      console.log(`[Worker ${workerId}] Downloading YouTube video with yt-dlp...`);
+      await ytDlp(videoUrl, {
+        output: videoPath,
+        format: 'best[ext=mp4]',
+        noPlaylist: true,
+      });
+    } else {
+      console.log(`[Worker ${workerId}] Downloading video from signed URL...`);
+      const axios = require('axios');
+      const response = await axios({
+        method: 'GET',
+        url: videoUrl,
+        responseType: 'stream',
+      });
+
+      const writer = fs.createWriteStream(videoPath);
+      response.data.pipe(writer);
+
+      await new Promise<void>((resolve, reject) => {
+        writer.on('finish', () => resolve());
+        writer.on('error', reject);
+      });
+    }
+
+    console.log(`[Worker ${workerId}] Video downloaded: ${videoPath}`);
+
+    const extractedAudioPath = await extractAudioFromVideo(videoPath, audioPath);
+    console.log(`[Worker ${workerId}] Audio extracted: ${extractedAudioPath}`);
+
+    const whisperResult = await transcribeAudioWithWhisper(extractedAudioPath);
+    const transcript = whisperResult.content;
+    const tokensUsed = whisperResult.tokensInput + whisperResult.tokensOutput;
+
+    return { transcript, tokensUsed };
+  } catch (error) {
+    console.error(`[Worker ${workerId}] Fallback transcription error:`, error);
+    throw error;
+  } finally {
+    if (fs.existsSync(videoPath)) {
+      fs.unlinkSync(videoPath);
+      console.log(`[Worker ${workerId}] Cleaned up temp video file`);
+    }
+    if (fs.existsSync(audioPath)) {
+      fs.unlinkSync(audioPath);
+      console.log(`[Worker ${workerId}] Cleaned up temp audio file`);
+    }
+  }
 }
