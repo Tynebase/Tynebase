@@ -74,27 +74,40 @@ const startWorker = async () => {
  * @param job - Job object from database
  */
 const processJob = async (job: any): Promise<void> => {
+  const startTime = Date.now();
+  let result: any = null;
+  let resultSize = 0;
+  let status: 'success' | 'failure' = 'success';
+  let errorDetails: string | null = null;
+
+  console.log(`[Worker ${WORKER_ID}] Job ${job.id} started`, {
+    job_id: job.id,
+    job_type: job.type,
+    tenant_id: job.tenant_id,
+    started_at: new Date(startTime).toISOString()
+  });
+
   try {
     switch (job.type) {
       case 'ai_generation':
-        await processAIGenerationJob(job);
+        result = await processAIGenerationJob(job);
         break;
       
       case 'video_ingestion':
       case 'video_ingest_youtube':
-        await processVideoIngestJob(job);
+        result = await processVideoIngestJob(job);
         break;
       
       case 'document_convert':
-        await processDocumentConvertJob(job);
+        result = await processDocumentConvertJob(job);
         break;
       
       case 'rag_index':
-        await processRagIndexJob(job);
+        result = await processRagIndexJob(job);
         break;
       
       case 'gdpr_delete':
-        await processAccountDeletionJob(job);
+        result = await processAccountDeletionJob(job);
         break;
       
       case 'document_indexing':
@@ -111,14 +124,89 @@ const processJob = async (job: any): Promise<void> => {
       
       case 'test_job':
         console.log(`[Worker ${WORKER_ID}] Test job completed successfully`);
+        result = { status: 'completed' };
         break;
       
       default:
         console.error(`[Worker ${WORKER_ID}] Unknown job type: ${job.type}`);
+        status = 'failure';
+        errorDetails = `Unknown job type: ${job.type}`;
+    }
+
+    if (result) {
+      resultSize = JSON.stringify(result).length;
     }
   } catch (error) {
-    console.error(`[Worker ${WORKER_ID}] Error processing job ${job.id}:`, error);
+    status = 'failure';
+    const sanitizedError = sanitizeError(error);
+    errorDetails = sanitizedError.message;
+    
+    console.error(`[Worker ${WORKER_ID}] Job ${job.id} failed`, {
+      job_id: job.id,
+      job_type: job.type,
+      tenant_id: job.tenant_id,
+      error_type: sanitizedError.type,
+      error_message: sanitizedError.message,
+      error_code: sanitizedError.code
+    });
+  } finally {
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+
+    console.log(`[Worker ${WORKER_ID}] Job ${job.id} completed`, {
+      job_id: job.id,
+      job_type: job.type,
+      tenant_id: job.tenant_id,
+      status,
+      duration_ms: duration,
+      result_size_bytes: resultSize,
+      started_at: new Date(startTime).toISOString(),
+      completed_at: new Date(endTime).toISOString(),
+      error: errorDetails
+    });
   }
+};
+
+/**
+ * Sanitize error for logging (remove sensitive data, stack traces)
+ * @param error - Error object
+ * @returns Sanitized error details
+ */
+const sanitizeError = (error: any): { type: string; message: string; code?: string } => {
+  const errorType = error?.constructor?.name || 'Error';
+  let message = 'An error occurred during job processing';
+  let code: string | undefined;
+
+  if (error instanceof Error) {
+    message = error.message;
+  } else if (typeof error === 'string') {
+    message = error;
+  } else if (error?.message) {
+    message = error.message;
+  }
+
+  if (error?.code) {
+    code = error.code;
+  }
+
+  const sensitivePatterns = [
+    /password/gi,
+    /secret/gi,
+    /token/gi,
+    /api[_-]?key/gi,
+    /authorization/gi,
+    /bearer/gi
+  ];
+
+  for (const pattern of sensitivePatterns) {
+    message = message.replace(pattern, '[REDACTED]');
+  }
+
+  return {
+    type: errorType,
+    message: message.substring(0, 500),
+    code
+  };
 };
 
 /**
