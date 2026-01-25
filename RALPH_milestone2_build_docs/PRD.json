@@ -288,7 +288,10 @@
       "phase": "Phase 2: API Foundation (Fastify)",
       "title": "[API] Implement Document Publish Endpoint",
       "action": "POST /api/documents/:id/publish",
-      "passes": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-25T11:46:37.398486",
+      "completed_at": "2026-01-25T11:49:06.330865"
     },
     {
       "id": "2.18",

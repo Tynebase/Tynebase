@@ -60,6 +60,13 @@ const deleteDocumentParamsSchema = z.object({
 });
 
 /**
+ * Zod schema for POST /api/documents/:id/publish path parameters
+ */
+const publishDocumentParamsSchema = z.object({
+  id: z.string().uuid(),
+});
+
+/**
  * Document routes with full middleware chain:
  * 1. rateLimitMiddleware - enforces rate limits (100 req/10min global)
  * 2. tenantContextMiddleware - resolves tenant from x-tenant-subdomain header
@@ -846,6 +853,211 @@ export default async function documentRoutes(fastify: FastifyInstance) {
         }
 
         fastify.log.error({ error }, 'Unexpected error in DELETE /api/documents/:id');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
+   * POST /api/documents/:id/publish
+   * Publishes a document by changing status to 'published' and setting published_at timestamp
+   * 
+   * Path Parameters:
+   * - id: Document UUID
+   * 
+   * Authorization:
+   * - Requires valid JWT
+   * - User must be member of tenant
+   * - User must have 'admin' or 'editor' role to publish
+   * - Document must belong to user's tenant
+   * 
+   * Security:
+   * - Enforces tenant isolation via explicit tenant_id filtering
+   * - Validates user role has publish permission (admin or editor)
+   * - Validates UUID format with Zod
+   * - Creates immutable lineage event for audit trail
+   * - Returns 404 if document not found or belongs to different tenant
+   * - Returns 403 if user doesn't have publish permission
+   * - Returns 400 if document is already published
+   * 
+   * Behavior:
+   * - Changes document status from 'draft' to 'published'
+   * - Sets published_at to current timestamp
+   * - Creates 'published' lineage event with actor_id
+   * - Updates updated_at timestamp automatically via trigger
+   */
+  fastify.post(
+    '/api/documents/:id/publish',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        // Validate path parameters
+        const params = publishDocumentParamsSchema.parse(request.params);
+        const { id } = params;
+
+        // Check user has publish permission (admin or editor)
+        if (user.role !== 'admin' && user.role !== 'editor') {
+          fastify.log.warn(
+            { documentId: id, userId: user.id, userRole: user.role, tenantId: tenant.id },
+            'User attempted to publish document without permission'
+          );
+          return reply.code(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Only admin and editor roles can publish documents',
+              details: {},
+            },
+          });
+        }
+
+        // Fetch document to verify it exists and belongs to tenant
+        const { data: existingDoc, error: fetchError } = await supabaseAdmin
+          .from('documents')
+          .select('id, status, title, tenant_id')
+          .eq('id', id)
+          .eq('tenant_id', tenant.id)
+          .single();
+
+        if (fetchError) {
+          if (fetchError.code === 'PGRST116') {
+            fastify.log.warn(
+              { documentId: id, tenantId: tenant.id, userId: user.id },
+              'Document not found or access denied'
+            );
+            return reply.code(404).send({
+              error: {
+                code: 'DOCUMENT_NOT_FOUND',
+                message: 'Document not found',
+                details: {},
+              },
+            });
+          }
+
+          fastify.log.error(
+            { error: fetchError, documentId: id, tenantId: tenant.id, userId: user.id },
+            'Failed to fetch document for publishing'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'FETCH_FAILED',
+              message: 'Failed to fetch document',
+              details: {},
+            },
+          });
+        }
+
+        // Check if document is already published
+        if (existingDoc.status === 'published') {
+          fastify.log.warn(
+            { documentId: id, tenantId: tenant.id, userId: user.id },
+            'Attempted to publish already published document'
+          );
+          return reply.code(400).send({
+            error: {
+              code: 'ALREADY_PUBLISHED',
+              message: 'Document is already published',
+              details: {},
+            },
+          });
+        }
+
+        // Update document status to published and set published_at
+        const { data: publishedDoc, error: updateError } = await supabaseAdmin
+          .from('documents')
+          .update({
+            status: 'published',
+            published_at: new Date().toISOString(),
+          })
+          .eq('id', id)
+          .eq('tenant_id', tenant.id)
+          .select(`
+            id,
+            title,
+            content,
+            parent_id,
+            is_public,
+            status,
+            author_id,
+            published_at,
+            created_at,
+            updated_at
+          `)
+          .single();
+
+        if (updateError) {
+          fastify.log.error(
+            { error: updateError, documentId: id, tenantId: tenant.id, userId: user.id },
+            'Failed to publish document'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'PUBLISH_FAILED',
+              message: 'Failed to publish document',
+              details: {},
+            },
+          });
+        }
+
+        // Create lineage event for document publication
+        const { error: lineageError } = await supabaseAdmin
+          .from('document_lineage')
+          .insert({
+            document_id: publishedDoc.id,
+            event_type: 'published',
+            actor_id: user.id,
+            metadata: {
+              title: existingDoc.title,
+              published_by_role: user.role,
+            },
+          });
+
+        if (lineageError) {
+          fastify.log.error(
+            { error: lineageError, documentId: publishedDoc.id, userId: user.id },
+            'Failed to create lineage event for document publication'
+          );
+        }
+
+        fastify.log.info(
+          { 
+            documentId: publishedDoc.id, 
+            tenantId: tenant.id, 
+            userId: user.id,
+            userRole: user.role,
+            title: existingDoc.title,
+          },
+          'Document published successfully'
+        );
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            document: publishedDoc,
+          },
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid document ID format',
+              details: error.errors,
+            },
+          });
+        }
+
+        fastify.log.error({ error }, 'Unexpected error in POST /api/documents/:id/publish');
         return reply.code(500).send({
           error: {
             code: 'INTERNAL_ERROR',
