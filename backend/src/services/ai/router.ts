@@ -4,7 +4,7 @@
  * 
  * Supported Providers:
  * - AWS Bedrock (eu-west-2): deepseek-v3 (default), claude-sonnet-4.5
- * - Vertex AI London (europe-west2): gemini-3-flash (video/audio only)
+ * - Vertex AI London (europe-west2): gemini-2.5-flash (video/audio)
  */
 
 import { AIProvider, AIModel, AIProviderConfig, TenantAISettings, AICapability } from './types';
@@ -32,8 +32,8 @@ const PROVIDER_CONFIGS: Record<AIProvider, AIProviderConfig[]> = {
   vertex: [
     {
       provider: 'vertex',
-      model: 'gemini-3-flash',
-      capabilities: ['video-transcription', 'audio-transcription'],
+      model: 'gemini-2.5-flash',
+      capabilities: ['text-generation', 'video-transcription', 'audio-transcription'],
       endpoint: 'https://europe-west2-aiplatform.googleapis.com',
       region: 'europe-west2',
     },

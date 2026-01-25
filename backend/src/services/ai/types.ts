@@ -9,6 +9,7 @@ export type AIModel =
   | 'deepseek-v3'
   | 'claude-sonnet-4.5'
   | 'gemini-3-flash'
+  | 'gemini-2.5-flash'
   | 'whisper-large-v3-turbo';
 
 export type AICapability = 'text-generation' | 'video-transcription' | 'audio-transcription';

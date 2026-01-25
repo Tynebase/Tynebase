@@ -20,16 +20,17 @@ async function test() {
   
   const modelsToTry = [
     'gemini-3-flash-preview',
-    'gemini-2.0-flash-exp',
-    'gemini-2.5-flash-lite',
   ];
   
   const regionsToTry = [
+    'us-central1',
+    'us-east4',
+    'us-west1',
     'europe-west1',
     'europe-west2',
     'europe-west3',
     'europe-west4',
-    'europe-west9',
+    'asia-southeast1',
   ];
   
   for (const region of regionsToTry) {

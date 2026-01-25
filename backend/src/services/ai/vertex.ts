@@ -10,7 +10,7 @@
  * - EU data residency compliance (London region)
  * 
  * Supported Models:
- * - gemini-3-flash (optimized for video/audio processing)
+ * - gemini-2.5-flash (optimized for video/audio processing)
  */
 
 import { VertexAI } from '@google-cloud/vertexai';
@@ -25,7 +25,7 @@ let vertexClient: VertexAI | null = null;
 /**
  * Model ID for Gemini Flash
  */
-const GEMINI_MODEL = 'gemini-3-flash';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 
 /**
  * Vertex AI configuration
@@ -180,7 +180,7 @@ export async function transcribeVideo(
 
     return {
       content,
-      model: 'gemini-3-flash',
+      model: 'gemini-2.5-flash',
       tokensInput: actualInputTokens,
       tokensOutput: outputTokens,
       provider: 'vertex',
@@ -282,7 +282,7 @@ export async function transcribeAudio(
 
     return {
       content,
-      model: 'gemini-3-flash',
+      model: 'gemini-2.5-flash',
       tokensInput: actualInputTokens,
       tokensOutput: outputTokens,
       provider: 'vertex',
@@ -380,7 +380,7 @@ export async function generateText(
 
     return {
       content,
-      model: 'gemini-3-flash',
+      model: 'gemini-2.5-flash',
       tokensInput: actualInputTokens,
       tokensOutput: outputTokens,
       provider: 'vertex',
