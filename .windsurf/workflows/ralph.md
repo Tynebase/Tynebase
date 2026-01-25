@@ -10,6 +10,7 @@ This workflow executes the RALPH (Rapid Autonomous Loop for Programmatic Handlin
 - Working directory: `RALPH_milestone2_build_docs/`
 - Files: `PRD.md`, `RALPH.md`, `PRD.json`, `ralph_state.json`, `ralph_runner.py`
 - **Supabase CLI**: Access via `npx supabase <command>` (no global install needed)
+- **Real Credentials Available**: `backend/.env` contains actual Supabase service role and anon keys for testing
 
 ---
 
