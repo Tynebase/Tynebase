@@ -578,7 +578,10 @@
       "phase": "Phase 6: Video & Document Ingestion",
       "title": "[API] Implement URL Scraping Endpoint",
       "action": "POST /api/ai/scrape using Tavily API",
-      "passes": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-25T15:53:54.864258",
+      "completed_at": "2026-01-25T15:57:41.634268"
     },
     {
       "id": "6.10",
