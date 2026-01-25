@@ -2,16 +2,16 @@
 
 **Project:** TyneBase Backend - Milestone 2  
 **Protocol:** RALPH v2.0  
-**Last Updated:** 2026-01-25 10:20
+**Last Updated:** 2026-01-25 10:29
 
 ---
 
 ## Progress Overview
 - **Total Tasks:** 121 (excl. 8 deferred)
-- **Completed:** 16
+- **Completed:** 17
 - **In Progress:** 0
 - **Blocked:** 0
-- **Remaining:** 105
+- **Remaining:** 104
 
 ---
 
@@ -47,12 +47,16 @@
 - [x] **2.2**: [API] Setup Environment Configuration
 - [x] **2.3**: [API] Create Subdomain Resolution Middleware
 - [x] **2.4**: [API] Create JWT Authentication Middleware
+- [x] **2.5**: [API] Create Tenant Membership Guard
 
 ---
 
 ## Execution History (Last 10):
 | Timestamp | Task | Action | Result |
 |-----------|------|--------|--------|
+| 2026-01-25T10:29 | 2.5 | completed | PASS |
+| 2026-01-25T10:26 | 2.5 | started | in_progress |
+| 2026-01-25T10:20 | None | commit | feat(task-2.4): implement JWT ... |
 | 2026-01-25T10:20 | 2.4 | completed | PASS |
 | 2026-01-25T10:17 | 2.4 | started | in_progress |
 | 2026-01-25T10:08 | None | commit | feat(task-2.3): implement subd... |
@@ -60,6 +64,3 @@
 | 2026-01-25T10:03 | 2.3 | started | in_progress |
 | 2026-01-25T10:03 | None | commit | feat(task-2.2): document envir... |
 | 2026-01-25T10:02 | 2.2 | completed | PASS |
-| 2026-01-25T09:59 | 2.2 | started | in_progress |
-| 2026-01-25T09:57 | None | commit | feat(task-2.1): initialize Fas... |
-| 2026-01-25T09:57 | 2.1 | completed | PASS |
