@@ -24,46 +24,66 @@ const server = new Server({
   name: 'tynebase-collab',
 
   async onAuthenticate(data: any) {
-    const { token, documentName } = data;
+    const { token } = data;
+    const documentName = data.documentName || data.document;
     
     if (!token) {
+      console.error('[Collab] Authentication failed: No token provided');
       throw new Error('Authentication token required');
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !user) {
-      throw new Error('Invalid authentication token');
+    if (!documentName) {
+      console.error('[Collab] Authentication failed: No document name provided');
+      throw new Error('Document name required');
     }
 
-    const { data: document, error: docError } = await supabase
-      .from('documents')
-      .select('id, tenant_id')
-      .eq('id', documentName)
-      .single();
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      
+      if (authError || !user) {
+        console.error('[Collab] Authentication failed: Invalid token', authError?.message);
+        throw new Error('Invalid authentication token');
+      }
 
-    if (docError || !document) {
-      throw new Error('Document not found');
+      const { data: document, error: docError } = await supabase
+        .from('documents')
+        .select('id, tenant_id')
+        .eq('id', documentName)
+        .single();
+
+      if (docError || !document) {
+        console.error(`[Collab] Authentication failed: Document ${documentName} not found`, docError?.message);
+        throw new Error('Document not found');
+      }
+
+      const { data: userRecord, error: userError } = await supabase
+        .from('users')
+        .select('tenant_id')
+        .eq('id', user.id)
+        .single();
+
+      if (userError || !userRecord) {
+        console.error(`[Collab] Authentication failed: User ${user.id} not found`, userError?.message);
+        throw new Error('User not found');
+      }
+
+      if (userRecord.tenant_id !== document.tenant_id) {
+        console.error(`[Collab] Authentication failed: User ${user.id} tenant ${userRecord.tenant_id} does not match document tenant ${document.tenant_id}`);
+        throw new Error('Unauthorized access to document');
+      }
+
+      console.log(`[Collab] User ${user.id} authenticated for document ${documentName}`);
+      
+      return {
+        user: {
+          id: user.id,
+          name: user.email || 'Anonymous',
+        },
+      };
+    } catch (error: any) {
+      console.error('[Collab] Authentication error:', error.message);
+      throw error;
     }
-
-    const { data: userRecord, error: userError } = await supabase
-      .from('users')
-      .select('tenant_id')
-      .eq('id', user.id)
-      .single();
-
-    if (userError || !userRecord || userRecord.tenant_id !== document.tenant_id) {
-      throw new Error('Unauthorized access to document');
-    }
-
-    console.log(`[Collab] User ${user.id} authenticated for document ${documentName}`);
-    
-    return {
-      user: {
-        id: user.id,
-        name: user.email || 'Anonymous',
-      },
-    };
   },
 
   async onLoadDocument(data: any) {
