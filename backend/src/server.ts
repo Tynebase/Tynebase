@@ -70,6 +70,7 @@ const start = async () => {
     await fastify.register(import('./routes/test'), { prefix: '' });
     await fastify.register(import('./routes/auth'), { prefix: '' });
     await fastify.register(import('./routes/auth-test'), { prefix: '' });
+    await fastify.register(import('./routes/tenants'), { prefix: '' });
     await fastify.register(import('./routes/documents'), { prefix: '' });
     await fastify.register(import('./routes/ai-test'), { prefix: '' });
 
