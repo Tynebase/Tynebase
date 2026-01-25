@@ -2,16 +2,16 @@
 
 **Project:** TyneBase Backend - Milestone 2  
 **Protocol:** RALPH v2.0  
-**Last Updated:** 2026-01-25 20:21
+**Last Updated:** 2026-01-25 20:23
 
 ---
 
 ## Progress Overview
 - **Total Tasks:** 121 (excl. 8 deferred)
-- **Completed:** 87
+- **Completed:** 88
 - **In Progress:** 0
 - **Blocked:** 0
-- **Remaining:** 34
+- **Remaining:** 33
 
 ---
 
@@ -118,12 +118,16 @@
 - [x] **11.2**: [API] Implement Asset List Endpoint
 - [x] **11.3**: [API] Implement Asset Delete Endpoint
 - [x] **12.1**: [Infra] Setup Axiom Integration
+- [x] **12.2**: [API] Add Request Logging Middleware
 
 ---
 
 ## Execution History (Last 10):
 | Timestamp | Task | Action | Result |
 |-----------|------|--------|--------|
+| 2026-01-25T20:23 | 12.2 | completed | PASS |
+| 2026-01-25T20:21 | 12.2 | started | in_progress |
+| 2026-01-25T20:21 | None | commit | feat(task-12.1): setup axiom l... |
 | 2026-01-25T20:21 | 12.1 | completed | PASS |
 | 2026-01-25T20:17 | 12.1 | started | in_progress |
 | 2026-01-25T20:16 | None | commit | feat(task-11.3): implement ass... |
@@ -131,6 +135,3 @@
 | 2026-01-25T20:13 | 11.3 | started | in_progress |
 | 2026-01-25T20:13 | None | commit | feat(task-11.2): implement ass... |
 | 2026-01-25T20:13 | 11.2 | completed | PASS |
-| 2026-01-25T20:10 | 11.2 | started | in_progress |
-| 2026-01-25T20:10 | None | commit | feat(task-11.1): implement doc... |
-| 2026-01-25T20:10 | 11.1 | completed | PASS |

@@ -4,6 +4,7 @@ import helmet from '@fastify/helmet';
 import multipart from '@fastify/multipart';
 import { env } from './config/env';
 import { getLoggerConfig } from './config/logger';
+import { requestLoggerMiddleware } from './middleware/requestLogger';
 
 const buildServer = () => {
   const fastify = Fastify({
@@ -17,6 +18,9 @@ const start = async () => {
   const fastify = buildServer();
 
   try {
+    // Register request logging middleware globally
+    fastify.addHook('onRequest', requestLoggerMiddleware);
+
     await fastify.register(helmet, {
       contentSecurityPolicy: {
         directives: {
