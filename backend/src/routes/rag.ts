@@ -6,6 +6,8 @@ import { membershipGuard } from '../middleware/membershipGuard';
 import { rateLimitMiddleware } from '../middleware/rateLimit';
 import { ingestDocument, reIngestTenantDocuments } from '../services/rag/ingestion';
 import { searchDocuments, findSimilarChunks, getEmbeddingStats } from '../services/rag/search';
+import { chatWithRAGStream } from '../services/rag/chat';
+import { supabaseAdmin } from '../lib/supabase';
 
 /**
  * Zod schema for POST /api/rag/ingest request body
@@ -38,6 +40,17 @@ const similarChunksParamsSchema = z.object({
  */
 const similarChunksQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(10),
+});
+
+/**
+ * Zod schema for POST /api/ai/chat request body
+ */
+const chatBodySchema = z.object({
+  query: z.string().min(1).max(2000),
+  max_context_chunks: z.number().int().min(1).max(20).default(10),
+  model: z.string().optional(),
+  temperature: z.number().min(0).max(2).default(0.7),
+  stream: z.boolean().default(true),
 });
 
 /**
@@ -398,6 +411,278 @@ export default async function ragRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         fastify.log.error({ error }, 'Unexpected error in POST /api/rag/reingest');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
+   * POST /api/ai/chat
+   * RAG-powered chat endpoint with streaming support
+   * 
+   * Request Body:
+   * - query (required): User's question (1-2000 characters)
+   * - max_context_chunks (optional): Number of context chunks to use (default: 10, max: 20)
+   * - model (optional): AI model to use
+   * - temperature (optional): Temperature for generation (default: 0.7)
+   * - stream (optional): Enable streaming response (default: true)
+   * 
+   * Flow:
+   * 1. Check knowledge_indexing consent
+   * 2. Deduct 1 credit
+   * 3. Embed query (OpenAI EU)
+   * 4. Call hybrid_search RPC (top 50 chunks)
+   * 5. Call AWS Bedrock Cohere Rerank (top 10 chunks)
+   * 6. Build prompt with context
+   * 7. Stream response from LLM
+   * 8. Log query_usage
+   * 
+   * Authorization:
+   * - Requires valid JWT
+   * - User must be member of tenant
+   * - User must have knowledge_indexing consent enabled
+   * 
+   * Rate Limit: 10 requests per minute
+   */
+  fastify.post(
+    '/api/ai/chat',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        const body = chatBodySchema.parse(request.body);
+        const { query, max_context_chunks, model, temperature, stream } = body;
+
+        // Step 1: Check knowledge_indexing consent
+        const { data: consent, error: consentError } = await supabaseAdmin
+          .from('user_consents')
+          .select('knowledge_indexing')
+          .eq('user_id', user.id)
+          .single();
+
+        if (consentError || !consent || !consent.knowledge_indexing) {
+          fastify.log.warn(
+            { userId: user.id, tenantId: tenant.id },
+            'RAG chat blocked: knowledge_indexing consent not granted'
+          );
+          return reply.code(403).send({
+            error: {
+              code: 'CONSENT_REQUIRED',
+              message: 'Knowledge indexing consent is required to use RAG chat',
+              details: {
+                consent_type: 'knowledge_indexing',
+              },
+            },
+          });
+        }
+
+        // Step 2: Deduct 1 credit
+        const currentMonth = new Date().toISOString().slice(0, 7);
+        const creditsToDeduct = 1;
+
+        const { data: deductResult, error: deductError } = await supabaseAdmin.rpc(
+          'deduct_credits',
+          {
+            p_tenant_id: tenant.id,
+            p_credits: creditsToDeduct,
+            p_month_year: currentMonth,
+          }
+        );
+
+        if (deductError) {
+          fastify.log.error(
+            { error: deductError, tenantId: tenant.id },
+            'Credit deduction failed for RAG chat'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'CREDIT_DEDUCTION_FAILED',
+              message: 'Unable to deduct credits for this operation',
+              details: {},
+            },
+          });
+        }
+
+        if (!deductResult || deductResult.success === false) {
+          const errorMessage = deductResult?.error_message || 'Insufficient credits';
+          fastify.log.warn(
+            { tenantId: tenant.id, userId: user.id, errorMessage },
+            'Credit deduction rejected for RAG chat'
+          );
+          return reply.code(403).send({
+            error: {
+              code: 'INSUFFICIENT_CREDITS',
+              message: errorMessage,
+              details: {
+                credits_required: creditsToDeduct,
+              },
+            },
+          });
+        }
+
+        // Step 3-7: Execute RAG pipeline with streaming
+        if (stream) {
+          reply.raw.writeHead(200, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+          });
+
+          try {
+            const chatStream = chatWithRAGStream({
+              tenantId: tenant.id,
+              userId: user.id,
+              query,
+              maxContextChunks: max_context_chunks,
+              model,
+              temperature,
+              stream: true,
+            });
+
+            // Iterate through the generator
+            let result = await chatStream.next();
+            while (!result.done) {
+              // Yield text chunks
+              reply.raw.write(`data: ${JSON.stringify({ type: 'chunk', content: result.value })}\n\n`);
+              result = await chatStream.next();
+            }
+
+            // result.value now contains the final ChatResponse
+            const finalResponse = result.value;
+            if (finalResponse) {
+              // Send citations
+              reply.raw.write(`data: ${JSON.stringify({ 
+                type: 'citations', 
+                citations: finalResponse.citations.map((c: any) => ({
+                  documentId: c.documentId,
+                  chunkIndex: c.chunkIndex,
+                  content: c.chunkContent,
+                  metadata: c.metadata,
+                }))
+              })}\n\n`);
+
+              // Step 8: Log query_usage
+              await supabaseAdmin.from('query_usage').insert({
+                tenant_id: tenant.id,
+                user_id: user.id,
+                query_type: 'rag_chat',
+                query_text: query,
+                ai_model: finalResponse.model,
+                tokens_input: finalResponse.tokensInput,
+                tokens_output: finalResponse.tokensOutput,
+                credits_charged: creditsToDeduct,
+                metadata: {
+                  context_chunks: max_context_chunks,
+                  citations_count: finalResponse.citations.length,
+                },
+              });
+
+              fastify.log.info(
+                {
+                  tenantId: tenant.id,
+                  userId: user.id,
+                  query,
+                  model: finalResponse.model,
+                  tokensInput: finalResponse.tokensInput,
+                  tokensOutput: finalResponse.tokensOutput,
+                  creditsCharged: creditsToDeduct,
+                  citationsCount: finalResponse.citations.length,
+                },
+                'RAG chat completed successfully'
+              );
+            }
+
+            reply.raw.write('data: [DONE]\n\n');
+            reply.raw.end();
+          } catch (streamError: any) {
+            fastify.log.error({ error: streamError }, 'Error during RAG chat streaming');
+            reply.raw.write(`data: ${JSON.stringify({ 
+              type: 'error', 
+              error: streamError.message || 'Streaming failed' 
+            })}\n\n`);
+            reply.raw.end();
+          }
+        } else {
+          // Non-streaming response (for testing/debugging)
+          const { chatWithRAG } = await import('../services/rag/chat');
+          const chatResponse = await chatWithRAG({
+            tenantId: tenant.id,
+            userId: user.id,
+            query,
+            maxContextChunks: max_context_chunks,
+            model,
+            temperature,
+            stream: false,
+          });
+
+          // Step 8: Log query_usage
+          await supabaseAdmin.from('query_usage').insert({
+            tenant_id: tenant.id,
+            user_id: user.id,
+            query_type: 'rag_chat',
+            query_text: query,
+            ai_model: chatResponse.model,
+            tokens_input: chatResponse.tokensInput,
+            tokens_output: chatResponse.tokensOutput,
+            credits_charged: creditsToDeduct,
+            metadata: {
+              context_chunks: max_context_chunks,
+              citations_count: chatResponse.citations.length,
+            },
+          });
+
+          fastify.log.info(
+            {
+              tenantId: tenant.id,
+              userId: user.id,
+              query,
+              model: chatResponse.model,
+              tokensInput: chatResponse.tokensInput,
+              tokensOutput: chatResponse.tokensOutput,
+              creditsCharged: creditsToDeduct,
+              citationsCount: chatResponse.citations.length,
+            },
+            'RAG chat completed successfully (non-streaming)'
+          );
+
+          return reply.code(200).send({
+            success: true,
+            data: {
+              answer: chatResponse.answer,
+              citations: chatResponse.citations.map(c => ({
+                documentId: c.documentId,
+                chunkIndex: c.chunkIndex,
+                content: c.chunkContent,
+                metadata: c.metadata,
+              })),
+              model: chatResponse.model,
+              tokensUsed: chatResponse.tokensInput + chatResponse.tokensOutput,
+              creditsUsed: creditsToDeduct,
+            },
+          });
+        }
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid request body',
+              details: error.errors,
+            },
+          });
+        }
+
+        fastify.log.error({ error }, 'Unexpected error in POST /api/ai/chat');
         return reply.code(500).send({
           error: {
             code: 'INTERNAL_ERROR',
