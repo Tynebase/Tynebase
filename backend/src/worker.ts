@@ -1,5 +1,6 @@
 import { env, isDev } from './config/env';
 import { claimJob } from './utils/claimJob';
+import { processAIGenerationJob } from './workers/aiGeneration';
 
 const WORKER_ID = `worker-${process.pid}-${Date.now()}`;
 const POLL_INTERVAL_MS = 1000;
@@ -42,6 +43,8 @@ const startWorker = async () => {
       }
 
       console.log(`[Worker ${WORKER_ID}] Processing job ${job.id}...`);
+      
+      await processJob(job);
     } catch (error) {
       console.error(`[Worker ${WORKER_ID}] Error polling jobs:`, error);
     }
@@ -60,6 +63,45 @@ const startWorker = async () => {
     console.log(`[Worker ${WORKER_ID}] Received SIGINT, clearing interval...`);
     clearInterval(intervalId);
   });
+};
+
+/**
+ * Process a job by routing to the appropriate handler
+ * @param job - Job object from database
+ */
+const processJob = async (job: any): Promise<void> => {
+  try {
+    switch (job.type) {
+      case 'ai_generation':
+        await processAIGenerationJob(job);
+        break;
+      
+      case 'video_ingestion':
+        console.log(`[Worker ${WORKER_ID}] Video ingestion handler not yet implemented`);
+        break;
+      
+      case 'document_indexing':
+        console.log(`[Worker ${WORKER_ID}] Document indexing handler not yet implemented`);
+        break;
+      
+      case 'document_export':
+        console.log(`[Worker ${WORKER_ID}] Document export handler not yet implemented`);
+        break;
+      
+      case 'tenant_cleanup':
+        console.log(`[Worker ${WORKER_ID}] Tenant cleanup handler not yet implemented`);
+        break;
+      
+      case 'test_job':
+        console.log(`[Worker ${WORKER_ID}] Test job completed successfully`);
+        break;
+      
+      default:
+        console.error(`[Worker ${WORKER_ID}] Unknown job type: ${job.type}`);
+    }
+  } catch (error) {
+    console.error(`[Worker ${WORKER_ID}] Error processing job ${job.id}:`, error);
+  }
 };
 
 /**
