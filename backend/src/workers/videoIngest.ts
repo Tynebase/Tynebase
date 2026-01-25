@@ -185,7 +185,7 @@ export async function processVideoIngestJob(job: Job): Promise<void> {
         tenant_id: job.tenant_id,
         user_id: validated.user_id,
         query_type: 'video_ingestion',
-        model: usedFallback ? 'whisper-large-v3-turbo' : 'gemini-3-flash',
+        model: usedFallback ? 'whisper-large-v3-turbo' : transcriptionResult!.model,
         input_tokens: usedFallback ? Math.ceil(fileSize / 1000) : transcriptionResult!.tokensInput,
         output_tokens: usedFallback ? tokensUsed : transcriptionResult!.tokensOutput,
         credits_used: creditsUsed,

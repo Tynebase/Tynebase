@@ -36,25 +36,72 @@ const VERTEX_CONFIG = {
 };
 
 /**
+ * Parses service account credentials from environment
+ * @returns Service account credentials object or null
+ */
+function getServiceAccountCredentials(): any {
+  const gcpJson = process.env.GCP_SERVICE_ACCOUNT_JSON;
+  if (!gcpJson) {
+    return null;
+  }
+
+  try {
+    // Check if it's base64 encoded
+    const decoded = Buffer.from(gcpJson, 'base64').toString('utf-8');
+    return JSON.parse(decoded);
+  } catch (e) {
+    // If not base64, try parsing as direct JSON
+    try {
+      return JSON.parse(gcpJson);
+    } catch (err) {
+      console.error('Failed to parse GCP_SERVICE_ACCOUNT_JSON:', err);
+      return null;
+    }
+  }
+}
+
+/**
  * Initializes the Vertex AI client with EU region
- * @throws Error if GOOGLE_CLOUD_PROJECT is not set
+ * @throws Error if credentials are not properly configured
  */
 function getVertexClient(): VertexAI {
   if (!vertexClient) {
-    const projectId = process.env.GOOGLE_CLOUD_PROJECT;
-    if (!projectId) {
-      throw new Error('GOOGLE_CLOUD_PROJECT environment variable is not set');
-    }
+    // Try to get credentials from GCP_SERVICE_ACCOUNT_JSON first
+    const credentials = getServiceAccountCredentials();
+    let projectId = process.env.GOOGLE_CLOUD_PROJECT;
 
-    // Initialize Vertex AI client
-    // Authentication uses Application Default Credentials (ADC):
-    // 1. GOOGLE_APPLICATION_CREDENTIALS environment variable (service account JSON)
-    // 2. gcloud auth application-default login (for development)
-    // 3. Compute Engine/GKE service account (for production)
-    vertexClient = new VertexAI({
-      project: projectId,
-      location: VERTEX_CONFIG.location,
-    });
+    if (credentials) {
+      // Extract project ID from service account JSON
+      projectId = projectId || credentials.project_id;
+      
+      if (!projectId) {
+        throw new Error('Project ID not found in service account credentials or GOOGLE_CLOUD_PROJECT');
+      }
+
+      // Initialize with explicit credentials
+      vertexClient = new VertexAI({
+        project: projectId,
+        location: VERTEX_CONFIG.location,
+        googleAuthOptions: {
+          credentials: credentials,
+        },
+      });
+    } else {
+      // Fall back to Application Default Credentials
+      if (!projectId) {
+        throw new Error('GOOGLE_CLOUD_PROJECT environment variable is not set and no service account JSON provided');
+      }
+
+      // Initialize Vertex AI client with ADC
+      // Authentication uses Application Default Credentials (ADC):
+      // 1. GOOGLE_APPLICATION_CREDENTIALS environment variable (service account JSON file path)
+      // 2. gcloud auth application-default login (for development)
+      // 3. Compute Engine/GKE service account (for production)
+      vertexClient = new VertexAI({
+        project: projectId,
+        location: VERTEX_CONFIG.location,
+      });
+    }
   }
   return vertexClient;
 }
