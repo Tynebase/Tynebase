@@ -588,7 +588,10 @@
       "phase": "Phase 6: Video & Document Ingestion",
       "title": "[API] Create Integration Import Stubs",
       "action": "Create POST /api/integrations/{notion,confluence,gdocs}/import endpoints returning 501",
-      "passes": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-25T15:59:13.661184",
+      "completed_at": "2026-01-25T16:01:33.116989"
     },
     {
       "id": "7.1",
