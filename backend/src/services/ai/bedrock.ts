@@ -35,18 +35,19 @@ const DEEPSEEK_MODEL_ID = 'deepseek.v3-v1:0';
  */
 function getBedrockClient(): BedrockRuntimeClient {
   if (!bedrockClient) {
-    const apiKey = process.env.AWS_BEDROCK_API_KEY;
     const region = process.env.AWS_REGION || 'eu-west-2';
+    const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
     
-    if (!apiKey) {
-      throw new Error('AWS_BEDROCK_API_KEY environment variable must be set');
+    if (!accessKeyId || !secretAccessKey) {
+      throw new Error('AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables must be set');
     }
 
     bedrockClient = new BedrockRuntimeClient({
       region,
       credentials: {
-        accessKeyId: apiKey,
-        secretAccessKey: apiKey,
+        accessKeyId,
+        secretAccessKey,
       },
       maxAttempts: 3,
     });
