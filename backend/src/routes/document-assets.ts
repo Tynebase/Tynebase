@@ -1,0 +1,313 @@
+import { FastifyInstance } from 'fastify';
+import { z } from 'zod';
+import { supabaseAdmin } from '../lib/supabase';
+import { tenantContextMiddleware } from '../middleware/tenantContext';
+import { authMiddleware } from '../middleware/auth';
+import { membershipGuard } from '../middleware/membershipGuard';
+import { rateLimitMiddleware } from '../middleware/rateLimit';
+
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
+const ALLOWED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
+const ALLOWED_VIDEO_EXTENSIONS = ['.mp4', '.mov', '.webm'];
+
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
+
+/**
+ * Zod schema for POST /api/documents/:id/upload path parameters
+ */
+const uploadAssetParamsSchema = z.object({
+  id: z.string().uuid(),
+});
+
+/**
+ * Document Asset Upload Routes
+ * Handles image and video uploads for documents
+ */
+export default async function documentAssetRoutes(fastify: FastifyInstance) {
+  /**
+   * POST /api/documents/:id/upload
+   * Uploads an image or video asset for a document
+   * 
+   * Path Parameters:
+   * - id: Document UUID
+   * 
+   * Request Body:
+   * - Multipart form data with file field
+   * 
+   * Authorization:
+   * - Requires valid JWT
+   * - User must be member of tenant
+   * - Document must belong to user's tenant
+   * 
+   * Security:
+   * - Validates file type (images: jpg, png, gif, webp, svg; videos: mp4, mov, webm)
+   * - Validates file size (max 10MB for images, 50MB for videos)
+   * - Sanitizes filename to prevent path traversal
+   * - Stores in tenant-isolated storage bucket
+   * - Enforces tenant isolation via explicit tenant_id filtering
+   * - Returns signed URL with 1-hour expiration
+   * 
+   * Storage:
+   * - Bucket: tenant-documents
+   * - Path: tenant-{tenant_id}/documents/{document_id}/{timestamp}_{filename}
+   * - Content-Type preserved from upload
+   * 
+   * Response:
+   * - 201: Asset uploaded successfully with signed URL
+   * - 400: Invalid file type, size, or missing file
+   * - 404: Document not found or access denied
+   * - 500: Upload failed or internal error
+   */
+  fastify.post(
+    '/api/documents/:id/upload',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        const params = uploadAssetParamsSchema.parse(request.params);
+        const { id: documentId } = params;
+
+        const { error: docError } = await supabaseAdmin
+          .from('documents')
+          .select('id')
+          .eq('id', documentId)
+          .eq('tenant_id', tenant.id)
+          .single();
+
+        if (docError) {
+          if (docError.code === 'PGRST116') {
+            fastify.log.warn(
+              { documentId, tenantId: tenant.id, userId: user.id },
+              'Document not found or access denied'
+            );
+            return reply.code(404).send({
+              error: {
+                code: 'DOCUMENT_NOT_FOUND',
+                message: 'Document not found',
+                details: {},
+              },
+            });
+          }
+
+          fastify.log.error(
+            { error: docError, documentId, tenantId: tenant.id, userId: user.id },
+            'Failed to fetch document for asset upload'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'FETCH_FAILED',
+              message: 'Failed to fetch document',
+              details: {},
+            },
+          });
+        }
+
+        const data = await request.file();
+
+        if (!data) {
+          return reply.code(400).send({
+            error: {
+              code: 'NO_FILE_UPLOADED',
+              message: 'No file was uploaded',
+              details: {},
+            },
+          });
+        }
+
+        const filename = data.filename;
+        const mimetype = data.mimetype;
+
+        const isImage = ALLOWED_IMAGE_TYPES.includes(mimetype);
+        const isVideo = ALLOWED_VIDEO_TYPES.includes(mimetype);
+
+        if (!isImage && !isVideo) {
+          fastify.log.warn(
+            {
+              filename,
+              mimetype,
+              documentId,
+              tenantId: tenant.id,
+              userId: user.id,
+            },
+            'Invalid asset file type'
+          );
+          return reply.code(400).send({
+            error: {
+              code: 'INVALID_FILE_TYPE',
+              message: `Invalid file type. Allowed types: ${[...ALLOWED_IMAGE_EXTENSIONS, ...ALLOWED_VIDEO_EXTENSIONS].join(', ')}`,
+              details: {},
+            },
+          });
+        }
+
+        const fileExtension = filename.substring(filename.lastIndexOf('.')).toLowerCase();
+        const allowedExtensions = isImage ? ALLOWED_IMAGE_EXTENSIONS : ALLOWED_VIDEO_EXTENSIONS;
+
+        if (!allowedExtensions.includes(fileExtension)) {
+          fastify.log.warn(
+            {
+              filename,
+              fileExtension,
+              documentId,
+              tenantId: tenant.id,
+              userId: user.id,
+            },
+            'Invalid asset file extension'
+          );
+          return reply.code(400).send({
+            error: {
+              code: 'INVALID_FILE_EXTENSION',
+              message: `Invalid file extension. Allowed extensions: ${allowedExtensions.join(', ')}`,
+              details: {},
+            },
+          });
+        }
+
+        const fileBuffer = await data.toBuffer();
+        const fileSize = fileBuffer.length;
+
+        const maxSize = isImage ? MAX_IMAGE_SIZE : MAX_VIDEO_SIZE;
+        if (fileSize > maxSize) {
+          fastify.log.warn(
+            {
+              filename,
+              fileSize,
+              maxSize,
+              documentId,
+              tenantId: tenant.id,
+              userId: user.id,
+            },
+            'Asset file size exceeds limit'
+          );
+          return reply.code(400).send({
+            error: {
+              code: 'FILE_TOO_LARGE',
+              message: `File size exceeds maximum limit of ${maxSize / (1024 * 1024)}MB`,
+              details: {},
+            },
+          });
+        }
+
+        const timestamp = Date.now();
+        const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const storagePath = `tenant-${tenant.id}/documents/${documentId}/${timestamp}_${sanitizedFilename}`;
+
+        fastify.log.info(
+          {
+            filename: sanitizedFilename,
+            storagePath,
+            fileSize,
+            mimetype,
+            documentId,
+            tenantId: tenant.id,
+            userId: user.id,
+            assetType: isImage ? 'image' : 'video',
+          },
+          'Uploading asset to storage'
+        );
+
+        const { data: uploadData, error: uploadError } = await supabaseAdmin
+          .storage
+          .from('tenant-documents')
+          .upload(storagePath, fileBuffer, {
+            contentType: mimetype,
+            upsert: false,
+          });
+
+        if (uploadError) {
+          fastify.log.error(
+            {
+              filename: sanitizedFilename,
+              storagePath,
+              documentId,
+              tenantId: tenant.id,
+              error: uploadError.message,
+            },
+            'Failed to upload asset to storage'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'UPLOAD_FAILED',
+              message: 'Failed to upload asset file',
+              details: {},
+            },
+          });
+        }
+
+        const { data: signedUrlData, error: signedUrlError } = await supabaseAdmin
+          .storage
+          .from('tenant-documents')
+          .createSignedUrl(uploadData.path, 3600);
+
+        if (signedUrlError) {
+          fastify.log.error(
+            {
+              storagePath: uploadData.path,
+              documentId,
+              tenantId: tenant.id,
+              error: signedUrlError.message,
+            },
+            'Failed to generate signed URL for uploaded asset'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'SIGNED_URL_FAILED',
+              message: 'Failed to generate signed URL',
+              details: {},
+            },
+          });
+        }
+
+        fastify.log.info(
+          {
+            filename: sanitizedFilename,
+            storagePath: uploadData.path,
+            documentId,
+            tenantId: tenant.id,
+            userId: user.id,
+            assetType: isImage ? 'image' : 'video',
+          },
+          'Asset uploaded successfully'
+        );
+
+        return reply.code(201).send({
+          success: true,
+          data: {
+            storage_path: uploadData.path,
+            signed_url: signedUrlData.signedUrl,
+            filename: sanitizedFilename,
+            file_size: fileSize,
+            mimetype: mimetype,
+            asset_type: isImage ? 'image' : 'video',
+            expires_in: 3600,
+          },
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid document ID format',
+              details: error.errors,
+            },
+          });
+        }
+
+        fastify.log.error({ error }, 'Unexpected error in POST /api/documents/:id/upload');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+}

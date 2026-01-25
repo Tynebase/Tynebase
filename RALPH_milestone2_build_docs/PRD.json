@@ -838,7 +838,10 @@
       "phase": "Phase 11: Image/Video Embeds in Documents",
       "title": "[API] Implement Asset Upload Endpoint",
       "action": "POST /api/documents/:id/upload for images/videos",
-      "passes": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-25T20:05:42.246874",
+      "completed_at": "2026-01-25T20:10:36.319509"
     },
     {
       "id": "11.2",
