@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { supabaseAdmin } from '../lib/supabase';
+import { loginRateLimitMiddleware } from '../middleware/rateLimit';
 
 const signupSchema = z.object({
   email: z.string().email('Invalid email format'),
@@ -228,8 +229,11 @@ export default async function authRoutes(fastify: FastifyInstance) {
   /**
    * POST /api/auth/login
    * Authenticates user and returns JWT
+   * Rate limited to 5 attempts per 15 minutes per IP
    */
-  fastify.post('/api/auth/login', async (request, reply) => {
+  fastify.post('/api/auth/login', {
+    preHandler: loginRateLimitMiddleware,
+  }, async (request, reply) => {
     try {
       const body = loginSchema.parse(request.body);
       const { email, password } = body;

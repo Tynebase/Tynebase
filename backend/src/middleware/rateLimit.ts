@@ -20,6 +20,11 @@ const aiConfig: RateLimitConfig = {
   maxRequests: 10,
 };
 
+const loginConfig: RateLimitConfig = {
+  windowMs: 15 * 60 * 1000,
+  maxRequests: 5,
+};
+
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
 const CLEANUP_INTERVAL = 5 * 60 * 1000;
@@ -94,7 +99,8 @@ export async function rateLimitMiddleware(
   const key = getRateLimitKey(userId, ip);
 
   const isAiEndpoint = path.startsWith('/api/ai');
-  const config = isAiEndpoint ? aiConfig : globalConfig;
+  const isLoginEndpoint = path.startsWith('/api/auth/login');
+  const config = isLoginEndpoint ? loginConfig : (isAiEndpoint ? aiConfig : globalConfig);
 
   const result = isRateLimited(key, config, now);
 
@@ -153,4 +159,54 @@ export function getRateLimitStats() {
 
 export function clearRateLimitStore() {
   rateLimitStore.clear();
+}
+
+export async function loginRateLimitMiddleware(
+  request: FastifyRequest,
+  reply: FastifyReply
+) {
+  const now = Date.now();
+  const ip = request.ip || 'unknown';
+  const key = `ip:${ip}`;
+
+  const result = isRateLimited(key, loginConfig, now);
+
+  reply.header('X-RateLimit-Limit', loginConfig.maxRequests.toString());
+  reply.header('X-RateLimit-Remaining', result.remaining.toString());
+  reply.header('X-RateLimit-Window', (loginConfig.windowMs / 1000).toString());
+
+  if (result.limited) {
+    reply.header('Retry-After', result.retryAfter!.toString());
+
+    request.log.warn(
+      {
+        ip,
+        path: request.url,
+        limit: loginConfig.maxRequests,
+        window: loginConfig.windowMs / 1000,
+        retryAfter: result.retryAfter,
+      },
+      'Login rate limit exceeded'
+    );
+
+    return reply.status(429).send({
+      error: {
+        code: 'RATE_LIMIT_EXCEEDED',
+        message: `Too many login attempts. Please try again in ${result.retryAfter} seconds.`,
+        retryAfter: result.retryAfter,
+        limit: loginConfig.maxRequests,
+        window: loginConfig.windowMs / 1000,
+      },
+    });
+  }
+
+  request.log.debug(
+    {
+      ip,
+      path: request.url,
+      current: result.current,
+      limit: loginConfig.maxRequests,
+    },
+    'Login rate limit check passed'
+  );
 }
