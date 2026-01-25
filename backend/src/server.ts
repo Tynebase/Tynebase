@@ -85,6 +85,7 @@ const start = async () => {
     await fastify.register(import('./routes/ai-enhance'), { prefix: '' });
     await fastify.register(import('./routes/ai-apply-suggestion'), { prefix: '' });
     await fastify.register(import('./routes/video-upload'), { prefix: '' });
+    await fastify.register(import('./routes/youtube-video'), { prefix: '' });
     await fastify.register(import('./routes/jobs'), { prefix: '' });
     await fastify.register(import('./routes/rag'), { prefix: '' });
 

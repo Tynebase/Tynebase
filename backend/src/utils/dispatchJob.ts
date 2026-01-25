@@ -5,6 +5,7 @@ const JobTypeSchema = z.enum([
   'ai_generation',
   'video_ingestion',
   'video_ingest',
+  'video_ingest_youtube',
   'document_indexing',
   'document_export',
   'tenant_cleanup',
