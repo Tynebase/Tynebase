@@ -22,6 +22,13 @@ const uploadAssetParamsSchema = z.object({
 });
 
 /**
+ * Zod schema for GET /api/documents/:id/assets path parameters
+ */
+const listAssetsParamsSchema = z.object({
+  id: z.string().uuid(),
+});
+
+/**
  * Document Asset Upload Routes
  * Handles image and video uploads for documents
  */
@@ -300,6 +307,182 @@ export default async function documentAssetRoutes(fastify: FastifyInstance) {
         }
 
         fastify.log.error({ error }, 'Unexpected error in POST /api/documents/:id/upload');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
+   * GET /api/documents/:id/assets
+   * Lists all assets (images and videos) for a document
+   * 
+   * Path Parameters:
+   * - id: Document UUID
+   * 
+   * Authorization:
+   * - Requires valid JWT
+   * - User must be member of tenant
+   * - Document must belong to user's tenant
+   * 
+   * Security:
+   * - Enforces tenant isolation via explicit tenant_id filtering
+   * - Verifies document exists and belongs to user's tenant
+   * - Returns signed URLs with 1-hour expiration
+   * 
+   * Response:
+   * - 200: List of assets with metadata and signed URLs
+   * - 404: Document not found or access denied
+   * - 500: Failed to list assets or internal error
+   */
+  fastify.get(
+    '/api/documents/:id/assets',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        const params = listAssetsParamsSchema.parse(request.params);
+        const { id: documentId } = params;
+
+        const { error: docError } = await supabaseAdmin
+          .from('documents')
+          .select('id')
+          .eq('id', documentId)
+          .eq('tenant_id', tenant.id)
+          .single();
+
+        if (docError) {
+          if (docError.code === 'PGRST116') {
+            fastify.log.warn(
+              { documentId, tenantId: tenant.id, userId: user.id },
+              'Document not found or access denied'
+            );
+            return reply.code(404).send({
+              error: {
+                code: 'DOCUMENT_NOT_FOUND',
+                message: 'Document not found',
+                details: {},
+              },
+            });
+          }
+
+          fastify.log.error(
+            { error: docError, documentId, tenantId: tenant.id, userId: user.id },
+            'Failed to fetch document for asset listing'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'FETCH_FAILED',
+              message: 'Failed to fetch document',
+              details: {},
+            },
+          });
+        }
+
+        const storagePath = `tenant-${tenant.id}/documents/${documentId}`;
+
+        fastify.log.info(
+          {
+            documentId,
+            tenantId: tenant.id,
+            userId: user.id,
+            storagePath,
+          },
+          'Listing assets for document'
+        );
+
+        const { data: files, error: listError } = await supabaseAdmin
+          .storage
+          .from('tenant-documents')
+          .list(storagePath, {
+            limit: 1000,
+            sortBy: { column: 'created_at', order: 'desc' },
+          });
+
+        if (listError) {
+          fastify.log.error(
+            {
+              storagePath,
+              documentId,
+              tenantId: tenant.id,
+              error: listError.message,
+            },
+            'Failed to list assets from storage'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'LIST_FAILED',
+              message: 'Failed to list assets',
+              details: {},
+            },
+          });
+        }
+
+        const assets = await Promise.all(
+          (files || []).map(async (file) => {
+            const fullPath = `${storagePath}/${file.name}`;
+            
+            const { data: signedUrlData } = await supabaseAdmin
+              .storage
+              .from('tenant-documents')
+              .createSignedUrl(fullPath, 3600);
+
+            const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+            const isImage = ALLOWED_IMAGE_EXTENSIONS.includes(fileExtension);
+            const isVideo = ALLOWED_VIDEO_EXTENSIONS.includes(fileExtension);
+
+            return {
+              name: file.name,
+              storage_path: fullPath,
+              signed_url: signedUrlData?.signedUrl || null,
+              size: file.metadata?.size || 0,
+              created_at: file.created_at,
+              updated_at: file.updated_at,
+              asset_type: isImage ? 'image' : isVideo ? 'video' : 'unknown',
+              expires_in: 3600,
+            };
+          })
+        );
+
+        fastify.log.info(
+          {
+            documentId,
+            tenantId: tenant.id,
+            userId: user.id,
+            assetCount: assets.length,
+          },
+          'Assets listed successfully'
+        );
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            document_id: documentId,
+            assets,
+            total: assets.length,
+          },
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid document ID format',
+              details: error.errors,
+            },
+          });
+        }
+
+        fastify.log.error({ error }, 'Unexpected error in GET /api/documents/:id/assets');
         return reply.code(500).send({
           error: {
             code: 'INTERNAL_ERROR',

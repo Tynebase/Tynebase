@@ -848,7 +848,10 @@
       "phase": "Phase 11: Image/Video Embeds in Documents",
       "title": "[API] Implement Asset List Endpoint",
       "action": "GET /api/documents/:id/assets",
-      "passes": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-25T20:10:55.032841",
+      "completed_at": "2026-01-25T20:13:13.069618"
     },
     {
       "id": "11.3",
