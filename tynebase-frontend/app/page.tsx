@@ -345,6 +345,15 @@ export default function Home() {
               <p className="text-sm text-[var(--text-secondary)]">
                 Complete customisation for each workspace. Custom domains, branded colours, logos and subdomain routing – perfect for agencies and SaaS platforms.
               </p>
+              <div className="mt-4 flex justify-center">
+                <Image
+                  src="/multi_tenant_logo.png"
+                  alt="Multi-Tenant Architecture"
+                  width={120}
+                  height={120}
+                  className="object-contain"
+                />
+              </div>
             </div>
 
             {/* Feature 5 - Speed & Security */}

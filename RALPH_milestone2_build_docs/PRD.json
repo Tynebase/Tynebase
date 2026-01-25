@@ -498,7 +498,10 @@
       "phase": "Phase 6: Video & Document Ingestion",
       "title": "[API] Implement Video Upload Endpoint",
       "action": "POST /api/ai/video/upload with multipart form",
-      "passes": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-25T15:03:08.306699",
+      "completed_at": "2026-01-25T15:08:37.093932"
     },
     {
       "id": "6.2",

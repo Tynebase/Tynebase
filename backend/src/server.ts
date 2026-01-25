@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import multipart from '@fastify/multipart';
 import { env, isDev } from './config/env';
 
 const buildServer = () => {
@@ -50,6 +51,12 @@ const start = async () => {
       credentials: true,
     });
 
+    await fastify.register(multipart, {
+      limits: {
+        fileSize: 500 * 1024 * 1024,
+      },
+    });
+
     fastify.get('/health', async () => {
       return {
         status: 'ok',
@@ -77,6 +84,7 @@ const start = async () => {
     await fastify.register(import('./routes/ai-generate'), { prefix: '' });
     await fastify.register(import('./routes/ai-enhance'), { prefix: '' });
     await fastify.register(import('./routes/ai-apply-suggestion'), { prefix: '' });
+    await fastify.register(import('./routes/video-upload'), { prefix: '' });
     await fastify.register(import('./routes/jobs'), { prefix: '' });
     await fastify.register(import('./routes/rag'), { prefix: '' });
 

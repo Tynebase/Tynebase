@@ -4,6 +4,7 @@ import { z } from 'zod';
 const JobTypeSchema = z.enum([
   'ai_generation',
   'video_ingestion',
+  'video_ingest',
   'document_indexing',
   'document_export',
   'tenant_cleanup',
