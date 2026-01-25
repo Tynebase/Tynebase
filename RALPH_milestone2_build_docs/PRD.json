@@ -508,7 +508,10 @@
       "phase": "Phase 6: Video & Document Ingestion",
       "title": "[Worker] Implement Gemini Video Ingestion Handler",
       "action": "Create workers/videoIngest.ts with Gemini API integration",
-      "passes": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-25T15:12:25.793494",
+      "completed_at": "2026-01-25T15:16:23.717364"
     },
     {
       "id": "6.3",

@@ -1,0 +1,307 @@
+/**
+ * Video Ingestion Worker
+ * Processes video_ingest jobs from the job queue
+ * 
+ * Workflow:
+ * 1. Get signed URL from Supabase Storage
+ * 2. Get video metadata (duration) using Gemini API
+ * 3. Calculate credits (duration_minutes / 5)
+ * 4. Stream video to Vertex AI Gemini API
+ * 5. Receive transcript with timestamps
+ * 6. Create document with transcript
+ * 7. Create lineage event (type: converted_from_video)
+ * 8. Log query_usage with credits
+ * 9. Delete video from storage (optional config)
+ * 10. Mark job as completed with document_id
+ */
+
+import { supabaseAdmin } from '../lib/supabase';
+import { transcribeVideo } from '../services/ai/vertex';
+import { completeJob } from '../utils/completeJob';
+import { failJob } from '../utils/failJob';
+import { calculateVideoIngestionCredits } from '../utils/creditCalculator';
+import { z } from 'zod';
+
+const VideoIngestPayloadSchema = z.object({
+  storage_path: z.string().min(1),
+  original_filename: z.string().min(1),
+  file_size: z.number().int().positive(),
+  mimetype: z.string().min(1),
+  user_id: z.string().uuid(),
+  youtube_url: z.string().url().optional(),
+});
+
+type VideoIngestPayload = z.infer<typeof VideoIngestPayloadSchema>;
+
+interface Job {
+  id: string;
+  tenant_id: string;
+  type: string;
+  payload: VideoIngestPayload;
+  worker_id: string;
+}
+
+/**
+ * Configuration for video cleanup after processing
+ */
+const DELETE_VIDEO_AFTER_PROCESSING = process.env.DELETE_VIDEO_AFTER_PROCESSING === 'true';
+
+/**
+ * Process a video ingestion job
+ * @param job - Job record from job_queue
+ */
+export async function processVideoIngestJob(job: Job): Promise<void> {
+  const workerId = job.worker_id;
+  
+  console.log(`[Worker ${workerId}] Processing video ingestion job ${job.id}`);
+  console.log(`[Worker ${workerId}] Tenant: ${job.tenant_id}, File: ${job.payload.original_filename}`);
+
+  try {
+    const validated = VideoIngestPayloadSchema.parse(job.payload);
+
+    let videoUrl: string;
+    let isYouTubeVideo = false;
+
+    if (validated.youtube_url) {
+      console.log(`[Worker ${workerId}] Processing YouTube video: ${validated.youtube_url}`);
+      videoUrl = validated.youtube_url;
+      isYouTubeVideo = true;
+    } else {
+      const signedUrl = await getSignedVideoUrl(validated.storage_path, workerId);
+      videoUrl = signedUrl;
+      console.log(`[Worker ${workerId}] Generated signed URL for storage path: ${validated.storage_path}`);
+    }
+
+    console.log(`[Worker ${workerId}] Transcribing video with Gemini...`);
+    const transcriptionResult = await transcribeVideo(
+      videoUrl,
+      'Transcribe this video content with timestamps. Include all spoken words and important visual context. Format the output as a readable transcript with clear sections.'
+    );
+
+    const transcript = transcriptionResult.content;
+    const tokensUsed = transcriptionResult.tokensInput + transcriptionResult.tokensOutput;
+
+    console.log(`[Worker ${workerId}] Transcription completed: ${transcript.length} characters, ${tokensUsed} tokens`);
+
+    const durationMinutes = estimateVideoDuration(transcript, validated.file_size);
+    const creditsUsed = calculateVideoIngestionCredits(durationMinutes);
+
+    console.log(`[Worker ${workerId}] Estimated duration: ${durationMinutes} minutes, Credits: ${creditsUsed}`);
+
+    const documentTitle = generateDocumentTitle(validated.original_filename, transcript);
+
+    const { data: document, error: docError } = await supabaseAdmin
+      .from('documents')
+      .insert({
+        tenant_id: job.tenant_id,
+        title: documentTitle,
+        content: transcript,
+        status: 'draft',
+        author_id: validated.user_id,
+      })
+      .select()
+      .single();
+
+    if (docError) {
+      console.error(`[Worker ${workerId}] Failed to create document:`, docError);
+      await failJob({
+        jobId: job.id,
+        error: 'Failed to create document',
+        errorDetails: { message: docError.message, code: docError.code },
+      });
+      return;
+    }
+
+    console.log(`[Worker ${workerId}] Document created: ${document.id}`);
+
+    const { error: lineageError } = await supabaseAdmin
+      .from('document_lineage')
+      .insert({
+        document_id: document.id,
+        event_type: 'converted_from_video',
+        actor_id: validated.user_id,
+        metadata: {
+          original_filename: validated.original_filename,
+          file_size: validated.file_size,
+          mimetype: validated.mimetype,
+          storage_path: validated.storage_path,
+          duration_minutes: durationMinutes,
+          tokens_used: tokensUsed,
+          is_youtube: isYouTubeVideo,
+          youtube_url: validated.youtube_url || null,
+        },
+      });
+
+    if (lineageError) {
+      console.error(`[Worker ${workerId}] Failed to create lineage event:`, lineageError);
+    } else {
+      console.log(`[Worker ${workerId}] Lineage event created for document ${document.id}`);
+    }
+
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const { error: usageError } = await supabaseAdmin
+      .from('query_usage')
+      .insert({
+        tenant_id: job.tenant_id,
+        user_id: validated.user_id,
+        query_type: 'video_ingestion',
+        model: 'gemini-3-flash',
+        input_tokens: transcriptionResult.tokensInput,
+        output_tokens: transcriptionResult.tokensOutput,
+        credits_used: creditsUsed,
+        month_year: currentMonth,
+        metadata: {
+          job_id: job.id,
+          document_id: document.id,
+          duration_minutes: durationMinutes,
+          file_size: validated.file_size,
+          is_youtube: isYouTubeVideo,
+        },
+      });
+
+    if (usageError) {
+      console.error(`[Worker ${workerId}] Failed to log query usage:`, usageError);
+    } else {
+      console.log(`[Worker ${workerId}] Query usage logged: ${creditsUsed} credits`);
+    }
+
+    if (!isYouTubeVideo && DELETE_VIDEO_AFTER_PROCESSING) {
+      try {
+        await deleteVideoFromStorage(validated.storage_path, workerId);
+        console.log(`[Worker ${workerId}] Video deleted from storage: ${validated.storage_path}`);
+      } catch (deleteError) {
+        console.warn(`[Worker ${workerId}] Failed to delete video from storage:`, deleteError);
+      }
+    }
+
+    await completeJob({
+      jobId: job.id,
+      result: {
+        document_id: document.id,
+        title: document.title,
+        duration_minutes: durationMinutes,
+        credits_used: creditsUsed,
+        tokens_used: tokensUsed,
+        transcript_length: transcript.length,
+        is_youtube: isYouTubeVideo,
+      },
+    });
+
+    console.log(`[Worker ${workerId}] Job ${job.id} completed successfully`);
+  } catch (error) {
+    console.error(`[Worker ${workerId}] Error processing video ingestion job:`, error);
+
+    await failJob({
+      jobId: job.id,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      errorDetails: {
+        type: error instanceof Error ? error.constructor.name : 'UnknownError',
+        timestamp: new Date().toISOString(),
+        storage_path: job.payload.storage_path,
+      },
+    });
+  }
+}
+
+/**
+ * Get a signed URL for accessing video from Supabase Storage
+ * @param storagePath - Path to video in storage bucket
+ * @param workerId - Worker ID for logging
+ * @returns Signed URL valid for 1 hour
+ */
+async function getSignedVideoUrl(storagePath: string, workerId: string): Promise<string> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .storage
+      .from('tenant-uploads')
+      .createSignedUrl(storagePath, 3600);
+
+    if (error) {
+      console.error(`[Worker ${workerId}] Failed to create signed URL:`, error);
+      throw new Error(`Failed to create signed URL: ${error.message}`);
+    }
+
+    if (!data || !data.signedUrl) {
+      throw new Error('Signed URL not returned from Supabase');
+    }
+
+    return data.signedUrl;
+  } catch (error) {
+    console.error(`[Worker ${workerId}] Error getting signed URL:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Delete video from Supabase Storage after processing
+ * @param storagePath - Path to video in storage bucket
+ * @param workerId - Worker ID for logging
+ */
+async function deleteVideoFromStorage(storagePath: string, workerId: string): Promise<void> {
+  try {
+    const { error } = await supabaseAdmin
+      .storage
+      .from('tenant-uploads')
+      .remove([storagePath]);
+
+    if (error) {
+      console.error(`[Worker ${workerId}] Failed to delete video:`, error);
+      throw new Error(`Failed to delete video: ${error.message}`);
+    }
+  } catch (error) {
+    console.error(`[Worker ${workerId}] Error deleting video:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Estimate video duration based on transcript length and file size
+ * This is a heuristic until we can extract actual duration from video metadata
+ * @param transcript - Transcribed text
+ * @param fileSize - Video file size in bytes
+ * @returns Estimated duration in minutes
+ */
+function estimateVideoDuration(transcript: string, fileSize: number): number {
+  const wordCount = transcript.split(/\s+/).length;
+  const averageWordsPerMinute = 150;
+  const estimatedMinutes = Math.ceil(wordCount / averageWordsPerMinute);
+  
+  const fileSizeMB = fileSize / (1024 * 1024);
+  const estimatedMinutesFromSize = Math.ceil(fileSizeMB / 10);
+  
+  const finalEstimate = Math.max(estimatedMinutes, estimatedMinutesFromSize, 1);
+  
+  console.log(`[estimateVideoDuration] Words: ${wordCount}, Size: ${fileSizeMB.toFixed(2)}MB, Estimated: ${finalEstimate} minutes`);
+  
+  return finalEstimate;
+}
+
+/**
+ * Generate a document title from the video filename and transcript
+ * @param filename - Original video filename
+ * @param transcript - Transcribed content
+ * @returns Document title (max 100 chars)
+ */
+function generateDocumentTitle(filename: string, transcript: string): string {
+  const filenameWithoutExt = filename.replace(/\.[^/.]+$/, '');
+  
+  const cleanFilename = filenameWithoutExt
+    .replace(/[_-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  
+  const firstLine = transcript.split('\n')[0]?.trim() || '';
+  
+  if (firstLine.length > 10 && firstLine.length <= 80 && !firstLine.includes('Transcript')) {
+    const cleanedLine = firstLine.replace(/^#+\s*/, '').trim();
+    if (cleanedLine.length > 0) {
+      return cleanedLine.length <= 100 ? cleanedLine : cleanedLine.substring(0, 97) + '...';
+    }
+  }
+  
+  const title = cleanFilename.length > 0 && cleanFilename.length <= 80
+    ? `Video: ${cleanFilename}`
+    : `Video Transcript: ${cleanFilename.substring(0, 60)}...`;
+  
+  return title.length <= 100 ? title : title.substring(0, 97) + '...';
+}

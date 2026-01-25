@@ -174,7 +174,7 @@ export default async function videoUploadRoutes(fastify: FastifyInstance) {
 
         const job = await dispatchJob({
           tenantId: tenant.id,
-          type: 'video_ingest',
+          type: 'video_ingestion',
           payload: {
             storage_path: uploadData.path,
             original_filename: sanitizedFilename,

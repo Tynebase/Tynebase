@@ -1,6 +1,7 @@
 import { env, isDev } from './config/env';
 import { claimJob } from './utils/claimJob';
 import { processAIGenerationJob } from './workers/aiGeneration';
+import { processVideoIngestJob } from './workers/videoIngest';
 
 const WORKER_ID = `worker-${process.pid}-${Date.now()}`;
 const POLL_INTERVAL_MS = 1000;
@@ -77,7 +78,7 @@ const processJob = async (job: any): Promise<void> => {
         break;
       
       case 'video_ingestion':
-        console.log(`[Worker ${WORKER_ID}] Video ingestion handler not yet implemented`);
+        await processVideoIngestJob(job);
         break;
       
       case 'document_indexing':
