@@ -6,9 +6,11 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "dev:worker": "tsx watch src/worker.ts",
+    "dev:collab": "tsx watch src/collab-server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "start:worker": "node dist/worker.js",
+    "start:collab": "node dist/collab-server.js",
     "lint": "eslint src --ext .ts",
     "type-check": "tsc --noEmit"
   },

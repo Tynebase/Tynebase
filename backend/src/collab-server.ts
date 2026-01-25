@@ -1,7 +1,10 @@
 import { Server } from '@hocuspocus/server';
 import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
 
-const PORT = parseInt(process.env.PORT || '8081', 10);
+dotenv.config();
+
+const PORT = parseInt(process.env.COLLAB_PORT || '8081', 10);
 const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
@@ -16,7 +19,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
  * Hocuspocus WebSocket server for real-time collaborative editing
  * Runs on port 8081, separate from main API server
  */
-const server = Server.configure({
+const server = new Server({
   port: PORT,
   name: 'tynebase-collab',
 
@@ -118,10 +121,10 @@ const server = Server.configure({
   },
 });
 
-server.listen(() => {
-  console.log(`[Collab] Hocuspocus server running on port ${PORT}`);
-  console.log(`[Collab] Environment: ${process.env.NODE_ENV || 'development'}`);
-});
+server.listen();
+
+console.log(`[Collab] Hocuspocus server running on port ${PORT}`);
+console.log(`[Collab] Environment: ${process.env.NODE_ENV || 'development'}`);
 
 process.on('SIGTERM', () => {
   console.log('[Collab] SIGTERM received, shutting down gracefully');

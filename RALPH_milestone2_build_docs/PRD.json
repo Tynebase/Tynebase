@@ -688,7 +688,10 @@
       "phase": "Phase 8: Real-Time Collaboration (Hocuspocus)",
       "title": "[Collab] Initialize Hocuspocus Server",
       "action": "Create collab-server.ts with @hocuspocus/server",
-      "passes": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-25T18:03:02.824168",
+      "completed_at": "2026-01-25T18:07:40.574095"
     },
     {
       "id": "8.3",
