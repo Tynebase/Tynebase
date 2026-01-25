@@ -298,7 +298,10 @@
       "phase": "Phase 2: API Foundation (Fastify)",
       "title": "[API] Implement Template List Endpoint",
       "action": "GET /api/templates (global + tenant templates)",
-      "passes": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-25T11:53:04.704686",
+      "completed_at": "2026-01-25T11:55:53.054766"
     },
     {
       "id": "2.19",

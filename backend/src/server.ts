@@ -72,6 +72,7 @@ const start = async () => {
     await fastify.register(import('./routes/auth-test'), { prefix: '' });
     await fastify.register(import('./routes/tenants'), { prefix: '' });
     await fastify.register(import('./routes/documents'), { prefix: '' });
+    await fastify.register(import('./routes/templates'), { prefix: '' });
     await fastify.register(import('./routes/ai-test'), { prefix: '' });
 
     const port = parseInt(env.PORT, 10);
