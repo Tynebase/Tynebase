@@ -89,24 +89,34 @@ const server = new Server({
   async onLoadDocument(data: any) {
     const { documentName } = data;
 
-    const { data: document, error } = await supabase
-      .from('documents')
-      .select('yjs_state')
-      .eq('id', documentName)
-      .single();
+    try {
+      const { data: document, error } = await supabase
+        .from('documents')
+        .select('yjs_state, tenant_id')
+        .eq('id', documentName)
+        .single();
 
-    if (error) {
-      console.error(`[Collab] Error loading document ${documentName}:`, error);
+      if (error) {
+        console.error(`[Collab] Error loading document ${documentName}:`, error);
+        return null;
+      }
+
+      if (!document) {
+        console.error(`[Collab] Document ${documentName} not found`);
+        return null;
+      }
+
+      if (document.yjs_state) {
+        console.log(`[Collab] Loaded document ${documentName} from database (tenant: ${document.tenant_id})`);
+        return Buffer.from(document.yjs_state);
+      }
+
+      console.log(`[Collab] No existing state for document ${documentName} (tenant: ${document.tenant_id})`);
+      return null;
+    } catch (err: any) {
+      console.error(`[Collab] Exception loading document ${documentName}:`, err.message);
       return null;
     }
-
-    if (document?.yjs_state) {
-      console.log(`[Collab] Loaded document ${documentName} from database`);
-      return Buffer.from(document.yjs_state);
-    }
-
-    console.log(`[Collab] No existing state for document ${documentName}`);
-    return null;
   },
 
   async onStoreDocument(data: any) {
