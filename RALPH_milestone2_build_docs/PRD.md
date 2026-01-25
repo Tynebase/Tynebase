@@ -773,8 +773,9 @@ Separate Fly.io App:
 - **Security:** N/A
 
 ### 13.9 [Docs] Create API Documentation
-- **Action:** Generate OpenAPI spec, document all endpoints
-- **Validation:** Spec is valid, examples work
+- **Action:** Generate OpenAPI spec (swagger.json) via Fastify Swagger
+- **Action:** Document all endpoints, Generate TypeScript Frontend Client (using `openapi-typescript-codegen` or `hey-api`)
+- **Validation:** Spec is valid, TS Client matches backend types 1:1, examples work
 - **Security:** Mark which endpoints require auth/admin
 
 ### 13.10 [Docs] Create Deployment Guide
