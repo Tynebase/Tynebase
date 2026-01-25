@@ -678,7 +678,10 @@
       "phase": "Phase 8: Real-Time Collaboration (Hocuspocus)",
       "title": "[Collab] Create Separate Fly.io App",
       "action": "Create new Fly.io app tynebase-collab in lhr region",
-      "passes": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-25T17:55:21.473757",
+      "completed_at": "2026-01-25T17:57:31.622578"
     },
     {
       "id": "8.2",

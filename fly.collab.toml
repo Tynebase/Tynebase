@@ -1,0 +1,54 @@
+# Fly.io configuration for TyneBase Collaboration Server (Hocuspocus)
+# Documentation: https://fly.io/docs/reference/configuration/
+
+app = "tynebase-collab"
+primary_region = "lhr"
+
+[build]
+  dockerfile = "Dockerfile.collab"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "8081"
+  LOG_LEVEL = "info"
+
+# WebSocket service configuration
+[[services]]
+  protocol = "tcp"
+  internal_port = 8081
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["http", "tls"]
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 500
+    soft_limit = 400
+
+  [[services.tcp_checks]]
+    interval = "15s"
+    timeout = "2s"
+    grace_period = "5s"
+    restart_limit = 0
+
+# VM Resources
+[vm]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512
+
+# Scaling configuration
+[scaling]
+  min_machines = 1
+  max_machines = 3
+
+# Secrets (set via: fly secrets set KEY=VALUE -a tynebase-collab)
+# Required secrets:
+# - SUPABASE_URL
+# - SUPABASE_SERVICE_ROLE_KEY
