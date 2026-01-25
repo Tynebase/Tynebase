@@ -22,7 +22,7 @@ const path = require('path');
 dotenv.config({ path: path.join(__dirname, '../backend/.env') });
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 const TEST_TENANT_ID = '1521f0ae-4db7-4110-a993-c494535d9b00';
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {

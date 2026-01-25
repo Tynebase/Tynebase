@@ -81,6 +81,7 @@ const start = async () => {
     await fastify.register(import('./routes/superadmin-overview'), { prefix: '' });
     await fastify.register(import('./routes/superadmin-tenants'), { prefix: '' });
     await fastify.register(import('./routes/superadmin-impersonate'), { prefix: '' });
+    await fastify.register(import('./routes/superadmin-suspend'), { prefix: '' });
     await fastify.register(import('./routes/tenants'), { prefix: '' });
     await fastify.register(import('./routes/documents'), { prefix: '' });
     await fastify.register(import('./routes/templates'), { prefix: '' });

@@ -72,7 +72,7 @@ export async function authMiddleware(
 
     const { data: userData, error: dbError } = await supabaseAdmin
       .from('users')
-      .select('id, email, role, tenant_id, is_super_admin')
+      .select('id, email, role, tenant_id, is_super_admin, status')
       .eq('id', userId)
       .single();
 
@@ -87,6 +87,55 @@ export async function authMiddleware(
           message: 'User account not found',
         },
       });
+    }
+
+    // Check if user is suspended
+    if (userData.status === 'suspended') {
+      request.log.warn(
+        { userId, tenantId: userData.tenant_id },
+        'Suspended user attempted to access API'
+      );
+      return reply.status(403).send({
+        error: {
+          code: 'USER_SUSPENDED',
+          message: 'Your account has been suspended',
+        },
+      });
+    }
+
+    // Check if tenant is suspended (unless user is super admin)
+    if (!userData.is_super_admin) {
+      const { data: tenantData, error: tenantError } = await supabaseAdmin
+        .from('tenants')
+        .select('id, status')
+        .eq('id', userData.tenant_id)
+        .single();
+
+      if (tenantError || !tenantData) {
+        request.log.error(
+          { userId, tenantId: userData.tenant_id, error: tenantError },
+          'Tenant not found for user'
+        );
+        return reply.status(403).send({
+          error: {
+            code: 'TENANT_NOT_FOUND',
+            message: 'Your organization account not found',
+          },
+        });
+      }
+
+      if (tenantData.status === 'suspended') {
+        request.log.warn(
+          { userId, tenantId: userData.tenant_id },
+          'User from suspended tenant attempted to access API'
+        );
+        return reply.status(403).send({
+          error: {
+            code: 'TENANT_SUSPENDED',
+            message: 'Your organization has been suspended. Please contact support.',
+          },
+        });
+      }
     }
 
     (request as any).user = {
