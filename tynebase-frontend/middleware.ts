@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { updateSession } from "@/lib/supabase/middleware";
 import { extractSubdomain } from "@/lib/utils";
 
 const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN || "tynebase.com";
@@ -21,32 +20,40 @@ const RESERVED_SUBDOMAINS = [
   "cdn", "static"
 ];
 
+/**
+ * Check if user is authenticated by validating JWT token presence
+ * Tokens are stored in cookies for server-side access
+ */
+function isAuthenticated(request: NextRequest): boolean {
+  const accessToken = request.cookies.get("access_token")?.value;
+  return !!accessToken;
+}
+
 export async function middleware(request: NextRequest) {
-  const { supabaseResponse, user } = await updateSession(request);
-  
   const hostname = request.headers.get("host") || "";
   const subdomain = extractSubdomain(hostname, BASE_DOMAIN);
   const pathname = request.nextUrl.pathname;
+  const isAuth = isAuthenticated(request);
 
   // Root domain (marketing site)
   if (!subdomain || subdomain === "www") {
     // Allow access to marketing pages
     if (PUBLIC_ROUTES.includes(pathname)) {
-      return supabaseResponse;
+      return NextResponse.next();
     }
     
     // Handle dashboard access on main site (for individual users)
     if (pathname.startsWith("/dashboard")) {
-      if (!user) {
+      if (!isAuth) {
         const loginUrl = new URL("/login", request.url);
         loginUrl.searchParams.set("redirect", pathname);
         return NextResponse.redirect(loginUrl);
       }
-      // Allow individual users to access main site dashboard
-      return supabaseResponse;
+      // Allow authenticated users to access main site dashboard
+      return NextResponse.next();
     }
     
-    return supabaseResponse;
+    return NextResponse.next();
   }
 
   // Check for reserved subdomains
@@ -61,12 +68,12 @@ export async function middleware(request: NextRequest) {
 
   // Public routes on tenant subdomains
   if (PUBLIC_ROUTES.includes(pathname)) {
-    return supabaseResponse;
+    return NextResponse.next();
   }
 
   // Protected routes - require authentication
   if (pathname.startsWith("/dashboard")) {
-    if (!user) {
+    if (!isAuth) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("redirect", pathname);
       return NextResponse.redirect(loginUrl);

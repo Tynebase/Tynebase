@@ -45,30 +45,54 @@ function getTenantSubdomain(): string | null {
 }
 
 /**
- * Store JWT tokens in localStorage
+ * Store JWT tokens in localStorage and cookies
+ * Cookies are used for server-side middleware access
  */
 export function setAuthTokens(accessToken: string, refreshToken: string): void {
   if (typeof window === 'undefined') return;
+  
+  // Store in localStorage for client-side access
   localStorage.setItem('access_token', accessToken);
   localStorage.setItem('refresh_token', refreshToken);
+  
+  // Store in cookies for server-side middleware access
+  // Set secure flags and expiration (7 days for access token, 30 days for refresh)
+  const accessExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+  const refreshExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+  
+  document.cookie = `access_token=${accessToken}; path=/; expires=${accessExpiry.toUTCString()}; SameSite=Lax`;
+  document.cookie = `refresh_token=${refreshToken}; path=/; expires=${refreshExpiry.toUTCString()}; SameSite=Lax`;
 }
 
 /**
- * Store tenant subdomain in localStorage
+ * Store tenant subdomain in localStorage and cookies
  */
 export function setTenantSubdomain(subdomain: string): void {
   if (typeof window === 'undefined') return;
+  
+  // Store in localStorage
   localStorage.setItem('tenant_subdomain', subdomain);
+  
+  // Store in cookie for server-side access
+  const expiry = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // 1 year
+  document.cookie = `tenant_subdomain=${subdomain}; path=/; expires=${expiry.toUTCString()}; SameSite=Lax`;
 }
 
 /**
- * Clear all authentication data from localStorage
+ * Clear all authentication data from localStorage and cookies
  */
 export function clearAuth(): void {
   if (typeof window === 'undefined') return;
+  
+  // Clear localStorage
   localStorage.removeItem('access_token');
   localStorage.removeItem('refresh_token');
   localStorage.removeItem('tenant_subdomain');
+  
+  // Clear cookies by setting expired date
+  document.cookie = 'access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+  document.cookie = 'refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+  document.cookie = 'tenant_subdomain=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
 }
 
 /**
