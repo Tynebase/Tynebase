@@ -4,7 +4,7 @@ import { rateLimitMiddleware } from '../middleware/rateLimit';
 import { tenantContextMiddleware } from '../middleware/tenantContext';
 import { authMiddleware } from '../middleware/auth';
 import { supabaseAdmin } from '../lib/supabase';
-import { generateText } from '../services/ai/bedrock';
+import { generateText as generateTextClaude } from '../services/ai/anthropic';
 
 const EnhanceRequestSchema = z.object({
   document_id: z.string().uuid('Invalid document ID format'),
@@ -227,12 +227,25 @@ Provide only the JSON response, no additional text.`;
 
         const startTime = Date.now();
         
-        const aiResponse = await generateText({
-          prompt,
-          model: 'deepseek-v3',
-          maxTokens: 2000,
-          temperature: 0.3,
-        });
+        let aiResponse;
+        try {
+          aiResponse = await generateTextClaude({
+            prompt,
+            model: 'claude-sonnet-4.5',
+            maxTokens: 2000,
+            temperature: 0.3,
+          });
+        } catch (aiError) {
+          request.log.error(
+            {
+              documentId: validated.document_id,
+              error: aiError instanceof Error ? aiError.message : 'Unknown AI error',
+              stack: aiError instanceof Error ? aiError.stack : undefined,
+            },
+            'AI generation failed'
+          );
+          throw aiError;
+        }
 
         const duration = Date.now() - startTime;
 

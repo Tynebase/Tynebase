@@ -29,9 +29,10 @@ let bedrockClient: BedrockRuntimeClient | null = null;
 
 /**
  * Model ID mapping for Bedrock
+ * Using inference profile ARN for on-demand throughput support
  */
 const BEDROCK_MODEL_IDS: Record<string, string> = {
-  'claude-sonnet-4.5': 'anthropic.claude-sonnet-4-5-20250929-v1:0',
+  'claude-sonnet-4.5': 'arn:aws:bedrock:eu-west-2:659587467271:inference-profile/eu.anthropic.claude-sonnet-4-5-20250929-v1:0',
 };
 
 /**
