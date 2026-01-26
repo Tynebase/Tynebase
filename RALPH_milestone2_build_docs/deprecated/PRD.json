@@ -1074,7 +1074,9 @@
       "phase": "Acceptance Criteria",
       "title": "Fly.io API server responding at api.tynebase.com with SSL",
       "action": "Validation check",
-      "passes": false
+      "passes": false,
+      "in_progress": true,
+      "started_at": "2026-01-26T00:34:06.428735"
     },
     {
       "id": "AC.2",

@@ -79,16 +79,20 @@
       "phase": "Phase 2: Authentication Integration",
       "title": "[FE] Wire Login Page to Backend API",
       "action": "Update app/login/page.tsx to call backend POST /api/auth/login, store JWT token, redirect to dashboard",
-      "passes": false,
-      "in_progress": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-26T11:26:46.117792",
+      "completed_at": "2026-01-26T11:26:48.982595"
     },
     {
       "id": "I2.2",
       "phase": "Phase 2: Authentication Integration",
       "title": "[FE] Wire Signup Page to Backend API",
       "action": "Update app/signup/page.tsx to call backend POST /api/auth/signup with tenant creation flow",
-      "passes": false,
-      "in_progress": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-26T11:28:22.217000",
+      "completed_at": "2026-01-26T11:31:04.011590"
     },
     {
       "id": "I2.3",

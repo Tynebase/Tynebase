@@ -2,31 +2,31 @@
 
 **Project:** TyneBase Backend - Milestone 2  
 **Protocol:** RALPH v2.0  
-**Last Updated:** 2026-01-26 00:28
+**Last Updated:** 2026-01-26 00:34
 
 ---
 
 ## Progress Overview
 - **Total Tasks:** 121 (excl. 8 deferred)
 - **Completed:** 101
-- **In Progress:** 0
+- **In Progress:** 1
 - **Blocked:** 0
 - **Remaining:** 20
 
 ---
 
-## Current Task: None
-**Status:** Ready to begin  
-**Phase:** Phase 13: Final Integration & Testing
+## Current Task: AC.1 - Fly.io API server responding at api.tynebase.com with SSL
+**Status:** In Progress  
+**Phase:** Acceptance Criteria
 
 ### Implementation Notes:
-- Awaiting task assignment
+- Working on: Validation check
 
 ### Blockers:
 - None
 
 ### Next Steps:
-- Begin next task
+- Complete AC.1
 
 ---
 
@@ -138,6 +138,8 @@
 ## Execution History (Last 10):
 | Timestamp | Task | Action | Result |
 |-----------|------|--------|--------|
+| 2026-01-26T00:34 | AC.1 | started | in_progress |
+| 2026-01-26T00:28 | None | commit | feat(task-13.11): create compr... |
 | 2026-01-26T00:28 | 13.11 | completed | PASS |
 | 2026-01-26T00:23 | 13.11 | started | in_progress |
 | 2026-01-26T00:21 | None | commit | feat(task-13.10): create compr... |
@@ -146,5 +148,3 @@
 | 2026-01-26T00:08 | None | commit | feat(task-13.9): create compre... |
 | 2026-01-26T00:08 | 13.9 | completed | PASS |
 | 2026-01-26T00:02 | 13.9 | started | in_progress |
-| 2026-01-26T00:02 | None | commit | feat(task-13.8): complete data... |
-| 2026-01-26T00:01 | 13.8 | completed | PASS |

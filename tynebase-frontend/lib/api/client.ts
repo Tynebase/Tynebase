@@ -87,10 +87,18 @@ export async function apiClient<T = unknown>(
   const tenant = getTenantSubdomain();
 
   // Build headers
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...options?.headers,
   };
+
+  // Merge any provided headers
+  if (options?.headers) {
+    Object.entries(options.headers).forEach(([key, value]) => {
+      if (typeof value === 'string') {
+        headers[key] = value;
+      }
+    });
+  }
 
   // Add Authorization header if token exists
   if (token) {

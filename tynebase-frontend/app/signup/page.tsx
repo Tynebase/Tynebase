@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useToast } from "@/components/ui/Toast";
-import { createClient } from "@/lib/supabase/client";
+import { signup } from "@/lib/api/auth";
 import { validateSubdomain } from "@/lib/utils";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
@@ -25,7 +25,6 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
-  const supabase = createClient();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -80,32 +79,37 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase?.auth.signUp({
+      // For individual accounts, use email username as subdomain
+      // For company accounts, use the provided subdomain
+      const tenantName = formData.accountType === 'company' 
+        ? formData.companyName 
+        : formData.fullName || formData.email.split('@')[0];
+      
+      const subdomain = formData.accountType === 'company'
+        ? formData.subdomain
+        : formData.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-');
+
+      const response = await signup({
         email: formData.email,
         password: formData.password,
-        options: {
-          data: {
-            full_name: formData.fullName,
-            account_type: formData.accountType,
-            company_name: formData.accountType === 'company' ? formData.companyName : '',
-            subdomain: formData.accountType === 'company' ? formData.subdomain : '',
-          },
-        },
-      }) || { error: new Error("Failed to connect") };
-
-      if (error) throw error;
+        tenant_name: tenantName,
+        subdomain: subdomain,
+        full_name: formData.fullName,
+      });
 
       addToast({
         type: "success",
         title: "Account created!",
-        description: "Check your email to verify your account.",
+        description: `Welcome to TyneBase! Redirecting to dashboard...`,
       });
-      router.push("/login");
+      
+      // Redirect to dashboard after successful signup
+      router.push("/dashboard");
     } catch (error: any) {
       addToast({
         type: "error",
         title: "Signup failed",
-        description: error.message,
+        description: error.message || "Failed to create account. Please try again.",
       });
     } finally {
       setIsLoading(false);
@@ -113,15 +117,12 @@ export default function SignupPage() {
   };
 
   const handleGoogleSignup = async () => {
-    try {
-      const { error } = await supabase?.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
-      }) || { error: new Error("Failed to connect") };
-      if (error) throw error;
-    } catch (error: any) {
-      addToast({ type: "error", title: "OAuth failed", description: error.message });
-    }
+    // TODO: Implement Google OAuth through backend API
+    addToast({ 
+      type: "info", 
+      title: "Coming soon", 
+      description: "Google sign-up will be available soon. Please use email signup for now." 
+    });
   };
 
   const inputStyle = {
