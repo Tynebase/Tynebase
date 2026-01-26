@@ -40,16 +40,38 @@ async function signup() {
   }
 
   const data = await response.json();
-  authToken = data.data.access_token;
   tenantSubdomain = data.data.tenant.subdomain;
   
   console.log('✅ Account created successfully');
-  console.log(`   Token: ${authToken.substring(0, 20)}...`);
   console.log(`   Tenant: ${tenantSubdomain}`);
 }
 
+async function login() {
+  console.log('\n🔐 Step 2: Logging in...');
+  
+  const response = await fetch(`${API_URL}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email: TEST_EMAIL,
+      password: TEST_PASSWORD,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Login failed: ${error}`);
+  }
+
+  const data = await response.json();
+  authToken = data.data.access_token;
+  
+  console.log('✅ Logged in successfully');
+  console.log(`   Token: ${authToken.substring(0, 20)}...`);
+}
+
 async function createDocument() {
-  console.log('\n📄 Step 2: Creating test document...');
+  console.log('\n📄 Step 3: Creating test document...');
   
   const response = await fetch(`${API_URL}/api/documents`, {
     method: 'POST',
@@ -78,7 +100,7 @@ async function createDocument() {
 }
 
 async function enhanceDocument() {
-  console.log('\n✨ Step 3: Requesting document enhancement...');
+  console.log('\n✨ Step 4: Requesting document enhancement...');
   
   const response = await fetch(`${API_URL}/api/ai/enhance`, {
     method: 'POST',
@@ -115,7 +137,7 @@ async function enhanceDocument() {
 }
 
 async function applySuggestion(suggestionType) {
-  console.log(`\n🔧 Step 4: Applying ${suggestionType} suggestion...`);
+  console.log(`\n🔧 Step 5: Applying ${suggestionType} suggestion...`);
   
   const response = await fetch(`${API_URL}/api/ai/enhance/apply`, {
     method: 'POST',
@@ -145,7 +167,7 @@ async function applySuggestion(suggestionType) {
 }
 
 async function pollJobStatus(jobId) {
-  console.log('\n⏳ Step 5: Polling job status...');
+  console.log('\n⏳ Step 6: Polling job status...');
   
   let attempts = 0;
   const maxAttempts = 30;
@@ -211,6 +233,7 @@ async function runTest() {
   
   try {
     await signup();
+    await login();
     await createDocument();
     const suggestions = await enhanceDocument();
     
