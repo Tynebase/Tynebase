@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 RALPH Runner - Autonomous AI-to-AI Execution Orchestrator
-Version: 1.0
-Project: TyneBase Backend (Milestone 2)
+Version: 2.0
+Project: TyneBase Backend & Integration (Milestone 2 & 2.5)
 
 This script manages the RALPH development loop state and provides
 commands for the AI agent to track progress in Windsurf.
@@ -15,6 +15,7 @@ Usage:
     python ralph_runner.py fail <task_id>  # Mark task as failed/blocked
     python ralph_runner.py summary         # Generate progress summary
     python ralph_runner.py commit <msg>    # Record commit (doesn't run git)
+    python ralph_runner.py mode <backend|integration>  # Switch mode
 """
 
 import json
@@ -26,15 +27,48 @@ from pathlib import Path
 # File paths
 SCRIPT_DIR = Path(__file__).parent
 STATE_FILE = SCRIPT_DIR / "ralph_state.json"
-TASKS_FILE = SCRIPT_DIR / "PRD.json"
-TASKLIST_FILE = SCRIPT_DIR / "tasklist.md"
 SUMMARIES_DIR = SCRIPT_DIR / "execution_summaries"
+
+# Mode-specific file paths (determined at runtime)
+TASKS_FILE = None
+TASKLIST_FILE = None
+
+
+def get_mode():
+    """Determine current mode from state file."""
+    try:
+        with open(STATE_FILE, 'r', encoding='utf-8') as f:
+            state = json.load(f)
+            return state.get('mode', 'integration')  # Default to integration
+    except:
+        return 'integration'  # Default to integration if state file doesn't exist
+
+
+def set_file_paths(mode='integration'):
+    """Set file paths based on mode."""
+    global TASKS_FILE, TASKLIST_FILE
+    
+    if mode == 'backend':
+        TASKS_FILE = SCRIPT_DIR / "PRD.json"
+        TASKLIST_FILE = SCRIPT_DIR / "tasklist.md"
+    else:  # integration mode
+        TASKS_FILE = SCRIPT_DIR / "prd_integration.json"
+        TASKLIST_FILE = SCRIPT_DIR / "tasklist_integration.md"
 
 
 def load_state():
     """Load current RALPH state."""
     with open(STATE_FILE, 'r', encoding='utf-8') as f:
-        return json.load(f)
+        state = json.load(f)
+    
+    # Ensure mode is set
+    if 'mode' not in state:
+        state['mode'] = 'integration'
+    
+    # Set file paths based on mode
+    set_file_paths(state['mode'])
+    
+    return state
 
 
 def save_state(state):
@@ -45,13 +79,25 @@ def save_state(state):
 
 
 def load_tasks():
-    """Load tasks from PRD.json."""
+    """Load tasks from PRD file (mode-specific)."""
+    if TASKS_FILE is None:
+        set_file_paths(get_mode())
+    
+    if not TASKS_FILE.exists():
+        print(f"\n❌ Tasks file not found: {TASKS_FILE}")
+        print(f"   Current mode: {get_mode()}")
+        print(f"   Run 'python ralph_runner.py mode <backend|integration>' to switch modes\n")
+        sys.exit(1)
+    
     with open(TASKS_FILE, 'r', encoding='utf-8') as f:
         return json.load(f)
 
 
 def save_tasks(tasks_data):
-    """Save tasks to PRD.json."""
+    """Save tasks to PRD file (mode-specific)."""
+    if TASKS_FILE is None:
+        set_file_paths(get_mode())
+    
     with open(TASKS_FILE, 'w', encoding='utf-8') as f:
         json.dump(tasks_data, f, indent=2)
 
@@ -126,9 +172,14 @@ def update_tasklist_md(state, current_task=None, action="update"):
             current_status = "BLOCKED"
             blockers = f"- Task {current_task['id']} requires supervisor review"
     
+    mode = state.get('mode', 'integration')
+    project_name = "TyneBase Frontend-Backend Integration" if mode == 'integration' else "TyneBase Backend - Milestone 2"
+    milestone = "2.5" if mode == 'integration' else "2"
+    
     content = f"""# AI Agent Task List (Personal Notes)
 
-**Project:** TyneBase Backend - Milestone 2  
+**Project:** {project_name}  
+**Milestone:** {milestone}  
 **Protocol:** RALPH v2.0  
 **Last Updated:** {now}
 
@@ -186,9 +237,13 @@ def cmd_status():
     tasks_data = load_tasks()
     stats = count_statistics(tasks_data)
     
+    mode = state.get('mode', 'integration')
+    mode_display = "Integration (M2.5)" if mode == 'integration' else "Backend (M2)"
+    
     print("\n" + "="*60)
-    print("  RALPH Status - TyneBase Milestone 2")
+    print(f"  RALPH Status - TyneBase {mode_display}")
     print("="*60)
+    print(f"\n  Mode:          {mode.upper()}")
     print(f"\n  Current Phase: {state.get('current_phase', 'Unknown')}")
     print(f"  Current Task:  {state.get('current_task') or 'None'}")
     print(f"  Status:        {state.get('status', 'unknown')}")
@@ -295,9 +350,21 @@ def cmd_pass(task_id):
     # Recalculate stats
     stats = count_statistics(tasks_data)
     
-    print(f"\n✅ PASSED: Task {task_id}: {task['title']}")
-    print(f"   Progress: {stats['completed']}/{stats['total_tasks']} tasks completed")
-    print(f"\n   Next: Run 'python ralph_runner.py next' for next task\n")
+    print("\n" + "="*60)
+    print(f"✅ TASK COMPLETED: {task_id}")
+    print("="*60)
+    print(f"\n  Title:    {task['title']}")
+    print(f"  Phase:    {task['phase']}")
+    print(f"  Progress: {stats['completed']}/{stats['total_tasks']} tasks completed ({(stats['completed']/stats['total_tasks']*100):.1f}%)")
+    print(f"\n  Status:   RALPH execution paused")
+    print(f"  Action:   Review the completed work before continuing")
+    print("\n" + "="*60)
+    print("\n📋 To continue RALPH execution:")
+    print("   1. Review the changes made for this task")
+    print("   2. Run: python ralph_runner.py next")
+    print("   3. Run: python ralph_runner.py start <task_id>")
+    print("   4. Or use: @/ralph to continue autonomous execution")
+    print("\n" + "="*60 + "\n")
 
 
 def cmd_fail(task_id):
@@ -364,6 +431,9 @@ def cmd_summary():
     tasks_data = load_tasks()
     stats = count_statistics(tasks_data)
     
+    mode = state.get('mode', 'integration')
+    mode_display = "Integration (M2.5)" if mode == 'integration' else "Backend (M2)"
+    
     # Group by phase
     phases = {}
     for task in tasks_data['tasks']:
@@ -377,7 +447,7 @@ def cmd_summary():
             phases[phase]['completed'] += 1
     
     print("\n" + "="*60)
-    print("  RALPH Progress Summary - Milestone 2")
+    print(f"  RALPH Progress Summary - {mode_display}")
     print("="*60)
     print(f"\n  Overall: {stats['completed']}/{stats['total_tasks']} tasks ({(stats['completed']/stats['total_tasks']*100):.1f}%)")
     print("\n  By Phase:")
@@ -387,6 +457,33 @@ def cmd_summary():
         status = "✅" if data['completed'] == data['total'] else "⏳"
         print(f"    {status} {phase[:40]:<40} [{bar}] {data['completed']}/{data['total']}")
     print("="*60 + "\n")
+
+
+def cmd_mode(new_mode):
+    """Switch between backend and integration modes."""
+    if new_mode not in ['backend', 'integration']:
+        print(f"\n❌ Invalid mode: {new_mode}")
+        print("   Valid modes: backend, integration\n")
+        return
+    
+    state = load_state()
+    old_mode = state.get('mode', 'integration')
+    
+    if old_mode == new_mode:
+        print(f"\n✅ Already in {new_mode} mode\n")
+        return
+    
+    state['mode'] = new_mode
+    state['current_task'] = None
+    state['status'] = 'ready'
+    save_state(state)
+    
+    set_file_paths(new_mode)
+    
+    print(f"\n✅ Switched from {old_mode} to {new_mode} mode")
+    print(f"   Tasks file: {TASKS_FILE.name}")
+    print(f"   Tasklist:   {TASKLIST_FILE.name}")
+    print(f"\n   Run 'python ralph_runner.py status' to see current state\n")
 
 
 def cmd_help():
@@ -415,6 +512,8 @@ def main():
         cmd_commit(' '.join(sys.argv[2:]))
     elif command == 'summary':
         cmd_summary()
+    elif command == 'mode' and len(sys.argv) > 2:
+        cmd_mode(sys.argv[2])
     elif command in ['help', '-h', '--help']:
         cmd_help()
     else:
