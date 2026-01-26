@@ -227,7 +227,7 @@ export async function exportData(): Promise<ExportDataResponse> {
  */
 export async function downloadDataExport(): Promise<void> {
   const response = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/gdpr/export`,
+    `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/gdpr/export`,
     {
       method: 'GET',
       headers: {

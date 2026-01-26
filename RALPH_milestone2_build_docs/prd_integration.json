@@ -336,24 +336,28 @@
       "phase": "Phase 7: Settings Integration",
       "title": "[FE] Wire Tenant Branding Settings",
       "action": "Update branding settings to call PATCH /api/tenants/:id with branding configuration",
-      "passes": false,
-      "in_progress": false
+      "passes": true,
+      "in_progress": false,
+      "completed_at": "2026-01-26T14:34:09.643737"
     },
     {
       "id": "I7.3",
       "phase": "Phase 7: Settings Integration",
       "title": "[FE] Wire GDPR Consent Management",
       "action": "Update privacy settings to fetch GET /api/gdpr/consents and save with PATCH /api/gdpr/consents",
-      "passes": false,
-      "in_progress": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-26T14:38:30.720729",
+      "completed_at": "2026-01-26T14:38:33.833665"
     },
     {
       "id": "I7.4",
       "phase": "Phase 7: Settings Integration",
       "title": "[FE] Wire Data Export",
       "action": "Add export button calling GET /api/gdpr/export, trigger file download",
-      "passes": false,
-      "in_progress": false
+      "passes": true,
+      "in_progress": false,
+      "completed_at": "2026-01-26T14:42:34.771974"
     },
     {
       "id": "I8.1",

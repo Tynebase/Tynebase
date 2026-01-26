@@ -3,16 +3,16 @@
 **Project:** TyneBase Frontend-Backend Integration  
 **Milestone:** 2.5  
 **Protocol:** RALPH v2.0  
-**Last Updated:** 2026-01-26 14:31
+**Last Updated:** 2026-01-26 14:42
 
 ---
 
 ## Progress Overview
 - **Total Tasks:** 56 (excl. 0 deferred)
-- **Completed:** 34
+- **Completed:** 37
 - **In Progress:** 0
 - **Blocked:** 0
-- **Remaining:** 22
+- **Remaining:** 19
 
 ---
 
@@ -66,19 +66,22 @@
 - [x] **I6.2**: [FE] Wire Template Create Flow
 - [x] **I6.3**: [FE] Wire 'Use Template' Flow
 - [x] **I7.1**: [FE] Wire Profile Settings
+- [x] **I7.2**: [FE] Wire Tenant Branding Settings
+- [x] **I7.3**: [FE] Wire GDPR Consent Management
+- [x] **I7.4**: [FE] Wire Data Export
 
 ---
 
 ## Execution History (Last 10):
 | Timestamp | Task | Action | Result |
 |-----------|------|--------|--------|
+| 2026-01-26T14:42 | I7.4 | completed | PASS |
+| 2026-01-26T14:39 | None | commit | feat(task-I7.3): wire GDPR con... |
+| 2026-01-26T14:38 | I7.3 | completed | PASS |
+| 2026-01-26T14:38 | I7.3 | started | in_progress |
+| 2026-01-26T14:34 | I7.2 | completed | PASS |
+| 2026-01-26T14:31 | None | commit | feat(task-I7.1): wire profile ... |
 | 2026-01-26T14:31 | I7.1 | completed | PASS |
 | 2026-01-26T14:31 | I7.1 | started | in_progress |
 | 2026-01-26T14:24 | I6.3 | completed | PASS |
 | 2026-01-26T14:24 | I6.3 | started | in_progress |
-| 2026-01-26T14:23 | None | commit | feat(task-I6.2): wire template... |
-| 2026-01-26T14:23 | I6.2 | completed | PASS |
-| 2026-01-26T14:20 | None | commit | feat(task-I6.1): wire template... |
-| 2026-01-26T14:19 | I6.1 | completed | PASS |
-| 2026-01-26T14:19 | I6.1 | started | in_progress |
-| 2026-01-26T14:15 | None | commit | feat(task-I5.5): wire manual r... |
