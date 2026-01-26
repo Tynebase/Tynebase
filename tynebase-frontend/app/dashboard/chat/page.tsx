@@ -1,417 +1,473 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
-    Hash,
-    MessageCircle,
-    Plus,
-    MoreHorizontal,
-    Smile,
     Send,
-    AtSign,
-    Image as ImageIcon,
-    ChevronDown,
-    ChevronRight,
-    ArrowLeft
+    Bot,
+    User,
+    Loader2,
+    Trash2,
+    FileText,
+    ExternalLink
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
+import { chatStream, ChatMessage, ChatSource } from "@/lib/api/ai";
 
-// Mock Data
-const channels = [
-    { id: 1, name: "general", unread: 0 },
-    { id: 2, name: "announcements", unread: 2 },
-    { id: 3, name: "engineering", unread: 0 },
-    { id: 4, name: "design", unread: 5 },
-    { id: 5, name: "random", unread: 0 },
-    { id: 6, name: "marketing", unread: 0 },
-    { id: 7, name: "sales", unread: 0 },
-];
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
 
-const directMessages = [
-    { id: 1, name: "Sarah Chen", status: "online", unread: 1, avatarColor: "bg-emerald-500" },
-    { id: 2, name: "John Smith", status: "offline", unread: 0, avatarColor: "bg-blue-500" },
-    { id: 3, name: "Emily Davis", status: "away", unread: 0, avatarColor: "bg-purple-500" },
-    { id: 4, name: "TyneBase Bot", status: "online", unread: 0, avatarColor: "bg-indigo-500", isBot: true },
-    { id: 5, name: "Alex Morgan", status: "online", unread: 3, avatarColor: "bg-orange-500" },
-];
+interface ConversationMessage extends ChatMessage {
+  id: string;
+  timestamp: string;
+  sources?: ChatSource[];
+}
 
-const messages = [
-    {
-        id: 1,
-        sender: "Sarah Chen",
-        avatar: "SC",
-        time: "10:30 AM",
-        timestamp: "Yesterday",
-        content: "Hey team, just deployed the new search feature to staging. Can everyone take a look?",
-        reactions: [{ emoji: "🚀", count: 3 }, { emoji: "👀", count: 2 }],
-        threadReplies: 0,
-    },
-    {
-        id: 2,
-        sender: "You",
-        avatar: "ME",
-        time: "10:32 AM",
-        timestamp: "Yesterday",
-        content: "Awesome! Checking it out now.",
-        reactions: [],
-        threadReplies: 0,
-    },
-    {
-        id: 3,
-        sender: "John Smith",
-        avatar: "JS",
-        time: "10:35 AM",
-        timestamp: "Today",
-        content: "I found a small styling issue on the results page. @Sarah Chen Posting a screenshot in #design.",
-        reactions: [{ emoji: "👍", count: 1 }],
-        threadReplies: 2,
-    },
-    {
-        id: 4,
-        sender: "Emily Davis",
-        avatar: "ED",
-        time: "10:40 AM",
-        timestamp: "Today",
-        content: "Great work @Sarah Chen! The performance improvements are noticeable.",
-        reactions: [{ emoji: "🔥", count: 2 }],
-        threadReplies: 0,
-    },
-    {
-        id: 5,
-        sender: "Sarah Chen",
-        avatar: "SC",
-        time: "10:42 AM",
-        timestamp: "Today",
-        content: "Thanks! @John Smith let me know if you need help fixing that style bug.",
-        reactions: [],
-        threadReplies: 0,
-    },
-];
+interface Conversation {
+  id: string;
+  title: string;
+  messages: ConversationMessage[];
+  created_at: string;
+  updated_at: string;
+}
 
-// Helper to highlight mentions
-const renderMessageContent = (content: string) => {
-    // Regex to match @Name up to a logical break
-    const parts = content.split(/(@[\w\s]+)/g);
-    return parts.map((part, i) => {
-        if (part.startsWith("@")) {
-            // Simple heuristic: if it looks like a mention, style it
-            // Real implementation would verify user existence
-            return <span key={i} className="bg-[var(--brand-primary-muted)] text-[var(--brand)] px-1 rounded font-medium cursor-pointer hover:underline">{part}</span>;
-        }
-        return part;
-    });
-};
+// ============================================================================
+// LOCAL STORAGE HELPERS
+// ============================================================================
+
+const STORAGE_KEY = 'tynebase_chat_history';
+
+function loadConversations(): Conversation[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch (e) {
+    console.error('Failed to load chat history:', e);
+    return [];
+  }
+}
+
+function saveConversations(conversations: Conversation[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
+  } catch (e) {
+    console.error('Failed to save chat history:', e);
+  }
+}
+
+function generateId(): string {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+function generateTitle(firstMessage: string): string {
+  const words = firstMessage.split(' ').slice(0, 6);
+  return words.join(' ') + (firstMessage.split(' ').length > 6 ? '...' : '');
+}
 
 export default function ChatPage() {
-    const [activeChannel, setActiveChannel] = useState("general");
+    // State management
+    const [conversations, setConversations] = useState<Conversation[]>([]);
+    const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
     const [messageInput, setMessageInput] = useState("");
-    const [channelsOpen, setChannelsOpen] = useState(true);
-    const [dmsOpen, setDmsOpen] = useState(true);
-    const [showMobileChat, setShowMobileChat] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [streamingMessage, setStreamingMessage] = useState("");
+    const [showSidebar, setShowSidebar] = useState(true);
+    
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-    const handleChannelSelect = (channelName: string) => {
-        setActiveChannel(channelName);
-        setShowMobileChat(true);
+    // Load conversations from local storage on mount
+    useEffect(() => {
+        const loaded = loadConversations();
+        setConversations(loaded);
+        if (loaded.length > 0 && !activeConversationId) {
+            setActiveConversationId(loaded[0].id);
+        }
+    }, []);
+
+    // Auto-scroll to bottom when messages change
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [conversations, streamingMessage]);
+
+    // Get active conversation
+    const activeConversation = conversations.find(c => c.id === activeConversationId);
+
+    // Create new conversation
+    const createNewConversation = () => {
+        const newConv: Conversation = {
+            id: generateId(),
+            title: 'New Chat',
+            messages: [],
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        };
+        const updated = [newConv, ...conversations];
+        setConversations(updated);
+        saveConversations(updated);
+        setActiveConversationId(newConv.id);
+        setShowSidebar(false);
+    };
+
+    // Delete conversation
+    const deleteConversation = (id: string) => {
+        const updated = conversations.filter(c => c.id !== id);
+        setConversations(updated);
+        saveConversations(updated);
+        if (activeConversationId === id) {
+            setActiveConversationId(updated.length > 0 ? updated[0].id : null);
+        }
+    };
+
+    // Send message
+    const sendMessage = async () => {
+        if (!messageInput.trim() || isLoading) return;
+
+        const userMessage = messageInput.trim();
+        setMessageInput("");
+        setIsLoading(true);
+        setStreamingMessage("");
+
+        try {
+            // Create conversation if needed
+            let convId = activeConversationId;
+            let currentConv = activeConversation;
+
+            if (!convId) {
+                const newConv: Conversation = {
+                    id: generateId(),
+                    title: generateTitle(userMessage),
+                    messages: [],
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                };
+                convId = newConv.id;
+                currentConv = newConv;
+                setConversations(prev => [newConv, ...prev]);
+                setActiveConversationId(convId);
+            }
+
+            // Add user message
+            const userMsg: ConversationMessage = {
+                id: generateId(),
+                role: 'user',
+                content: userMessage,
+                timestamp: new Date().toISOString(),
+            };
+
+            const updatedMessages = [...(currentConv?.messages || []), userMsg];
+            
+            // Update conversation with user message
+            setConversations(prev => prev.map(c => 
+                c.id === convId 
+                    ? { ...c, messages: updatedMessages, updated_at: new Date().toISOString() }
+                    : c
+            ));
+
+            // Prepare chat history for API
+            const history: ChatMessage[] = updatedMessages.map(m => ({
+                role: m.role,
+                content: m.content,
+            }));
+
+            let assistantContent = "";
+            let sources: ChatSource[] = [];
+
+            // Stream response
+            await chatStream(
+                {
+                    query: userMessage,
+                    history: history.slice(0, -1), // Exclude current message
+                    stream: true,
+                },
+                (chunk) => {
+                    assistantContent += chunk;
+                    setStreamingMessage(assistantContent);
+                },
+                (receivedSources) => {
+                    sources = receivedSources;
+                }
+            );
+
+            // Add assistant message
+            const assistantMsg: ConversationMessage = {
+                id: generateId(),
+                role: 'assistant',
+                content: assistantContent,
+                timestamp: new Date().toISOString(),
+                sources: sources.length > 0 ? sources : undefined,
+            };
+
+            const finalMessages = [...updatedMessages, assistantMsg];
+            
+            // Update conversation with assistant response
+            const updatedConvs = conversations.map(c => 
+                c.id === convId 
+                    ? { 
+                        ...c, 
+                        messages: finalMessages,
+                        title: c.messages.length === 0 ? generateTitle(userMessage) : c.title,
+                        updated_at: new Date().toISOString() 
+                      }
+                    : c
+            );
+            
+            setConversations(updatedConvs);
+            saveConversations(updatedConvs);
+            setStreamingMessage("");
+
+        } catch (error) {
+            console.error('Chat error:', error);
+            alert(error instanceof Error ? error.message : 'Failed to send message');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
     };
 
     return (
-        // Flex column to ensure children fill the space
         <div className="flex flex-col flex-1 h-full min-h-0">
             <div className="flex-1 min-h-0 flex bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl overflow-hidden shadow-sm">
 
-                {/* Sidebar - Channels & DMs */}
+                {/* Sidebar - Conversation History */}
                 <div className={cn(
                     "w-full md:w-64 flex-shrink-0 bg-[var(--surface-ground)] border-r border-[var(--dash-border-subtle)] flex-col",
-                    showMobileChat ? "hidden md:flex" : "flex"
+                    showSidebar ? "flex" : "hidden md:flex"
                 )}>
                     {/* Header */}
-                    <div className="h-14 px-4 border-b border-[var(--dash-border-subtle)] flex items-center justify-between hover:bg-[var(--surface-hover)] transition-colors cursor-pointer flex-shrink-0">
-                        <h2 className="font-bold text-[var(--dash-text-primary)] truncate">TyneBase Team</h2>
-                        <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm">
-                            <ChevronDown className="w-4 h-4 text-[var(--dash-text-primary)]" />
-                        </div>
+                    <div className="h-14 px-4 border-b border-[var(--dash-border-subtle)] flex items-center justify-between flex-shrink-0">
+                        <h2 className="font-bold text-[var(--dash-text-primary)] truncate">Chat History</h2>
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={createNewConversation}
+                            className="h-8 w-8 p-0"
+                        >
+                            <Bot className="w-4 h-4" />
+                        </Button>
                     </div>
 
-                    {/* Scrollable List */}
-                    <div className="flex-1 overflow-y-auto custom-scrollbar highlight-scrollbar py-4 space-y-6">
-                        {/* Channels Section */}
-                        <div className="px-2">
-                            <div
-                                className="flex items-center justify-between px-2 mb-1 group cursor-pointer text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-secondary)]"
-                                onClick={() => setChannelsOpen(!channelsOpen)}
-                            >
-                                <div className="flex items-center gap-1">
-                                    {channelsOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                                    <span className="text-xs font-semibold uppercase tracking-wider">Channels</span>
-                                </div>
-                                <Plus className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity hover:text-[var(--brand)]" />
+                    {/* Conversation List */}
+                    <div className="flex-1 overflow-y-auto custom-scrollbar highlight-scrollbar py-2">
+                        {conversations.length === 0 ? (
+                            <div className="px-4 py-8 text-center text-sm text-[var(--dash-text-tertiary)]">
+                                No conversations yet.
+                                <br />
+                                Start a new chat!
                             </div>
-
-                            {channelsOpen && (
-                                <div className="space-y-0.5 mt-1">
-                                    {channels.map(channel => (
-                                        <button
-                                            key={channel.id}
-                                            onClick={() => handleChannelSelect(channel.name)}
-                                            className={`w-full flex items-center justify-between px-3 py-1.5 rounded-md text-sm transition-all duration-200 ${activeChannel === channel.name
-                                                ? "bg-[var(--brand-primary-muted)] text-[var(--brand)] font-medium"
-                                                : "text-[var(--dash-text-secondary)] hover:bg-[var(--surface-hover)] hover:translate-x-1"
-                                                }`}
-                                        >
-                                            <div className="flex items-center gap-2 truncate">
-                                                <Hash className={`w-4 h-4 ${activeChannel === channel.name ? "opacity-100" : "opacity-60"}`} />
-                                                <span className="truncate">{channel.name}</span>
+                        ) : (
+                            <div className="space-y-1 px-2">
+                                {conversations.map(conv => (
+                                    <div
+                                        key={conv.id}
+                                        className={cn(
+                                            "group relative flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all",
+                                            activeConversationId === conv.id
+                                                ? "bg-[var(--brand-primary-muted)] text-[var(--brand)]"
+                                                : "text-[var(--dash-text-secondary)] hover:bg-[var(--surface-hover)]"
+                                        )}
+                                        onClick={() => {
+                                            setActiveConversationId(conv.id);
+                                            setShowSidebar(false);
+                                        }}
+                                    >
+                                        <FileText className="w-4 h-4 flex-shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-sm font-medium truncate">{conv.title}</div>
+                                            <div className="text-xs opacity-70">
+                                                {conv.messages.length} messages
                                             </div>
-                                            {channel.unread > 0 && (
-                                                <span className="bg-[var(--brand)] text-white text-[10px] font-bold px-1.5 rounded-full min-w-[18px] h-[18px] flex items-center justify-center">
-                                                    {channel.unread}
-                                                </span>
-                                            )}
+                                        </div>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                deleteConversation(conv.id);
+                                            }}
+                                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/10 rounded transition-opacity"
+                                        >
+                                            <Trash2 className="w-3 h-3 text-red-500" />
                                         </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Direct Messages Section */}
-                        <div className="px-2">
-                            <div
-                                className="flex items-center justify-between px-2 mb-1 group cursor-pointer text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-secondary)]"
-                                onClick={() => setDmsOpen(!dmsOpen)}
-                            >
-                                <div className="flex items-center gap-1">
-                                    {dmsOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                                    <span className="text-xs font-semibold uppercase tracking-wider">Direct Messages</span>
-                                </div>
-                                <Plus className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity hover:text-[var(--brand)]" />
+                                    </div>
+                                ))}
                             </div>
-
-                            {dmsOpen && (
-                                <div className="space-y-0.5 mt-1">
-                                    {directMessages.map(dm => (
-                                        <button
-                                            key={dm.id}
-                                            className={`w-full flex items-center justify-between px-3 py-1.5 rounded-md text-sm transition-all duration-200 text-[var(--dash-text-secondary)] hover:bg-[var(--surface-hover)] hover:translate-x-1`}
-                                        >
-                                            <div className="flex items-center gap-2 truncate">
-                                                <div className="relative">
-                                                    <div className={`w-4 h-4 rounded shadow-sm flex items-center justify-center text-[8px] font-bold text-white ${dm.avatarColor || "bg-gray-400"}`}>
-                                                        {dm.name.split(" ").map(n => n[0]).join("")}
-                                                    </div>
-                                                    <div className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[var(--surface-ground)] ${dm.status === "online" ? "bg-green-500" : dm.status === "away" ? "bg-amber-500" : "bg-gray-400 opacity-0"
-                                                        }`} />
-                                                </div>
-                                                <span className={`truncate ${dm.unread > 0 ? "font-semibold text-[var(--dash-text-primary)]" : "opacity-90"}`}>{dm.name}</span>
-                                            </div>
-                                            {dm.unread > 0 && (
-                                                <span className="bg-[var(--brand)] text-white text-[10px] font-bold px-1.5 rounded-full min-w-[18px] h-[18px] flex items-center justify-center">
-                                                    {dm.unread}
-                                                </span>
-                                            )}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                        )}
                     </div>
                 </div>
 
                 {/* Main Chat Area */}
-                <div className={cn(
-                    "flex-1 flex-col min-w-0 bg-[var(--surface-card)] relative",
-                    showMobileChat ? "flex" : "hidden md:flex"
-                )}>
+                <div className="flex-1 flex flex-col min-w-0 bg-[var(--surface-card)] relative">
                     {/* Chat Header */}
-                    <div className="h-14 px-4 sm:px-5 border-b border-[var(--dash-border-subtle)] flex items-center justify-between flex-shrink-0 z-10">
-                        <div className="flex items-center gap-2">
+                    <div className="h-14 px-4 sm:px-5 border-b border-[var(--dash-border-subtle)] flex items-center justify-between flex-shrink-0">
+                        <div className="flex items-center gap-3">
                             <button
-                                onClick={() => setShowMobileChat(false)}
-                                className="md:hidden p-1 -ml-1 mr-1 hover:bg-[var(--surface-hover)] rounded-full text-[var(--dash-text-secondary)]"
+                                onClick={() => setShowSidebar(!showSidebar)}
+                                className="md:hidden p-2 hover:bg-[var(--surface-hover)] rounded-lg"
                             >
-                                <ArrowLeft className="w-5 h-5" />
+                                <FileText className="w-5 h-5" />
                             </button>
-                            <Hash className="w-5 h-5 text-[var(--dash-text-muted)]" />
-                            <h3 className="font-bold text-[var(--dash-text-primary)]">{activeChannel}</h3>
-                            <span className="text-sm text-[var(--dash-text-tertiary)] ml-2 hidden sm:inline border-l border-[var(--dash-border-subtle)] pl-3">Top secret project discussions</span>
-                        </div>
-                        <div className="flex items-center gap-3 text-[var(--dash-text-muted)]">
-                            <div className="hidden sm:flex -space-x-2 mr-2">
-                                {[1, 2, 3].map(i => (
-                                    <div key={i} className="w-7 h-7 rounded-lg border-2 border-[var(--surface-card)] bg-[var(--surface-ground)] text-[10px] flex items-center justify-center font-bold">U{i}</div>
-                                ))}
-                                <div className="w-7 h-7 rounded-lg border-2 border-[var(--surface-card)] bg-[var(--surface-hover)] text-[10px] flex items-center justify-center font-bold">+5</div>
+                            <Bot className="w-6 h-6 text-[var(--brand)]" />
+                            <div>
+                                <h3 className="font-bold text-[var(--dash-text-primary)]">
+                                    {activeConversation?.title || 'AI Assistant'}
+                                </h3>
+                                <p className="text-xs text-[var(--dash-text-tertiary)]">RAG-powered knowledge chat</p>
                             </div>
                         </div>
+                        {activeConversation && (
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={createNewConversation}
+                            >
+                                New Chat
+                            </Button>
+                        )}
                     </div>
 
                     {/* Messages List */}
-                    <div className="flex-1 overflow-y-auto px-5 py-6 space-y-2 custom-scrollbar">
-                        {messages.map((msg, index) => {
-                            const showHeader = index === 0 || messages[index - 1].sender !== msg.sender || messages[index - 1].timestamp !== msg.timestamp;
-                            const showDateDivider = index === 0 || messages[index - 1].timestamp !== msg.timestamp;
-
-                            return (
-                                <div key={msg.id}>
-                                    {/* Date Divider */}
-                                    {showDateDivider && (
-                                        <div className="relative py-4 flex items-center justify-center">
-                                            <div className="absolute inset-0 flex items-center">
-                                                <div className="w-full border-t border-[var(--dash-border-subtle)]" />
-                                            </div>
-                                            <div className="relative">
-                                                <span className="bg-[var(--surface-card)] px-4 text-xs font-medium text-[var(--dash-text-tertiary)] border border-[var(--dash-border-subtle)] rounded-full py-0.5">
-                                                    {msg.timestamp}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <div className={`flex gap-4 group px-2 py-1 -mx-2 rounded-lg hover:bg-[var(--surface-ground)]/50 transition-colors ${showHeader ? "mt-4" : "mt-0.5"}`}>
-                                        <div className="w-10 flex-shrink-0 pt-1">
-                                            {showHeader ? (
-                                                <div className="w-10 h-10 rounded-lg bg-[var(--brand-primary-muted)] text-[var(--brand)] flex items-center justify-center font-bold text-sm shadow-sm">
-                                                    {msg.avatar}
+                    <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-6 custom-scrollbar">
+                        {!activeConversation || activeConversation.messages.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                                <Bot className="w-16 h-16 text-[var(--brand)] mb-4" />
+                                <h3 className="text-xl font-bold text-[var(--dash-text-primary)] mb-2">
+                                    Welcome to AI Chat
+                                </h3>
+                                <p className="text-[var(--dash-text-secondary)] max-w-md">
+                                    Ask questions about your documents and get AI-powered answers with source citations.
+                                </p>
+                            </div>
+                        ) : (
+                            <>
+                                {activeConversation.messages.map((msg) => (
+                                    <div key={msg.id} className="flex gap-4">
+                                        <div className="flex-shrink-0">
+                                            {msg.role === 'user' ? (
+                                                <div className="w-8 h-8 rounded-lg bg-[var(--brand-primary-muted)] text-[var(--brand)] flex items-center justify-center">
+                                                    <User className="w-4 h-4" />
                                                 </div>
                                             ) : (
-                                                <div className="w-10 opacity-0 text-[10px] text-right text-[var(--dash-text-muted)] group-hover:opacity-100 transition-opacity select-none pt-0.5">
-                                                    {msg.time.split(" ")[0]}
+                                                <div className="w-8 h-8 rounded-lg bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] flex items-center justify-center">
+                                                    <Bot className="w-4 h-4 text-[var(--brand)]" />
                                                 </div>
                                             )}
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            {showHeader && (
-                                                <div className="flex items-baseline gap-2 mb-1">
-                                                    <span className="font-bold text-[var(--dash-text-primary)] cursor-pointer hover:underline">{msg.sender}</span>
-                                                    <span className="text-xs text-[var(--dash-text-muted)] font-medium">{msg.time}</span>
-                                                </div>
-                                            )}
-                                            <div className="text-[var(--dash-text-secondary)] leading-relaxed relative">
-                                                {renderMessageContent(msg.content)}
+                                        <div className="flex-1 min-w-0 space-y-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-semibold text-[var(--dash-text-primary)]">
+                                                    {msg.role === 'user' ? 'You' : 'AI Assistant'}
+                                                </span>
+                                                <span className="text-xs text-[var(--dash-text-tertiary)]">
+                                                    {new Date(msg.timestamp).toLocaleTimeString()}
+                                                </span>
                                             </div>
-
-                                            {/* Reactions & Thread Info */}
-                                            {(msg.reactions.length > 0 || msg.threadReplies > 0) && (
-                                                <div className="flex flex-wrap items-center gap-3 mt-2">
-                                                    {msg.reactions.length > 0 && (
-                                                        <div className="flex flex-wrap gap-1.5">
-                                                            {msg.reactions.map((reaction, i) => (
-                                                                <button key={i} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] text-xs hover:bg-[var(--surface-hover)] transition-colors">
-                                                                    <span>{reaction.emoji}</span>
-                                                                    <span className="text-[var(--dash-text-muted)] font-medium">{reaction.count}</span>
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    )}
-
-                                                    {msg.threadReplies > 0 && (
-                                                        <div className="flex items-center gap-2 cursor-pointer group/thread">
-                                                            <div className="flex -space-x-1.5">
-                                                                <div className="w-4 h-4 rounded bg-blue-100 border border-[var(--surface-card)]" />
-                                                                <div className="w-4 h-4 rounded bg-green-100 border border-[var(--surface-card)]" />
+                                            <div className="prose prose-sm max-w-none text-[var(--dash-text-secondary)] leading-relaxed whitespace-pre-wrap">
+                                                {msg.content}
+                                            </div>
+                                            {msg.sources && msg.sources.length > 0 && (
+                                                <div className="mt-3 space-y-2">
+                                                    <div className="text-xs font-semibold text-[var(--dash-text-tertiary)] uppercase tracking-wider">
+                                                        Sources
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        {msg.sources.map((source, idx) => (
+                                                            <div
+                                                                key={idx}
+                                                                className="p-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-lg text-sm"
+                                                            >
+                                                                <div className="flex items-start justify-between gap-2 mb-1">
+                                                                    <span className="font-medium text-[var(--dash-text-primary)]">
+                                                                        {source.title}
+                                                                    </span>
+                                                                    <span className="text-xs text-[var(--dash-text-tertiary)] whitespace-nowrap">
+                                                                        {Math.round(source.similarity_score * 100)}% match
+                                                                    </span>
+                                                                </div>
+                                                                <p className="text-xs text-[var(--dash-text-secondary)] line-clamp-2">
+                                                                    {source.chunk_text}
+                                                                </p>
+                                                                <a
+                                                                    href={`/dashboard/knowledge/${source.document_id}`}
+                                                                    className="inline-flex items-center gap-1 mt-2 text-xs text-[var(--brand)] hover:underline"
+                                                                >
+                                                                    View document
+                                                                    <ExternalLink className="w-3 h-3" />
+                                                                </a>
                                                             </div>
-                                                            <span className="text-xs font-bold text-[var(--brand)] group-hover/thread:underline">{msg.threadReplies} replies</span>
-                                                            <span className="text-[10px] text-[var(--dash-text-tertiary)] group-hover/thread:text-[var(--dash-text-secondary)]">Last reply today at 10:45 AM</span>
-                                                        </div>
-                                                    )}
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             )}
-                                        </div>
-
-                                        {/* Hover Actions */}
-                                        <div className="opacity-0 group-hover:opacity-100 transition-all duration-200 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg shadow-sm p-1 flex items-center gap-0.5 absolute right-10 -mt-2 transform translate-y-1 group-hover:translate-y-0 z-20">
-                                            <ActionBtn icon={Smile} />
-                                            <ActionBtn icon={MessageCircle} />
-                                            <ActionBtn icon={MoreHorizontal} />
                                         </div>
                                     </div>
-                                </div>
-                            );
-                        })}
+                                ))}
+                                {streamingMessage && (
+                                    <div className="flex gap-4">
+                                        <div className="flex-shrink-0">
+                                            <div className="w-8 h-8 rounded-lg bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] flex items-center justify-center">
+                                                <Bot className="w-4 h-4 text-[var(--brand)]" />
+                                            </div>
+                                        </div>
+                                        <div className="flex-1 min-w-0 space-y-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-semibold text-[var(--dash-text-primary)]">AI Assistant</span>
+                                                <Loader2 className="w-3 h-3 animate-spin text-[var(--brand)]" />
+                                            </div>
+                                            <div className="prose prose-sm max-w-none text-[var(--dash-text-secondary)] leading-relaxed whitespace-pre-wrap">
+                                                {streamingMessage}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                <div ref={messagesEndRef} />
+                            </>
+                        )}
                     </div>
 
                     {/* Input Area */}
-                    <div className="p-4 flex-shrink-0">
-                        <div className="bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl overflow-hidden focus-within:border-[var(--brand)] focus-within:ring-1 focus-within:ring-[var(--brand)] transition-all shadow-sm">
-                            {/* Toolbar */}
-                            <div className="flex items-center gap-1 p-1.5 bg-[var(--surface-hover)]/30 border-b border-[var(--dash-border-subtle)]/50">
-                                <ToolBtn><BoldIcon className="w-3.5 h-3.5" /></ToolBtn>
-                                <ToolBtn><ItalicIcon className="w-3.5 h-3.5" /></ToolBtn>
-                                <ToolBtn><StrikeIcon className="w-3.5 h-3.5" /></ToolBtn>
-                                <div className="w-px h-3.5 bg-[var(--dash-border-subtle)] mx-1" />
-                                <ToolBtn><ListIcon className="w-3.5 h-3.5" /></ToolBtn>
-                            </div>
-
+                    <div className="p-4 border-t border-[var(--dash-border-subtle)] flex-shrink-0">
+                        <div className="flex gap-3">
                             <textarea
+                                ref={textareaRef}
                                 value={messageInput}
                                 onChange={(e) => setMessageInput(e.target.value)}
-                                placeholder={`Message #${activeChannel}`}
-                                className="w-full max-h-40 min-h-[60px] p-3 bg-transparent border-none text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:ring-0 resize-none header-scroll text-sm leading-relaxed"
+                                onKeyDown={handleKeyDown}
+                                placeholder="Ask a question about your documents..."
+                                disabled={isLoading}
+                                className="flex-1 min-h-[48px] max-h-32 p-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] resize-none text-sm leading-relaxed disabled:opacity-50 disabled:cursor-not-allowed"
+                                rows={1}
                             />
-
-                            <div className="flex items-center justify-between p-2 pt-0">
-                                <div className="flex items-center gap-1">
-                                    <InputBtn><Plus className="w-4 h-4" /></InputBtn>
-                                    <InputBtn><Smile className="w-4 h-4" /></InputBtn>
-                                    <InputBtn><AtSign className="w-4 h-4" /></InputBtn>
-                                    <InputBtn><ImageIcon className="w-4 h-4" /></InputBtn>
-                                </div>
-
-                                <Button
-                                    size="sm"
-                                    variant={messageInput.trim() ? "primary" : "ghost"}
-                                    className={`transition-all ${messageInput.trim() ? "h-8 px-4" : "h-8 px-3 text-[var(--dash-text-muted)] hover:text-[var(--dash-text-primary)]"}`}
-                                >
-                                    <Send className={`w-4 h-4 ${messageInput.trim() ? "mr-1.5" : ""}`} />
-                                    {messageInput.trim() && <span>Send</span>}
-                                </Button>
-                            </div>
+                            <Button
+                                onClick={sendMessage}
+                                disabled={!messageInput.trim() || isLoading}
+                                size="lg"
+                                variant="primary"
+                                className="h-12 px-6"
+                            >
+                                {isLoading ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <>
+                                        <Send className="w-4 h-4 mr-2" />
+                                        Send
+                                    </>
+                                )}
+                            </Button>
                         </div>
-                        <div className="text-[10px] text-[var(--dash-text-tertiary)] text-center mt-2 flex items-center justify-center gap-2">
-                            <span><strong>Tip:</strong> Type / for commands</span>
+                        <div className="text-xs text-[var(--dash-text-tertiary)] text-center mt-2">
+                            Press <kbd className="px-1.5 py-0.5 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded text-[10px]">Enter</kbd> to send, <kbd className="px-1.5 py-0.5 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded text-[10px]">Shift+Enter</kbd> for new line
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     );
-}
-
-// Subcomponents for cleaner JSX
-function ActionBtn({ icon: Icon }: { icon: React.ElementType<{ className?: string }> }) {
-    return (
-        <button className="p-1.5 hover:bg-[var(--surface-hover)] rounded text-[var(--dash-text-muted)] hover:text-[var(--dash-text-primary)] transition-colors">
-            <Icon className="w-4 h-4" />
-        </button>
-    );
-}
-
-function ToolBtn({ children }: { children: React.ReactNode }) {
-    return (
-        <button className="p-1 rounded hover:bg-[var(--surface-hover)] text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)] transition-colors">
-            {children}
-        </button>
-    );
-}
-
-function InputBtn({ children }: { children: React.ReactNode }) {
-    return (
-        <button className="p-1.5 rounded-full hover:bg-[var(--surface-hover)] text-[var(--dash-text-muted)] hover:text-[var(--brand)] transition-colors">
-            {children}
-        </button>
-    );
-}
-
-// Simple icons for toolbar (Visual representation)
-function BoldIcon({ className }: { className?: string }) {
-    return <span className={`font-bold ${className}`}>B</span>;
-}
-function ItalicIcon({ className }: { className?: string }) {
-    return <span className={`italic ${className}`}>I</span>;
-}
-function StrikeIcon({ className }: { className?: string }) {
-    return <span className={`line-through ${className}`}>S</span>;
-}
-function ListIcon({ className }: { className?: string }) {
-    return <span className={`${className}`}>☰</span>;
 }
