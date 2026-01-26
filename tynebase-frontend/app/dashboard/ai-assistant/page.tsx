@@ -3,10 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Sparkles, FileText, Video, Wand2, Upload, Check, Loader2, Zap, Image, AlertCircle, CheckCircle } from "lucide-react";
-import { generate, pollJobUntilComplete, type Job } from "@/lib/api/ai";
+import { Sparkles, FileText, Video, Wand2, Upload, Check, Loader2, Zap, Image, AlertCircle, CheckCircle, Link as LinkIcon, Copy } from "lucide-react";
+import { generate, pollJobUntilComplete, scrapeUrl as scrapeUrlApi, type Job } from "@/lib/api/ai";
 
-type TabType = 'prompt' | 'video' | 'enhance';
+type TabType = 'prompt' | 'video' | 'enhance' | 'scrape';
 
 const recentGenerations = [
   { id: 1, title: "API Documentation", type: "From Prompt", time: "2 hours ago", status: "completed" },
@@ -47,10 +47,14 @@ export default function AIAssistantPage() {
   const [currentJob, setCurrentJob] = useState<Job | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [scrapeUrl, setScrapeUrl] = useState('');
+  const [scrapedContent, setScrapedContent] = useState<string | null>(null);
+  const [isScraping, setIsScraping] = useState(false);
 
   const tabs = [
     { id: 'prompt' as TabType, icon: FileText, label: 'From Prompt', description: 'Generate from text description' },
     { id: 'video' as TabType, icon: Video, label: 'From Video', description: 'Extract content from media' },
+    { id: 'scrape' as TabType, icon: LinkIcon, label: 'From URL', description: 'Extract content from web pages' },
     { id: 'enhance' as TabType, icon: Wand2, label: 'Enhance', description: 'Improve existing content' },
   ];
 
@@ -103,6 +107,63 @@ export default function AIAssistantPage() {
     }
   };
 
+  const handleScrape = async () => {
+    if (!scrapeUrl.trim()) return;
+    
+    setIsScraping(true);
+    setError(null);
+    setProgress(0);
+    setScrapedContent(null);
+    
+    try {
+      const response = await scrapeUrlApi({ url: scrapeUrl.trim() });
+      const job = response.data.job;
+      setCurrentJob(job);
+      
+      const completedJob = await pollJobUntilComplete(
+        job.id,
+        (updatedJob) => {
+          setCurrentJob(updatedJob);
+          setProgress(updatedJob.progress || 0);
+        }
+      );
+      
+      if (completedJob.status === 'completed' && completedJob.result?.markdown) {
+        setScrapedContent(completedJob.result.markdown as string);
+      } else if (completedJob.status === 'failed') {
+        setError(completedJob.error_message || 'URL scraping failed');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to scrape URL');
+    } finally {
+      setIsScraping(false);
+    }
+  };
+
+  const handleSaveScrapedContent = async () => {
+    if (!scrapedContent) return;
+    
+    try {
+      const { createDocument } = await import('@/lib/api/documents');
+      const response = await createDocument({
+        title: `Scraped: ${scrapeUrl}`,
+        content: scrapedContent,
+      });
+      
+      if (response.data.document?.id) {
+        router.push(`/dashboard/knowledge/${response.data.document.id}`);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save content');
+    }
+  };
+
+  const handleCopyScrapedContent = () => {
+    if (scrapedContent) {
+      navigator.clipboard.writeText(scrapedContent);
+    }
+  };
+
   return (
     <div className="w-full h-full min-h-full flex flex-col gap-8">
       {/* Header */}
@@ -147,7 +208,7 @@ export default function AIAssistantPage() {
           </div>
 
           {/* Main Content Area */}
-          <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-5 sm:p-6">
+          <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-5 sm:p-6 flex-1 overflow-auto">
             {activeTab === 'prompt' && (
               <div className="space-y-6">
                 <div>
@@ -352,6 +413,106 @@ export default function AIAssistantPage() {
               <Video className="w-4 h-4" />
               Process Video
             </button>
+          </div>
+        )}
+
+        {activeTab === 'scrape' && (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-2">
+                Enter URL to scrape
+              </label>
+              <input
+                type="url"
+                value={scrapeUrl}
+                onChange={(e) => setScrapeUrl(e.target.value)}
+                placeholder="https://example.com/article"
+                className="w-full px-4 py-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 transition-all"
+              />
+              <p className="text-xs text-[var(--dash-text-muted)] mt-2">
+                Extract and convert web content to markdown format
+              </p>
+            </div>
+
+            {error && (
+              <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-xl">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-red-900">Scraping Failed</p>
+                  <p className="text-sm text-red-700 mt-1">{error}</p>
+                </div>
+              </div>
+            )}
+
+            {currentJob && isScraping && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                <div className="flex items-center gap-3 mb-3">
+                  <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-blue-900">Scraping URL...</p>
+                    <p className="text-xs text-blue-700 mt-0.5">
+                      Status: {currentJob.status} • Progress: {progress}%
+                    </p>
+                  </div>
+                </div>
+                <div className="w-full bg-blue-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {scrapedContent && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    <p className="text-sm font-medium text-green-900">Content extracted successfully</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleCopyScrapedContent}
+                      className="px-3 py-1.5 text-sm border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-secondary)] hover:border-[var(--brand)] transition-colors flex items-center gap-2"
+                    >
+                      <Copy className="w-4 h-4" />
+                      Copy
+                    </button>
+                    <button
+                      onClick={handleSaveScrapedContent}
+                      className="px-3 py-1.5 text-sm bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-lg transition-colors flex items-center gap-2"
+                    >
+                      <FileText className="w-4 h-4" />
+                      Save as Document
+                    </button>
+                  </div>
+                </div>
+                <div className="bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl p-4 max-h-96 overflow-auto">
+                  <pre className="text-sm text-[var(--dash-text-primary)] whitespace-pre-wrap font-mono">{scrapedContent}</pre>
+                </div>
+              </div>
+            )}
+
+            {!scrapedContent && (
+              <button
+                onClick={handleScrape}
+                disabled={!scrapeUrl.trim() || isScraping}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[var(--brand)] hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-all"
+              >
+                {isScraping ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Scraping...
+                  </>
+                ) : (
+                  <>
+                    <LinkIcon className="w-4 h-4" />
+                    Extract Content
+                  </>
+                )}
+              </button>
+            )}
           </div>
         )}
 

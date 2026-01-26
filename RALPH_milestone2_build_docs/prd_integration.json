@@ -234,8 +234,9 @@
       "phase": "Phase 4: AI Assistant Integration",
       "title": "[FE] Wire URL Scraping",
       "action": "Add URL input calling POST /api/ai/scrape, display extracted markdown for user to save",
-      "passes": false,
-      "in_progress": false
+      "passes": true,
+      "in_progress": false,
+      "completed_at": "2026-01-26T13:41:57.737778"
     },
     {
       "id": "I4.7",
