@@ -91,7 +91,7 @@ export function Header({ onOpenCommandPalette }: HeaderProps) {
               className="flex items-center gap-2 rounded-[var(--radius-md)] p-1 hover:bg-[var(--surface-ground)] transition-colors"
             >
               <Avatar
-                src={user?.avatar_url}
+                src={user?.avatar_url ?? undefined}
                 alt={user?.full_name || user?.email || "User"}
                 size="sm"
               />

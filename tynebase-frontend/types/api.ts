@@ -43,6 +43,7 @@ export interface User {
   tenant_id: string;
   email: string;
   full_name: string | null;
+  avatar_url?: string | null;
   role: 'admin' | 'editor' | 'member' | 'viewer';
   is_super_admin: boolean;
   status: 'active' | 'suspended' | 'deleted';

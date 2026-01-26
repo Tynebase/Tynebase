@@ -1,95 +1,72 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { User as SupabaseUser } from "@supabase/supabase-js";
-import { createClient } from "@/lib/supabase/client";
-import { User } from "@/types";
+import { getMe, logout, isAuthenticated } from "@/lib/api/auth";
+import type { User, Tenant } from "@/types/api";
 
 interface AuthContextType {
   user: User | null;
-  supabaseUser: SupabaseUser | null;
+  tenant: Tenant | null;
   isLoading: boolean;
-  isConfigured: boolean;
+  isAuthenticated: boolean;
   signOut: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
+  const [tenant, setTenant] = useState<Tenant | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const supabase = createClient();
-  const isConfigured = supabase !== null;
+
+  const fetchUser = async () => {
+    try {
+      if (!isAuthenticated()) {
+        setUser(null);
+        setTenant(null);
+        setIsLoading(false);
+        return;
+      }
+
+      const response = await getMe();
+      setUser(response.user);
+      setTenant(response.tenant);
+    } catch (error) {
+      console.error("Failed to fetch user:", error);
+      setUser(null);
+      setTenant(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // If Supabase is not configured, just set loading to false
-    if (!supabase) {
-      setIsLoading(false);
-      return;
-    }
-
-    const fetchUser = async () => {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      
-      if (authUser) {
-        setSupabaseUser(authUser);
-        
-        // Fetch user profile from database
-        // For MVP, we'll use mock data
-        setUser({
-          id: authUser.id,
-          email: authUser.email!,
-          full_name: authUser.user_metadata?.full_name || authUser.email!.split("@")[0],
-          avatar_url: authUser.user_metadata?.avatar_url,
-          tenant_id: "mock-tenant-id",
-          role: "admin",
-          created_at: authUser.created_at,
-          updated_at: authUser.updated_at || authUser.created_at,
-        });
-      }
-      
-      setIsLoading(false);
-    };
-
     fetchUser();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session?.user) {
-          setSupabaseUser(session.user);
-          setUser({
-            id: session.user.id,
-            email: session.user.email!,
-            full_name: session.user.user_metadata?.full_name || session.user.email!.split("@")[0],
-            avatar_url: session.user.user_metadata?.avatar_url,
-            tenant_id: "mock-tenant-id",
-            role: "admin",
-            created_at: session.user.created_at,
-            updated_at: session.user.updated_at || session.user.created_at,
-          });
-        } else {
-          setSupabaseUser(null);
-          setUser(null);
-        }
-      }
-    );
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [supabase]);
+  }, []);
 
   const signOut = async () => {
-    if (supabase) {
-      await supabase.auth.signOut();
-    }
+    await logout();
     setUser(null);
-    setSupabaseUser(null);
+    setTenant(null);
+  };
+
+  const refreshUser = async () => {
+    setIsLoading(true);
+    await fetchUser();
   };
 
   return (
-    <AuthContext.Provider value={{ user, supabaseUser, isLoading, isConfigured, signOut }}>
+    <AuthContext.Provider 
+      value={{ 
+        user, 
+        tenant, 
+        isLoading, 
+        isAuthenticated: !!user,
+        signOut,
+        refreshUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
