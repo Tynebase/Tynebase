@@ -5,7 +5,7 @@
  * Handles document CRUD operations, publishing, and normalized content retrieval.
  */
 
-import { apiGet, apiPost, apiPatch, apiDelete } from './client';
+import { apiGet, apiPost, apiPatch, apiDelete, apiUpload } from './client';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -86,6 +86,14 @@ export interface NormalizedContentResponse {
     id: string;
     content: string;
   };
+}
+
+export interface ImportDocumentResponse {
+  job_id: string;
+  storage_path: string;
+  filename: string;
+  file_size: number;
+  status: 'queued';
 }
 
 // ============================================================================
@@ -191,4 +199,20 @@ export async function getNormalizedContent(
   id: string
 ): Promise<NormalizedContentResponse> {
   return apiGet<NormalizedContentResponse>(`/api/documents/${id}/normalized`);
+}
+
+/**
+ * Import a document from file (PDF, DOCX, MD, TXT)
+ * 
+ * Uploads a document file and creates a background job for conversion.
+ * Supported formats: PDF, DOCX, Markdown, Plain Text (max 50MB)
+ * 
+ * @param file - Document file to import
+ * @returns Job details for tracking import progress
+ */
+export async function importDocument(file: File): Promise<ImportDocumentResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  return apiUpload<ImportDocumentResponse>('/api/documents/import', formData);
 }

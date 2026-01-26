@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { listDocuments, deleteDocument, type Document } from "@/lib/api/documents";
 import { Modal, ModalFooter } from "@/components/ui/Modal";
+import { DocumentImportModal } from "@/components/docs/DocumentImportModal";
 
 interface UIDocument {
   id: string;
@@ -44,7 +45,6 @@ const categories = [
 
 const quickActions = [
   { label: "AI Generate", icon: Sparkles, color: "#ec4899", href: "/dashboard/ai-assistant" },
-  { label: "Import", icon: Download, color: "#3b82f6", href: "/dashboard/knowledge/import" },
   { label: "Templates", icon: Copy, color: "#8b5cf6", href: "/dashboard/templates" },
 ];
 
@@ -63,6 +63,7 @@ export default function KnowledgePage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<UIDocument | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   const getStateColor = (state: string) => {
     switch (state) {
@@ -216,6 +217,15 @@ export default function KnowledgePage() {
               </button>
             </Link>
           ))}
+          <button
+            onClick={() => setImportModalOpen(true)}
+            className="flex items-center gap-2 h-10 px-5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-sm text-[var(--dash-text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)] transition-all"
+          >
+            <span style={{ color: "#3b82f6" }}>
+              <Download className="w-4 h-4" />
+            </span>
+            Import
+          </button>
           <Link href="/dashboard/knowledge/new">
             <button className="flex items-center gap-2 h-10 px-6 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-xl text-sm font-medium transition-all">
               <Plus className="w-4 h-4" />
@@ -708,12 +718,22 @@ export default function KnowledgePage() {
             ) : (
               <>
                 <Trash2 className="w-4 h-4" />
-                Delete
+                Delete Document
               </>
             )}
           </button>
         </ModalFooter>
       </Modal>
+
+      {/* Document Import Modal */}
+      <DocumentImportModal
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onSuccess={(documentId) => {
+          setImportModalOpen(false);
+          window.location.reload();
+        }}
+      />
     </div>
   );
 }
