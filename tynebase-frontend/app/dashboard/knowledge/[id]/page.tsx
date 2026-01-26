@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { DocumentEditor } from "@/components/editor/DocumentEditor";
+import { CollaborativeEditor } from "@/components/editor/CollaborativeEditor";
 import { MarkdownReader } from "@/components/ui/MarkdownReader";
 import { VersionHistory } from "@/components/ui/VersionHistory";
 import { Button } from "@/components/ui/Button";
@@ -338,12 +338,10 @@ export default function EditDocumentPage() {
         {mode === "edit" ? (
           <div className="flex overflow-hidden">
             <div className="flex-1 overflow-hidden">
-              <DocumentEditor
+              <CollaborativeEditor
+                documentId={documentId}
                 initialTitle={title}
-                initialContent={content}
-                onSave={handleSave}
                 onTitleChange={setTitle}
-                onContentChange={setContent}
               />
             </div>
 
