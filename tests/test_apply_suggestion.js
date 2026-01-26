@@ -60,7 +60,7 @@ async function testApplySuggestion() {
 
   console.log('   Request:', JSON.stringify(requestBody, null, 2));
 
-  const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+  const backendUrl = process.env.BACKEND_URL || 'http://localhost:8080';
   const response = await fetch(`${backendUrl}/api/ai/enhance/apply`, {
     method: 'POST',
     headers: {

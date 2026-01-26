@@ -3,16 +3,16 @@
 **Project:** TyneBase Frontend-Backend Integration  
 **Milestone:** 2.5  
 **Protocol:** RALPH v2.0  
-**Last Updated:** 2026-01-26 12:15
+**Last Updated:** 2026-01-26 12:33
 
 ---
 
 ## Progress Overview
 - **Total Tasks:** 56 (excl. 0 deferred)
-- **Completed:** 13
+- **Completed:** 17
 - **In Progress:** 0
 - **Blocked:** 0
-- **Remaining:** 43
+- **Remaining:** 39
 
 ---
 
@@ -45,19 +45,23 @@
 - [x] **I2.4**: [FE] Implement Protected Route Middleware
 - [x] **I2.5**: [FE] Add Token Refresh Logic
 - [x] **I3.1**: [FE] Wire Document List to Backend API
+- [x] **I3.2**: [FE] Wire Document View/Edit to Backend API
+- [x] **I3.3**: [FE] Wire Document Create Flow
+- [x] **I3.4**: [FE] Wire Document Delete Flow
+- [x] **I3.5**: [FE] Wire Document Publish Flow
 
 ---
 
 ## Execution History (Last 10):
 | Timestamp | Task | Action | Result |
 |-----------|------|--------|--------|
-| 2026-01-26T12:15 | I3.1 | completed | PASS |
-| 2026-01-26T12:10 | I3.1 | started | in_progress |
-| 2026-01-26T12:08 | None | commit | feat(integration-I2.5): implem... |
-| 2026-01-26T12:08 | I2.5 | completed | PASS |
-| 2026-01-26T12:08 | I2.5 | started | in_progress |
-| 2026-01-26T12:01 | None | commit | feat(integration-I2.4): implem... |
-| 2026-01-26T12:00 | I2.4 | completed | PASS |
-| 2026-01-26T11:36 | None | commit | feat(integration-I2.3): update... |
-| 2026-01-26T11:36 | I2.3 | completed | PASS |
-| 2026-01-26T11:33 | I2.3 | started | in_progress |
+| 2026-01-26T12:33 | I3.5 | completed | PASS |
+| 2026-01-26T12:32 | I3.5 | started | in_progress |
+| 2026-01-26T12:31 | None | commit | chore: update all API URLs to ... |
+| 2026-01-26T12:30 | None | commit | feat(integration-I3.4): wire d... |
+| 2026-01-26T12:29 | I3.4 | completed | PASS |
+| 2026-01-26T12:29 | I3.4 | started | in_progress |
+| 2026-01-26T12:25 | I3.3 | completed | PASS |
+| 2026-01-26T12:19 | None | commit | feat(integration-I3.2): wire d... |
+| 2026-01-26T12:19 | I3.2 | completed | PASS |
+| 2026-01-26T12:19 | I3.2 | started | in_progress |

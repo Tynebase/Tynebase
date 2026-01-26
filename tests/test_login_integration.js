@@ -5,7 +5,7 @@
  * and handles authentication tokens.
  */
 
-const API_URL = process.env.API_URL || 'http://localhost:3001';
+const API_URL = process.env.API_URL || 'http://localhost:8080';
 
 async function testLoginFlow() {
   console.log('🧪 Testing Login Flow Integration (Task I2.1)...\n');

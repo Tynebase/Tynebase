@@ -13,7 +13,7 @@
  * Requirements:
  *   - backend/.env with valid Supabase credentials
  *   - Test tenant and user must exist
- *   - Backend server must be running on http://localhost:3001
+ *   - Backend server must be running on http://localhost:8080
  */
 
 const https = require('https');

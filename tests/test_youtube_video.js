@@ -30,7 +30,7 @@ async function testYouTubeVideoEndpoint() {
   console.log('✅ Authenticated as:', authData.user.email);
   const token = authData.session.access_token;
 
-  const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+  const backendUrl = process.env.BACKEND_URL || 'http://localhost:8080';
 
   console.log('\nStep 2: Test valid YouTube URL...');
   const testUrls = [

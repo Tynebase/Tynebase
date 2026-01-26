@@ -138,32 +138,39 @@
       "phase": "Phase 3: Knowledge Centre Integration",
       "title": "[FE] Wire Document View/Edit to Backend API",
       "action": "Update document detail page to fetch from GET /api/documents/:id and save with PATCH /api/documents/:id",
-      "passes": false,
-      "in_progress": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-26T12:19:10.361850",
+      "completed_at": "2026-01-26T12:19:13.443500"
     },
     {
       "id": "I3.3",
       "phase": "Phase 3: Knowledge Centre Integration",
       "title": "[FE] Wire Document Create Flow",
       "action": "Update create document UI to call POST /api/documents, redirect to editor on success",
-      "passes": false,
-      "in_progress": false
+      "passes": true,
+      "in_progress": false,
+      "completed_at": "2026-01-26T12:25:59.859752"
     },
     {
       "id": "I3.4",
       "phase": "Phase 3: Knowledge Centre Integration",
       "title": "[FE] Wire Document Delete Flow",
       "action": "Add confirmation dialog and call DELETE /api/documents/:id, refresh list on success",
-      "passes": false,
-      "in_progress": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-26T12:29:36.186731",
+      "completed_at": "2026-01-26T12:29:39.033398"
     },
     {
       "id": "I3.5",
       "phase": "Phase 3: Knowledge Centre Integration",
       "title": "[FE] Wire Document Publish Flow",
       "action": "Add publish button calling POST /api/documents/:id/publish, update UI state on success",
-      "passes": false,
-      "in_progress": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-26T12:32:49.962318",
+      "completed_at": "2026-01-26T12:33:41.857003"
     },
     {
       "id": "I3.6",

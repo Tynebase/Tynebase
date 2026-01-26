@@ -13,12 +13,12 @@
  * 6. Frontend redirects to /dashboard/knowledge/:id
  * 
  * Prerequisites:
- * - Backend API running at http://localhost:3001
+ * - Backend API running at http://localhost:8080
  * - Valid JWT token for authentication
  * - Tenant context set
  */
 
-const API_URL = process.env.API_URL || 'http://localhost:3001';
+const API_URL = process.env.API_URL || 'http://localhost:8080';
 
 async function testDocumentCreateFlow() {
   console.log('🧪 Testing Document Create Flow (Task I3.3)...\n');
