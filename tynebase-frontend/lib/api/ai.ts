@@ -76,8 +76,14 @@ export interface ApplySuggestionResponse {
   };
 }
 
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export interface ChatRequest {
   query: string;
+  history?: ChatMessage[];
   max_context_chunks?: number;
   model?: string;
   temperature?: number;
@@ -220,6 +226,81 @@ export async function applySuggestion(
  */
 export async function chat(data: ChatRequest): Promise<ChatResponse> {
   return apiPost<ChatResponse>('/api/ai/chat', data);
+}
+
+/**
+ * Chat with RAG using streaming response
+ * 
+ * Streams the AI response token by token for real-time display.
+ * 
+ * @param data - Chat request with query and optional parameters
+ * @param onChunk - Callback for each streamed text chunk
+ * @param onSources - Callback when sources are received
+ * @returns Promise that resolves when streaming completes
+ */
+export async function chatStream(
+  data: ChatRequest,
+  onChunk: (text: string) => void,
+  onSources?: (sources: ChatSource[]) => void
+): Promise<void> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+  const tenant = typeof window !== 'undefined' ? localStorage.getItem('tenant_subdomain') : null;
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
+  const response = await fetch(`${API_BASE_URL}/api/ai/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': token ? `Bearer ${token}` : '',
+      'x-tenant-subdomain': tenant || '',
+    },
+    body: JSON.stringify({ ...data, stream: true }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error?.message || 'Chat request failed');
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error('Response body is not readable');
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.trim() || !line.startsWith('data: ')) continue;
+        
+        const data = line.slice(6);
+        if (data === '[DONE]') continue;
+
+        try {
+          const parsed = JSON.parse(data);
+          
+          if (parsed.type === 'chunk' && parsed.content) {
+            onChunk(parsed.content);
+          } else if (parsed.type === 'sources' && parsed.sources && onSources) {
+            onSources(parsed.sources);
+          }
+        } catch (e) {
+          console.warn('Failed to parse SSE data:', data);
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
 }
 
 /**

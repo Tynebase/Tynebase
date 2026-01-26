@@ -9,11 +9,30 @@ import {
     Sparkles,
     AlertCircle,
     Bot,
-    User
+    User,
+    MessageSquare,
+    Plus,
+    Trash2,
+    Download,
+    Upload
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
-import { chat, type ChatRequest, type ChatSource } from "@/lib/api/ai";
+import { chatStream, type ChatRequest, type ChatSource, type ChatMessage } from "@/lib/api/ai";
+import {
+    getConversations,
+    getConversation,
+    createConversation,
+    addMessage,
+    deleteConversation,
+    getActiveConversationId,
+    setActiveConversationId,
+    getRecentMessages,
+    exportConversations,
+    importConversations,
+    type StoredMessage,
+    type Conversation
+} from "@/lib/utils/conversation-storage";
 
 interface Message {
     id: string;
@@ -21,14 +40,21 @@ interface Message {
     content: string;
     sources?: ChatSource[];
     timestamp: Date;
+    isStreaming?: boolean;
 }
 
+const MAX_HISTORY_MESSAGES = 20;
+
 export default function AIChatPage() {
+    const [conversations, setConversations] = useState<Conversation[]>([]);
+    const [activeConversationId, setActiveConversationIdState] = useState<string | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [showSidebar, setShowSidebar] = useState(true);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -38,9 +64,93 @@ export default function AIChatPage() {
         scrollToBottom();
     }, [messages]);
 
+    // Load conversations on mount
+    useEffect(() => {
+        const loadedConversations = getConversations();
+        setConversations(loadedConversations);
+        
+        const activeId = getActiveConversationId();
+        if (activeId && loadedConversations.find(c => c.id === activeId)) {
+            loadConversation(activeId);
+        } else if (loadedConversations.length > 0) {
+            loadConversation(loadedConversations[0].id);
+        }
+    }, []);
+
+    const loadConversation = (id: string) => {
+        const conversation = getConversation(id);
+        if (!conversation) return;
+        
+        setActiveConversationIdState(id);
+        setActiveConversationId(id);
+        setMessages(conversation.messages.map(msg => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp)
+        })));
+        setError(null);
+    };
+
+    const handleNewConversation = () => {
+        const conversation = createConversation();
+        setConversations([conversation, ...conversations]);
+        loadConversation(conversation.id);
+    };
+
+    const handleDeleteConversation = (id: string) => {
+        deleteConversation(id);
+        const updated = conversations.filter(c => c.id !== id);
+        setConversations(updated);
+        
+        if (activeConversationId === id) {
+            if (updated.length > 0) {
+                loadConversation(updated[0].id);
+            } else {
+                handleNewConversation();
+            }
+        }
+    };
+
+    const handleExport = () => {
+        const json = exportConversations();
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `tynebase-conversations-${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const json = event.target?.result as string;
+            if (importConversations(json)) {
+                const loadedConversations = getConversations();
+                setConversations(loadedConversations);
+                if (loadedConversations.length > 0) {
+                    loadConversation(loadedConversations[0].id);
+                }
+            }
+        };
+        reader.readAsText(file);
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!input.trim() || isLoading) return;
+
+        // Ensure we have an active conversation
+        let convId = activeConversationId;
+        if (!convId) {
+            const newConv = createConversation();
+            setConversations([newConv, ...conversations]);
+            convId = newConv.id;
+            setActiveConversationIdState(convId);
+        }
 
         const userMessage: Message = {
             id: Date.now().toString(),
@@ -50,31 +160,93 @@ export default function AIChatPage() {
         };
 
         setMessages(prev => [...prev, userMessage]);
+        addMessage(convId, userMessage);
         setInput("");
         setIsLoading(true);
         setError(null);
 
+        // Create streaming assistant message
+        const assistantId = (Date.now() + 1).toString();
+        const streamingMessage: Message = {
+            id: assistantId,
+            role: 'assistant',
+            content: '',
+            timestamp: new Date(),
+            isStreaming: true,
+        };
+        setMessages(prev => [...prev, streamingMessage]);
+
         try {
+            // Get last 20 messages for context (excluding current streaming message)
+            const recentMessages = getRecentMessages(convId, MAX_HISTORY_MESSAGES);
+            const history: ChatMessage[] = recentMessages.map(msg => ({
+                role: msg.role,
+                content: msg.content,
+            }));
+
             const request: ChatRequest = {
                 query: userMessage.content,
+                history,
                 max_context_chunks: 5,
-                stream: false,
+                stream: true,
             };
 
-            const response = await chat(request);
+            let fullContent = '';
+            let sources: ChatSource[] = [];
 
-            const assistantMessage: Message = {
-                id: (Date.now() + 1).toString(),
+            await chatStream(
+                request,
+                (chunk) => {
+                    fullContent += chunk;
+                    setMessages(prev => 
+                        prev.map(msg => 
+                            msg.id === assistantId 
+                                ? { ...msg, content: fullContent }
+                                : msg
+                        )
+                    );
+                },
+                (receivedSources) => {
+                    sources = receivedSources;
+                    setMessages(prev => 
+                        prev.map(msg => 
+                            msg.id === assistantId 
+                                ? { ...msg, sources: receivedSources }
+                                : msg
+                        )
+                    );
+                }
+            );
+
+            // Finalize message
+            const finalMessage: Message = {
+                id: assistantId,
                 role: 'assistant',
-                content: response.data.answer,
-                sources: response.data.sources,
+                content: fullContent,
+                sources,
                 timestamp: new Date(),
+                isStreaming: false,
             };
 
-            setMessages(prev => [...prev, assistantMessage]);
+            setMessages(prev => 
+                prev.map(msg => 
+                    msg.id === assistantId ? finalMessage : msg
+                )
+            );
+
+            // Save to storage
+            addMessage(convId, finalMessage);
+
+            // Update conversations list
+            const updatedConversations = getConversations();
+            setConversations(updatedConversations);
+
         } catch (err) {
             console.error('Chat error:', err);
             setError(err instanceof Error ? err.message : 'Failed to get response');
+            
+            // Remove streaming message on error
+            setMessages(prev => prev.filter(msg => msg.id !== assistantId));
         } finally {
             setIsLoading(false);
         }
@@ -233,6 +405,12 @@ export default function AIChatPage() {
                                 className="w-full min-h-[52px] max-h-32 px-4 py-3 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:ring-2 focus:ring-[var(--brand)] focus:border-[var(--brand)] resize-none custom-scrollbar disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                                 rows={1}
                             />
+                            {messages.some(m => m.isStreaming) && (
+                                <div className="absolute bottom-2 right-2 flex items-center gap-1 text-xs text-[var(--dash-text-tertiary)]">
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    <span>Streaming...</span>
+                                </div>
+                            )}
                         </div>
                         <Button
                             type="submit"
