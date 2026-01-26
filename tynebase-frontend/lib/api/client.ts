@@ -7,6 +7,18 @@
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
+let isRefreshing = false;
+let refreshSubscribers: ((token: string) => void)[] = [];
+
+function onRefreshed(token: string) {
+  refreshSubscribers.forEach((callback) => callback(token));
+  refreshSubscribers = [];
+}
+
+function addRefreshSubscriber(callback: (token: string) => void) {
+  refreshSubscribers.push(callback);
+}
+
 export interface ApiError {
   message: string;
   code?: string;
@@ -34,6 +46,83 @@ export class ApiClientError extends Error {
 function getAccessToken(): string | null {
   if (typeof window === 'undefined') return null;
   return localStorage.getItem('access_token');
+}
+
+/**
+ * Get the stored refresh token from localStorage
+ */
+function getRefreshToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('refresh_token');
+}
+
+/**
+ * Decode JWT token to get expiration time
+ */
+function decodeToken(token: string): { exp?: number } | null {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check if token is expired or will expire soon (within 5 minutes)
+ */
+function isTokenExpiringSoon(token: string): boolean {
+  const decoded = decodeToken(token);
+  if (!decoded || !decoded.exp) return true;
+  
+  const expirationTime = decoded.exp * 1000; // Convert to milliseconds
+  const currentTime = Date.now();
+  const fiveMinutes = 5 * 60 * 1000;
+  
+  return expirationTime - currentTime < fiveMinutes;
+}
+
+/**
+ * Refresh the access token using the refresh token
+ */
+async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = getRefreshToken();
+  
+  if (!refreshToken) {
+    return null;
+  }
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+    
+    if (!response.ok) {
+      return null;
+    }
+    
+    const data = await response.json();
+    
+    if (data.access_token && data.refresh_token) {
+      setAuthTokens(data.access_token, data.refresh_token);
+      return data.access_token;
+    }
+    
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -107,8 +196,39 @@ export async function apiClient<T = unknown>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
-  const token = getAccessToken();
+  let token = getAccessToken();
   const tenant = getTenantSubdomain();
+  
+  // Check if token needs refresh before making request
+  if (token && isTokenExpiringSoon(token)) {
+    if (!isRefreshing) {
+      isRefreshing = true;
+      const newToken = await refreshAccessToken();
+      isRefreshing = false;
+      
+      if (newToken) {
+        token = newToken;
+        onRefreshed(newToken);
+      } else {
+        // Refresh failed, clear auth and redirect
+        clearAuth();
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
+        throw new ApiClientError({
+          message: 'Session expired. Please log in again.',
+          statusCode: 401,
+        });
+      }
+    } else {
+      // Wait for the ongoing refresh to complete
+      token = await new Promise<string>((resolve) => {
+        addRefreshSubscriber((newToken: string) => {
+          resolve(newToken);
+        });
+      });
+    }
+  }
 
   // Build headers
   const headers: Record<string, string> = {
@@ -163,8 +283,22 @@ export async function apiClient<T = unknown>(
         };
       }
 
-      // Handle 401 Unauthorized - clear auth and redirect to login
+      // Handle 401 Unauthorized - try to refresh token once
       if (response.status === 401) {
+        // Try refreshing the token
+        if (!isRefreshing) {
+          isRefreshing = true;
+          const newToken = await refreshAccessToken();
+          isRefreshing = false;
+          
+          if (newToken) {
+            onRefreshed(newToken);
+            // Retry the original request with new token
+            return apiClient<T>(endpoint, options);
+          }
+        }
+        
+        // Refresh failed or already refreshing, clear auth and redirect
         clearAuth();
         if (typeof window !== 'undefined') {
           window.location.href = '/login';
@@ -297,7 +431,22 @@ export async function apiUpload<T = unknown>(
         };
       }
 
+      // Handle 401 Unauthorized in upload - try to refresh token once
       if (response.status === 401) {
+        // Try refreshing the token
+        if (!isRefreshing) {
+          isRefreshing = true;
+          const newToken = await refreshAccessToken();
+          isRefreshing = false;
+          
+          if (newToken) {
+            onRefreshed(newToken);
+            // Retry the upload with new token
+            return apiUpload<T>(endpoint, formData);
+          }
+        }
+        
+        // Refresh failed or already refreshing, clear auth and redirect
         clearAuth();
         if (typeof window !== 'undefined') {
           window.location.href = '/login';

@@ -113,3 +113,26 @@ export function getTenantSubdomain(): string | null {
   if (typeof window === 'undefined') return null;
   return localStorage.getItem('tenant_subdomain');
 }
+
+/**
+ * Refresh the access token using the refresh token
+ * 
+ * @returns New auth tokens
+ */
+export async function refreshToken(): Promise<{ access_token: string; refresh_token: string }> {
+  const refreshTokenValue = getRefreshToken();
+  
+  if (!refreshTokenValue) {
+    throw new Error('No refresh token available');
+  }
+  
+  const response = await apiPost<{ access_token: string; refresh_token: string }>(
+    '/api/auth/refresh',
+    { refresh_token: refreshTokenValue }
+  );
+  
+  // Store new tokens
+  setAuthTokens(response.access_token, response.refresh_token);
+  
+  return response;
+}
