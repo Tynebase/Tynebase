@@ -5,7 +5,7 @@
  * Handles authentication, tenant context, error handling, and response parsing.
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 let isRefreshing = false;
 let refreshSubscribers: ((token: string) => void)[] = [];
