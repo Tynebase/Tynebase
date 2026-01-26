@@ -3,16 +3,16 @@
 **Project:** TyneBase Frontend-Backend Integration  
 **Milestone:** 2.5  
 **Protocol:** RALPH v2.0  
-**Last Updated:** 2026-01-26 12:54
+**Last Updated:** 2026-01-26 13:35
 
 ---
 
 ## Progress Overview
 - **Total Tasks:** 56 (excl. 0 deferred)
-- **Completed:** 22
+- **Completed:** 23
 - **In Progress:** 0
 - **Blocked:** 0
-- **Remaining:** 34
+- **Remaining:** 33
 
 ---
 
@@ -54,12 +54,16 @@
 - [x] **I4.2**: [FE] Wire Video Upload & Processing
 - [x] **I4.3**: [FE] Wire YouTube URL Ingestion
 - [x] **I4.4**: [FE] Wire Document Enhancement
+- [x] **I4.5**: [FE] Wire Document Import (PDF/DOCX)
 
 ---
 
 ## Execution History (Last 10):
 | Timestamp | Task | Action | Result |
 |-----------|------|--------|--------|
+| 2026-01-26T13:35 | I4.5 | completed | PASS |
+| 2026-01-26T13:35 | I4.5 | started | in_progress |
+| 2026-01-26T12:54 | None | commit | feat(task-I4.4): wire document... |
 | 2026-01-26T12:54 | I4.4 | completed | PASS |
 | 2026-01-26T12:50 | None | commit | feat(task-I4.3): verify YouTub... |
 | 2026-01-26T12:50 | I4.3 | completed | PASS |
@@ -67,6 +71,3 @@
 | 2026-01-26T12:48 | None | commit | feat(task-I4.2): wire video up... |
 | 2026-01-26T12:48 | I4.2 | completed | PASS |
 | 2026-01-26T12:44 | None | commit | feat(task-I4.1): wire AI promp... |
-| 2026-01-26T12:44 | I4.1 | completed | PASS |
-| 2026-01-26T12:39 | None | commit | feat(task-I3.6): integrate rea... |
-| 2026-01-26T12:38 | I3.6 | completed | PASS |

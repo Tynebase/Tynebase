@@ -224,8 +224,10 @@
       "phase": "Phase 4: AI Assistant Integration",
       "title": "[FE] Wire Document Import (PDF/DOCX)",
       "action": "Add file import UI calling POST /api/documents/import, track job status, navigate to created document",
-      "passes": false,
-      "in_progress": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-26T13:35:48.091400",
+      "completed_at": "2026-01-26T13:35:51.265132"
     },
     {
       "id": "I4.6",
