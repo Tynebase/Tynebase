@@ -22,10 +22,19 @@ import {
   Copy,
   ExternalLink,
   Sparkles,
-  Send
+  Send,
+  Loader2,
+  AlertTriangle
 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/Card";
+import { 
+  getDocument, 
+  updateDocument, 
+  publishDocument, 
+  deleteDocument,
+  type Document 
+} from "@/lib/api/documents";
 
 function htmlToPlainText(html: string) {
   return html
@@ -42,130 +51,103 @@ function htmlToPlainText(html: string) {
     .trim();
 }
 
-// Mock document data
-const mockDocuments: Record<string, {
+interface UIDocument {
   id: string;
   title: string;
   content: string;
   folder: string;
-  status: "Draft" | "Published";
+  status: "draft" | "published";
   visibility: "public" | "private" | "team";
   author: string;
   createdAt: string;
   updatedAt: string;
-}> = {
-  "1": {
-    id: "1",
-    title: "Getting Started Guide",
-    content: `<h2>Welcome to TyneBase</h2>
-<p>This guide will help you get started with TyneBase, your AI-powered knowledge management platform.</p>
-<h3>Quick start</h3>
-<ol>
-<li>Create your first document by clicking "New Document"</li>
-<li>Use the AI Assistant to help generate content</li>
-<li>Organise your documents into folders</li>
-<li>Invite team members to collaborate</li>
-</ol>
-<h3>Key Features</h3>
-<ul>
-<li><strong>Rich Text Editor</strong> - Format your content with ease</li>
-<li><strong>AI-Powered</strong> - Generate and enhance content with AI</li>
-<li><strong>Collaboration</strong> - Work together with your team in real-time</li>
-<li><strong>Version History</strong> - Track changes and restore previous versions</li>
-</ul>
-<blockquote>Pro tip: Use keyboard shortcuts to speed up your workflow. Press <code>Ctrl+B</code> for bold, <code>Ctrl+I</code> for italic.</blockquote>`,
-    folder: "Onboarding",
-    status: "Published",
-    visibility: "public",
-    author: "Sarah Chen",
-    createdAt: "2026-01-07T10:00:00Z",
-    updatedAt: "2026-01-11T14:30:00Z",
-  },
-  "2": {
-    id: "2",
-    title: "API Authentication",
-    content: `<h2>API Authentication</h2>
-<p>Learn how to authenticate your requests to the TyneBase API.</p>
-<h3>Authentication Methods</h3>
-<p>TyneBase supports two authentication methods:</p>
-<ol>
-<li><strong>API Keys</strong> - For server-to-server communication</li>
-<li><strong>OAuth 2.0</strong> - For user-facing applications</li>
-</ol>
-<h3>Using API Keys</h3>
-<pre><code>curl -X GET "https://api.tynebase.com/v1/documents" \\
-  -H "Authorization: Bearer YOUR_API_KEY"</code></pre>
-<h3>Rate Limits</h3>
-<p>API requests are limited to:</p>
-<ul>
-<li>1000 requests per minute for Pro plans</li>
-<li>5000 requests per minute for Enterprise plans</li>
-</ul>`,
-    folder: "API Docs",
-    status: "Published",
-    visibility: "team",
-    author: "John Smith",
-    createdAt: "2026-01-05T14:00:00Z",
-    updatedAt: "2026-01-10T16:45:00Z",
-  },
-  "3": {
-    id: "3",
-    title: "Team Permissions",
-    content: `<h2>Understanding Team Permissions</h2>
-<p>TyneBase uses role-based access control (RBAC) to manage what team members can do.</p>
-<h3>Available Roles</h3>
-<ul>
-<li><strong>Admin</strong> - Full access to all features and settings</li>
-<li><strong>Editor</strong> - Can create, edit, and publish documents</li>
-<li><strong>Contributor</strong> - Can create and edit own documents</li>
-<li><strong>Viewer</strong> - Read-only access to published content</li>
-</ul>`,
-    folder: "Admin",
-    status: "Draft",
-    visibility: "private",
-    author: "Emily Davis",
-    createdAt: "2026-01-08T09:15:00Z",
-    updatedAt: "2026-01-08T09:15:00Z",
-  },
-};
+}
+
+function mapDocumentToUI(doc: Document): UIDocument {
+  const authorName = doc.users?.full_name || doc.users?.email || 'Unknown';
+  
+  return {
+    id: doc.id,
+    title: doc.title,
+    content: doc.content,
+    folder: 'General',
+    status: doc.status,
+    visibility: doc.is_public ? 'public' : 'private',
+    author: authorName,
+    createdAt: doc.created_at,
+    updatedAt: doc.updated_at,
+  };
+}
 
 export default function EditDocumentPage() {
   const router = useRouter();
   const params = useParams();
   const documentId = params.id as string;
 
-  const [document, setDocument] = useState(mockDocuments[documentId] || null);
-  const [title, setTitle] = useState(document?.title || "");
-  const [content, setContent] = useState(document?.content || "");
-  const [status, setStatus] = useState<"Draft" | "Published">(document?.status || "Draft");
+  const [document, setDocument] = useState<UIDocument | null>(null);
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [status, setStatus] = useState<"draft" | "published">("draft");
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [folder, setFolder] = useState(document?.folder || "Uncategorized");
-  const [visibility, setVisibility] = useState<"public" | "private" | "team">(document?.visibility || "team");
+  const [folder, setFolder] = useState("Uncategorized");
+  const [visibility, setVisibility] = useState<"public" | "private" | "team">("team");
   const [mode, setMode] = useState<"edit" | "read">("edit");
   const [kbQuestion, setKbQuestion] = useState("");
   const [kbAsking, setKbAsking] = useState(false);
   const [kbAnswer, setKbAnswer] = useState<string | null>(null);
 
   useEffect(() => {
-    if (mockDocuments[documentId]) {
-      const doc = mockDocuments[documentId];
-      setDocument(doc);
-      setTitle(doc.title);
-      setContent(doc.content);
-      setStatus(doc.status);
-      setFolder(doc.folder);
-      setVisibility(doc.visibility);
-    }
+    const fetchDocument = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        const response = await getDocument(documentId);
+        const uiDoc = mapDocumentToUI(response.data.document);
+        
+        setDocument(uiDoc);
+        setTitle(uiDoc.title);
+        setContent(uiDoc.content);
+        setStatus(uiDoc.status);
+        setFolder(uiDoc.folder);
+        setVisibility(uiDoc.visibility);
+      } catch (err) {
+        console.error('Failed to fetch document:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load document');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDocument();
   }, [documentId]);
 
-  if (!document) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-64px)]">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">Document not found</h2>
-          <p className="text-[var(--text-tertiary)] mb-4">The document you're looking for doesn't exist.</p>
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 text-[var(--brand)] animate-spin" />
+          <p className="text-[var(--dash-text-secondary)]">Loading document...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !document) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-64px)]">
+        <div className="text-center max-w-md">
+          <AlertTriangle className="w-12 h-12 text-[var(--status-error)] mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-[var(--dash-text-primary)] mb-2">
+            {error ? 'Failed to load document' : 'Document not found'}
+          </h2>
+          <p className="text-[var(--dash-text-tertiary)] mb-4">
+            {error || "The document you're looking for doesn't exist."}
+          </p>
           <Link href="/dashboard/knowledge">
             <Button variant="primary">Back to Knowledge Base</Button>
           </Link>
@@ -175,11 +157,23 @@ export default function EditDocumentPage() {
   }
 
   const handleSave = async (data: { title: string; content: string }) => {
-    setIsSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setTitle(data.title);
-    setContent(data.content);
-    setIsSaving(false);
+    try {
+      setIsSaving(true);
+      
+      await updateDocument(documentId, {
+        title: data.title,
+        content: data.content,
+        is_public: visibility === 'public',
+      });
+      
+      setTitle(data.title);
+      setContent(data.content);
+    } catch (err) {
+      console.error('Failed to save document:', err);
+      alert('Failed to save document. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleAskKb = async () => {
@@ -194,22 +188,42 @@ export default function EditDocumentPage() {
   };
 
   const handlePublish = async () => {
-    setIsSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setStatus("Published");
-    setIsSaving(false);
+    try {
+      setIsSaving(true);
+      await publishDocument(documentId);
+      setStatus("published");
+    } catch (err) {
+      console.error('Failed to publish document:', err);
+      alert('Failed to publish document. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleUnpublish = async () => {
-    setIsSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setStatus("Draft");
-    setIsSaving(false);
+    try {
+      setIsSaving(true);
+      await updateDocument(documentId, { is_public: false });
+      setStatus("draft");
+    } catch (err) {
+      console.error('Failed to unpublish document:', err);
+      alert('Failed to unpublish document. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = async () => {
-    if (confirm("Are you sure you want to delete this document?")) {
-      router.push("/dashboard/knowledge");
+    if (confirm("Are you sure you want to delete this document? This action cannot be undone.")) {
+      try {
+        setIsSaving(true);
+        await deleteDocument(documentId);
+        router.push("/dashboard/knowledge");
+      } catch (err) {
+        console.error('Failed to delete document:', err);
+        alert('Failed to delete document. Please try again.');
+        setIsSaving(false);
+      }
     }
   };
 
@@ -256,11 +270,11 @@ export default function EditDocumentPage() {
           </div>
 
           {/* Status Badge */}
-          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${status === "Draft"
+          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${status === "draft"
             ? "bg-amber-500/10 text-amber-600"
             : "bg-green-500/10 text-green-600"
             }`}>
-            {status === "Draft" ? (
+            {status === "draft" ? (
               <>
                 <Clock className="w-3.5 h-3.5" />
                 Draft
@@ -290,15 +304,23 @@ export default function EditDocumentPage() {
           </Button>
 
           {/* Publish/Unpublish */}
-          {status === "Draft" ? (
+          {status === "draft" ? (
             <Button variant="primary" onClick={handlePublish} disabled={isSaving}>
-              <Globe className="w-4 h-4 mr-2" />
-              Publish
+              {isSaving ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Globe className="w-4 h-4 mr-2" />
+              )}
+              {isSaving ? 'Publishing...' : 'Publish'}
             </Button>
           ) : (
             <Button variant="outline" onClick={handleUnpublish} disabled={isSaving}>
-              <Lock className="w-4 h-4 mr-2" />
-              Unpublish
+              {isSaving ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Lock className="w-4 h-4 mr-2" />
+              )}
+              {isSaving ? 'Unpublishing...' : 'Unpublish'}
             </Button>
           )}
 
