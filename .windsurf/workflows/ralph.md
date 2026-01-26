@@ -116,7 +116,7 @@ tynebase-frontend/
 │   └── AuthContext.tsx        # Auth state management
 ├── types/
 │   └── api.ts                 # API type definitions (CREATE THIS)
-├── middleware.ts              # Route protection
+├── proxy.ts                   # Route protection (Next.js 15+ convention)
 └── .env.example               # Frontend env vars
 ```
 
@@ -217,7 +217,100 @@ const documents = await apiClient('/api/documents'); // CORRECT!
 
 ---
 
-## 🔌 Backend API Endpoints Reference
+## � CRITICAL: Next.js Proxy Convention (Next.js 15+)
+
+**TyneBase uses the NEW Next.js proxy.ts convention. Follow these rules strictly.**
+
+### ✅ CORRECT - Use proxy.ts (NOT middleware.ts)
+
+```typescript
+// tynebase-frontend/proxy.ts
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+
+export async function proxy(request: NextRequest) {
+  // Route protection logic
+  // JWT token validation
+  // Subdomain routing
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+};
+```
+
+### ❌ NEVER DO THIS
+
+```typescript
+// ❌ DON'T create middleware.ts
+// ❌ DON'T export function middleware()
+// ❌ DON'T reference middleware.ts in documentation
+
+// The middleware.ts convention is DEPRECATED in Next.js 15/16
+```
+
+### Why "Proxy" Instead of "Middleware"?
+
+1. **Clarity**: "Middleware" was confused with Express.js middleware
+2. **Purpose**: "Proxy" better describes the network boundary layer
+3. **Edge Runtime**: Runs at Edge by default, separated from app region
+4. **Direction**: Next.js is moving away from overloaded middleware features
+
+### Current Implementation
+
+Our `proxy.ts` handles:
+- **JWT Authentication**: Validates `access_token` cookie
+- **Route Protection**: Redirects unauthenticated users to `/login`
+- **Subdomain Routing**: Root domain vs tenant subdomains
+- **Tenant Context**: Adds `x-tenant-subdomain` header
+
+### Cookie-Based Authentication
+
+**CRITICAL**: Proxy runs server-side and CANNOT access localStorage.
+
+```typescript
+// ✅ CORRECT - Store tokens in BOTH localStorage AND cookies
+export function setAuthTokens(accessToken: string, refreshToken: string): void {
+  // localStorage for client-side
+  localStorage.setItem('access_token', accessToken);
+  localStorage.setItem('refresh_token', refreshToken);
+  
+  // Cookies for server-side proxy access
+  document.cookie = `access_token=${accessToken}; path=/; SameSite=Lax`;
+  document.cookie = `refresh_token=${refreshToken}; path=/; SameSite=Lax`;
+}
+
+// ✅ CORRECT - Proxy checks cookies
+function isAuthenticated(request: NextRequest): boolean {
+  const accessToken = request.cookies.get("access_token")?.value;
+  return !!accessToken;
+}
+```
+
+### Best Practices for Proxy
+
+**DO Use proxy.ts for:**
+- ✅ Authentication checks (JWT validation)
+- ✅ Route protection and redirects
+- ✅ Subdomain routing logic
+- ✅ Adding request/response headers
+- ✅ URL rewrites and redirects
+
+**DON'T Use proxy.ts for:**
+- ❌ Complex business logic (use API routes)
+- ❌ Database queries (use server components or API routes)
+- ❌ Heavy computations (Edge Runtime has limitations)
+- ❌ Features achievable with other Next.js APIs
+
+### Reference Documentation
+
+- 📖 Full details: `docs/PROXY_CONVENTION.md`
+- 📖 Next.js Docs: [Proxy File Convention](https://nextjs.org/docs/app/api-reference/file-conventions/proxy)
+
+---
+
+## �🔌 Backend API Endpoints Reference
 
 ### Authentication
 | Endpoint | Method | Auth | Description |
