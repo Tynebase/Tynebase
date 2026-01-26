@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Database,
@@ -15,8 +15,10 @@ import {
   Clock,
   Sparkles,
   ArrowRight,
+  RefreshCw,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
+import { apiGet } from "@/lib/api/client";
 
 type SourceType = "pdf" | "docx" | "md";
 
@@ -41,50 +43,23 @@ type Source = {
   notes?: string;
 };
 
-const mockSources: Source[] = [
-  {
-    id: "src_1",
-    title: "Security Best Practices",
-    filename: "security-best-practices.pdf",
-    type: "pdf",
-    status: "embedded",
-    sizeMb: 4.2,
-    updatedAt: "10 min ago",
-    chunks: 128,
-    tokens: 51234,
-  },
-  {
-    id: "src_2",
-    title: "API Authentication",
-    filename: "api-authentication.docx",
-    type: "docx",
-    status: "normalized",
-    sizeMb: 0.9,
-    updatedAt: "1 hour ago",
-    chunks: 42,
-    tokens: 16420,
-  },
-  {
-    id: "src_3",
-    title: "Onboarding Runbook",
-    filename: "onboarding.md",
-    type: "md",
-    status: "chunking",
-    sizeMb: 0.2,
-    updatedAt: "Today",
-    notes: "Splitting by headings + semantic merge (hybrid).",
-  },
-  {
-    id: "src_4",
-    title: "Legacy IT SOP",
-    filename: "legacy-it-sop.pdf",
-    type: "pdf",
-    status: "failed",
-    sizeMb: 12.6,
-    updatedAt: "Yesterday",
-    notes: "OCR failed on scanned pages (placeholder).",
-  },
-];
+interface SourceHealthResponse {
+  success: boolean;
+  data: {
+    total_documents: number;
+    indexed_documents: number;
+    outdated_documents: number;
+    never_indexed_documents: number;
+    failed_jobs: number;
+    documents_needing_reindex: Array<{
+      id: string;
+      title: string;
+      reason: 'never_indexed' | 'outdated';
+      last_indexed_at: string | null;
+      updated_at: string;
+    }>;
+  };
+}
 
 function TypeBadge({ type }: { type: SourceType }) {
   const label = type.toUpperCase();
@@ -135,22 +110,48 @@ function StatusBadge({ status }: { status: SourceStatus }) {
 
 export default function SourcesPage() {
   const [query, setQuery] = useState("");
+  const [healthData, setHealthData] = useState<SourceHealthResponse['data'] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchHealthData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await apiGet<SourceHealthResponse>('/api/sources/health');
+      setHealthData(response.data);
+    } catch (err) {
+      console.error('Failed to fetch source health data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load source health data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchHealthData();
+  }, []);
 
   const filtered = useMemo(() => {
+    if (!healthData) return [];
     const q = query.trim().toLowerCase();
-    if (!q) return mockSources;
-    return mockSources.filter((s) => `${s.title} ${s.filename}`.toLowerCase().includes(q));
-  }, [query]);
+    if (!q) return healthData.documents_needing_reindex;
+    return healthData.documents_needing_reindex.filter((doc) => 
+      doc.title.toLowerCase().includes(q)
+    );
+  }, [query, healthData]);
 
   const stats = useMemo(() => {
-    const total = mockSources.length;
-    const embedded = mockSources.filter((s) => s.status === "embedded").length;
-    const processing = mockSources.filter((s) =>
-      ["normalizing", "normalized", "chunking"].includes(s.status)
-    ).length;
-    const failed = mockSources.filter((s) => s.status === "failed").length;
-    return { total, embedded, processing, failed };
-  }, []);
+    if (!healthData) {
+      return { total: 0, indexed: 0, needingReindex: 0, failed: 0 };
+    }
+    return {
+      total: healthData.total_documents,
+      indexed: healthData.indexed_documents,
+      needingReindex: healthData.outdated_documents + healthData.never_indexed_documents,
+      failed: healthData.failed_jobs,
+    };
+  }, [healthData]);
 
   return (
     <div className="space-y-8">
@@ -179,26 +180,34 @@ export default function SourcesPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardContent className="p-6">
-            <p className="text-xs text-[var(--dash-text-muted)]">Total Sources</p>
-            <p className="text-2xl font-bold text-[var(--dash-text-primary)] mt-1">{stats.total}</p>
+            <p className="text-xs text-[var(--dash-text-muted)]">Total Documents</p>
+            <p className="text-2xl font-bold text-[var(--dash-text-primary)] mt-1">
+              {loading ? '...' : stats.total}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
-            <p className="text-xs text-[var(--dash-text-muted)]">Embedded</p>
-            <p className="text-2xl font-bold text-[var(--status-success)] mt-1">{stats.embedded}</p>
+            <p className="text-xs text-[var(--dash-text-muted)]">Indexed</p>
+            <p className="text-2xl font-bold text-[var(--status-success)] mt-1">
+              {loading ? '...' : stats.indexed}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
-            <p className="text-xs text-[var(--dash-text-muted)]">Processing</p>
-            <p className="text-2xl font-bold text-[var(--status-warning)] mt-1">{stats.processing}</p>
+            <p className="text-xs text-[var(--dash-text-muted)]">Needs Re-Index</p>
+            <p className="text-2xl font-bold text-[var(--status-warning)] mt-1">
+              {loading ? '...' : stats.needingReindex}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
-            <p className="text-xs text-[var(--dash-text-muted)]">Failed</p>
-            <p className="text-2xl font-bold text-[var(--status-error)] mt-1">{stats.failed}</p>
+            <p className="text-xs text-[var(--dash-text-muted)]">Failed Jobs</p>
+            <p className="text-2xl font-bold text-[var(--status-error)] mt-1">
+              {loading ? '...' : stats.failed}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -219,94 +228,99 @@ export default function SourcesPage() {
         </button>
       </div>
 
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-800">
+          <p className="font-semibold">Error loading source health data</p>
+          <p className="text-sm mt-1">{error}</p>
+          <button
+            onClick={fetchHealthData}
+            className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Retry
+          </button>
+        </div>
+      )}
+
       <div className="flex-1 min-h-0 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-2xl overflow-hidden flex flex-col">
-        <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-4 bg-[var(--surface-ground)] border-b border-[var(--dash-border-subtle)] text-xs font-medium text-[var(--dash-text-muted)] uppercase tracking-wider">
-          <div className="col-span-5">Source</div>
-          <div className="col-span-2">Type</div>
-          <div className="col-span-2">Status</div>
-          <div className="col-span-2">Signals</div>
-          <div className="col-span-1 text-right">Open</div>
+        <div className="flex items-center justify-between px-6 py-4 bg-[var(--surface-ground)] border-b border-[var(--dash-border-subtle)]">
+          <h2 className="text-sm font-semibold text-[var(--dash-text-primary)]">
+            Documents Needing Re-Index
+          </h2>
+          <button
+            onClick={fetchHealthData}
+            disabled={loading}
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[var(--dash-text-secondary)] hover:text-[var(--brand)] transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
         </div>
 
         <div className="flex-1 min-h-0 overflow-auto divide-y divide-[var(--dash-border-subtle)]">
-          {filtered.map((s) => (
-            <div key={s.id} className="block hover:bg-[var(--surface-hover)] transition-colors">
-              {/* Desktop Table View */}
-              <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-5 items-center">
-                <div className="col-span-5 flex items-center gap-3 min-w-0">
-                  <span className="w-10 h-10 rounded-xl bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] flex items-center justify-center">
-                    <Database className="w-5 h-5 text-[var(--dash-text-tertiary)]" />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-[var(--dash-text-primary)] truncate">{s.title}</p>
-                    <p className="text-xs text-[var(--dash-text-muted)] truncate">{s.filename} • {s.sizeMb.toFixed(1)}MB • Updated {s.updatedAt}</p>
-                    {s.notes && <p className="text-xs text-[var(--dash-text-tertiary)] mt-1 truncate">{s.notes}</p>}
-                  </div>
-                </div>
-
-                <div className="col-span-2">
-                  <TypeBadge type={s.type} />
-                </div>
-
-                <div className="col-span-2">
-                  <StatusBadge status={s.status} />
-                </div>
-
-                <div className="col-span-2">
-                  <p className="text-sm text-[var(--dash-text-secondary)]">
-                    {s.chunks ? `${s.chunks} chunks` : "-"}
-                  </p>
-                  <p className="text-xs text-[var(--dash-text-muted)]">
-                    {s.tokens ? `${s.tokens.toLocaleString()} tokens` : ""}
-                  </p>
-                </div>
-
-                <div className="col-span-1 flex justify-end">
-                  <Link
-                    href="/dashboard/sources/normalized"
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand)] hover:underline"
-                  >
-                    View
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
-                </div>
-              </div>
-
-              {/* Mobile Card View */}
-              <div className="flex md:hidden flex-col gap-4 p-5 border-b border-[var(--dash-border-subtle)] last:border-0 pointer-events-none sm:pointer-events-auto">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3 min-w-0">
-                    <span className="w-10 h-10 rounded-xl bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] flex items-center justify-center flex-shrink-0">
-                      <Database className="w-5 h-5 text-[var(--dash-text-tertiary)]" />
-                    </span>
-                    <div className="min-w-0 pointer-events-auto">
-                      <p className="font-semibold text-[var(--dash-text-primary)] line-clamp-1">{s.title}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <TypeBadge type={s.type} />
-                        <span className="text-xs text-[var(--dash-text-muted)]">{s.sizeMb.toFixed(1)}MB</span>
-                      </div>
-                    </div>
-                  </div>
-                  <StatusBadge status={s.status} />
-                </div>
-
-                {s.notes && <p className="text-xs text-[var(--dash-text-tertiary)] bg-[var(--surface-ground)] p-2 rounded-lg">{s.notes}</p>}
-
-                <div className="flex items-center justify-between text-xs text-[var(--dash-text-muted)] pt-2 border-t border-[var(--dash-border-subtle)] pointer-events-auto">
-                  <div className="flex flex-col gap-0.5">
-                    <span>Updated {s.updatedAt}</span>
-                    <span>{s.chunks || 0} chunks • {s.tokens?.toLocaleString() || 0} tokens</span>
-                  </div>
-                  <Link
-                    href="/dashboard/sources/normalized"
-                    className="inline-flex items-center gap-1 text-sm font-semibold text-[var(--brand)]"
-                  >
-                    View <ArrowRight className="w-3 h-3" />
-                  </Link>
-                </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <RefreshCw className="w-8 h-8 text-[var(--dash-text-muted)] animate-spin mx-auto mb-3" />
+                <p className="text-sm text-[var(--dash-text-muted)]">Loading source health data...</p>
               </div>
             </div>
-          ))}
+          ) : filtered.length === 0 ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <CheckCircle className="w-12 h-12 text-[var(--status-success)] mx-auto mb-3" />
+                <p className="text-sm font-semibold text-[var(--dash-text-primary)]">All documents are up to date!</p>
+                <p className="text-xs text-[var(--dash-text-muted)] mt-1">No documents need re-indexing.</p>
+              </div>
+            </div>
+          ) : (
+            filtered.map((doc) => (
+              <div key={doc.id} className="block hover:bg-[var(--surface-hover)] transition-colors">
+                <div className="px-6 py-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <span className="w-10 h-10 rounded-xl bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] flex items-center justify-center flex-shrink-0">
+                        <Database className="w-5 h-5 text-[var(--dash-text-tertiary)]" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-[var(--dash-text-primary)] truncate">{doc.title}</p>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-[var(--dash-text-muted)]">
+                          <span className="inline-flex items-center gap-1.5">
+                            {doc.reason === 'never_indexed' ? (
+                              <>
+                                <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
+                                Never indexed
+                              </>
+                            ) : (
+                              <>
+                                <Clock className="w-3.5 h-3.5 text-yellow-500" />
+                                Outdated
+                              </>
+                            )}
+                          </span>
+                          <span>•</span>
+                          <span>Updated {new Date(doc.updated_at).toLocaleDateString()}</span>
+                          {doc.last_indexed_at && (
+                            <>
+                              <span>•</span>
+                              <span>Last indexed {new Date(doc.last_indexed_at).toLocaleDateString()}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <Link
+                      href={`/dashboard/knowledge/${doc.id}`}
+                      className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand)] hover:underline flex-shrink-0"
+                    >
+                      View
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
