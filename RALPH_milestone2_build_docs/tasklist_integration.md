@@ -3,16 +3,16 @@
 **Project:** TyneBase Frontend-Backend Integration  
 **Milestone:** 2.5  
 **Protocol:** RALPH v2.0  
-**Last Updated:** 2026-01-26 14:19
+**Last Updated:** 2026-01-26 14:23
 
 ---
 
 ## Progress Overview
 - **Total Tasks:** 56 (excl. 0 deferred)
-- **Completed:** 31
+- **Completed:** 32
 - **In Progress:** 0
 - **Blocked:** 0
-- **Remaining:** 25
+- **Remaining:** 24
 
 ---
 
@@ -63,12 +63,15 @@
 - [x] **I5.4**: [FE] Wire Sources Health Dashboard
 - [x] **I5.5**: [FE] Wire Manual Re-Index Trigger
 - [x] **I6.1**: [FE] Wire Template List to Backend API
+- [x] **I6.2**: [FE] Wire Template Create Flow
 
 ---
 
 ## Execution History (Last 10):
 | Timestamp | Task | Action | Result |
 |-----------|------|--------|--------|
+| 2026-01-26T14:23 | I6.2 | completed | PASS |
+| 2026-01-26T14:20 | None | commit | feat(task-I6.1): wire template... |
 | 2026-01-26T14:19 | I6.1 | completed | PASS |
 | 2026-01-26T14:19 | I6.1 | started | in_progress |
 | 2026-01-26T14:15 | None | commit | feat(task-I5.5): wire manual r... |
@@ -77,5 +80,3 @@
 | 2026-01-26T14:11 | I5.4 | completed | PASS |
 | 2026-01-26T14:07 | None | commit | feat(task-I5.3): implement sou... |
 | 2026-01-26T14:06 | I5.3 | completed | PASS |
-| 2026-01-26T13:59 | None | commit | feat(task-I5.2): implement cha... |
-| 2026-01-26T13:59 | I5.2 | completed | PASS |

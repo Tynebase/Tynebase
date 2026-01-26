@@ -3,7 +3,7 @@
   "milestone": 2.5,
   "mode": "integration",
   "version": "2.0",
-  "last_updated": "2026-01-26T14:19:51.433192",
+  "last_updated": "2026-01-26T14:23:02.956780",
   "current_task": null,
   "current_phase": "Phase 6: Templates Integration",
   "status": "ready",
@@ -17,7 +17,7 @@
   "git": {
     "staging_branch": "ralph/milestone2-staging",
     "main_branch": "main",
-    "last_commit": "feat(task-I5.5): wire manual re-index trigger to backend API"
+    "last_commit": "feat(task-I6.1): wire template list to backend API with category filters"
   },
   "execution_history": [
     {
@@ -2345,6 +2345,18 @@
     {
       "timestamp": "2026-01-26T14:19:51.433192",
       "task_id": "I6.1",
+      "action": "completed",
+      "result": "PASS"
+    },
+    {
+      "timestamp": "2026-01-26T14:20:04.440496",
+      "task_id": null,
+      "action": "commit",
+      "result": "feat(task-I6.1): wire template..."
+    },
+    {
+      "timestamp": "2026-01-26T14:23:02.956780",
+      "task_id": "I6.2",
       "action": "completed",
       "result": "PASS"
     }
