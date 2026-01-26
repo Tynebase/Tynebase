@@ -6,10 +6,11 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/Toast";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
-import { Users, Palette, Key, Webhook, FileDown, Shield, ClipboardList, ChevronRight } from "lucide-react";
+import { Users, Palette, Key, Webhook, FileDown, Shield, ClipboardList, ChevronRight, Lock } from "lucide-react";
 import { updateProfile } from "@/lib/api/auth";
 
 const settingsNav = [
+  { label: "Privacy & Data", href: "/dashboard/settings/privacy", icon: Lock, description: "GDPR consents and data export" },
   { label: "Users & Permissions", href: "/dashboard/settings/users", icon: Users, description: "Manage team members and roles" },
   { label: "Branding", href: "/dashboard/settings/branding", icon: Palette, description: "Customize logo, colors, and themes" },
   { label: "SSO & Authentication", href: "/dashboard/settings/sso", icon: Key, description: "Configure single sign-on" },
