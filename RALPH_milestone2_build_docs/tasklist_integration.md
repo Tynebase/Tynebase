@@ -3,22 +3,22 @@
 **Project:** TyneBase Frontend-Backend Integration  
 **Milestone:** 2.5  
 **Protocol:** RALPH v2.0  
-**Last Updated:** 2026-01-26 13:41
+**Last Updated:** 2026-01-26 13:50
 
 ---
 
 ## Progress Overview
 - **Total Tasks:** 56 (excl. 0 deferred)
-- **Completed:** 24
+- **Completed:** 26
 - **In Progress:** 0
 - **Blocked:** 0
-- **Remaining:** 32
+- **Remaining:** 30
 
 ---
 
 ## Current Task: None
 **Status:** Ready to begin  
-**Phase:** Phase 4: AI Assistant Integration
+**Phase:** Phase 5: RAG Chat Integration
 
 ### Implementation Notes:
 - Awaiting task assignment
@@ -56,19 +56,21 @@
 - [x] **I4.4**: [FE] Wire Document Enhancement
 - [x] **I4.5**: [FE] Wire Document Import (PDF/DOCX)
 - [x] **I4.6**: [FE] Wire URL Scraping
+- [x] **I4.7**: [FE] Implement Job Status Polling UI
+- [x] **I5.1**: [FE] Wire Chat Page to RAG API
 
 ---
 
 ## Execution History (Last 10):
 | Timestamp | Task | Action | Result |
 |-----------|------|--------|--------|
+| 2026-01-26T13:50 | I5.1 | completed | PASS |
+| 2026-01-26T13:50 | I5.1 | started | in_progress |
+| 2026-01-26T13:47 | None | commit | feat(task-I4.7): implement job... |
+| 2026-01-26T13:46 | I4.7 | completed | PASS |
+| 2026-01-26T13:42 | None | commit | feat(task-I4.6): wire URL scra... |
 | 2026-01-26T13:41 | I4.6 | completed | PASS |
 | 2026-01-26T13:36 | None | commit | feat(task-I4.5): verify docume... |
 | 2026-01-26T13:35 | I4.5 | completed | PASS |
 | 2026-01-26T13:35 | I4.5 | started | in_progress |
 | 2026-01-26T12:54 | None | commit | feat(task-I4.4): wire document... |
-| 2026-01-26T12:54 | I4.4 | completed | PASS |
-| 2026-01-26T12:50 | None | commit | feat(task-I4.3): verify YouTub... |
-| 2026-01-26T12:50 | I4.3 | completed | PASS |
-| 2026-01-26T12:49 | I4.3 | started | in_progress |
-| 2026-01-26T12:48 | None | commit | feat(task-I4.2): wire video up... |
