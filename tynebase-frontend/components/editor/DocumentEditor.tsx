@@ -24,9 +24,6 @@ import {
   AlignRight,
   CheckSquare,
   Sparkles,
-  Save,
-  Eye,
-  MoreHorizontal,
   ChevronDown
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";

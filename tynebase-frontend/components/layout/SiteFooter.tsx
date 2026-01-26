@@ -32,8 +32,8 @@ export function SiteFooter({ currentPage }: SiteFooterProps) {
           <div style={{ marginTop: '20px' }}>
             <h4 className="text-sm font-semibold text-[var(--text-primary)] mb-6">How it works</h4>
             <ul className="space-y-3"><br/>
-              <li><a href="/#features" className="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">Features</a></li>
-              <li><a href="/#pricing" className="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">Pricing</a></li>
+              <li><Link href="/#features" className="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">Features</Link></li>
+              <li><Link href="/#pricing" className="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">Pricing</Link></li>
               <li><Link href="/help" className="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">Help center</Link></li>
             </ul>
           </div>

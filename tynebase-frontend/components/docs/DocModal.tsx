@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useCallback, useState } from 'react';
-import { X, Clock, Tag, ArrowLeft, Calendar } from 'lucide-react';
+import { X, Clock, ArrowLeft, Calendar } from 'lucide-react';
 import { DocArticle } from '@/lib/docs/types';
 import { allArticles } from '@/lib/docs';
 import ReactMarkdown from 'react-markdown';

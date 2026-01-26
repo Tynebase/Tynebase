@@ -3,15 +3,11 @@
 import { useState } from "react";
 import { 
   History, 
-  Clock, 
-  User, 
   RotateCcw, 
   Eye, 
   ChevronDown,
   ChevronRight,
-  GitBranch,
   Check,
-  X,
   Diff
 } from "lucide-react";
 import { Button } from "./Button";

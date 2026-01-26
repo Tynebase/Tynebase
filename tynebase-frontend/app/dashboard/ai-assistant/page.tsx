@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Sparkles, FileText, Video, Wand2, Upload, Check, Loader2, Clock, Zap, Image } from "lucide-react";
+import { Sparkles, FileText, Video, Wand2, Upload, Check, Loader2, Zap, Image } from "lucide-react";
 
 type TabType = 'prompt' | 'video' | 'enhance';
 

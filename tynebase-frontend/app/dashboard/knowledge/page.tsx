@@ -1,137 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Plus, Search, Filter, Grid, List, MoreHorizontal, FileText,
-  Folder, Clock, Users, Star, Edit3, Eye, Tag, Sparkles,
+  Clock, Users, Star, Eye, Sparkles,
   TrendingUp, GitBranch, MessageSquare, Share2, Download,
-  Copy, Trash2, Archive, ChevronDown, SortAsc, Calendar,
-  CheckCircle, AlertCircle, FileQuestion, BarChart3, Zap,
-  Globe, Lock, History, BookOpen, Database, FileSearch, HeartPulse
+  Copy, ChevronDown, SortAsc,
+  CheckCircle, AlertCircle, Zap,
+  Globe, Lock, BookOpen, Database, FileSearch, HeartPulse,
+  Loader2, AlertTriangle
 } from "lucide-react";
+import { listDocuments, type Document } from "@/lib/api/documents";
 
-const documents = [
-  {
-    id: 1,
-    title: "Getting Started Guide",
-    description: "Introduction to TyneBase and basic setup instructions for new users",
-    category: "Onboarding",
-    updatedAt: "2 hours ago",
-    author: "Sarah Chen",
-    authorAvatar: "SC",
-    starred: true,
-    state: "published",
-    views: 1234,
-    comments: 8,
-    version: "2.1",
-    lastEditor: "Mike Johnson",
-    visibility: "public",
-    aiScore: 94,
-  },
-  {
-    id: 2,
-    title: "API Authentication",
-    description: "How to authenticate requests to the TyneBase API with OAuth 2.0",
-    category: "API Docs",
-    updatedAt: "1 day ago",
-    author: "John Smith",
-    authorAvatar: "JS",
-    starred: false,
-    state: "published",
-    views: 856,
-    comments: 12,
-    version: "3.0",
-    lastEditor: "Sarah Chen",
-    visibility: "public",
-    aiScore: 87,
-  },
-  {
-    id: 3,
-    title: "Team Permissions & Roles",
-    description: "Understanding roles, permissions, and access control in your workspace",
-    category: "Admin",
-    updatedAt: "3 days ago",
-    author: "Emily Davis",
-    authorAvatar: "ED",
-    starred: true,
-    state: "draft",
-    views: 0,
-    comments: 3,
-    version: "1.2",
-    lastEditor: "Emily Davis",
-    visibility: "private",
-    aiScore: 72,
-  },
-  {
-    id: 4,
-    title: "Integrations Overview",
-    description: "Connect TyneBase with Slack, GitHub, Jira, and 50+ other tools",
-    category: "Integrations",
-    updatedAt: "1 week ago",
-    author: "Mike Johnson",
-    authorAvatar: "MJ",
-    starred: false,
-    state: "in_review",
-    views: 445,
-    comments: 6,
-    version: "1.5",
-    lastEditor: "John Smith",
-    visibility: "team",
-    aiScore: 81,
-  },
-  {
-    id: 5,
-    title: "Security Best Practices",
-    description: "Essential security guidelines, SSO setup, and compliance requirements",
-    category: "Security",
-    updatedAt: "2 weeks ago",
-    author: "Sarah Chen",
-    authorAvatar: "SC",
-    starred: false,
-    state: "published",
-    views: 2312,
-    comments: 15,
-    version: "4.2",
-    lastEditor: "Emily Davis",
-    visibility: "public",
-    aiScore: 96,
-  },
-  {
-    id: 6,
-    title: "Release Notes - v2.5",
-    description: "New features including AI summaries, bulk export, and performance improvements",
-    category: "Product",
-    updatedAt: "3 days ago",
-    author: "Product Team",
-    authorAvatar: "PT",
-    starred: true,
-    state: "published",
-    views: 678,
-    comments: 24,
-    version: "1.0",
-    lastEditor: "Mike Johnson",
-    visibility: "public",
-    aiScore: 89,
-  },
-  {
-    id: 7,
-    title: "Troubleshooting Guide",
-    description: "Common issues and solutions for sync, search, and collaboration features",
-    category: "Support",
-    updatedAt: "5 days ago",
-    author: "Support Team",
-    authorAvatar: "ST",
-    starred: false,
-    state: "needs_update",
-    views: 1567,
-    comments: 42,
-    version: "2.8",
-    lastEditor: "Sarah Chen",
-    visibility: "public",
-    aiScore: 65,
-  },
-];
+interface UIDocument {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  updatedAt: string;
+  author: string;
+  authorAvatar: string;
+  starred: boolean;
+  state: string;
+  views: number;
+  comments: number;
+  version: string;
+  lastEditor: string;
+  visibility: string;
+  aiScore: number;
+}
 
 const categories = [
   { name: "All", count: 47, color: "#6b7280", icon: BookOpen },
@@ -153,7 +51,14 @@ export default function KnowledgePage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
-  const [sortBy, setSortBy] = useState<'updated' | 'views' | 'name'>('updated');
+  const [documents, setDocuments] = useState<UIDocument[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalDocs, setTotalDocs] = useState(0);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [hasPrevPage, setHasPrevPage] = useState(false);
 
   const getStateColor = (state: string) => {
     switch (state) {
@@ -180,6 +85,72 @@ export default function KnowledgePage() {
     return "text-[var(--status-error)]";
   };
 
+  const formatRelativeTime = useCallback((dateString: string): string => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 60) return `${diffMins} ${diffMins === 1 ? 'minute' : 'minutes'} ago`;
+    if (diffHours < 24) return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+    if (diffDays < 7) return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} ${Math.floor(diffDays / 7) === 1 ? 'week' : 'weeks'} ago`;
+    return date.toLocaleDateString();
+  }, []);
+
+  const mapDocumentToUI = useCallback((doc: Document): UIDocument => {
+    const authorName = doc.users?.full_name || doc.users?.email || 'Unknown';
+    const initials = authorName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    
+    return {
+      id: doc.id,
+      title: doc.title,
+      description: doc.content.slice(0, 150) || 'No description',
+      category: 'General',
+      updatedAt: formatRelativeTime(doc.updated_at),
+      author: authorName,
+      authorAvatar: initials,
+      starred: false,
+      state: doc.status,
+      views: 0,
+      comments: 0,
+      version: '1.0',
+      lastEditor: authorName,
+      visibility: doc.is_public ? 'public' : 'private',
+      aiScore: 85,
+    };
+  }, [formatRelativeTime]);
+
+  useEffect(() => {
+    const fetchDocuments = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await listDocuments({
+          page: currentPage,
+          limit: 20,
+        });
+        
+        const uiDocs = response.data.documents.map(mapDocumentToUI);
+        setDocuments(uiDocs);
+        setTotalPages(response.data.pagination.totalPages);
+        setTotalDocs(response.data.pagination.total);
+        setHasNextPage(response.data.pagination.hasNextPage);
+        setHasPrevPage(response.data.pagination.hasPrevPage);
+      } catch (err) {
+        console.error('Failed to fetch documents:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load documents');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDocuments();
+  }, [currentPage, mapDocumentToUI]);
+
   const filteredDocs = documents.filter(doc => {
     if (selectedCategory !== "All" && doc.category !== selectedCategory) return false;
     if (searchQuery && !doc.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
@@ -193,7 +164,7 @@ export default function KnowledgePage() {
         <div>
           <h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">Knowledge Base</h1>
           <p className="text-[var(--dash-text-tertiary)] mt-1">
-            47 documents across 7 categories • Last updated 2 hours ago
+            {totalDocs} documents • {loading ? 'Loading...' : `Page ${currentPage} of ${totalPages}`}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -417,19 +388,46 @@ export default function KnowledgePage() {
         </div>
       </div>
 
-      {/* Documents Header */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-[var(--dash-text-tertiary)]">
-          Showing <span className="font-medium text-[var(--dash-text-primary)]">{filteredDocs.length}</span> documents
-        </p>
-        <div className="flex items-center gap-2 text-xs text-[var(--dash-text-muted)]">
-          <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-[var(--status-success)]" /> Published</span>
-          <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-[var(--status-warning)]" /> In Review</span>
-          <span className="flex items-center gap-1"><FileQuestion className="w-3 h-3 text-[var(--status-error)]" /> Needs Update</span>
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 text-[var(--brand)] animate-spin" />
+          <span className="ml-3 text-[var(--dash-text-secondary)]">Loading documents...</span>
         </div>
-      </div>
+      )}
 
-      <div className="flex flex-1 min-h-0 flex-col gap-4">
+      {/* Error State */}
+      {error && (
+        <div className="bg-[var(--status-error-bg)] border border-[var(--status-error)] rounded-xl p-6 flex items-start gap-4">
+          <AlertTriangle className="w-6 h-6 text-[var(--status-error)] flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="font-semibold text-[var(--status-error)] mb-1">Failed to load documents</h3>
+            <p className="text-sm text-[var(--dash-text-secondary)]">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-3 px-4 py-2 bg-[var(--status-error)] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Documents Header */}
+      {!loading && !error && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-[var(--dash-text-tertiary)]">
+            Showing <span className="font-medium text-[var(--dash-text-primary)]">{filteredDocs.length}</span> documents
+          </p>
+          <div className="flex items-center gap-2 text-xs text-[var(--dash-text-muted)]">
+            <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-[var(--status-success)]" /> Published</span>
+            <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-[var(--dash-text-muted)]" /> Draft</span>
+          </div>
+        </div>
+      )}
+
+      {!loading && !error && (
+        <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* Documents List/Grid */}
         {viewMode === 'list' ? (
           <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl overflow-hidden flex flex-col flex-1 min-h-0">
@@ -601,21 +599,33 @@ export default function KnowledgePage() {
           </div>
         )}
 
-        {/* Pagination */}
-        <div className="flex items-center justify-between pt-4 flex-shrink-0">
-          <p className="text-sm text-[var(--dash-text-muted)]">
-            Showing 1-{filteredDocs.length} of {filteredDocs.length} documents
-          </p>
-          <div className="flex items-center gap-2">
-            <button className="px-5 py-2.5 text-sm bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-secondary)] hover:border-[var(--dash-border-default)] disabled:opacity-50" disabled>
-              Previous
-            </button>
-            <button className="px-5 py-2.5 text-sm bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-secondary)] hover:border-[var(--dash-border-default)] disabled:opacity-50" disabled>
-              Next
-            </button>
+          {/* Pagination */}
+          <div className="flex items-center justify-between pt-4 flex-shrink-0">
+            <p className="text-sm text-[var(--dash-text-muted)]">
+              Showing {((currentPage - 1) * 20) + 1}-{Math.min(currentPage * 20, totalDocs)} of {totalDocs} documents
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => p - 1)}
+                disabled={!hasPrevPage}
+                className="px-5 py-2.5 text-sm bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-secondary)] hover:border-[var(--dash-border-default)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                Previous
+              </button>
+              <span className="text-sm text-[var(--dash-text-muted)] px-3">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(p => p + 1)}
+                disabled={!hasNextPage}
+                className="px-5 py-2.5 text-sm bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-secondary)] hover:border-[var(--dash-border-default)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                Next
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

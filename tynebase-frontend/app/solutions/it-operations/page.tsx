@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Server, Shield, BookOpen, Zap, ArrowRight, Check } from "lucide-react";
+import { Server, Shield, BookOpen, Zap, ArrowRight } from "lucide-react";
 
 const features = [
   { icon: Server, title: "Runbook Management", description: "Centralize incident response procedures" },

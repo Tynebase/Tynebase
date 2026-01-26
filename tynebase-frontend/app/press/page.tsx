@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
 import { Download, Mail } from "lucide-react";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";

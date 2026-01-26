@@ -88,7 +88,7 @@ const categories: Category[] = [
 export default function CategoriesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedCategories, setExpandedCategories] = useState<number[]>([1, 2]);
-  const [showNewCategoryModal, setShowNewCategoryModal] = useState(false);
+  const [, setShowNewCategoryModal] = useState(false);
 
   const filteredCategories = categories.filter(cat =>
     cat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

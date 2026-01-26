@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Bell, Moon, Sun, LogOut, User, Command } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
@@ -16,15 +16,10 @@ interface HeaderProps {
 export function Header({ onOpenCommandPalette }: HeaderProps) {
   const { user, signOut } = useAuth();
   const { branding } = useTenant();
-  const { theme, setTheme, resolvedTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const router = useRouter();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const handleSignOut = async () => {
     await signOut();

@@ -32,11 +32,11 @@ export default function ResetPasswordPage() {
         title: "Reset link sent!",
         description: "Check your email for the password reset link.",
       });
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: "error",
         title: "Failed to send reset link",
-        description: error.message,
+        description: error instanceof Error ? error.message : "An error occurred",
       });
     } finally {
       setIsLoading(false);

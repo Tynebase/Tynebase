@@ -15,8 +15,7 @@ import {
   FileJson,
   FileCode,
   File,
-  ExternalLink,
-  ChevronRight
+  ExternalLink
 } from "lucide-react";
 
 const importSources = [

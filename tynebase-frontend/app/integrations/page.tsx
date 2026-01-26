@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, MessageSquare, Code, FolderKanban, Import, Cloud, Palette, Video, Zap, Check, ExternalLink, Search } from "lucide-react";
+import { ArrowRight, MessageSquare, Code, FolderKanban, Import, Cloud, Palette, Video, Zap, ExternalLink, Search } from "lucide-react";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 

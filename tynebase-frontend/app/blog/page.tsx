@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Calendar, Clock, FileText } from "lucide-react";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";

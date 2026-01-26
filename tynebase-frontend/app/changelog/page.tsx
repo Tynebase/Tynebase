@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Sparkles, Zap, Shield, Bug } from "lucide-react";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";

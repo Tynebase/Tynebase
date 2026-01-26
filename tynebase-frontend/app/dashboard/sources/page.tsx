@@ -109,7 +109,7 @@ function TypeBadge({ type }: { type: SourceType }) {
 }
 
 function StatusBadge({ status }: { status: SourceStatus }) {
-  const map: Record<SourceStatus, { label: string; fg: string; bg: string; icon?: any }>
+  const map: Record<SourceStatus, { label: string; fg: string; bg: string; icon?: React.ElementType }>
     = {
     uploaded: { label: "Uploaded", fg: "#6b7280", bg: "#6b728015", icon: Clock },
     normalizing: { label: "Normalizing", fg: "#8b5cf6", bg: "#8b5cf615", icon: Sparkles },

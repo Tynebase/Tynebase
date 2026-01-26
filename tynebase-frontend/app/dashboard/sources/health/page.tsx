@@ -12,7 +12,7 @@ import {
   Clock,
   RefreshCcw,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
+import { Card, CardContent } from "@/components/ui/Card";
 
 export default function SourcesHealthPage() {
   return (

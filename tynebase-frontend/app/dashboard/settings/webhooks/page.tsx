@@ -8,15 +8,11 @@ import {
   Plus,
   Edit3,
   Trash2,
-  Check,
-  X,
   Copy,
   RefreshCw,
-  ExternalLink,
   AlertCircle,
   CheckCircle,
   Clock,
-  MoreHorizontal,
   Eye,
   EyeOff,
   Play,
@@ -91,7 +87,7 @@ const recentDeliveries = [
 ];
 
 export default function WebhooksPage() {
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [, setShowCreateModal] = useState(false);
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
 
   const formatTimestamp = (timestamp: string) => {

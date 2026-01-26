@@ -3,13 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
-import { Modal } from "@/components/ui/Modal";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import {
-  Users, Plus, MessageSquare, ThumbsUp, Eye, Pin, Search, TrendingUp,
-  CheckCircle2, HelpCircle, Flame, Bell, BookmarkPlus, Lock, Reply,
-  MoreHorizontal, Flag, Share2, Award, AtSign, Image as ImageIcon,
-  Link2, Code, Bold, Italic, List, Send, Filter, ArrowUp, Clock
+  Plus, MessageSquare, Eye, Pin, Search, TrendingUp,
+  CheckCircle2, HelpCircle, Bell, Award
 } from "lucide-react";
 
 // Forum categories with detailed info
@@ -118,7 +115,6 @@ export default function CommunityPage() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"recent" | "popular" | "unanswered">("recent");
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const filteredDiscussions = discussions.filter((d) => {
     if (activeCategory !== "all" && d.category !== activeCategory) return false;
@@ -133,13 +129,6 @@ export default function CommunityPage() {
     if (sortBy === "unanswered") return a.replies - b.replies;
     return 0;
   });
-
-  const stats = [
-    { label: "Discussions", value: "156", icon: MessageSquare, color: "#3b82f6" },
-    { label: "Resolved", value: "89", icon: CheckCircle2, color: "#10b981" },
-    { label: "Members", value: "234", icon: Users, color: "#8b5cf6" },
-    { label: "Active Today", value: "12", icon: Flame, color: "#f59e0b" },
-  ];
 
   const getCategoryBadge = (categoryId: string) => {
     const cat = categories.find(c => c.id === categoryId);

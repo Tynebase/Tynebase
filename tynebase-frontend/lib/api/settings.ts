@@ -8,7 +8,7 @@
  * - Account deletion (right to be forgotten)
  */
 
-import { apiGet, apiPost, apiPatch, apiDelete } from './client';
+import { apiGet, apiPatch } from './client';
 
 // ============================================================================
 // TYPE DEFINITIONS

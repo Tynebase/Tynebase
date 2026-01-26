@@ -19,8 +19,6 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const pathname = usePathname();
 
-  const isChatPage = pathname.startsWith("/dashboard/chat");
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {

@@ -25,7 +25,6 @@ export default function BrandingPage() {
   const { addToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
-  const [previewTheme, setPreviewTheme] = useState<"light" | "dark">("light");
   
   const [brandSettings, setBrandSettings] = useState({
     companyName: tenant?.name || "Your Company",

@@ -3,9 +3,9 @@
   "milestone": 2.5,
   "mode": "integration",
   "version": "2.0",
-  "last_updated": "2026-01-26T12:00:55.082311",
+  "last_updated": "2026-01-26T12:15:07.461714",
   "current_task": null,
-  "current_phase": "Phase 2: Authentication Integration",
+  "current_phase": "Phase 3: Knowledge Centre Integration",
   "status": "ready",
   "statistics": {
     "total_tasks": 88,
@@ -17,7 +17,7 @@
   "git": {
     "staging_branch": "ralph/milestone2-staging",
     "main_branch": "main",
-    "last_commit": "feat(integration-I2.3): update Auth Context with backend session"
+    "last_commit": "feat(integration-I2.5): implement automatic token refresh with 401 interceptor"
   },
   "execution_history": [
     {
@@ -2045,6 +2045,42 @@
     {
       "timestamp": "2026-01-26T12:00:55.082311",
       "task_id": "I2.4",
+      "action": "completed",
+      "result": "PASS"
+    },
+    {
+      "timestamp": "2026-01-26T12:01:09.245567",
+      "task_id": null,
+      "action": "commit",
+      "result": "feat(integration-I2.4): implem..."
+    },
+    {
+      "timestamp": "2026-01-26T12:08:36.518079",
+      "task_id": "I2.5",
+      "action": "started",
+      "result": "in_progress"
+    },
+    {
+      "timestamp": "2026-01-26T12:08:39.731789",
+      "task_id": "I2.5",
+      "action": "completed",
+      "result": "PASS"
+    },
+    {
+      "timestamp": "2026-01-26T12:08:58.802435",
+      "task_id": null,
+      "action": "commit",
+      "result": "feat(integration-I2.5): implem..."
+    },
+    {
+      "timestamp": "2026-01-26T12:10:29.836273",
+      "task_id": "I3.1",
+      "action": "started",
+      "result": "in_progress"
+    },
+    {
+      "timestamp": "2026-01-26T12:15:07.461714",
+      "task_id": "I3.1",
       "action": "completed",
       "result": "PASS"
     }

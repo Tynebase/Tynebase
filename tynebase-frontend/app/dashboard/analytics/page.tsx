@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/Button";
 import { DashboardPageHeader } from "@/components/layout/DashboardPageHeader";
 import {
-  BarChart3,
   TrendingUp,
   TrendingDown,
   Users,
@@ -15,9 +14,7 @@ import {
   Search,
   ArrowUpRight,
   ArrowDownRight,
-  Calendar,
-  Download,
-  Filter
+  Download
 } from "lucide-react";
 
 const timeRanges = [

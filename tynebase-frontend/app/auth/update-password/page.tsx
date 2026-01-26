@@ -54,11 +54,11 @@ export default function UpdatePasswordPage() {
         description: "Your password has been successfully changed.",
       });
       router.push("/login");
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: "error",
         title: "Failed to update password",
-        description: error.message,
+        description: error instanceof Error ? error.message : "An error occurred",
       });
     } finally {
       setIsLoading(false);

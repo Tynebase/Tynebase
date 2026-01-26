@@ -20,7 +20,7 @@ export async function GET(request: Request) {
       
       if (userData?.tenant_id && userData.tenants && typeof userData.tenants === 'object' && 'subdomain' in userData.tenants) {
         // User has tenant - redirect to tenant subdomain
-        const tenantSubdomain = (userData.tenants as any).subdomain;
+        const tenantSubdomain = (userData.tenants as { subdomain: string }).subdomain;
         return NextResponse.redirect(`http://${tenantSubdomain}.tynebase.com${redirect}`);
       } else {
         // Individual user without tenant - redirect to main site dashboard

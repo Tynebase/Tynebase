@@ -1,27 +1,17 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import {
     Hash,
     MessageCircle,
-    Search,
     Plus,
     MoreHorizontal,
-    Phone,
-    Video,
-    Info,
     Smile,
-    Paperclip,
     Send,
     AtSign,
-    Mic,
     Image as ImageIcon,
     ChevronDown,
     ChevronRight,
-    Bell,
-    Clock,
-    CheckCircle2,
-    X,
     ArrowLeft
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -388,7 +378,7 @@ export default function ChatPage() {
 }
 
 // Subcomponents for cleaner JSX
-function ActionBtn({ icon: Icon }: { icon: any }) {
+function ActionBtn({ icon: Icon }: { icon: React.ElementType<{ className?: string }> }) {
     return (
         <button className="p-1.5 hover:bg-[var(--surface-hover)] rounded text-[var(--dash-text-muted)] hover:text-[var(--dash-text-primary)] transition-colors">
             <Icon className="w-4 h-4" />

@@ -26,7 +26,7 @@ function LoginPageInner() {
 
     try {
       // Call backend API to login
-      const response = await login({ email, password });
+      await login({ email, password });
 
       addToast({
         type: "success",
@@ -37,11 +37,11 @@ function LoginPageInner() {
       // Redirect to dashboard
       // The login() function already stored the JWT token and tenant subdomain
       router.push(redirect);
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: "error",
         title: "Login failed",
-        description: error.message || "Invalid email or password.",
+        description: error instanceof Error ? error.message : "Invalid email or password.",
       });
     } finally {
       setIsLoading(false);

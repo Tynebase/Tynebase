@@ -81,13 +81,13 @@ export default function QueryWorkspacePage() {
     }
 
     const mapped: NormalizedDoc[] = (data ?? [])
-      .map((row: any) => ({
+      .map((row: Record<string, unknown>) => ({
         id: String(row.id),
         title: String(row.title ?? "Untitled"),
         normalizedMd: String(row.normalized_md ?? ""),
-        fileType: row.file_type ?? null,
-        fileUrl: row.file_url ?? null,
-        updatedAt: row.updated_at ?? null,
+        fileType: (row.file_type as string | null) ?? null,
+        fileUrl: (row.file_url as string | null) ?? null,
+        updatedAt: (row.updated_at as string | null) ?? null,
       }))
       .filter((d) => d.normalizedMd.trim().length > 0);
 

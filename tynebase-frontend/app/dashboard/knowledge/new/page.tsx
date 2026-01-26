@@ -26,7 +26,7 @@ export default function NewDocumentPage() {
   const [status, setStatus] = useState<"draft" | "published">("draft");
   const [isSaving, setIsSaving] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [folder, setFolder] = useState("Uncategorized");
+  const [folder] = useState("Uncategorized");
   const [visibility, setVisibility] = useState<"public" | "private" | "team">("team");
 
   const handleSave = async (data: { title: string; content: string }) => {

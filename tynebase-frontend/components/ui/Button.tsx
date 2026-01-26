@@ -55,9 +55,10 @@ type SlotProps = {
 const Slot = React.forwardRef<HTMLElement, SlotProps>(({ children, className, ...props }, forwardedRef) => {
   if (!React.isValidElement(children)) return null;
 
-  const child = children as React.ReactElement<any>;
+  const child = children as React.ReactElement<React.HTMLAttributes<HTMLElement> & { ref?: React.Ref<HTMLElement> }>;
   const mergedClassName = cn(child.props?.className, className);
-  const ref = composeRefs((child as any).ref, forwardedRef);
+  const childRef = (child as any).ref;
+  const ref = composeRefs(childRef, forwardedRef);
 
   return React.cloneElement(child, {
     ...props,
@@ -69,9 +70,9 @@ Slot.displayName = "Slot";
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild, ...props }, ref) => {
-    const Comp: any = asChild ? Slot : "button";
+    const Comp = asChild ? Slot : "button" as React.ElementType;
     return (
-      <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref as any} {...props} />
+      <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref as React.Ref<HTMLButtonElement>} {...props} />
     );
   }
 );

@@ -118,16 +118,20 @@
       "phase": "Phase 2: Authentication Integration",
       "title": "[FE] Add Token Refresh Logic",
       "action": "Implement automatic token refresh before expiry, handle 401 responses with logout and redirect",
-      "passes": false,
-      "in_progress": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-26T12:08:36.517070",
+      "completed_at": "2026-01-26T12:08:39.730245"
     },
     {
       "id": "I3.1",
       "phase": "Phase 3: Knowledge Centre Integration",
       "title": "[FE] Wire Document List to Backend API",
       "action": "Update app/dashboard/knowledge/page.tsx to fetch documents from GET /api/documents with pagination and filters",
-      "passes": false,
-      "in_progress": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-26T12:10:29.835274",
+      "completed_at": "2026-01-26T12:15:07.460360"
     },
     {
       "id": "I3.2",

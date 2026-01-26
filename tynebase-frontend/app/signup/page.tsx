@@ -89,7 +89,7 @@ export default function SignupPage() {
         ? formData.subdomain
         : formData.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-');
 
-      const response = await signup({
+      await signup({
         email: formData.email,
         password: formData.password,
         tenant_name: tenantName,
@@ -105,11 +105,11 @@ export default function SignupPage() {
       
       // Redirect to dashboard after successful signup
       router.push("/dashboard");
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: "error",
         title: "Signup failed",
-        description: error.message || "Failed to create account. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to create account. Please try again.",
       });
     } finally {
       setIsLoading(false);

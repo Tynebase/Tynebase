@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { MarkdownReader } from "@/components/ui/MarkdownReader";
-import { createClient } from "@/lib/supabase/client";
 import {
   FileSearch,
   Search,
@@ -17,7 +16,7 @@ import {
   ListTree,
   FileText,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card";
 
 type NormalizedDoc = {
   id: string;
@@ -99,6 +98,7 @@ export default function NormalizedMarkdownPage() {
   const [copied, setCopied] = useState(false);
 
   const loadDocs = useCallback(async () => {
+    const { createClient } = await import("@/lib/supabase/client");
     const supabase = createClient();
     setIsConfigured(supabase !== null);
     setIsLoading(true);
@@ -127,16 +127,16 @@ export default function NormalizedMarkdownPage() {
     }
 
     const mapped: NormalizedDoc[] = (data ?? [])
-      .map((row: any) => ({
+      .map((row: Record<string, unknown>) => ({
         id: String(row.id),
         title: String(row.title ?? "Untitled"),
         normalizedMd: String(row.normalized_md ?? ""),
-        fileType: row.file_type ?? null,
-        fileUrl: row.file_url ?? null,
-        createdAt: row.created_at ?? null,
-        updatedAt: row.updated_at ?? null,
+        fileType: (row.file_type as string | null) ?? null,
+        fileUrl: (row.file_url as string | null) ?? null,
+        createdAt: (row.created_at as string | null) ?? null,
+        updatedAt: (row.updated_at as string | null) ?? null,
       }))
-      .filter((d) => d.normalizedMd.trim().length > 0);
+      .filter((d: NormalizedDoc) => d.normalizedMd.trim().length > 0);
 
     setDocs(mapped.length ? mapped : []);
     setSelectedId((prev) => {

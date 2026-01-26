@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 

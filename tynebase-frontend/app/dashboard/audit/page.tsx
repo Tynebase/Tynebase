@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { DashboardPageHeader } from "@/components/layout/DashboardPageHeader";
 import { 
-  BarChart3, AlertTriangle, CheckCircle2, Clock, FileText, TrendingUp, TrendingDown,
+  AlertTriangle, CheckCircle2, Clock, FileText, TrendingUp, TrendingDown,
   Eye, Edit3, Calendar, Download, RefreshCw, ChevronRight, AlertCircle
 } from "lucide-react";
 

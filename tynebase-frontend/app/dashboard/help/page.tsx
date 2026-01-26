@@ -3,8 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  Search, BookOpen, MessageSquare, Video, Mail, ChevronRight,
-  FileText, Sparkles, Users, Shield, Zap, HelpCircle, ExternalLink
+  Search, BookOpen, MessageSquare, Video, Mail,
+  FileText, Sparkles, Users, Shield, Zap
 } from "lucide-react";
 
 const helpCategories = [
@@ -86,14 +86,6 @@ const helpCategories = [
       { title: "Billing & Plans", href: "#" },
     ],
   },
-];
-
-const popularArticles = [
-  { title: "How to get started with TyneBase", views: "2.3k" },
-  { title: "Setting up your first knowledge base", views: "1.8k" },
-  { title: "Using AI to generate documentation", views: "1.5k" },
-  { title: "Inviting and managing team members", views: "1.2k" },
-  { title: "Customizing your workspace branding", views: "980" },
 ];
 
 export default function HelpPage() {

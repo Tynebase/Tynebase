@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { useToast } from "@/components/ui/Toast";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Eye, EyeOff, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 
@@ -16,14 +15,18 @@ function AcceptInviteContent() {
   const token = searchParams.get("token");
   
   const [status, setStatus] = useState<"loading" | "valid" | "invalid" | "expired" | "needs_password" | "success">("loading");
-  const [invite, setInvite] = useState<any>(null);
+  const [invite, setInvite] = useState<{
+    email: string;
+    role: string;
+    tenantName: string;
+    invitedBy: string;
+    expiresAt: string;
+  } | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
-  const supabase = createClient();
 
   useEffect(() => {
     if (!token) {
@@ -61,7 +64,7 @@ function AcceptInviteContent() {
         // New user, needs to set password
         setStatus("needs_password");
       }
-    } catch (error) {
+    } catch {
       setStatus("invalid");
     }
   };
@@ -91,7 +94,7 @@ function AcceptInviteContent() {
       addToast({
         type: "success",
         title: "Welcome to the team!",
-        description: `You've joined ${invite.tenantName}`,
+        description: `You've joined ${invite?.tenantName || 'the team'}`,
       });
       
       setStatus("success");
@@ -100,11 +103,11 @@ function AcceptInviteContent() {
       setTimeout(() => {
         router.push("/dashboard");
       }, 2000);
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: "error",
         title: "Failed to accept invite",
-        description: error.message,
+        description: error instanceof Error ? error.message : "An error occurred",
       });
     } finally {
       setIsSubmitting(false);

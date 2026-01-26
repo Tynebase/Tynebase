@@ -5,15 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import {
-  Shield,
-  Key,
-  Plus,
   Check,
   AlertCircle,
   ExternalLink,
   Copy,
-  Eye,
-  EyeOff,
   Trash2,
   Settings,
   Users,
@@ -61,7 +56,6 @@ const ssoProviders = [
 
 export default function SSOPage() {
   const [activeProvider, setActiveProvider] = useState<string | null>(null);
-  const [showSecret, setShowSecret] = useState(false);
   const [configStep, setConfigStep] = useState(1);
 
   const configuredCount = ssoProviders.filter(p => p.status === "configured").length;

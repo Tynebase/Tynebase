@@ -15,9 +15,7 @@ import {
   Shield,
   Zap,
   ArrowRight,
-  Clock,
-  Star,
-  Hash,
+  Clock
 } from "lucide-react";
 
 interface CommandItem {

@@ -4,18 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   Sparkles,
-  FileText,
   CheckCircle,
-  AlertTriangle,
   Lightbulb,
-  ArrowRight,
   RefreshCw,
   Zap,
   Target,
   BookOpen,
   PenTool,
   Search,
-  ChevronDown,
 } from "lucide-react";
 
 interface Document {

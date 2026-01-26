@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Mail, MessageSquare, MapPin } from "lucide-react";
 import { useState } from "react";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";

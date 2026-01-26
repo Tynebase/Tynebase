@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/Toast";
 import {
-  User, Mail, Lock, Bell, Shield, Globe, Camera,
-  Save, Eye, EyeOff, Check
+  User, Mail, Lock, Bell, Globe, Camera,
+  Save, Eye, EyeOff
 } from "lucide-react";
 
 export default function ProfileSettingsPage() {

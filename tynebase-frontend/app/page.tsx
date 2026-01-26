@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { BookOpen, Sparkles, Users, Palette, Check, ArrowRight, Zap, Shield, Globe, FileCheck, FolderSync, Bot, UserCog, Search, FileText, MessagesSquare, Lock, BarChart3, Database, Key, UserCheck, ShieldCheck, Clock, Headphones, ShieldAlert, Settings, FileCheck2 } from "lucide-react";
+import { BookOpen, Sparkles, Users, Palette, Check, ArrowRight, Zap, Shield, Globe, FileCheck, FolderSync, Bot, UserCog, Search, FileText, MessagesSquare, Lock, BarChart3, Database, Key, UserCheck, ShieldCheck, Clock, Headphones, Settings } from "lucide-react";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { CookieConsent } from "@/components/ui/CookieConsent";
