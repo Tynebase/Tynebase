@@ -317,8 +317,9 @@
       "phase": "Phase 6: Templates Integration",
       "title": "[FE] Wire 'Use Template' Flow",
       "action": "Add use button calling POST /api/templates/:id/use, redirect to new document editor",
-      "passes": false,
-      "in_progress": false
+      "passes": true,
+      "in_progress": false,
+      "completed_at": "2026-01-26T12:24:30.000000"
     },
     {
       "id": "I7.1",
