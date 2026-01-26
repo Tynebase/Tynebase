@@ -290,8 +290,17 @@ export async function chatStream(
           
           if (parsed.type === 'chunk' && parsed.content) {
             onChunk(parsed.content);
-          } else if (parsed.type === 'sources' && parsed.sources && onSources) {
-            onSources(parsed.sources);
+          } else if (parsed.type === 'citations' && parsed.citations && onSources) {
+            // Map backend citation format to frontend ChatSource format
+            const sources: ChatSource[] = parsed.citations.map((citation: any) => ({
+              document_id: citation.documentId,
+              title: citation.metadata?.title || 'Untitled Document',
+              chunk_text: citation.content,
+              similarity_score: citation.rerankScore ?? citation.similarityScore ?? 0,
+            }));
+            onSources(sources);
+          } else if (parsed.type === 'error') {
+            throw new Error(parsed.error || 'Stream error');
           }
         } catch (e) {
           console.warn('Failed to parse SSE data:', data);

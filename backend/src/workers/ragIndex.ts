@@ -143,6 +143,7 @@ async function processIndexing(job: Job, workerId: string): Promise<void> {
             chunk_content: chunk.content,
             embedding: JSON.stringify(embedding),
             metadata: {
+              title: document.title,
               heading: chunk.metadata.heading,
               level: chunk.metadata.level,
               type: chunk.metadata.type,
@@ -175,6 +176,7 @@ async function processIndexing(job: Job, workerId: string): Promise<void> {
               chunk_content: chunk.content,
               embedding: JSON.stringify(embedding),
               metadata: {
+                title: document.title,
                 heading: chunk.metadata.heading,
                 level: chunk.metadata.level,
                 type: chunk.metadata.type,

@@ -951,6 +951,8 @@ export default async function ragRoutes(fastify: FastifyInstance) {
                   chunkIndex: c.chunkIndex,
                   content: c.chunkContent,
                   metadata: c.metadata,
+                  rerankScore: c.rerankScore,
+                  similarityScore: c.similarityScore,
                 }))
               })}\n\n`);
 
