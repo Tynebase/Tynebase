@@ -122,18 +122,25 @@ async function enhanceDocument() {
   const data = await response.json();
   
   console.log('✅ Enhancement analysis completed');
-  console.log(`   Score: ${data.data.score}%`);
-  console.log(`   Suggestions: ${data.data.suggestions.length}`);
+  console.log('   Response:', JSON.stringify(data, null, 2));
   
-  if (data.data.suggestions.length > 0) {
+  if (!data.data) {
+    throw new Error('Invalid response structure: missing data field');
+  }
+  
+  const enhanceData = data.data;
+  console.log(`   Score: ${enhanceData.score || 'N/A'}%`);
+  console.log(`   Suggestions: ${enhanceData.suggestions?.length || 0}`);
+  
+  if (enhanceData.suggestions && enhanceData.suggestions.length > 0) {
     console.log('\n   Suggestions:');
-    data.data.suggestions.forEach((s, i) => {
+    enhanceData.suggestions.forEach((s, i) => {
       console.log(`   ${i + 1}. [${s.type}] ${s.title}`);
       console.log(`      ${s.reason}`);
     });
   }
   
-  return data.data.suggestions;
+  return enhanceData.suggestions || [];
 }
 
 async function applySuggestion(suggestionType) {
