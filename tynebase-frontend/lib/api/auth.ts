@@ -136,3 +136,17 @@ export async function refreshToken(): Promise<{ access_token: string; refresh_to
   
   return response;
 }
+
+/**
+ * Update current user profile information
+ * 
+ * @param data - Profile update data (full_name, avatar_url)
+ * @returns Updated user and tenant data
+ */
+export async function updateProfile(data: {
+  full_name?: string;
+  avatar_url?: string | null;
+}): Promise<MeResponse> {
+  const { apiPatch } = await import('./client');
+  return apiPatch<MeResponse>('/api/auth/me', data);
+}

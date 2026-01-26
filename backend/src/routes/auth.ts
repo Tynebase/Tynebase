@@ -470,4 +470,150 @@ export default async function authRoutes(fastify: FastifyInstance) {
       });
     }
   });
+
+  /**
+   * PATCH /api/auth/me
+   * Updates current user profile information
+   * Requires authentication
+   */
+  fastify.patch('/api/auth/me', {
+    preHandler: async (request, reply) => {
+      const authHeader = request.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return reply.code(401).send({
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Missing or invalid authorization header',
+            details: {},
+          },
+        });
+      }
+
+      const token = authHeader.substring(7);
+      const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+
+      if (error || !user) {
+        return reply.code(401).send({
+          error: {
+            code: 'INVALID_TOKEN',
+            message: 'Invalid or expired token',
+            details: {},
+          },
+        });
+      }
+
+      // Fetch user profile to get tenant_id and role
+      const { data: userProfile, error: profileError } = await supabaseAdmin
+        .from('users')
+        .select('id, email, role, tenant_id, is_super_admin')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError || !userProfile) {
+        return reply.code(401).send({
+          error: {
+            code: 'PROFILE_NOT_FOUND',
+            message: 'User profile not found',
+            details: {},
+          },
+        });
+      }
+
+      request.user = {
+        id: userProfile.id,
+        email: userProfile.email,
+        role: userProfile.role,
+        tenant_id: userProfile.tenant_id,
+        is_super_admin: userProfile.is_super_admin,
+      };
+    },
+  }, async (request, reply) => {
+    try {
+      const userId = request.user!.id;
+      const updateSchema = z.object({
+        full_name: z.string().min(1).max(255).optional(),
+        avatar_url: z.string().url().optional().nullable(),
+      });
+
+      const body = updateSchema.parse(request.body);
+
+      // Update user profile
+      const { data: updatedUser, error } = await supabaseAdmin
+        .from('users')
+        .update({
+          full_name: body.full_name,
+          avatar_url: body.avatar_url,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', userId)
+        .select('id, email, full_name, avatar_url, role, is_super_admin, status, last_active_at, tenant_id')
+        .single();
+
+      if (error || !updatedUser) {
+        fastify.log.error({ error }, 'Failed to update user profile');
+        return reply.code(500).send({
+          error: {
+            code: 'UPDATE_FAILED',
+            message: 'Failed to update user profile',
+            details: {},
+          },
+        });
+      }
+
+      // Get tenant info
+      const { data: tenant, error: tenantError } = await supabaseAdmin
+        .from('tenants')
+        .select('id, subdomain, name, tier, settings, storage_limit')
+        .eq('id', updatedUser.tenant_id)
+        .single();
+
+      if (tenantError || !tenant) {
+        fastify.log.error({ error: tenantError }, 'Failed to fetch tenant');
+        return reply.code(500).send({
+          error: {
+            code: 'TENANT_ERROR',
+            message: 'Failed to retrieve tenant information',
+            details: {},
+          },
+        });
+      }
+
+      return reply.code(200).send({
+        success: true,
+        data: {
+          user: {
+            id: updatedUser.id,
+            email: updatedUser.email,
+            full_name: updatedUser.full_name,
+            avatar_url: updatedUser.avatar_url,
+            role: updatedUser.role,
+            is_super_admin: updatedUser.is_super_admin,
+            status: updatedUser.status,
+            last_active_at: updatedUser.last_active_at,
+          },
+          tenant: tenant,
+        },
+        message: 'Profile updated successfully',
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.code(400).send({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid input data',
+            details: error.errors,
+          },
+        });
+      }
+
+      fastify.log.error({ error }, 'Unexpected error in PATCH /me endpoint');
+      return reply.code(500).send({
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'An unexpected error occurred',
+          details: {},
+        },
+      });
+    }
+  });
 }

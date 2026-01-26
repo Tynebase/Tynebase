@@ -2,11 +2,12 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/contexts/TenantContext";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/Toast";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Users, Palette, Key, Webhook, FileDown, Shield, ClipboardList, ChevronRight } from "lucide-react";
+import { updateProfile } from "@/lib/api/auth";
 
 const settingsNav = [
   { label: "Users & Permissions", href: "/dashboard/settings/users", icon: Users, description: "Manage team members and roles" },
@@ -19,23 +20,50 @@ const settingsNav = [
 ];
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { tenant } = useTenant();
   const { addToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [companyName, setCompanyName] = useState(tenant?.name || "");
-  const [fullName, setFullName] = useState(user?.full_name || "");
+  const [companyName, setCompanyName] = useState("");
+  const [fullName, setFullName] = useState("");
+
+  // Initialize form values from user context
+  useEffect(() => {
+    if (user) {
+      setFullName(user.full_name || "");
+    }
+    if (tenant) {
+      setCompanyName(tenant.name || "");
+    }
+  }, [user, tenant]);
 
   const handleSave = async () => {
+    if (!user) return;
+
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      // Update user profile
+      await updateProfile({
+        full_name: fullName,
+      });
+
+      // Refresh user context to get updated data
+      await refreshUser();
+
       addToast({
         type: "success",
         title: "Settings saved",
-        description: "Your settings have been updated successfully.",
+        description: "Your profile has been updated successfully.",
       });
+    } catch (error) {
+      addToast({
+        type: "error",
+        title: "Save failed",
+        description: error instanceof Error ? error.message : "Failed to update profile. Please try again.",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (

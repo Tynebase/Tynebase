@@ -3,22 +3,22 @@
 **Project:** TyneBase Frontend-Backend Integration  
 **Milestone:** 2.5  
 **Protocol:** RALPH v2.0  
-**Last Updated:** 2026-01-26 14:23
+**Last Updated:** 2026-01-26 14:31
 
 ---
 
 ## Progress Overview
 - **Total Tasks:** 56 (excl. 0 deferred)
-- **Completed:** 32
+- **Completed:** 34
 - **In Progress:** 0
 - **Blocked:** 0
-- **Remaining:** 24
+- **Remaining:** 22
 
 ---
 
 ## Current Task: None
 **Status:** Ready to begin  
-**Phase:** Phase 6: Templates Integration
+**Phase:** Phase 7: Settings Integration
 
 ### Implementation Notes:
 - Awaiting task assignment
@@ -64,19 +64,21 @@
 - [x] **I5.5**: [FE] Wire Manual Re-Index Trigger
 - [x] **I6.1**: [FE] Wire Template List to Backend API
 - [x] **I6.2**: [FE] Wire Template Create Flow
+- [x] **I6.3**: [FE] Wire 'Use Template' Flow
+- [x] **I7.1**: [FE] Wire Profile Settings
 
 ---
 
 ## Execution History (Last 10):
 | Timestamp | Task | Action | Result |
 |-----------|------|--------|--------|
+| 2026-01-26T14:31 | I7.1 | completed | PASS |
+| 2026-01-26T14:31 | I7.1 | started | in_progress |
+| 2026-01-26T14:24 | I6.3 | completed | PASS |
+| 2026-01-26T14:24 | I6.3 | started | in_progress |
+| 2026-01-26T14:23 | None | commit | feat(task-I6.2): wire template... |
 | 2026-01-26T14:23 | I6.2 | completed | PASS |
 | 2026-01-26T14:20 | None | commit | feat(task-I6.1): wire template... |
 | 2026-01-26T14:19 | I6.1 | completed | PASS |
 | 2026-01-26T14:19 | I6.1 | started | in_progress |
 | 2026-01-26T14:15 | None | commit | feat(task-I5.5): wire manual r... |
-| 2026-01-26T14:15 | I5.5 | completed | PASS |
-| 2026-01-26T14:11 | None | commit | feat(task-I5.4): wire sources ... |
-| 2026-01-26T14:11 | I5.4 | completed | PASS |
-| 2026-01-26T14:07 | None | commit | feat(task-I5.3): implement sou... |
-| 2026-01-26T14:06 | I5.3 | completed | PASS |
