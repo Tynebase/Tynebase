@@ -6,6 +6,7 @@ import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
 import { HocuspocusProvider } from "@hocuspocus/provider";
 import { useEffect, useState, useCallback } from "react";
+import { EnhanceSuggestionsPanel } from "./EnhanceSuggestionsPanel";
 import * as Y from "yjs";
 import {
   Bold,
@@ -90,6 +91,7 @@ export function CollaborativeEditor({
   const [activeUsers, setActiveUsers] = useState(0);
   const [wordCount, setWordCount] = useState(0);
   const [charCount, setCharCount] = useState(0);
+  const [showEnhancePanel, setShowEnhancePanel] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -185,9 +187,10 @@ export function CollaborativeEditor({
   }
 
   return (
-    <div className="flex flex-col h-full bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] overflow-hidden">
-      {/* Toolbar */}
-      <div className="flex items-center gap-1 p-2 border-b border-[var(--border-subtle)] bg-[var(--surface-ground)] flex-wrap">
+    <div className="flex h-full gap-0">
+      <div className="flex flex-col flex-1 bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] overflow-hidden">
+        {/* Toolbar */}
+        <div className="flex items-center gap-1 p-2 border-b border-[var(--border-subtle)] bg-[var(--surface-ground)] flex-wrap">
         {/* Text Style Dropdown */}
         <div className="relative">
           <button className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-card)] rounded-md">
@@ -318,10 +321,15 @@ export function CollaborativeEditor({
           )}
         </div>
 
-        {/* AI Assist */}
-        <Button variant="ghost" className="gap-2 text-[var(--accent-purple)]" disabled={readOnly}>
+        {/* AI Enhance */}
+        <Button 
+          variant="ghost" 
+          className="gap-2 text-[var(--accent-purple)]" 
+          disabled={readOnly}
+          onClick={() => setShowEnhancePanel(!showEnhancePanel)}
+        >
           <Sparkles className="w-4 h-4" />
-          AI Assist
+          {showEnhancePanel ? 'Hide Enhance' : 'AI Enhance'}
         </Button>
       </div>
 
@@ -362,6 +370,15 @@ export function CollaborativeEditor({
           )}
         </div>
       </div>
+      </div>
+
+      {/* Enhance Panel */}
+      {showEnhancePanel && (
+        <EnhanceSuggestionsPanel
+          documentId={documentId}
+          onClose={() => setShowEnhancePanel(false)}
+        />
+      )}
     </div>
   );
 }

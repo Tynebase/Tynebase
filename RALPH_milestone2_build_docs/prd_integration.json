@@ -196,24 +196,28 @@
       "phase": "Phase 4: AI Assistant Integration",
       "title": "[FE] Wire Video Upload & Processing",
       "action": "Implement video upload UI calling POST /api/ai/video/upload, track job progress, display transcript",
-      "passes": false,
-      "in_progress": false
+      "passes": true,
+      "in_progress": false,
+      "completed_at": "2026-01-26T12:48:18.778019"
     },
     {
       "id": "I4.3",
       "phase": "Phase 4: AI Assistant Integration",
       "title": "[FE] Wire YouTube URL Ingestion",
       "action": "Add YouTube URL input calling POST /api/ai/video/youtube, poll job status, display transcript",
-      "passes": false,
-      "in_progress": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-26T12:49:59.285229",
+      "completed_at": "2026-01-26T12:50:02.447399"
     },
     {
       "id": "I4.4",
       "phase": "Phase 4: AI Assistant Integration",
       "title": "[FE] Wire Document Enhancement",
       "action": "Add enhance button in editor calling POST /api/ai/enhance, display suggestions, apply with POST /api/ai/enhance/:id/apply",
-      "passes": false,
-      "in_progress": false
+      "passes": true,
+      "in_progress": false,
+      "completed_at": "2026-01-26T12:54:21.039123"
     },
     {
       "id": "I4.5",

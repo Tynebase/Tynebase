@@ -3,22 +3,22 @@
 **Project:** TyneBase Frontend-Backend Integration  
 **Milestone:** 2.5  
 **Protocol:** RALPH v2.0  
-**Last Updated:** 2026-01-26 12:44
+**Last Updated:** 2026-01-26 12:54
 
 ---
 
 ## Progress Overview
 - **Total Tasks:** 56 (excl. 0 deferred)
-- **Completed:** 19
+- **Completed:** 22
 - **In Progress:** 0
 - **Blocked:** 0
-- **Remaining:** 37
+- **Remaining:** 34
 
 ---
 
 ## Current Task: None
 **Status:** Ready to begin  
-**Phase:** Phase 3: Knowledge Centre Integration
+**Phase:** Phase 4: AI Assistant Integration
 
 ### Implementation Notes:
 - Awaiting task assignment
@@ -51,19 +51,22 @@
 - [x] **I3.5**: [FE] Wire Document Publish Flow
 - [x] **I3.6**: [FE] Integrate Real-Time Collaboration
 - [x] **I4.1**: [FE] Wire 'From Prompt' Generation
+- [x] **I4.2**: [FE] Wire Video Upload & Processing
+- [x] **I4.3**: [FE] Wire YouTube URL Ingestion
+- [x] **I4.4**: [FE] Wire Document Enhancement
 
 ---
 
 ## Execution History (Last 10):
 | Timestamp | Task | Action | Result |
 |-----------|------|--------|--------|
+| 2026-01-26T12:54 | I4.4 | completed | PASS |
+| 2026-01-26T12:50 | None | commit | feat(task-I4.3): verify YouTub... |
+| 2026-01-26T12:50 | I4.3 | completed | PASS |
+| 2026-01-26T12:49 | I4.3 | started | in_progress |
+| 2026-01-26T12:48 | None | commit | feat(task-I4.2): wire video up... |
+| 2026-01-26T12:48 | I4.2 | completed | PASS |
+| 2026-01-26T12:44 | None | commit | feat(task-I4.1): wire AI promp... |
 | 2026-01-26T12:44 | I4.1 | completed | PASS |
 | 2026-01-26T12:39 | None | commit | feat(task-I3.6): integrate rea... |
 | 2026-01-26T12:38 | I3.6 | completed | PASS |
-| 2026-01-26T12:38 | I3.6 | started | in_progress |
-| 2026-01-26T12:34 | None | commit | feat(task-I3.5): verify docume... |
-| 2026-01-26T12:33 | I3.5 | completed | PASS |
-| 2026-01-26T12:32 | I3.5 | started | in_progress |
-| 2026-01-26T12:31 | None | commit | chore: update all API URLs to ... |
-| 2026-01-26T12:30 | None | commit | feat(integration-I3.4): wire d... |
-| 2026-01-26T12:29 | I3.4 | completed | PASS |
