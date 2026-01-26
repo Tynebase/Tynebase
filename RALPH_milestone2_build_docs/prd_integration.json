@@ -280,16 +280,18 @@
       "phase": "Phase 5: RAG Chat Integration",
       "title": "[FE] Wire Sources Health Dashboard",
       "action": "Update app/dashboard/sources/page.tsx to call GET /api/sources/health, display index status",
-      "passes": false,
-      "in_progress": false
+      "passes": true,
+      "in_progress": false,
+      "completed_at": "2026-01-26T14:11:05.394131"
     },
     {
       "id": "I5.5",
       "phase": "Phase 5: RAG Chat Integration",
       "title": "[FE] Wire Manual Re-Index Trigger",
       "action": "Add re-index button calling POST /api/sources/:id/reindex, track job status",
-      "passes": false,
-      "in_progress": false
+      "passes": true,
+      "in_progress": false,
+      "completed_at": "2026-01-26T14:15:06.803782"
     },
     {
       "id": "I6.1",

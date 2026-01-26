@@ -430,3 +430,31 @@ export async function pollJobUntilComplete(
   
   throw new Error('Job polling timeout - maximum attempts reached');
 }
+
+// ============================================================================
+// SOURCE MANAGEMENT FUNCTIONS
+// ============================================================================
+
+export interface ReindexResponse {
+  success: true;
+  data: {
+    message: string;
+    job_id: string;
+    status: string;
+    document_id: string;
+    document_title: string;
+  };
+}
+
+/**
+ * Trigger manual re-indexing of a document
+ * 
+ * Creates a background job to re-index a document's embeddings.
+ * Requires admin role. Skips if a re-index job is already pending.
+ * 
+ * @param documentId - Document UUID to re-index
+ * @returns Job details for tracking re-index progress
+ */
+export async function reindexDocument(documentId: string): Promise<ReindexResponse> {
+  return apiPost<ReindexResponse>(`/api/sources/${documentId}/reindex`, {});
+}

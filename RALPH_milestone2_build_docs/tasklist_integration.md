@@ -3,16 +3,16 @@
 **Project:** TyneBase Frontend-Backend Integration  
 **Milestone:** 2.5  
 **Protocol:** RALPH v2.0  
-**Last Updated:** 2026-01-26 14:06
+**Last Updated:** 2026-01-26 14:15
 
 ---
 
 ## Progress Overview
 - **Total Tasks:** 56 (excl. 0 deferred)
-- **Completed:** 28
+- **Completed:** 30
 - **In Progress:** 0
 - **Blocked:** 0
-- **Remaining:** 28
+- **Remaining:** 26
 
 ---
 
@@ -60,19 +60,21 @@
 - [x] **I5.1**: [FE] Wire Chat Page to RAG API
 - [x] **I5.2**: [FE] Implement Chat History UI
 - [x] **I5.3**: [FE] Display Source Citations
+- [x] **I5.4**: [FE] Wire Sources Health Dashboard
+- [x] **I5.5**: [FE] Wire Manual Re-Index Trigger
 
 ---
 
 ## Execution History (Last 10):
 | Timestamp | Task | Action | Result |
 |-----------|------|--------|--------|
+| 2026-01-26T14:15 | I5.5 | completed | PASS |
+| 2026-01-26T14:11 | None | commit | feat(task-I5.4): wire sources ... |
+| 2026-01-26T14:11 | I5.4 | completed | PASS |
+| 2026-01-26T14:07 | None | commit | feat(task-I5.3): implement sou... |
 | 2026-01-26T14:06 | I5.3 | completed | PASS |
 | 2026-01-26T13:59 | None | commit | feat(task-I5.2): implement cha... |
 | 2026-01-26T13:59 | I5.2 | completed | PASS |
 | 2026-01-26T13:50 | None | commit | feat(task-I5.1): create AI cha... |
 | 2026-01-26T13:50 | I5.1 | completed | PASS |
 | 2026-01-26T13:50 | I5.1 | started | in_progress |
-| 2026-01-26T13:47 | None | commit | feat(task-I4.7): implement job... |
-| 2026-01-26T13:46 | I4.7 | completed | PASS |
-| 2026-01-26T13:42 | None | commit | feat(task-I4.6): wire URL scra... |
-| 2026-01-26T13:41 | I4.6 | completed | PASS |

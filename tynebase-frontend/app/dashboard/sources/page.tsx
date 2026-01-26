@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { apiGet } from "@/lib/api/client";
+import { reindexDocument, pollJobUntilComplete, Job } from "@/lib/api/ai";
 
 type SourceType = "pdf" | "docx" | "md";
 
@@ -113,6 +114,7 @@ export default function SourcesPage() {
   const [healthData, setHealthData] = useState<SourceHealthResponse['data'] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reindexingDocs, setReindexingDocs] = useState<Record<string, { jobId: string; progress: number; status: string }>>({});
 
   const fetchHealthData = async () => {
     try {
@@ -131,6 +133,55 @@ export default function SourcesPage() {
   useEffect(() => {
     fetchHealthData();
   }, []);
+
+  const handleReindex = async (documentId: string, documentTitle: string) => {
+    try {
+      const response = await reindexDocument(documentId);
+      const jobId = response.data.job_id;
+      
+      setReindexingDocs(prev => ({
+        ...prev,
+        [documentId]: { jobId, progress: 0, status: 'pending' }
+      }));
+
+      pollJobUntilComplete(
+        jobId,
+        (job: Job) => {
+          setReindexingDocs(prev => ({
+            ...prev,
+            [documentId]: {
+              jobId,
+              progress: job.progress,
+              status: job.status
+            }
+          }));
+        },
+        2000,
+        150
+      ).then((finalJob) => {
+        if (finalJob.status === 'completed') {
+          setTimeout(() => {
+            setReindexingDocs(prev => {
+              const updated = { ...prev };
+              delete updated[documentId];
+              return updated;
+            });
+            fetchHealthData();
+          }, 2000);
+        }
+      }).catch((err) => {
+        console.error('Re-index polling failed:', err);
+        setReindexingDocs(prev => {
+          const updated = { ...prev };
+          delete updated[documentId];
+          return updated;
+        });
+      });
+    } catch (err) {
+      console.error('Failed to trigger re-index:', err);
+      alert(err instanceof Error ? err.message : 'Failed to trigger re-index');
+    }
+  };
 
   const filtered = useMemo(() => {
     if (!healthData) return [];
@@ -309,13 +360,34 @@ export default function SourcesPage() {
                         </div>
                       </div>
                     </div>
-                    <Link
-                      href={`/dashboard/knowledge/${doc.id}`}
-                      className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand)] hover:underline flex-shrink-0"
-                    >
-                      View
-                      <ArrowRight className="w-4 h-4" />
-                    </Link>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      {reindexingDocs[doc.id] ? (
+                        <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+                          <RefreshCw className="w-4 h-4 text-blue-600 animate-spin" />
+                          <span className="text-sm font-medium text-blue-700">
+                            {reindexingDocs[doc.id].status === 'pending' && 'Queued...'}
+                            {reindexingDocs[doc.id].status === 'processing' && `Indexing ${reindexingDocs[doc.id].progress}%`}
+                            {reindexingDocs[doc.id].status === 'completed' && 'Complete!'}
+                            {reindexingDocs[doc.id].status === 'failed' && 'Failed'}
+                          </span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleReindex(doc.id, doc.title)}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-lg text-sm font-semibold transition-colors"
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                          Re-Index
+                        </button>
+                      )}
+                      <Link
+                        href={`/dashboard/knowledge/${doc.id}`}
+                        className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--dash-text-secondary)] hover:text-[var(--brand)] transition-colors"
+                      >
+                        View
+                        <ArrowRight className="w-4 h-4" />
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </div>
