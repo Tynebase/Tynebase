@@ -1,0 +1,464 @@
+{
+  "project": "TyneBase Frontend-Backend Integration",
+  "milestone": "2.5",
+  "version": "1.0",
+  "description": "Connect frontend UI components to backend API endpoints, deploy, and validate end-to-end functionality",
+  "tasks": [
+    {
+      "id": "I1.1",
+      "phase": "Phase 1: API Client Setup",
+      "title": "[FE] Create Backend API Client Configuration",
+      "action": "Create lib/api/client.ts with base URL configuration, auth token injection, tenant header injection, and error handling",
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-26T11:13:18.057786",
+      "completed_at": "2026-01-26T11:14:09.585930"
+    },
+    {
+      "id": "I1.2",
+      "phase": "Phase 1: API Client Setup",
+      "title": "[FE] Create Type Definitions for API Responses",
+      "action": "Create types/api.ts with TypeScript interfaces matching backend response schemas (User, Tenant, Document, Template, Job, etc.)",
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-26T11:14:25.047438",
+      "completed_at": "2026-01-26T11:15:20.268004"
+    },
+    {
+      "id": "I1.3",
+      "phase": "Phase 1: API Client Setup",
+      "title": "[FE] Create API Service Layer - Auth",
+      "action": "Create lib/api/auth.ts with signup(), login(), getMe(), logout() functions calling backend /api/auth/* endpoints",
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-26T11:15:32.500995",
+      "completed_at": "2026-01-26T11:16:46.027571"
+    },
+    {
+      "id": "I1.4",
+      "phase": "Phase 1: API Client Setup",
+      "title": "[FE] Create API Service Layer - Documents",
+      "action": "Create lib/api/documents.ts with listDocuments(), getDocument(), createDocument(), updateDocument(), deleteDocument(), publishDocument() functions",
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-26T11:19:10.206169",
+      "completed_at": "2026-01-26T11:19:12.937986"
+    },
+    {
+      "id": "I1.5",
+      "phase": "Phase 1: API Client Setup",
+      "title": "[FE] Create API Service Layer - Templates",
+      "action": "Create lib/api/templates.ts with listTemplates(), createTemplate(), useTemplate() functions",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I1.6",
+      "phase": "Phase 1: API Client Setup",
+      "title": "[FE] Create API Service Layer - AI Operations",
+      "action": "Create lib/api/ai.ts with generate(), chat(), search(), enhance(), getJobStatus() functions",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I1.7",
+      "phase": "Phase 1: API Client Setup",
+      "title": "[FE] Create API Service Layer - GDPR & Settings",
+      "action": "Create lib/api/settings.ts with getConsents(), updateConsents(), updateTenant(), exportData() functions",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I2.1",
+      "phase": "Phase 2: Authentication Integration",
+      "title": "[FE] Wire Login Page to Backend API",
+      "action": "Update app/login/page.tsx to call backend POST /api/auth/login, store JWT token, redirect to dashboard",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I2.2",
+      "phase": "Phase 2: Authentication Integration",
+      "title": "[FE] Wire Signup Page to Backend API",
+      "action": "Update app/signup/page.tsx to call backend POST /api/auth/signup with tenant creation flow",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I2.3",
+      "phase": "Phase 2: Authentication Integration",
+      "title": "[FE] Create Auth Context with Backend Session",
+      "action": "Update contexts/AuthContext.tsx to fetch user from GET /api/auth/me on load, manage JWT token lifecycle",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I2.4",
+      "phase": "Phase 2: Authentication Integration",
+      "title": "[FE] Implement Protected Route Middleware",
+      "action": "Update middleware.ts to validate JWT token presence, redirect unauthenticated users to /login",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I2.5",
+      "phase": "Phase 2: Authentication Integration",
+      "title": "[FE] Add Token Refresh Logic",
+      "action": "Implement automatic token refresh before expiry, handle 401 responses with logout and redirect",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I3.1",
+      "phase": "Phase 3: Knowledge Centre Integration",
+      "title": "[FE] Wire Document List to Backend API",
+      "action": "Update app/dashboard/knowledge/page.tsx to fetch documents from GET /api/documents with pagination and filters",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I3.2",
+      "phase": "Phase 3: Knowledge Centre Integration",
+      "title": "[FE] Wire Document View/Edit to Backend API",
+      "action": "Update document detail page to fetch from GET /api/documents/:id and save with PATCH /api/documents/:id",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I3.3",
+      "phase": "Phase 3: Knowledge Centre Integration",
+      "title": "[FE] Wire Document Create Flow",
+      "action": "Update create document UI to call POST /api/documents, redirect to editor on success",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I3.4",
+      "phase": "Phase 3: Knowledge Centre Integration",
+      "title": "[FE] Wire Document Delete Flow",
+      "action": "Add confirmation dialog and call DELETE /api/documents/:id, refresh list on success",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I3.5",
+      "phase": "Phase 3: Knowledge Centre Integration",
+      "title": "[FE] Wire Document Publish Flow",
+      "action": "Add publish button calling POST /api/documents/:id/publish, update UI state on success",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I3.6",
+      "phase": "Phase 3: Knowledge Centre Integration",
+      "title": "[FE] Integrate Real-Time Collaboration",
+      "action": "Connect TipTap editor to Hocuspocus WebSocket server for real-time collaboration on documents",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I4.1",
+      "phase": "Phase 4: AI Assistant Integration",
+      "title": "[FE] Wire 'From Prompt' Generation",
+      "action": "Update AI Assistant page to call POST /api/ai/generate, poll job status, display results",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I4.2",
+      "phase": "Phase 4: AI Assistant Integration",
+      "title": "[FE] Wire Video Upload & Processing",
+      "action": "Implement video upload UI calling POST /api/ai/video/upload, track job progress, display transcript",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I4.3",
+      "phase": "Phase 4: AI Assistant Integration",
+      "title": "[FE] Wire YouTube URL Ingestion",
+      "action": "Add YouTube URL input calling POST /api/ai/video/youtube, poll job status, display transcript",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I4.4",
+      "phase": "Phase 4: AI Assistant Integration",
+      "title": "[FE] Wire Document Enhancement",
+      "action": "Add enhance button in editor calling POST /api/ai/enhance, display suggestions, apply with POST /api/ai/enhance/:id/apply",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I4.5",
+      "phase": "Phase 4: AI Assistant Integration",
+      "title": "[FE] Wire Document Import (PDF/DOCX)",
+      "action": "Add file import UI calling POST /api/documents/import, track job status, navigate to created document",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I4.6",
+      "phase": "Phase 4: AI Assistant Integration",
+      "title": "[FE] Wire URL Scraping",
+      "action": "Add URL input calling POST /api/ai/scrape, display extracted markdown for user to save",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I4.7",
+      "phase": "Phase 4: AI Assistant Integration",
+      "title": "[FE] Implement Job Status Polling UI",
+      "action": "Create reusable job status component calling GET /api/jobs/:id with progress indicator and error handling",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I5.1",
+      "phase": "Phase 5: RAG Chat Integration",
+      "title": "[FE] Wire Chat Page to RAG API",
+      "action": "Update app/dashboard/chat/page.tsx to call POST /api/ai/chat with streaming response display",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I5.2",
+      "phase": "Phase 5: RAG Chat Integration",
+      "title": "[FE] Implement Chat History UI",
+      "action": "Store chat history in local state, display conversation thread with user/assistant messages",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I5.3",
+      "phase": "Phase 5: RAG Chat Integration",
+      "title": "[FE] Display Source Citations",
+      "action": "Parse citations from RAG response, display source documents with links to original content",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I5.4",
+      "phase": "Phase 5: RAG Chat Integration",
+      "title": "[FE] Wire Sources Health Dashboard",
+      "action": "Update app/dashboard/sources/page.tsx to call GET /api/sources/health, display index status",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I5.5",
+      "phase": "Phase 5: RAG Chat Integration",
+      "title": "[FE] Wire Manual Re-Index Trigger",
+      "action": "Add re-index button calling POST /api/sources/:id/reindex, track job status",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I6.1",
+      "phase": "Phase 6: Templates Integration",
+      "title": "[FE] Wire Template List to Backend API",
+      "action": "Update app/dashboard/templates/page.tsx to fetch from GET /api/templates with category filters",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I6.2",
+      "phase": "Phase 6: Templates Integration",
+      "title": "[FE] Wire Template Create Flow",
+      "action": "Add create template UI calling POST /api/templates, redirect to template detail on success",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I6.3",
+      "phase": "Phase 6: Templates Integration",
+      "title": "[FE] Wire 'Use Template' Flow",
+      "action": "Add use button calling POST /api/templates/:id/use, redirect to new document editor",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I7.1",
+      "phase": "Phase 7: Settings Integration",
+      "title": "[FE] Wire Profile Settings",
+      "action": "Update settings page to load user profile from GET /api/auth/me, save changes",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I7.2",
+      "phase": "Phase 7: Settings Integration",
+      "title": "[FE] Wire Tenant Branding Settings",
+      "action": "Update branding settings to call PATCH /api/tenants/:id with branding configuration",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I7.3",
+      "phase": "Phase 7: Settings Integration",
+      "title": "[FE] Wire GDPR Consent Management",
+      "action": "Update privacy settings to fetch GET /api/gdpr/consents and save with PATCH /api/gdpr/consents",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I7.4",
+      "phase": "Phase 7: Settings Integration",
+      "title": "[FE] Wire Data Export",
+      "action": "Add export button calling GET /api/gdpr/export, trigger file download",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I8.1",
+      "phase": "Phase 8: Environment Configuration",
+      "title": "[FE] Configure Production Environment Variables",
+      "action": "Update .env.production with backend API URL, WebSocket URL, and Supabase keys",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I8.2",
+      "phase": "Phase 8: Environment Configuration",
+      "title": "[FE] Configure Vercel Deployment",
+      "action": "Update vercel.json with build settings, environment variables, and API rewrites if needed",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I8.3",
+      "phase": "Phase 8: Environment Configuration",
+      "title": "[BE] Verify Backend CORS Configuration",
+      "action": "Update backend CORS settings to allow frontend domain (tynebase.vercel.app or custom domain)",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I8.4",
+      "phase": "Phase 8: Environment Configuration",
+      "title": "[BE] Verify Fly.io Environment Variables",
+      "action": "Confirm all required secrets are set in Fly.io: SUPABASE_URL, SUPABASE_SECRET_KEY, AI API keys",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I9.1",
+      "phase": "Phase 9: Deployment & Testing",
+      "title": "[Deploy] Deploy Frontend to Vercel",
+      "action": "Run vercel deploy --prod, verify deployment succeeds, check build logs",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I9.2",
+      "phase": "Phase 9: Deployment & Testing",
+      "title": "[Deploy] Verify Backend Health",
+      "action": "Confirm backend API responds at https://tynebase-backend.fly.dev/health",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I9.3",
+      "phase": "Phase 9: Deployment & Testing",
+      "title": "[Deploy] Verify Collaboration Server",
+      "action": "Confirm WebSocket server responds at wss://tynebase-collab.fly.dev",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I10.1",
+      "phase": "Phase 10: End-to-End Validation",
+      "title": "[E2E] Test Signup \u2192 Login \u2192 Dashboard Flow",
+      "action": "Complete user signup, login, verify dashboard loads with user context",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I10.2",
+      "phase": "Phase 10: End-to-End Validation",
+      "title": "[E2E] Test Document CRUD Flow",
+      "action": "Create document, edit content, save, refresh, verify persistence, delete document",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I10.3",
+      "phase": "Phase 10: End-to-End Validation",
+      "title": "[E2E] Test AI Generation Flow",
+      "action": "Submit prompt, wait for job completion, verify document created with AI content",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I10.4",
+      "phase": "Phase 10: End-to-End Validation",
+      "title": "[E2E] Test RAG Chat Flow",
+      "action": "Index documents, ask question, verify response includes relevant context",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I10.5",
+      "phase": "Phase 10: End-to-End Validation",
+      "title": "[E2E] Test Real-Time Collaboration",
+      "action": "Open same document in two browsers, type in both, verify changes sync",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I10.6",
+      "phase": "Phase 10: End-to-End Validation",
+      "title": "[E2E] Test Template Use Flow",
+      "action": "Browse templates, use template, verify new document created with template content",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I10.7",
+      "phase": "Phase 10: End-to-End Validation",
+      "title": "[E2E] Test Settings & GDPR Flow",
+      "action": "Update consent preferences, export data, verify data download",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I11.1",
+      "phase": "Phase 11: Error Handling & Polish",
+      "title": "[FE] Implement Global Error Boundary",
+      "action": "Add error boundary component to catch and display API errors gracefully",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I11.2",
+      "phase": "Phase 11: Error Handling & Polish",
+      "title": "[FE] Add Loading States",
+      "action": "Add skeleton loaders and spinners for all async operations",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I11.3",
+      "phase": "Phase 11: Error Handling & Polish",
+      "title": "[FE] Add Toast Notifications",
+      "action": "Implement toast notifications for success/error feedback on CRUD operations",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I11.4",
+      "phase": "Phase 11: Error Handling & Polish",
+      "title": "[FE] Handle Rate Limit Errors",
+      "action": "Display user-friendly message when rate limited (429), show retry countdown",
+      "passes": false,
+      "in_progress": false
+    },
+    {
+      "id": "I11.5",
+      "phase": "Phase 11: Error Handling & Polish",
+      "title": "[FE] Handle Insufficient Credits",
+      "action": "Display message when AI operation fails due to insufficient credits, link to billing",
+      "passes": false,
+      "in_progress": false
+    }
+  ]
+}
