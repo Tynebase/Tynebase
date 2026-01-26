@@ -3,6 +3,7 @@
 import { useTenant } from "@/contexts/TenantContext";
 import { useState } from "react";
 import { useToast } from "@/components/ui/Toast";
+import { updateTenant } from "@/lib/api/settings";
 import Link from "next/link";
 import { 
   Upload, Palette, Type, Globe, Eye, Check, Crown, Sparkles,
@@ -47,15 +48,47 @@ export default function BrandingPage() {
   const canUseCustomDomain = tierConfig.customDomain;
 
   const handleSave = async () => {
+    if (!tenant?.id) {
+      addToast({
+        type: "error",
+        title: "Error",
+        description: "Tenant information not available",
+      });
+      return;
+    }
+
     setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    document.documentElement.style.setProperty("--brand", brandSettings.primaryColor);
-    addToast({
-      type: "success",
-      title: "Branding updated",
-      description: "Your white-label settings have been saved and applied.",
-    });
-    setIsLoading(false);
+    try {
+      // Call backend API to update tenant settings
+      await updateTenant(tenant.id, {
+        name: brandSettings.companyName,
+        settings: {
+          branding: {
+            primary_color: brandSettings.primaryColor,
+            secondary_color: brandSettings.secondaryColor,
+            company_name: brandSettings.companyName,
+          },
+        },
+      });
+
+      // Apply branding CSS variable
+      document.documentElement.style.setProperty("--brand", brandSettings.primaryColor);
+      
+      addToast({
+        type: "success",
+        title: "Branding updated",
+        description: "Your white-label settings have been saved and applied.",
+      });
+    } catch (error) {
+      console.error("Failed to update branding:", error);
+      addToast({
+        type: "error",
+        title: "Update failed",
+        description: error instanceof Error ? error.message : "Failed to save branding settings",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleReset = () => {
