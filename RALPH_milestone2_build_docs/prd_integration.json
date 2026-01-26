@@ -49,8 +49,10 @@
       "phase": "Phase 1: API Client Setup",
       "title": "[FE] Create API Service Layer - Templates",
       "action": "Create lib/api/templates.ts with listTemplates(), createTemplate(), useTemplate() functions",
-      "passes": false,
-      "in_progress": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-26T11:19:32.841502",
+      "completed_at": "2026-01-26T11:19:55.607386"
     },
     {
       "id": "I1.6",
