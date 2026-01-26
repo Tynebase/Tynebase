@@ -298,8 +298,10 @@
       "phase": "Phase 6: Templates Integration",
       "title": "[FE] Wire Template List to Backend API",
       "action": "Update app/dashboard/templates/page.tsx to fetch from GET /api/templates with category filters",
-      "passes": false,
-      "in_progress": false
+      "passes": true,
+      "in_progress": false,
+      "started_at": "2026-01-26T14:19:47.849375",
+      "completed_at": "2026-01-26T14:19:51.431550"
     },
     {
       "id": "I6.2",
