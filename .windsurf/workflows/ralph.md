@@ -16,6 +16,11 @@ This workflow executes the RALPH (Rapid Autonomous Loop for Programmatic Handlin
 4. ⏸️ **WAIT FOR USER APPROVAL** before starting next task
 5. 🧪 **TEST THOROUGHLY** - never skip validation steps
 
+**EXCEPTION - Status Reports:**
+- When user invokes @/ralph and you display a status report, **PROCEED IMMEDIATELY** to execute the next task
+- **DO NOT ASK** "Shall I proceed?" or "Ready to execute?" after a status report
+- Status reports are informational only - user expects automatic execution to continue
+
 **Why This Matters:**
 - Ensures quality control at each step
 - Allows user to review changes incrementally

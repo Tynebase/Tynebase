@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Sparkles, FileText, Video, Wand2, Upload, Check, Loader2, Zap, Image } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Sparkles, FileText, Video, Wand2, Upload, Check, Loader2, Zap, Image, AlertCircle, CheckCircle } from "lucide-react";
+import { generate, pollJobUntilComplete, type Job } from "@/lib/api/ai";
 
 type TabType = 'prompt' | 'video' | 'enhance';
 
@@ -35,12 +37,16 @@ const aiProviders = [
 ];
 
 export default function AIAssistantPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>('prompt');
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState('openai');
   const [outputType, setOutputType] = useState('full');
   const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [currentJob, setCurrentJob] = useState<Job | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
 
   const tabs = [
     { id: 'prompt' as TabType, icon: FileText, label: 'From Prompt', description: 'Generate from text description' },
@@ -55,10 +61,46 @@ export default function AIAssistantPage() {
     "Create a product release notes template",
   ];
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!prompt.trim()) return;
+    
     setIsGenerating(true);
-    setTimeout(() => setIsGenerating(false), 3000);
+    setError(null);
+    setProgress(0);
+    
+    try {
+      const modelMap: Record<string, 'deepseek-v3' | 'claude-sonnet-4.5' | 'gemini-3-flash'> = {
+        'openai': 'deepseek-v3',
+        'anthropic': 'claude-sonnet-4.5',
+        'google': 'gemini-3-flash',
+      };
+      
+      const response = await generate({
+        prompt: prompt.trim(),
+        model: modelMap[selectedProvider] || 'deepseek-v3',
+      });
+      
+      const job = response.data.job;
+      setCurrentJob(job);
+      
+      const completedJob = await pollJobUntilComplete(
+        job.id,
+        (updatedJob) => {
+          setCurrentJob(updatedJob);
+          setProgress(updatedJob.progress || 0);
+        }
+      );
+      
+      if (completedJob.status === 'completed' && completedJob.result?.document_id) {
+        router.push(`/dashboard/knowledge/${completedJob.result.document_id}`);
+      } else if (completedJob.status === 'failed') {
+        setError(completedJob.error_message || 'Generation failed');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate content');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -191,6 +233,36 @@ export default function AIAssistantPage() {
                           <p className="text-xs text-[var(--dash-text-tertiary)] ml-6">{template.desc}</p>
                         </button>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {error && (
+                  <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-xl">
+                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-red-900">Generation Failed</p>
+                      <p className="text-sm text-red-700 mt-1">{error}</p>
+                    </div>
+                  </div>
+                )}
+
+                {currentJob && isGenerating && (
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                    <div className="flex items-center gap-3 mb-3">
+                      <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-blue-900">Generating Content...</p>
+                        <p className="text-xs text-blue-700 mt-0.5">
+                          Status: {currentJob.status} • Progress: {progress}%
+                        </p>
+                      </div>
+                    </div>
+                    <div className="w-full bg-blue-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${progress}%` }}
+                      />
                     </div>
                   </div>
                 )}

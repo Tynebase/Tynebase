@@ -187,8 +187,9 @@
       "phase": "Phase 4: AI Assistant Integration",
       "title": "[FE] Wire 'From Prompt' Generation",
       "action": "Update AI Assistant page to call POST /api/ai/generate, poll job status, display results",
-      "passes": false,
-      "in_progress": false
+      "passes": true,
+      "in_progress": false,
+      "completed_at": "2026-01-26T12:44:30.337017"
     },
     {
       "id": "I4.2",
