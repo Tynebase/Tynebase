@@ -82,7 +82,7 @@ export interface DocumentEmbedding {
   chunk_text: string;
   chunk_tokens: number;
   embedding?: number[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   created_at: string;
 }
 
@@ -141,7 +141,7 @@ export interface AuditLog {
   action: string;
   resource_type?: string;
   resource_id?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   ip_address?: string;
   created_at: string;
 }
@@ -151,12 +151,12 @@ export interface AIGenerationJob {
   tenant_id: string;
   user_id: string;
   job_type: string;
-  input_data: Record<string, any>;
+  input_data: Record<string, unknown>;
   status: string;
   progress: number;
   result_document_ids?: string[];
-  result_data?: Record<string, any>;
-  ai_metadata?: Record<string, any>;
+  result_data?: Record<string, unknown>;
+  ai_metadata?: Record<string, unknown>;
   error_message?: string;
   created_at: string;
   completed_at?: string;
@@ -166,8 +166,8 @@ export interface ContentAuditReport {
   id: string;
   tenant_id: string;
   generated_by?: string;
-  report_data: Record<string, any>;
-  summary: Record<string, any>;
+  report_data: Record<string, unknown>;
+  summary: Record<string, unknown>;
   created_at: string;
 }
 

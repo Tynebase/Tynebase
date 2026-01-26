@@ -1,0 +1,778 @@
+﻿
+> tynebase-frontend@0.1.0 lint
+> eslint
+
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\about\page.tsx
+   49:13   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+   66:15   error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                          react/no-unescaped-entities
+   79:94   error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                          react/no-unescaped-entities
+   83:110  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                          react/no-unescaped-entities
+   87:26   error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                          react/no-unescaped-entities
+  128:21   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  157:19   error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                          react/no-unescaped-entities
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\auth\accept-invite\page.tsx
+   19:40  error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+   26:9   warning  'supabase' is assigned a value but never used                    @typescript-eslint/no-unused-vars
+   64:14  warning  'error' is defined but never used                                @typescript-eslint/no-unused-vars
+  103:21  error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  172:22  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  276:20  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\auth\callback\route.ts
+  23:54  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\auth\reset-password\page.tsx
+   35:21  error  Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+   73:44  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  137:21  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\auth\update-password\page.tsx
+  57:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\blog\page.tsx
+  3:8  warning  'Link' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\careers\page.tsx
+   3:8   warning  'Link' is defined but never used                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+   4:10  warning  'ArrowRight' is defined but never used                                                                                                                                                                                                                                                   @typescript-eslint/no-unused-vars
+  46:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  61:65  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                          react/no-unescaped-entities
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\changelog\page.tsx
+    3:8   warning  'Link' is defined but never used                                 @typescript-eslint/no-unused-vars
+  102:17  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\community\page.tsx
+  18:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\contact\page.tsx
+    3:8   warning  'Link' is defined but never used                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+   52:31  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                          react/no-unescaped-entities
+   52:81  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                          react/no-unescaped-entities
+  132:71  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                          react/no-unescaped-entities
+  187:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\customers\page.tsx
+  81:82   error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  81:102  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\ai-assistant\enhance\page.tsx
+    7:3   warning  'FileText' is defined but never used                             @typescript-eslint/no-unused-vars
+    9:3   warning  'AlertTriangle' is defined but never used                        @typescript-eslint/no-unused-vars
+   11:3   warning  'ArrowRight' is defined but never used                           @typescript-eslint/no-unused-vars
+   18:3   warning  'ChevronDown' is defined but never used                          @typescript-eslint/no-unused-vars
+  211:27  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  211:47  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\ai-assistant\page.tsx
+  5:68  warning  'Clock' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\ai-assistant\video\page.tsx
+   8:11  warning  'LinkIcon' is defined but never used  @typescript-eslint/no-unused-vars
+   9:3   warning  'FileText' is defined but never used  @typescript-eslint/no-unused-vars
+  14:3   warning  'Play' is defined but never used      @typescript-eslint/no-unused-vars
+  15:3   warning  'Pause' is defined but never used     @typescript-eslint/no-unused-vars
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\analytics\page.tsx
+    8:3   warning  'BarChart3' is defined but never used                            @typescript-eslint/no-unused-vars
+   18:3   warning  'Calendar' is defined but never used                             @typescript-eslint/no-unused-vars
+   20:3   warning  'Filter' is defined but never used                               @typescript-eslint/no-unused-vars
+  250:78  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  250:91  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  268:58  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  268:69  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\audit\page.tsx
+  4:8  warning  'Link' is defined but never used       @typescript-eslint/no-unused-vars
+  7:3  warning  'BarChart3' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\chat\page.tsx
+    3:20  warning  'useRef' is defined but never used        @typescript-eslint/no-unused-vars
+    3:28  warning  'useEffect' is defined but never used     @typescript-eslint/no-unused-vars
+    7:5   warning  'Search' is defined but never used        @typescript-eslint/no-unused-vars
+   10:5   warning  'Phone' is defined but never used         @typescript-eslint/no-unused-vars
+   11:5   warning  'Video' is defined but never used         @typescript-eslint/no-unused-vars
+   12:5   warning  'Info' is defined but never used          @typescript-eslint/no-unused-vars
+   14:5   warning  'Paperclip' is defined but never used     @typescript-eslint/no-unused-vars
+   17:5   warning  'Mic' is defined but never used           @typescript-eslint/no-unused-vars
+   21:5   warning  'Bell' is defined but never used          @typescript-eslint/no-unused-vars
+   22:5   warning  'Clock' is defined but never used         @typescript-eslint/no-unused-vars
+   23:5   warning  'CheckCircle2' is defined but never used  @typescript-eslint/no-unused-vars
+   24:5   warning  'X' is defined but never used             @typescript-eslint/no-unused-vars
+  391:44  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\community\page.tsx
+    6:10  warning  'Modal' is defined but never used                     @typescript-eslint/no-unused-vars
+    9:31  warning  'ThumbsUp' is defined but never used                  @typescript-eslint/no-unused-vars
+   10:42  warning  'BookmarkPlus' is defined but never used              @typescript-eslint/no-unused-vars
+   10:56  warning  'Lock' is defined but never used                      @typescript-eslint/no-unused-vars
+   10:62  warning  'Reply' is defined but never used                     @typescript-eslint/no-unused-vars
+   11:3   warning  'MoreHorizontal' is defined but never used            @typescript-eslint/no-unused-vars
+   11:19  warning  'Flag' is defined but never used                      @typescript-eslint/no-unused-vars
+   11:25  warning  'Share2' is defined but never used                    @typescript-eslint/no-unused-vars
+   11:40  warning  'AtSign' is defined but never used                    @typescript-eslint/no-unused-vars
+   11:57  warning  'ImageIcon' is defined but never used                 @typescript-eslint/no-unused-vars
+   12:3   warning  'Link2' is defined but never used                     @typescript-eslint/no-unused-vars
+   12:10  warning  'Code' is defined but never used                      @typescript-eslint/no-unused-vars
+   12:16  warning  'Bold' is defined but never used                      @typescript-eslint/no-unused-vars
+   12:22  warning  'Italic' is defined but never used                    @typescript-eslint/no-unused-vars
+   12:30  warning  'List' is defined but never used                      @typescript-eslint/no-unused-vars
+   12:36  warning  'Send' is defined but never used                      @typescript-eslint/no-unused-vars
+   12:42  warning  'Filter' is defined but never used                    @typescript-eslint/no-unused-vars
+   12:50  warning  'ArrowUp' is defined but never used                   @typescript-eslint/no-unused-vars
+   12:59  warning  'Clock' is defined but never used                     @typescript-eslint/no-unused-vars
+  121:10  warning  'isSearchOpen' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  121:24  warning  'setIsSearchOpen' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  137:9   warning  'stats' is assigned a value but never used            @typescript-eslint/no-unused-vars
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\help\page.tsx
+   6:49  warning  'ChevronRight' is defined but never used              @typescript-eslint/no-unused-vars
+   7:43  warning  'HelpCircle' is defined but never used                @typescript-eslint/no-unused-vars
+   7:55  warning  'ExternalLink' is defined but never used              @typescript-eslint/no-unused-vars
+  91:7   warning  'popularArticles' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\knowledge\[id]\page.tsx
+   11:3   warning  'Save' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+  155:7   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\knowledge\[id]\page.tsx:155:7
+  153 |     if (mockDocuments[documentId]) {
+  154 |       const doc = mockDocuments[documentId];
+> 155 |       setDocument(doc);
+      |       ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  156 |       setTitle(doc.title);
+  157 |       setContent(doc.content);
+  158 |       setStatus(doc.status);  react-hooks/set-state-in-effect
+  169:75  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               react/no-unescaped-entities
+  169:96  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               react/no-unescaped-entities
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\knowledge\categories\page.tsx
+  91:10  warning  'showNewCategoryModal' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\knowledge\drafts\page.tsx
+   7:3  warning  'Clock' is defined but never used     @typescript-eslint/no-unused-vars
+  12:3  warning  'Eye' is defined but never used       @typescript-eslint/no-unused-vars
+  13:3  warning  'Calendar' is defined but never used  @typescript-eslint/no-unused-vars
+  14:3  warning  'Filter' is defined but never used    @typescript-eslint/no-unused-vars
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\knowledge\new\page.tsx
+  29:18  warning  'setFolder' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\knowledge\page.tsx
+    7:3   warning  'Folder' is defined but never used              @typescript-eslint/no-unused-vars
+    7:31  warning  'Edit3' is defined but never used               @typescript-eslint/no-unused-vars
+    7:43  warning  'Tag' is defined but never used                 @typescript-eslint/no-unused-vars
+    9:9   warning  'Trash2' is defined but never used              @typescript-eslint/no-unused-vars
+    9:17  warning  'Archive' is defined but never used             @typescript-eslint/no-unused-vars
+    9:48  warning  'Calendar' is defined but never used            @typescript-eslint/no-unused-vars
+   10:43  warning  'BarChart3' is defined but never used           @typescript-eslint/no-unused-vars
+   11:16  warning  'History' is defined but never used             @typescript-eslint/no-unused-vars
+  156:10  warning  'sortBy' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  156:18  warning  'setSortBy' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\settings\branding\page.tsx
+  28:10  warning  'previewTheme' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  28:24  warning  'setPreviewTheme' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\settings\import-export\page.tsx
+  19:3  warning  'ChevronRight' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\settings\permissions\page.tsx
+  10:3  warning  'Edit3' is defined but never used   @typescript-eslint/no-unused-vars
+  11:3  warning  'Trash2' is defined but never used  @typescript-eslint/no-unused-vars
+  17:3  warning  'Unlock' is defined but never used  @typescript-eslint/no-unused-vars
+  18:3  warning  'Eye' is defined but never used     @typescript-eslint/no-unused-vars
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\settings\profile\page.tsx
+  7:27  warning  'Shield' is defined but never used  @typescript-eslint/no-unused-vars
+  8:22  warning  'Check' is defined but never used   @typescript-eslint/no-unused-vars
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\settings\sso\page.tsx
+   8:3   warning  'Shield' is defined but never used                  @typescript-eslint/no-unused-vars
+   9:3   warning  'Key' is defined but never used                     @typescript-eslint/no-unused-vars
+  10:3   warning  'Plus' is defined but never used                    @typescript-eslint/no-unused-vars
+  15:3   warning  'Eye' is defined but never used                     @typescript-eslint/no-unused-vars
+  16:3   warning  'EyeOff' is defined but never used                  @typescript-eslint/no-unused-vars
+  64:10  warning  'showSecret' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  64:22  warning  'setShowSecret' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\settings\webhooks\page.tsx
+  11:3   warning  'Check' is defined but never used                     @typescript-eslint/no-unused-vars
+  12:3   warning  'X' is defined but never used                         @typescript-eslint/no-unused-vars
+  15:3   warning  'ExternalLink' is defined but never used              @typescript-eslint/no-unused-vars
+  19:3   warning  'MoreHorizontal' is defined but never used            @typescript-eslint/no-unused-vars
+  94:10  warning  'showCreateModal' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\sources\health\page.tsx
+  15:29  warning  'CardHeader' is defined but never used       @typescript-eslint/no-unused-vars
+  15:41  warning  'CardTitle' is defined but never used        @typescript-eslint/no-unused-vars
+  15:52  warning  'CardDescription' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\sources\normalized\page.tsx
+   20:16  warning  'CardContent' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+   20:29  warning  'CardHeader' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+   20:41  warning  'CardTitle' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                @typescript-eslint/no-unused-vars
+   20:52  warning  'CardDescription' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+  130:18  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-explicit-any
+  150:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\sources\normalized\page.tsx:150:5
+  148 |
+  149 |   useEffect(() => {
+> 150 |     loadDocs();
+      |     ^^^^^^^^ Avoid calling setState() directly within an effect
+  151 |   }, [loadDocs]);
+  152 |
+  153 |   const filtered = useMemo(() => {  react-hooks/set-state-in-effect
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\sources\page.tsx
+  112:83  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\sources\query\page.tsx
+   84:18  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        @typescript-eslint/no-explicit-any
+  103:5   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\sources\query\page.tsx:103:5
+  101 |
+  102 |   useEffect(() => {
+> 103 |     loadDocs();
+      |     ^^^^^^^^ Avoid calling setState() directly within an effect
+  104 |   }, [loadDocs]);
+  105 |
+  106 |   const filtered = useMemo(() => {  react-hooks/set-state-in-effect
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\dashboard\users\page.tsx
+  252:48  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  429:70  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\docs\page.tsx
+  223:44  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  223:58  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  529:20  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\integrations\page.tsx
+  5:93  warning  'Check' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\login\page.tsx
+   29:13  warning  'response' is assigned a value but never used                    @typescript-eslint/no-unused-vars
+   40:21  error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  180:18  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\not-found.tsx
+  15:23  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  15:44  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\page.tsx
+    6:231  warning  'ShieldAlert' is defined but never used                          @typescript-eslint/no-unused-vars
+    6:254  warning  'FileCheck2' is defined but never used                           @typescript-eslint/no-unused-vars
+  177:43   error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  177:122  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  183:74   error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  482:63   error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\press\page.tsx
+  3:8  warning  'Link' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\privacy\page.tsx
+   31:174  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+   31:177  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+   31:180  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+   31:184  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+   31:190  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+   31:193  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+   32:235  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+   32:244  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+   79:106  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  162:89   error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  162:111  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  173:100  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\security\page.tsx
+  78:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\signup\page.tsx
+   92:13  warning  'response' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  108:21  error    Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\solutions\it-operations\page.tsx
+  5:53  warning  'Check' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\solutions\knowledge-suite\page.tsx
+  51:102  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\templates\page.tsx
+   64:94  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  106:96  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\tenant-not-found\page.tsx
+  14:31  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  14:57  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\app\terms\page.tsx
+   3:8   warning  'Link' is defined but never used                                 @typescript-eslint/no-unused-vars
+  49:47  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\docs\DocModal.tsx
+  4:20  warning  'Tag' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\editor\DocumentEditor.tsx
+   27:3   warning  'Save' is defined but never used                                                                             @typescript-eslint/no-unused-vars
+   28:3   warning  'Eye' is defined but never used                                                                              @typescript-eslint/no-unused-vars
+   29:3   warning  'MoreHorizontal' is defined but never used                                                                   @typescript-eslint/no-unused-vars
+  121:9   warning  'handleSave' is assigned a value but never used                                                              @typescript-eslint/no-unused-vars
+  297:17  warning  Image elements must have an alt prop, either with meaningful text, or an empty string for decorative images  jsx-a11y/alt-text
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\layout\DashboardHeader.tsx
+  67:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\layout\DashboardLayout.tsx
+  22:9  warning  'isChatPage' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-unused-vars
+  38:5  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\layout\DashboardLayout.tsx:38:5
+  36 |   // Close mobile sidebar on route change
+  37 |   useEffect(() => {
+> 38 |     setIsMobileSidebarOpen(false);
+     |     ^^^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  39 |   }, [pathname]);
+  40 |
+  41 |   return (  react-hooks/set-state-in-effect
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\layout\DashboardSidebar.tsx
+   20:3   warning  'Shield' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                @typescript-eslint/no-unused-vars
+   24:3   warning  'MessageSquare' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+  378:12  error    Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\layout\DashboardSidebar.tsx:378:12
+  376 |
+  377 |           {/* Knowledge Base */}
+> 378 |           <CollapsibleSection id="knowledge" label="Knowledge Base">
+      |            ^^^^^^^^^^^^^^^^^^ This component is created during render
+  379 |             {knowledgeNavigation.filter(hasAccess).map((item) => (
+  380 |               <NavLink key={item.id} item={item} />
+  381 |             ))}
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\layout\DashboardSidebar.tsx:292:30
+  290 |   };
+  291 |
+> 292 |   const CollapsibleSection = ({
+      |                              ^^
+> 293 |     id,
+      | ^^^^^^^
+> 294 |     label,
+      ΓÇª
+      | ^^^^^^^
+> 331 |     );
+      | ^^^^^^^
+> 332 |   };
+      | ^^^^ The component is created during render here
+  333 |
+  334 |   return (
+  335 |     <aside className={cn(                                                               react-hooks/static-components
+  385:12  error    Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\layout\DashboardSidebar.tsx:385:12
+  383 |
+  384 |           {/* Knowledge Sources (RAG) */}
+> 385 |           <CollapsibleSection id="sources" label="Knowledge Sources">
+      |            ^^^^^^^^^^^^^^^^^^ This component is created during render
+  386 |             {sourcesNavigation.filter(hasAccess).map((item) => (
+  387 |               <NavLink key={item.id} item={item} />
+  388 |             ))}
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\layout\DashboardSidebar.tsx:292:30
+  290 |   };
+  291 |
+> 292 |   const CollapsibleSection = ({
+      |                              ^^
+> 293 |     id,
+      | ^^^^^^^
+> 294 |     label,
+      ΓÇª
+      | ^^^^^^^
+> 331 |     );
+      | ^^^^^^^
+> 332 |   };
+      | ^^^^ The component is created during render here
+  333 |
+  334 |   return (
+  335 |     <aside className={cn(                                                       react-hooks/static-components
+  392:12  error    Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\layout\DashboardSidebar.tsx:392:12
+  390 |
+  391 |           {/* AI Assistant */}
+> 392 |           <CollapsibleSection id="ai" label="AI Assistant">
+      |            ^^^^^^^^^^^^^^^^^^ This component is created during render
+  393 |             {aiNavigation.filter(hasAccess).map((item) => (
+  394 |               <NavLink key={item.id} item={item} />
+  395 |             ))}
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\layout\DashboardSidebar.tsx:292:30
+  290 |   };
+  291 |
+> 292 |   const CollapsibleSection = ({
+      |                              ^^
+> 293 |     id,
+      | ^^^^^^^
+> 294 |     label,
+      ΓÇª
+      | ^^^^^^^
+> 331 |     );
+      | ^^^^^^^
+> 332 |   };
+      | ^^^^ The component is created during render here
+  333 |
+  334 |   return (
+  335 |     <aside className={cn(                                                                                 react-hooks/static-components
+  399:12  error    Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\layout\DashboardSidebar.tsx:399:12
+  397 |
+  398 |           {/* Tools */}
+> 399 |           <CollapsibleSection id="tools" label="Tools">
+      |            ^^^^^^^^^^^^^^^^^^ This component is created during render
+  400 |             {toolsNavigation.filter(hasAccess).map((item) => (
+  401 |               <NavLink key={item.id} item={item} />
+  402 |             ))}
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\layout\DashboardSidebar.tsx:292:30
+  290 |   };
+  291 |
+> 292 |   const CollapsibleSection = ({
+      |                              ^^
+> 293 |     id,
+      | ^^^^^^^
+> 294 |     label,
+      ΓÇª
+      | ^^^^^^^
+> 331 |     );
+      | ^^^^^^^
+> 332 |   };
+      | ^^^^ The component is created during render here
+  333 |
+  334 |   return (
+  335 |     <aside className={cn(                                                                                         react-hooks/static-components
+  409:12  error    Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\layout\DashboardSidebar.tsx:409:12
+  407 |         <div className="mt-auto pt-10">
+  408 |           <div className="h-px bg-[var(--dash-border-subtle)] mb-7" />
+> 409 |           <CollapsibleSection id="admin" label="Admin">
+      |            ^^^^^^^^^^^^^^^^^^ This component is created during render
+  410 |             {adminNavigation.filter(hasAccess).map((item) => (
+  411 |               <NavLink key={item.id} item={item} />
+  412 |             ))}
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\layout\DashboardSidebar.tsx:292:30
+  290 |   };
+  291 |
+> 292 |   const CollapsibleSection = ({
+      |                              ^^
+> 293 |     id,
+      | ^^^^^^^
+> 294 |     label,
+      ΓÇª
+      | ^^^^^^^
+> 331 |     );
+      | ^^^^^^^
+> 332 |   };
+      | ^^^^ The component is created during render here
+  333 |
+  334 |   return (
+  335 |     <aside className={cn(  react-hooks/static-components
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\layout\Header.tsx
+  19:28  warning  'resolvedTheme' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 @typescript-eslint/no-unused-vars
+  23:10  warning  'mounted' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+  26:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\layout\Header.tsx:26:5
+  24 |
+  25 |   useEffect(() => {
+> 26 |     setMounted(true);
+     |     ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  27 |   }, []);
+  28 |
+  29 |   const handleSignOut = async () => {  react-hooks/set-state-in-effect
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\layout\MobileSidebar.tsx
+  14:9  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\layout\MobileSidebar.tsx:14:9
+  12 |
+  13 |     useEffect(() => {
+> 14 |         setMounted(true);
+     |         ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  15 |     }, []);
+  16 |
+  17 |     useEffect(() => {  react-hooks/set-state-in-effect
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\layout\SiteFooter.tsx
+  35:19  error  Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages  @next/next/no-html-link-for-pages
+  36:19  error  Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages  @next/next/no-html-link-for-pages
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\ui\AccessibilityWidget.tsx
+   34:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\ui\AccessibilityWidget.tsx:34:5
+  32 |     const saved = typeof window !== "undefined" ? window.localStorage.getItem("contrast-mode") : null;
+  33 |     const next = saved === "high" ? "high" : "normal";
+> 34 |     setContrastMode(next);
+     |     ^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  35 |     setDocumentContrast(next);
+  36 |   }, []);
+  37 |                                                                                                                                                                                                                       react-hooks/set-state-in-effect
+   88:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @next/next/no-img-element
+  100:20  error    Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\ui\AccessibilityWidget.tsx:100:20
+   98 |                 <p className="text-xs font-semibold text-[var(--dash-text-muted)]">Theme</p>
+   99 |                 <div className="grid grid-cols-1 gap-2">
+> 100 |                   <ThemeButton value="light" label="Light" icon={<Sun className="w-4 h-4" />} />
+      |                    ^^^^^^^^^^^ This component is created during render
+  101 |                   <ThemeButton value="dark" label="Dark" icon={<Moon className="w-4 h-4" />} />
+  102 |                   <ThemeButton value="system" label="System" icon={<Laptop className="w-4 h-4" />} />
+  103 |                 </div>
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\ui\AccessibilityWidget.tsx:45:23
+  43 |   }, [contrastMode]);
+  44 |
+> 45 |   const ThemeButton = ({
+     |                       ^^
+> 46 |     value,
+     | ^^^^^^^^^^
+> 47 |     label,
+     ΓÇª
+     | ^^^^^^^^^^
+> 69 |     );
+     | ^^^^^^^^^^
+> 70 |   };
+     | ^^^^ The component is created during render here
+  71 |
+  72 |   return (
+  73 |     <div className={cn("z-[60]", !customTrigger && "fixed bottom-6 right-6")}>  react-hooks/static-components
+  101:20  error    Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\ui\AccessibilityWidget.tsx:101:20
+   99 |                 <div className="grid grid-cols-1 gap-2">
+  100 |                   <ThemeButton value="light" label="Light" icon={<Sun className="w-4 h-4" />} />
+> 101 |                   <ThemeButton value="dark" label="Dark" icon={<Moon className="w-4 h-4" />} />
+      |                    ^^^^^^^^^^^ This component is created during render
+  102 |                   <ThemeButton value="system" label="System" icon={<Laptop className="w-4 h-4" />} />
+  103 |                 </div>
+  104 |               </div>
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\ui\AccessibilityWidget.tsx:45:23
+  43 |   }, [contrastMode]);
+  44 |
+> 45 |   const ThemeButton = ({
+     |                       ^^
+> 46 |     value,
+     | ^^^^^^^^^^
+> 47 |     label,
+     ΓÇª
+     | ^^^^^^^^^^
+> 69 |     );
+     | ^^^^^^^^^^
+> 70 |   };
+     | ^^^^ The component is created during render here
+  71 |
+  72 |   return (
+  73 |     <div className={cn("z-[60]", !customTrigger && "fixed bottom-6 right-6")}>                                                                          react-hooks/static-components
+  102:20  error    Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\ui\AccessibilityWidget.tsx:102:20
+  100 |                   <ThemeButton value="light" label="Light" icon={<Sun className="w-4 h-4" />} />
+  101 |                   <ThemeButton value="dark" label="Dark" icon={<Moon className="w-4 h-4" />} />
+> 102 |                   <ThemeButton value="system" label="System" icon={<Laptop className="w-4 h-4" />} />
+      |                    ^^^^^^^^^^^ This component is created during render
+  103 |                 </div>
+  104 |               </div>
+  105 |
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\ui\AccessibilityWidget.tsx:45:23
+  43 |   }, [contrastMode]);
+  44 |
+> 45 |   const ThemeButton = ({
+     |                       ^^
+> 46 |     value,
+     | ^^^^^^^^^^
+> 47 |     label,
+     ΓÇª
+     | ^^^^^^^^^^
+> 69 |     );
+     | ^^^^^^^^^^
+> 70 |   };
+     | ^^^^ The component is created during render here
+  71 |
+  72 |   return (
+  73 |     <div className={cn("z-[60]", !customTrigger && "fixed bottom-6 right-6")}>                                                                                                                                   react-hooks/static-components
+  149:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @next/next/no-img-element
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\ui\Avatar.tsx
+  35:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\ui\Button.tsx
+  58:48  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  60:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  72:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  74:86  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\ui\CommandPalette.tsx
+  19:3  warning  'Star' is defined but never used  @typescript-eslint/no-unused-vars
+  20:3  warning  'Hash' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\ui\CookieConsent.tsx
+  35:7   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\ui\CookieConsent.tsx:35:7
+  33 |     const consent = localStorage.getItem("cookie-consent");
+  34 |     if (!consent) {
+> 35 |       setIsVisible(true);
+     |       ^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  36 |     }
+  37 |   }, []);
+  38 |  react-hooks/set-state-in-effect
+  95:56  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           react/no-unescaped-entities
+  95:67  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           react/no-unescaped-entities
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\ui\NotificationCenter.tsx
+  7:3  warning  'Check' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\ui\Popover.tsx
+  60:6  warning  React Hook useEffect has a missing dependency: 'setIsOpen'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\ui\Toast.tsx
+  36:9  error    Error: Cannot access variable before it is declared
+
+`removeToast` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\ui\Toast.tsx:36:9
+  34 |     if (toast.type === "success" || toast.type === "info") {
+  35 |       setTimeout(() => {
+> 36 |         removeToast(id);
+     |         ^^^^^^^^^^^ `removeToast` accessed before it is declared
+  37 |       }, toast.type === "success" ? 3000 : 5000);
+  38 |     }
+  39 |   }, []);
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\ui\Toast.tsx:41:3
+  39 |   }, []);
+  40 |
+> 41 |   const removeToast = React.useCallback((id: string) => {
+     |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 42 |     setToasts((prev) => prev.filter((toast) => toast.id !== id));
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 43 |   }, []);
+     | ^^^^^^^^^^ `removeToast` is declared here
+  44 |
+  45 |   return (
+  46 |     <ToastContext.Provider value={{ toasts, addToast, removeToast }}>  react-hooks/immutability
+  39:6  warning  React Hook React.useCallback has a missing dependency: 'removeToast'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       react-hooks/exhaustive-deps
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\components\ui\VersionHistory.tsx
+   6:3  warning  'Clock' is defined but never used      @typescript-eslint/no-unused-vars
+   7:3  warning  'User' is defined but never used       @typescript-eslint/no-unused-vars
+  12:3  warning  'GitBranch' is defined but never used  @typescript-eslint/no-unused-vars
+  14:3  warning  'X' is defined but never used          @typescript-eslint/no-unused-vars
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\contexts\TenantContext.tsx
+  34:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\contexts\TenantContext.tsx:34:5
+  32 |     }
+  33 |     
+> 34 |     setSubdomain(extractedSubdomain);
+     |     ^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  35 |
+  36 |     // For MVP, we'll fetch tenant data here
+  37 |     // In production, this would call the API  react-hooks/set-state-in-effect
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\lib\api\settings.ts
+  11:18  warning  'apiPost' is defined but never used    @typescript-eslint/no-unused-vars
+  11:37  warning  'apiDelete' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Mai\Desktop\TyneBase\tynebase-frontend\types\database.ts
+   85:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  144:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  154:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  158:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  159:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  169:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  170:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+Γ£û 242 problems (98 errors, 144 warnings)
+
