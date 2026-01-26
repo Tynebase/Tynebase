@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Video,
   Upload,
@@ -13,7 +14,9 @@ import {
   Youtube,
   Globe,
   Loader2,
+  FileVideo,
 } from "lucide-react";
+import { uploadVideo, transcribeYouTube, pollJobUntilComplete, type Job } from "@/lib/api/ai";
 
 type VideoSource = "upload" | "youtube" | "url";
 type ProcessingStatus = "idle" | "processing" | "complete" | "error";
@@ -62,11 +65,16 @@ const recentVideos: ProcessedVideo[] = [
 ];
 
 export default function VideoPage() {
+  const router = useRouter();
   const [activeSource, setActiveSource] = useState<VideoSource>("youtube");
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [currentJob, setCurrentJob] = useState<Job | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDrag = (e: React.DragEvent) => {
@@ -83,13 +91,105 @@ export default function VideoPage() {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    // Handle file drop
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      if (validateVideoFile(file)) {
+        setSelectedFile(file);
+        setError(null);
+      }
+    }
   };
 
-  const handleProcess = () => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (validateVideoFile(file)) {
+        setSelectedFile(file);
+        setError(null);
+      }
+    }
+  };
+
+  const validateVideoFile = (file: File): boolean => {
+    const maxSize = 500 * 1024 * 1024; // 500MB
+    const allowedTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm'];
+    
+    if (file.size > maxSize) {
+      setError('File size must be less than 500MB');
+      return false;
+    }
+    
+    if (!allowedTypes.includes(file.type)) {
+      setError('Only MP4, MOV, AVI, and WebM files are supported');
+      return false;
+    }
+    
+    return true;
+  };
+
+  const handleProcessYouTube = async () => {
+    if (!youtubeUrl.trim()) return;
+    
     setIsProcessing(true);
-    // Simulate processing
-    setTimeout(() => setIsProcessing(false), 3000);
+    setError(null);
+    setProgress(0);
+    
+    try {
+      const response = await transcribeYouTube({ url: youtubeUrl.trim() });
+      const job = response.data.job;
+      setCurrentJob(job);
+      
+      const completedJob = await pollJobUntilComplete(
+        job.id,
+        (updatedJob) => {
+          setCurrentJob(updatedJob);
+          setProgress(updatedJob.progress || 0);
+        }
+      );
+      
+      if (completedJob.status === 'completed' && completedJob.result?.document_id) {
+        router.push(`/dashboard/knowledge/${completedJob.result.document_id}`);
+      } else if (completedJob.status === 'failed') {
+        setError(completedJob.error_message || 'Video processing failed');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to process YouTube video');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleProcessUpload = async () => {
+    if (!selectedFile) return;
+    
+    setIsProcessing(true);
+    setError(null);
+    setProgress(0);
+    
+    try {
+      const response = await uploadVideo(selectedFile);
+      const job = response.data.job;
+      setCurrentJob(job);
+      
+      const completedJob = await pollJobUntilComplete(
+        job.id,
+        (updatedJob) => {
+          setCurrentJob(updatedJob);
+          setProgress(updatedJob.progress || 0);
+        }
+      );
+      
+      if (completedJob.status === 'completed' && completedJob.result?.document_id) {
+        router.push(`/dashboard/knowledge/${completedJob.result.document_id}`);
+      } else if (completedJob.status === 'failed') {
+        setError(completedJob.error_message || 'Video upload failed');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upload video');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const sourceOptions = [
@@ -162,7 +262,7 @@ export default function VideoPage() {
                       />
                     </div>
                     <button
-                      onClick={handleProcess}
+                      onClick={handleProcessYouTube}
                       disabled={!youtubeUrl || isProcessing}
                       className="px-7 py-3.5 bg-[var(--brand)] hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-all flex items-center justify-center gap-2"
                     >
@@ -197,22 +297,62 @@ export default function VideoPage() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="video/*"
+                  accept="video/mp4,video/quicktime,video/x-msvideo,video/webm"
+                  onChange={handleFileSelect}
                   className="hidden"
                 />
-                <Upload className="w-12 h-12 mx-auto text-[var(--dash-text-muted)] mb-4" />
-                <p className="text-[var(--dash-text-primary)] font-medium mb-2">
-                  Drag and drop your video here
-                </p>
-                <p className="text-sm text-[var(--dash-text-tertiary)] mb-4">
-                  Supports MP4, MOV, AVI, WebM (max 500MB)
-                </p>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-5 py-2.5 border border-[var(--dash-border-default)] rounded-lg text-[var(--dash-text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)] transition-colors"
-                >
-                  Choose File
-                </button>
+                {selectedFile ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-4 p-4 bg-[var(--surface-ground)] rounded-lg">
+                      <FileVideo className="w-10 h-10 text-[var(--brand)]" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-[var(--dash-text-primary)] truncate">{selectedFile.name}</p>
+                        <p className="text-sm text-[var(--dash-text-tertiary)]">
+                          {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setSelectedFile(null)}
+                        className="px-3 py-1.5 text-sm text-[var(--dash-text-secondary)] hover:text-[var(--status-error)] transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <button
+                      onClick={handleProcessUpload}
+                      disabled={isProcessing}
+                      className="w-full px-7 py-3.5 bg-[var(--brand)] hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-all flex items-center justify-center gap-2"
+                    >
+                      {isProcessing ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Processing ({progress}%)
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4" />
+                          Generate Transcript
+                        </>
+                      )}
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <Upload className="w-12 h-12 mx-auto text-[var(--dash-text-muted)] mb-4" />
+                    <p className="text-[var(--dash-text-primary)] font-medium mb-2">
+                      Drag and drop your video here
+                    </p>
+                    <p className="text-sm text-[var(--dash-text-tertiary)] mb-4">
+                      Supports MP4, MOV, AVI, WebM (max 500MB)
+                    </p>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-5 py-2.5 border border-[var(--dash-border-default)] rounded-lg text-[var(--dash-text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)] transition-colors"
+                    >
+                      Choose File
+                    </button>
+                  </>
+                )}
               </div>
             )}
 
@@ -234,7 +374,7 @@ export default function VideoPage() {
                       />
                     </div>
                     <button
-                      onClick={handleProcess}
+                      onClick={handleProcessYouTube}
                       disabled={!videoUrl || isProcessing}
                       className="px-7 py-3.5 bg-[var(--brand)] hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-all flex items-center justify-center gap-2"
                     >
@@ -252,6 +392,36 @@ export default function VideoPage() {
                     </button>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Error Display */}
+            {error && (
+              <div className="mt-4 p-4 bg-[var(--status-error)]/10 border border-[var(--status-error)]/20 rounded-lg flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-[var(--status-error)] flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-medium text-[var(--status-error)] mb-1">Processing Error</p>
+                  <p className="text-sm text-[var(--dash-text-secondary)]">{error}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Progress Display */}
+            {isProcessing && currentJob && (
+              <div className="mt-4 p-4 bg-[var(--brand-primary-muted)] border border-[var(--brand)]/20 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="font-medium text-[var(--dash-text-primary)]">Processing Video</p>
+                  <p className="text-sm text-[var(--dash-text-secondary)]">{progress}%</p>
+                </div>
+                <div className="w-full bg-[var(--surface-ground)] rounded-full h-2 overflow-hidden">
+                  <div 
+                    className="bg-[var(--brand)] h-full transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                <p className="text-sm text-[var(--dash-text-tertiary)] mt-2">
+                  {currentJob.status === 'processing' ? 'Transcribing audio...' : 'Initializing...'}
+                </p>
               </div>
             )}
           </div>
