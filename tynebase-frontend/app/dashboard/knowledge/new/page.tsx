@@ -18,6 +18,7 @@ import {
   ChevronDown
 } from "lucide-react";
 import Link from "next/link";
+import { createDocument, publishDocument } from "@/lib/api/documents";
 
 export default function NewDocumentPage() {
   const router = useRouter();
@@ -28,34 +29,110 @@ export default function NewDocumentPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [folder] = useState("Uncategorized");
   const [visibility, setVisibility] = useState<"public" | "private" | "team">("team");
+  const [documentId, setDocumentId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSave = async (data: { title: string; content: string }) => {
-    setIsSaving(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setTitle(data.title);
-    setContent(data.content);
-    setIsSaving(false);
+    try {
+      setIsSaving(true);
+      setError(null);
+      
+      if (documentId) {
+        // Document already exists, just update local state
+        setTitle(data.title);
+        setContent(data.content);
+      } else {
+        // Create new document as draft
+        const response = await createDocument({
+          title: data.title || "Untitled Document",
+          content: data.content || "",
+          is_public: visibility === "public",
+        });
+        
+        setDocumentId(response.data.document.id);
+        setTitle(data.title);
+        setContent(data.content);
+      }
+    } catch (err) {
+      console.error('Failed to save document:', err);
+      setError(err instanceof Error ? err.message : 'Failed to save document');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handlePublish = async () => {
-    setIsSaving(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setStatus("published");
-    setIsSaving(false);
-    router.push("/dashboard/knowledge");
+    try {
+      setIsSaving(true);
+      setError(null);
+      
+      let docId = documentId;
+      
+      // Create document first if it doesn't exist
+      if (!docId) {
+        const response = await createDocument({
+          title: title || "Untitled Document",
+          content: content || "",
+          is_public: visibility === "public",
+        });
+        docId = response.data.document.id;
+        setDocumentId(docId);
+      }
+      
+      // Publish the document
+      await publishDocument(docId);
+      setStatus("published");
+      
+      // Redirect to the document view page
+      router.push(`/dashboard/knowledge/${docId}`);
+    } catch (err) {
+      console.error('Failed to publish document:', err);
+      setError(err instanceof Error ? err.message : 'Failed to publish document');
+      setIsSaving(false);
+    }
   };
 
   const handleSaveDraft = async () => {
-    setIsSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSaving(false);
-    router.push("/dashboard/knowledge");
+    try {
+      setIsSaving(true);
+      setError(null);
+      
+      let docId = documentId;
+      
+      // Create document if it doesn't exist
+      if (!docId) {
+        const response = await createDocument({
+          title: title || "Untitled Document",
+          content: content || "",
+          is_public: visibility === "public",
+        });
+        docId = response.data.document.id;
+      }
+      
+      // Redirect to the document edit page
+      router.push(`/dashboard/knowledge/${docId}`);
+    } catch (err) {
+      console.error('Failed to save draft:', err);
+      setError(err instanceof Error ? err.message : 'Failed to save draft');
+      setIsSaving(false);
+    }
   };
 
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col -m-6">
+      {/* Error Banner */}
+      {error && (
+        <div className="px-6 py-3 bg-red-50 border-b border-red-200 flex items-center justify-between">
+          <p className="text-sm text-red-800">{error}</p>
+          <button
+            onClick={() => setError(null)}
+            className="text-red-600 hover:text-red-800 text-sm font-medium"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+      
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--border-subtle)] bg-[var(--surface-card)]">
         <div className="flex items-center gap-4">
