@@ -72,8 +72,11 @@ export async function generateText(
   try {
     const inputTokens = countTokens(request.prompt, 'gpt-4');
 
+    // DeepSeek on Bedrock uses OpenAI-compatible messages format
     const payload = {
-      prompt: request.prompt,
+      messages: [
+        { role: 'user', content: request.prompt }
+      ],
       max_tokens: maxTokens,
       temperature,
       top_p: 0.9,
@@ -89,7 +92,8 @@ export async function generateText(
     const response = await client.send(command);
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
     
-    const content = responseBody.completion || responseBody.text || '';
+    // DeepSeek returns response in choices[0].message.content format
+    const content = responseBody.choices?.[0]?.message?.content || responseBody.completion || responseBody.text || '';
     const outputTokens = responseBody.usage?.completion_tokens || countTokens(content, 'gpt-4');
     const actualInputTokens = responseBody.usage?.prompt_tokens || inputTokens;
 
@@ -148,8 +152,11 @@ export async function* generateTextStream(
   try {
     const inputTokens = countTokens(request.prompt, 'gpt-4');
 
+    // DeepSeek on Bedrock uses OpenAI-compatible messages format
     const payload = {
-      prompt: request.prompt,
+      messages: [
+        { role: 'user', content: request.prompt }
+      ],
       max_tokens: maxTokens,
       temperature,
       top_p: 0.9,
@@ -177,7 +184,8 @@ export async function* generateTextStream(
       if (event.chunk) {
         const chunkData = JSON.parse(new TextDecoder().decode(event.chunk.bytes));
         
-        const delta = chunkData.completion || chunkData.text || '';
+        // DeepSeek streaming returns delta in choices[0].delta.content
+        const delta = chunkData.choices?.[0]?.delta?.content || chunkData.completion || chunkData.text || '';
         if (delta) {
           fullContent += delta;
           yield delta;

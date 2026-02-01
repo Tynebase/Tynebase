@@ -2,7 +2,10 @@ import { env, isDev } from './config/env';
 import { claimJob } from './utils/claimJob';
 import { processAIGenerationJob } from './workers/aiGeneration';
 import { processVideoIngestJob } from './workers/videoIngest';
+import { processAudioIngestJob } from './workers/audioIngest';
+import { processVideoTranscribeToDocumentJob } from './workers/videoTranscribeToDocument';
 import { processDocumentConvertJob } from './workers/documentConvert';
+import { processLegalDocumentJob } from './workers/legalDocumentProcess';
 import { processRagIndexJob } from './workers/ragIndex';
 import { processAccountDeletionJob } from './workers/accountDeletion';
 
@@ -98,8 +101,21 @@ const processJob = async (job: any): Promise<void> => {
         result = await processVideoIngestJob(job);
         break;
       
+      case 'audio_ingestion':
+      case 'audio_ingest':
+        result = await processAudioIngestJob(job);
+        break;
+      
+      case 'video_transcribe_to_document':
+        result = await processVideoTranscribeToDocumentJob(job);
+        break;
+      
       case 'document_convert':
         result = await processDocumentConvertJob(job);
+        break;
+      
+      case 'legal_document_process':
+        result = await processLegalDocumentJob(job);
         break;
       
       case 'rag_index':

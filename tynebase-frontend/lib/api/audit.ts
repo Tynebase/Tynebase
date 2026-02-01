@@ -1,0 +1,220 @@
+import { apiGet, apiPost, apiPatch, apiDelete } from './client';
+
+export interface ContentHealthStat {
+  value: string | number;
+  change: string;
+  positive: boolean;
+}
+
+export interface AuditStats {
+  stats: {
+    content_health: ContentHealthStat;
+    total_documents: ContentHealthStat;
+    needs_review: ContentHealthStat;
+    stale_content: ContentHealthStat;
+  };
+  health_distribution: {
+    excellent: { count: number; percentage: number };
+    good: { count: number; percentage: number };
+    needs_review: { count: number; percentage: number };
+    poor: { count: number; percentage: number };
+  };
+}
+
+export interface StaleDocument {
+  id: string;
+  title: string;
+  last_updated: string;
+  views: number;
+  status: 'critical' | 'warning' | 'info';
+}
+
+export interface TopPerformer {
+  id: string;
+  title: string;
+  views: number;
+  trend: string;
+  positive: boolean;
+}
+
+export interface DocumentReview {
+  id: string;
+  title: string;
+  document_id: string;
+  reason: string;
+  priority: 'low' | 'medium' | 'high';
+  due_date: string;
+  due_date_raw: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+}
+
+export interface CreateReviewParams {
+  document_id: string;
+  reason: string;
+  priority?: 'low' | 'medium' | 'high';
+  due_date: string;
+  assigned_to?: string;
+  notes?: string;
+}
+
+export interface UpdateReviewParams {
+  status?: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  priority?: 'low' | 'medium' | 'high';
+  due_date?: string;
+  assigned_to?: string | null;
+  notes?: string;
+}
+
+export interface AuditLog {
+  id: string;
+  action: string;
+  actor: {
+    name: string;
+    email: string;
+    avatar: string;
+  };
+  target: string | null;
+  timestamp: string;
+  ip: string;
+  type: string;
+  details: Record<string, any>;
+}
+
+export interface AuditLogsParams {
+  page?: number;
+  limit?: number;
+  action_type?: 'all' | 'document' | 'user' | 'auth' | 'settings';
+  search?: string;
+}
+
+export interface AuditLogsResponse {
+  logs: AuditLog[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    total_pages: number;
+  };
+}
+
+/**
+ * Get audit logs with pagination and filtering
+ */
+export async function getAuditLogs(params: AuditLogsParams = {}): Promise<AuditLogsResponse> {
+  const searchParams = new URLSearchParams();
+  
+  if (params.page) searchParams.append('page', params.page.toString());
+  if (params.limit) searchParams.append('limit', params.limit.toString());
+  if (params.action_type) searchParams.append('action_type', params.action_type);
+  if (params.search) searchParams.append('search', params.search);
+  
+  const queryString = searchParams.toString();
+  return apiGet<AuditLogsResponse>(`/api/audit/logs${queryString ? `?${queryString}` : ''}`);
+}
+
+/**
+ * Export audit logs as CSV file
+ */
+export async function exportAuditLogs(params: Omit<AuditLogsParams, 'page' | 'limit'> = {}): Promise<void> {
+  const searchParams = new URLSearchParams();
+  
+  if (params.action_type) searchParams.append('action_type', params.action_type);
+  if (params.search) searchParams.append('search', params.search);
+  
+  const queryString = searchParams.toString();
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+  const url = `${API_BASE_URL}/api/audit/logs/export${queryString ? `?${queryString}` : ''}`;
+  
+  // Get auth token and tenant subdomain
+  const accessToken = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+  const tenantSubdomain = typeof window !== 'undefined' ? localStorage.getItem('tenant_subdomain') : null;
+  
+  if (!accessToken) {
+    throw new Error('Authentication required');
+  }
+  
+  // Fetch the CSV file
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'x-tenant-subdomain': tenantSubdomain || '',
+    },
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to export audit logs');
+  }
+  
+  // Get the blob from response
+  const blob = await response.blob();
+  
+  // Create a download link and trigger it
+  const downloadUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = downloadUrl;
+  link.download = `audit-logs-${new Date().toISOString().split('T')[0]}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(downloadUrl);
+}
+
+/**
+ * Get content audit statistics
+ */
+export async function getAuditStats(days: number = 30): Promise<AuditStats> {
+  return apiGet<AuditStats>(`/api/audit/stats?days=${days}`);
+}
+
+/**
+ * Get stale documents that need updates
+ */
+export async function getStaleDocuments(days: number = 90, limit: number = 10): Promise<{ documents: StaleDocument[] }> {
+  return apiGet<{ documents: StaleDocument[] }>(`/api/audit/stale-documents?days=${days}&limit=${limit}`);
+}
+
+/**
+ * Get top performing documents by views
+ */
+export async function getTopPerformers(limit: number = 5): Promise<{ documents: TopPerformer[] }> {
+  return apiGet<{ documents: TopPerformer[] }>(`/api/audit/top-performers?limit=${limit}`);
+}
+
+/**
+ * Get document review queue
+ */
+export async function getReviewQueue(
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled' | 'all' = 'pending',
+  limit: number = 10
+): Promise<{ reviews: DocumentReview[] }> {
+  return apiGet<{ reviews: DocumentReview[] }>(`/api/audit/reviews?status=${status}&limit=${limit}`);
+}
+
+/**
+ * Create a new document review
+ */
+export async function createReview(params: CreateReviewParams): Promise<{ review: DocumentReview }> {
+  return apiPost<{ review: DocumentReview }>('/api/audit/reviews', params);
+}
+
+/**
+ * Update an existing document review
+ */
+export async function updateReview(id: string, params: UpdateReviewParams): Promise<{ review: DocumentReview }> {
+  return apiPatch<{ review: DocumentReview }>(`/api/audit/reviews/${id}`, params);
+}
+
+/**
+ * Delete a document review
+ */
+export async function deleteReview(id: string): Promise<{ message: string }> {
+  return apiDelete<{ message: string }>(`/api/audit/reviews/${id}`);
+}
+
+/**
+ * Increment document view count
+ */
+export async function trackDocumentView(documentId: string): Promise<void> {
+  await apiPost(`/api/documents/${documentId}/view`);
+}

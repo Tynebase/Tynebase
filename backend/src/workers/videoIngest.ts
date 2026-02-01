@@ -16,16 +16,27 @@
  */
 
 import { supabaseAdmin } from '../lib/supabase';
-import { transcribeVideo } from '../services/ai/vertex';
+import { transcribeVideo, transcribeAudio } from '../services/ai/vertex';
 import { transcribeAudioWithWhisper, extractAudioFromVideo } from '../services/ai/whisper';
+import { uploadToGCS, deleteFromGCS } from '../services/storage/gcs';
 import { completeJob } from '../utils/completeJob';
 import { failJob } from '../utils/failJob';
-import { calculateVideoIngestionCredits } from '../utils/creditCalculator';
+import { getModelCreditCost } from '../utils/creditCalculator';
+import { generateText } from '../services/ai/generation';
+import type { AIModel } from '../services/ai/types';
 import { z } from 'zod';
 import ytDlp from 'yt-dlp-exec';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+
+
+const OutputOptionsSchema = z.object({
+  generate_transcript: z.boolean().default(true),
+  generate_summary: z.boolean().default(false),
+  generate_article: z.boolean().default(false),
+  ai_model: z.enum(['deepseek', 'gemini', 'claude']).default('deepseek'),
+});
 
 const VideoIngestPayloadSchema = z.object({
   storage_path: z.string().min(1).optional(),
@@ -35,6 +46,7 @@ const VideoIngestPayloadSchema = z.object({
   user_id: z.string().uuid(),
   youtube_url: z.string().url().optional(),
   url: z.string().url().optional(),
+  output_options: OutputOptionsSchema.optional(),
 }).refine(
   (data) => data.storage_path || data.youtube_url || data.url,
   { message: 'Either storage_path, youtube_url, or url must be provided' }
@@ -56,10 +68,18 @@ interface Job {
 const DELETE_VIDEO_AFTER_PROCESSING = process.env.DELETE_VIDEO_AFTER_PROCESSING === 'true';
 
 /**
+ * YouTube download sidecar URL (Python yt-dlp with PO-token provider)
+ * Set this to your sidecar service URL in production
+ * Example: http://yt-dlp-sidecar.internal:5000 (Fly.io internal URL)
+ */
+const YT_DLP_SIDECAR_URL = process.env.YT_DLP_SIDECAR_URL || '';
+
+/**
  * Process a video ingestion job
  * @param job - Job record from job_queue
+ * @returns Job result with document IDs and metadata
  */
-export async function processVideoIngestJob(job: Job): Promise<void> {
+export async function processVideoIngestJob(job: Job): Promise<Record<string, any>> {
   const workerId = job.worker_id;
   
   console.log(`[Worker ${workerId}] Processing video ingestion job ${job.id}`);
@@ -90,72 +110,327 @@ export async function processVideoIngestJob(job: Job): Promise<void> {
       throw new Error('No video source provided (storage_path, youtube_url, or url)');
     }
 
-    console.log(`[Worker ${workerId}] Transcribing video with Gemini...`);
     let transcriptionResult;
     let transcript: string;
     let tokensUsed: number;
     let usedFallback = false;
+    let localVideoPath: string | null = null;
 
-    try {
-      transcriptionResult = await transcribeVideo(
-        videoUrl,
-        'Transcribe this video content with timestamps. Include all spoken words and important visual context. Format the output as a readable transcript with clear sections.'
-      );
-      transcript = transcriptionResult.content;
-      tokensUsed = transcriptionResult.tokensInput + transcriptionResult.tokensOutput;
-    } catch (geminiError: any) {
-      console.warn(`[Worker ${workerId}] Gemini transcription failed: ${geminiError.message}`);
-      console.log(`[Worker ${workerId}] Falling back to yt-dlp + Whisper...`);
+    // Get output options early to determine pipeline
+    const outputOptions = validated.output_options || {
+      generate_transcript: true,
+      generate_summary: false,
+      generate_article: false,
+      ai_model: 'gemini' as const,
+    };
+    
+    // Determine pipeline: Gemini-only (10 credits) vs Whisper+Model (5 credits)
+    const useGeminiPipeline = outputOptions.ai_model === 'gemini';
+    
+    console.log(`[Worker ${workerId}] Pipeline: ${useGeminiPipeline ? 'Gemini (10 credits base)' : 'Whisper+' + outputOptions.ai_model + ' (5 credits base)'}`);
 
-      try {
-        const fallbackResult = await fallbackTranscription(videoUrl, isYouTubeVideo, workerId);
-        transcript = fallbackResult.transcript;
-        tokensUsed = fallbackResult.tokensUsed;
-        usedFallback = true;
-        console.log(`[Worker ${workerId}] Fallback transcription successful`);
-      } catch (fallbackError: any) {
-        console.error(`[Worker ${workerId}] Fallback transcription also failed:`, fallbackError);
-        throw new Error(`Both Gemini and fallback transcription failed. Gemini: ${geminiError.message}, Fallback: ${fallbackError.message}`);
+    // For YouTube videos: Download → GCS → Gemini 2.5 Flash
+    if (isYouTubeVideo) {
+      if (useGeminiPipeline) {
+        // Gemini pipeline - download audio, upload to GCS, transcribe with Gemini 2.5 Flash
+        console.log(`[Worker ${workerId}] Processing YouTube video with Gemini pipeline...`);
+        try {
+          const tempDir = os.tmpdir();
+          const videoFileBase = `yt_${Date.now()}_${job.id.slice(0, 8)}`;
+          const outputTemplate = path.join(tempDir, videoFileBase + '.%(ext)s');
+          
+          console.log(`[Worker ${workerId}] Downloading audio via sidecar...`);
+          localVideoPath = await downloadYouTubeAudio(videoUrl, outputTemplate, workerId);
+          
+          // Upload to GCS
+          const gcsFileName = `${videoFileBase}.mp3`;
+          console.log(`[Worker ${workerId}] Uploading audio to GCS: ${gcsFileName}`);
+          const gcsUri = await uploadToGCS(localVideoPath, gcsFileName);
+          console.log(`[Worker ${workerId}] Audio uploaded to: ${gcsUri}`);
+          
+          // Transcribe using Gemini 2.5 Flash with audio
+          console.log(`[Worker ${workerId}] Transcribing audio with Gemini 2.5 Flash (europe-west1)...`);
+          const geminiAudioResult = await transcribeAudio(
+            gcsUri,
+            'Transcribe this audio content with timestamps. Include all spoken words and important context.'
+          );
+          transcript = geminiAudioResult.content;
+          tokensUsed = geminiAudioResult.tokensInput + geminiAudioResult.tokensOutput;
+          console.log(`[Worker ${workerId}] Gemini audio transcription successful`);
+          
+          // Cleanup GCS and local file
+          await deleteFromGCS(gcsUri);
+          if (localVideoPath && fs.existsSync(localVideoPath)) {
+            fs.unlinkSync(localVideoPath);
+          }
+        } catch (geminiError: any) {
+          console.error(`[Worker ${workerId}] Gemini audio transcription failed:`, geminiError);
+          
+          // Fallback to Whisper
+          try {
+            console.log(`[Worker ${workerId}] Falling back to Whisper...`);
+            if (!localVideoPath) {
+              const tempDir = os.tmpdir();
+              const videoFileBase = `yt_${Date.now()}_${job.id.slice(0, 8)}`;
+              const outputTemplate = path.join(tempDir, videoFileBase + '.%(ext)s');
+              localVideoPath = await downloadYouTubeAudio(videoUrl, outputTemplate, workerId);
+            }
+            const whisperResult = await fallbackTranscriptionFromFile(localVideoPath, workerId);
+            transcript = whisperResult.transcript;
+            tokensUsed = whisperResult.tokensUsed;
+            usedFallback = true;
+            console.log(`[Worker ${workerId}] Whisper transcription successful`);
+            
+            // Cleanup local file
+            if (localVideoPath && fs.existsSync(localVideoPath)) {
+              fs.unlinkSync(localVideoPath);
+            }
+          } catch (whisperError: any) {
+            console.error(`[Worker ${workerId}] Whisper also failed:`, whisperError);
+            throw new Error(`All transcription methods failed. Gemini Audio: ${geminiError.message}, Whisper: ${whisperError.message}`);
+          }
+        }
+      } else {
+        // Whisper pipeline (user selected deepseek/claude) - need to download
+        console.log(`[Worker ${workerId}] Using yt-dlp + Whisper for transcription (user selected ${outputOptions.ai_model})...`);
+        try {
+          const tempDir = os.tmpdir();
+          const videoFileBase = `yt_${Date.now()}_${job.id.slice(0, 8)}`;
+          const outputTemplate = path.join(tempDir, videoFileBase + '.%(ext)s');
+          
+          localVideoPath = await downloadYouTubeAudio(videoUrl, outputTemplate, workerId);
+          const stats = fs.statSync(localVideoPath);
+          fileSize = stats.size;
+          
+          const fallbackResult = await fallbackTranscriptionFromFile(localVideoPath, workerId);
+          transcript = fallbackResult.transcript;
+          tokensUsed = fallbackResult.tokensUsed;
+          usedFallback = true;
+          console.log(`[Worker ${workerId}] Whisper transcription successful`);
+          
+          // Cleanup local file
+          if (localVideoPath && fs.existsSync(localVideoPath)) {
+            fs.unlinkSync(localVideoPath);
+          }
+        } catch (fallbackError: any) {
+          console.error(`[Worker ${workerId}] Whisper transcription failed:`, fallbackError);
+          throw new Error(`Whisper transcription failed: ${fallbackError.message}`);
+        }
+      }
+    } else {
+      // For uploaded videos with signed URLs
+      if (useGeminiPipeline) {
+        // Gemini pipeline (10 credits base)
+        console.log(`[Worker ${workerId}] Transcribing video with Gemini...`);
+        try {
+          transcriptionResult = await transcribeVideo(
+            videoUrl,
+            'Transcribe this video content with timestamps. Include all spoken words and important visual context. Format the output as a readable transcript with clear sections.'
+          );
+          transcript = transcriptionResult.content;
+          tokensUsed = transcriptionResult.tokensInput + transcriptionResult.tokensOutput;
+        } catch (geminiError: any) {
+          console.warn(`[Worker ${workerId}] Gemini transcription failed: ${geminiError.message}`);
+          console.log(`[Worker ${workerId}] Falling back to Whisper...`);
+
+          try {
+            const fallbackResult = await fallbackTranscription(videoUrl, isYouTubeVideo, workerId);
+            transcript = fallbackResult.transcript;
+            tokensUsed = fallbackResult.tokensUsed;
+            usedFallback = true;
+            console.log(`[Worker ${workerId}] Fallback transcription successful`);
+          } catch (fallbackError: any) {
+            console.error(`[Worker ${workerId}] Fallback transcription also failed:`, fallbackError);
+            throw new Error(`Both Gemini and fallback transcription failed. Gemini: ${geminiError.message}, Fallback: ${fallbackError.message}`);
+          }
+        }
+      } else {
+        // Whisper pipeline (5 credits base) - forced when user selects deepseek/claude
+        console.log(`[Worker ${workerId}] Using Whisper for transcription (user selected ${outputOptions.ai_model})...`);
+        try {
+          const fallbackResult = await fallbackTranscription(videoUrl, isYouTubeVideo, workerId);
+          transcript = fallbackResult.transcript;
+          tokensUsed = fallbackResult.tokensUsed;
+          usedFallback = true;
+          console.log(`[Worker ${workerId}] Whisper transcription successful`);
+        } catch (fallbackError: any) {
+          console.error(`[Worker ${workerId}] Whisper transcription failed:`, fallbackError);
+          throw new Error(`Whisper transcription failed: ${fallbackError.message}`);
+        }
       }
     }
 
     console.log(`[Worker ${workerId}] Transcription completed: ${transcript.length} characters, ${tokensUsed} tokens`);
 
     const durationMinutes = estimateVideoDuration(transcript, fileSize);
-    const creditsUsed = calculateVideoIngestionCredits(durationMinutes);
-
-    console.log(`[Worker ${workerId}] Estimated duration: ${durationMinutes} minutes, Credits: ${creditsUsed}`);
-
-    const documentTitle = generateDocumentTitle(originalFilename, transcript);
-
-    const { data: document, error: docError } = await supabaseAdmin
-      .from('documents')
-      .insert({
-        tenant_id: job.tenant_id,
-        title: documentTitle,
-        content: transcript,
-        status: 'draft',
-        author_id: validated.user_id,
-      })
-      .select()
-      .single();
-
-    if (docError) {
-      console.error(`[Worker ${workerId}] Failed to create document:`, docError);
-      await failJob({
-        jobId: job.id,
-        error: 'Failed to create document',
-        errorDetails: { message: docError.message, code: docError.code },
-      });
-      return;
+    
+    // Calculate base credits based on pipeline:
+    // - Gemini pipeline: 10 credits base
+    // - Whisper + Model pipeline: 5 credits base
+    const GEMINI_BASE_CREDITS = 10;
+    const WHISPER_BASE_CREDITS = 5;
+    const baseCredits = useGeminiPipeline ? GEMINI_BASE_CREDITS : WHISPER_BASE_CREDITS;
+    
+    // For summary/article: Gemini pipeline forces Gemini, otherwise use selected model
+    const aiModelForOutputs = useGeminiPipeline ? 'gemini' : outputOptions.ai_model;
+    const modelCreditCost = getModelCreditCost(aiModelForOutputs || 'deepseek');
+    
+    let totalCredits = baseCredits;
+    const creditBreakdown: Record<string, number> = { base: baseCredits };
+    
+    if (outputOptions.generate_transcript) {
+      creditBreakdown.transcript = 0; // Transcript is included in base
+    }
+    if (outputOptions.generate_summary) {
+      totalCredits += modelCreditCost;
+      creditBreakdown.summary = modelCreditCost;
+    }
+    if (outputOptions.generate_article) {
+      totalCredits += modelCreditCost;
+      creditBreakdown.article = modelCreditCost;
     }
 
-    console.log(`[Worker ${workerId}] Document created: ${document.id}`);
+    console.log(`[Worker ${workerId}] Estimated duration: ${durationMinutes} minutes, Credits: ${totalCredits}`, creditBreakdown);
 
+    const documentTitle = generateDocumentTitle(originalFilename, transcript);
+    
+    // Track created document IDs
+    let transcriptDocId: string | null = null;
+    let summaryDocId: string | null = null;
+    let articleDocId: string | null = null;
+    let primaryDocId: string | null = null;
+
+    // Create transcript document if requested
+    if (outputOptions.generate_transcript) {
+      const { data: transcriptDoc, error: transcriptError } = await supabaseAdmin
+        .from('documents')
+        .insert({
+          tenant_id: job.tenant_id,
+          title: `${documentTitle} - Transcript`,
+          content: transcript,
+          status: 'draft',
+          author_id: validated.user_id,
+        })
+        .select()
+        .single();
+
+      if (transcriptError) {
+        console.error(`[Worker ${workerId}] Failed to create transcript document:`, transcriptError);
+      } else {
+        transcriptDocId = transcriptDoc.id;
+        primaryDocId = transcriptDoc.id;
+        console.log(`[Worker ${workerId}] Transcript document created: ${transcriptDocId}`);
+      }
+    }
+
+    // Generate AI summary if requested
+    if (outputOptions.generate_summary && transcript.length > 100) {
+      console.log(`[Worker ${workerId}] Generating AI summary using ${aiModelForOutputs}...`);
+      try {
+        const summaryPrompt = `Generate a concise summary of the following transcript. Focus on key points, main topics discussed, and important takeaways. Format as clear bullet points or short paragraphs.\n\nTranscript:\n${transcript.substring(0, 50000)}`;
+        
+        const summaryResponse = await generateText({
+          prompt: summaryPrompt,
+          model: (aiModelForOutputs === 'deepseek' ? 'deepseek-v3' : 
+                 aiModelForOutputs === 'gemini' ? 'gemini-2.5-flash' : 
+                 'claude-sonnet-4.5') as AIModel,
+          maxTokens: 2000,
+        });
+        const summaryContent = summaryResponse.content;
+
+        const { data: summaryDoc } = await supabaseAdmin
+          .from('documents')
+          .insert({
+            tenant_id: job.tenant_id,
+            title: `${documentTitle} - Summary`,
+            content: summaryContent,
+            status: 'draft',
+            author_id: validated.user_id,
+          })
+          .select()
+          .single();
+
+        if (summaryDoc) {
+          summaryDocId = summaryDoc.id;
+          if (!primaryDocId) primaryDocId = summaryDoc.id;
+          console.log(`[Worker ${workerId}] Summary document created: ${summaryDocId}`);
+        }
+      } catch (error) {
+        console.error(`[Worker ${workerId}] Failed to generate summary:`, error);
+      }
+    }
+
+    // Generate AI article if requested
+    if (outputOptions.generate_article && transcript.length > 100) {
+      console.log(`[Worker ${workerId}] Generating AI article using ${aiModelForOutputs}...`);
+      try {
+        const articlePrompt = `Transform the following transcript into a well-formatted, professional article or documentation. Improve readability, add proper structure with headings, remove filler words, and enhance clarity while preserving all important information. Use markdown formatting.\n\nTranscript:\n${transcript.substring(0, 50000)}`;
+        
+        const articleResponse = await generateText({
+          prompt: articlePrompt,
+          model: (aiModelForOutputs === 'deepseek' ? 'deepseek-v3' : 
+                 aiModelForOutputs === 'gemini' ? 'gemini-2.5-flash' : 
+                 'claude-sonnet-4.5') as AIModel,
+          maxTokens: 4000,
+        });
+        const articleContent = articleResponse.content;
+
+        const { data: articleDoc } = await supabaseAdmin
+          .from('documents')
+          .insert({
+            tenant_id: job.tenant_id,
+            title: `${documentTitle} - Article`,
+            content: articleContent,
+            status: 'draft',
+            author_id: validated.user_id,
+          })
+          .select()
+          .single();
+
+        if (articleDoc) {
+          articleDocId = articleDoc.id;
+          if (!primaryDocId) primaryDocId = articleDoc.id;
+          console.log(`[Worker ${workerId}] Article document created: ${articleDocId}`);
+        }
+      } catch (error) {
+        console.error(`[Worker ${workerId}] Failed to generate article:`, error);
+      }
+    }
+
+    // Fallback: create at least one document with the transcript
+    if (!primaryDocId) {
+      const { data: fallbackDoc, error: fallbackError } = await supabaseAdmin
+        .from('documents')
+        .insert({
+          tenant_id: job.tenant_id,
+          title: documentTitle,
+          content: transcript,
+          status: 'draft',
+          author_id: validated.user_id,
+        })
+        .select()
+        .single();
+
+      if (fallbackError) {
+        console.error(`[Worker ${workerId}] Failed to create fallback document:`, fallbackError);
+        await failJob({
+          jobId: job.id,
+          error: 'Failed to create document',
+          errorDetails: { message: fallbackError.message, code: fallbackError.code },
+        });
+        throw new Error('Failed to create document');
+      }
+      primaryDocId = fallbackDoc.id;
+      transcriptDocId = fallbackDoc.id;
+    }
+
+    console.log(`[Worker ${workerId}] Primary document: ${primaryDocId}`);
+
+    // Create lineage event for primary document
     const { error: lineageError } = await supabaseAdmin
       .from('document_lineage')
       .insert({
-        document_id: document.id,
+        document_id: primaryDocId,
         event_type: 'converted_from_video',
         actor_id: validated.user_id,
         metadata: {
@@ -169,42 +444,51 @@ export async function processVideoIngestJob(job: Job): Promise<void> {
           youtube_url: validated.youtube_url || validated.url || null,
           used_fallback: usedFallback,
           transcription_method: usedFallback ? 'whisper' : 'gemini',
+          output_options: outputOptions,
+          created_documents: {
+            transcript: transcriptDocId,
+            summary: summaryDocId,
+            article: articleDocId,
+          },
         },
       });
 
     if (lineageError) {
       console.error(`[Worker ${workerId}] Failed to create lineage event:`, lineageError);
     } else {
-      console.log(`[Worker ${workerId}] Lineage event created for document ${document.id}`);
+      console.log(`[Worker ${workerId}] Lineage event created for document ${primaryDocId}`);
     }
 
-    const currentMonth = new Date().toISOString().slice(0, 7);
     const { error: usageError } = await supabaseAdmin
       .from('query_usage')
       .insert({
         tenant_id: job.tenant_id,
         user_id: validated.user_id,
         query_type: 'video_ingestion',
-        model: usedFallback ? 'whisper-large-v3-turbo' : transcriptionResult!.model,
-        input_tokens: usedFallback ? Math.ceil(fileSize / 1000) : transcriptionResult!.tokensInput,
-        output_tokens: usedFallback ? tokensUsed : transcriptionResult!.tokensOutput,
-        credits_used: creditsUsed,
-        month_year: currentMonth,
+        ai_model: outputOptions.ai_model || (usedFallback ? 'whisper' : 'gemini'),
+        tokens_input: tokensUsed,
+        tokens_output: 0,
+        credits_charged: totalCredits,
         metadata: {
           job_id: job.id,
-          document_id: document.id,
+          primary_document_id: primaryDocId,
+          transcript_document_id: transcriptDocId,
+          summary_document_id: summaryDocId,
+          article_document_id: articleDocId,
           duration_minutes: durationMinutes,
           file_size: fileSize,
           is_youtube: isYouTubeVideo,
           used_fallback: usedFallback,
           transcription_method: usedFallback ? 'whisper' : 'gemini',
+          credit_breakdown: creditBreakdown,
+          output_options: outputOptions,
         },
       });
 
     if (usageError) {
       console.error(`[Worker ${workerId}] Failed to log query usage:`, usageError);
     } else {
-      console.log(`[Worker ${workerId}] Query usage logged: ${creditsUsed} credits`);
+      console.log(`[Worker ${workerId}] Query usage logged: ${totalCredits} credits`);
     }
 
     if (!isYouTubeVideo && DELETE_VIDEO_AFTER_PROCESSING && validated.storage_path) {
@@ -216,22 +500,31 @@ export async function processVideoIngestJob(job: Job): Promise<void> {
       }
     }
 
+    const result = {
+      document_id: primaryDocId,
+      transcript_document_id: transcriptDocId,
+      summary_document_id: summaryDocId,
+      article_document_id: articleDocId,
+      title: documentTitle,
+      duration_minutes: durationMinutes,
+      credits_charged: totalCredits,
+      credit_breakdown: creditBreakdown,
+      tokens_used: tokensUsed,
+      transcript_length: transcript.length,
+      is_youtube: isYouTubeVideo,
+      used_fallback: usedFallback,
+      transcription_method: usedFallback ? 'whisper' : 'gemini',
+      output_options: outputOptions,
+    };
+
     await completeJob({
       jobId: job.id,
-      result: {
-        document_id: document.id,
-        title: document.title,
-        duration_minutes: durationMinutes,
-        credits_used: creditsUsed,
-        tokens_used: tokensUsed,
-        transcript_length: transcript.length,
-        is_youtube: isYouTubeVideo,
-        used_fallback: usedFallback,
-        transcription_method: usedFallback ? 'whisper' : 'gemini',
-      },
+      result,
     });
 
     console.log(`[Worker ${workerId}] Job ${job.id} completed successfully`);
+    
+    return result;
   } catch (error) {
     console.error(`[Worker ${workerId}] Error processing video ingestion job:`, error);
 
@@ -244,6 +537,8 @@ export async function processVideoIngestJob(job: Job): Promise<void> {
         storage_path: job.payload.storage_path,
       },
     });
+    // Re-throw so outer handler knows job failed
+    throw error;
   }
 }
 
@@ -351,6 +646,165 @@ function generateDocumentTitle(filename: string, transcript: string): string {
 }
 
 /**
+ * Download YouTube audio with retry logic and multiple strategies
+ * Handles 403 errors by trying different yt-dlp player client configurations
+ * 
+ * @param videoUrl - YouTube URL
+ * @param outputTemplate - Output path template with %(ext)s
+ * @param workerId - Worker ID for logging
+ */
+async function downloadYouTubeAudio(
+  videoUrl: string,
+  outputTemplate: string,
+  workerId: string
+): Promise<string> {
+  const MAX_RETRIES = 2;
+  const RETRY_DELAY_MS = 2000;
+
+  // Base options with Node.js runtime for JavaScript extraction
+  const baseOptions: Record<string, any> = {
+    output: outputTemplate,
+    format: 'bestaudio[ext=m4a]/bestaudio[ext=mp3]/bestaudio/best[height<=480]',
+    noPlaylist: true,
+    jsRuntimes: 'node',
+    extractAudio: true,
+    audioFormat: 'mp3',
+  };
+
+  // Extract base path to find downloaded file (template uses %(ext)s)
+  const basePath = outputTemplate.replace('.%(ext)s', '');
+
+  // If sidecar is configured, use it instead of local yt-dlp
+  if (YT_DLP_SIDECAR_URL) {
+    console.log(`[Worker ${workerId}] Using yt-dlp sidecar: ${YT_DLP_SIDECAR_URL}`);
+    return await downloadFromSidecar(videoUrl, outputTemplate, workerId);
+  }
+
+  // Fallback to local yt-dlp with multiple strategies
+  const strategies: Array<{ name: string; options: Record<string, any> }> = [];
+  strategies.push(
+    {
+      name: 'default',
+      options: { ...baseOptions }
+    },
+    {
+      name: 'web-client',
+      options: {
+        ...baseOptions,
+        extractorArgs: 'youtube:player_client=web',
+      }
+    },
+    {
+      name: 'android-client',
+      options: {
+        ...baseOptions,
+        extractorArgs: 'youtube:player_client=android',
+      }
+    },
+    {
+      name: 'ios-client',
+      options: {
+        ...baseOptions,
+        extractorArgs: 'youtube:player_client=ios',
+      }
+    }
+  );
+
+  let lastError: Error | null = null;
+
+  for (const strategy of strategies) {
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        console.log(`[Worker ${workerId}] yt-dlp attempt ${attempt}/${MAX_RETRIES} with strategy: ${strategy.name}`);
+        
+        await ytDlp(videoUrl, strategy.options as any);
+        
+        // Find the actual downloaded file (yt-dlp adds the extension)
+        const possibleExtensions = ['m4a', 'mp3', 'mp4', 'webm', 'opus', 'ogg'];
+        for (const ext of possibleExtensions) {
+          const filePath = `${basePath}.${ext}`;
+          if (fs.existsSync(filePath)) {
+            console.log(`[Worker ${workerId}] Download successful with strategy: ${strategy.name}, file: ${filePath}`);
+            return filePath;
+          }
+        }
+        
+        throw new Error('Output file not created - no matching file found');
+      } catch (error: any) {
+        lastError = error;
+        const errorMsg = error.message || String(error);
+        
+        console.warn(`[Worker ${workerId}] yt-dlp attempt ${attempt} failed (strategy: ${strategy.name}): ${errorMsg.substring(0, 200)}`);
+        
+        // If it's a 403 error, try next strategy immediately
+        if (errorMsg.includes('403') || errorMsg.includes('Forbidden')) {
+          console.log(`[Worker ${workerId}] Got 403 error, trying next strategy...`);
+          break; // Move to next strategy
+        }
+        
+        // For other errors, retry with delay
+        if (attempt < MAX_RETRIES) {
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * attempt));
+        }
+      }
+    }
+  }
+
+  // All strategies failed
+  throw new Error(`Failed to download YouTube video after trying all strategies: ${lastError?.message || 'Unknown error'}`);
+}
+
+/**
+ * Download YouTube video using the Python sidecar service
+ * @param videoUrl - YouTube URL
+ * @param outputTemplate - Output path template
+ * @param workerId - Worker ID for logging
+ */
+async function downloadFromSidecar(
+  videoUrl: string,
+  outputTemplate: string,
+  workerId: string
+): Promise<string> {
+  const axios = require('axios');
+  
+  try {
+    console.log(`[Worker ${workerId}] Requesting download from sidecar: ${videoUrl}`);
+    
+    const response = await axios({
+      method: 'POST',
+      url: `${YT_DLP_SIDECAR_URL}/download`,
+      data: {
+        url: videoUrl,
+        format: 'bestaudio[ext=m4a]/bestaudio[ext=mp3]/bestaudio',
+        extract_audio: true,
+      },
+      responseType: 'stream',
+      timeout: 300000, // 5 minutes timeout
+    });
+    
+    // Extract base path from template
+    const basePath = outputTemplate.replace('.%(ext)s', '');
+    const outputPath = `${basePath}.mp3`;
+    
+    // Stream response to file
+    const writer = fs.createWriteStream(outputPath);
+    response.data.pipe(writer);
+    
+    await new Promise<void>((resolve, reject) => {
+      writer.on('finish', () => resolve());
+      writer.on('error', reject);
+    });
+    
+    console.log(`[Worker ${workerId}] Sidecar download complete: ${outputPath}`);
+    return outputPath;
+    
+  } catch (error: any) {
+    console.error(`[Worker ${workerId}] Sidecar download failed:`, error.message);
+    throw new Error(`Sidecar download failed: ${error.message}`);
+  }
+}
+
+/**
  * Fallback transcription using yt-dlp + Whisper
  * Used when Gemini API fails
  * 
@@ -365,19 +819,15 @@ async function fallbackTranscription(
   workerId: string
 ): Promise<{ transcript: string; tokensUsed: number }> {
   const tempDir = os.tmpdir();
-  const videoFileName = `video_${Date.now()}.mp4`;
+  const videoFileName = `video_${Date.now()}.mp3`;
   const audioFileName = `audio_${Date.now()}.wav`;
   const videoPath = path.join(tempDir, videoFileName);
   const audioPath = path.join(tempDir, audioFileName);
 
   try {
     if (isYouTube) {
-      console.log(`[Worker ${workerId}] Downloading YouTube video with yt-dlp...`);
-      await ytDlp(videoUrl, {
-        output: videoPath,
-        format: 'best[ext=mp4]',
-        noPlaylist: true,
-      });
+      console.log(`[Worker ${workerId}] Downloading YouTube audio with yt-dlp...`);
+      await downloadYouTubeAudio(videoUrl, videoPath, workerId);
     } else {
       console.log(`[Worker ${workerId}] Downloading video from signed URL...`);
       const axios = require('axios');
@@ -414,6 +864,43 @@ async function fallbackTranscription(
       fs.unlinkSync(videoPath);
       console.log(`[Worker ${workerId}] Cleaned up temp video file`);
     }
+    if (fs.existsSync(audioPath)) {
+      fs.unlinkSync(audioPath);
+      console.log(`[Worker ${workerId}] Cleaned up temp audio file`);
+    }
+  }
+}
+
+/**
+ * Fallback transcription from a local video file using ffmpeg + Whisper
+ * Used when we already have the video downloaded locally
+ * 
+ * @param videoPath - Local path to video file
+ * @param workerId - Worker ID for logging
+ * @returns Transcript and token count
+ */
+async function fallbackTranscriptionFromFile(
+  videoPath: string,
+  workerId: string
+): Promise<{ transcript: string; tokensUsed: number }> {
+  const tempDir = os.tmpdir();
+  const audioFileName = `audio_${Date.now()}.wav`;
+  const audioPath = path.join(tempDir, audioFileName);
+
+  try {
+    console.log(`[Worker ${workerId}] Extracting audio from local video file...`);
+    const extractedAudioPath = await extractAudioFromVideo(videoPath, audioPath);
+    console.log(`[Worker ${workerId}] Audio extracted: ${extractedAudioPath}`);
+
+    const whisperResult = await transcribeAudioWithWhisper(extractedAudioPath);
+    const transcript = whisperResult.content;
+    const tokensUsed = whisperResult.tokensInput + whisperResult.tokensOutput;
+
+    return { transcript, tokensUsed };
+  } catch (error) {
+    console.error(`[Worker ${workerId}] Fallback transcription from file error:`, error);
+    throw error;
+  } finally {
     if (fs.existsSync(audioPath)) {
       fs.unlinkSync(audioPath);
       console.log(`[Worker ${workerId}] Cleaned up temp audio file`);

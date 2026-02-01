@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { CollaborativeEditor } from "@/components/editor/CollaborativeEditor";
+import { RichTextEditor } from "@/components/editor/RichTextEditor";
+import { VersionHistoryPanel } from "@/components/editor/VersionHistoryPanel";
 import { MarkdownReader } from "@/components/ui/MarkdownReader";
-import { VersionHistory } from "@/components/ui/VersionHistory";
 import { Button } from "@/components/ui/Button";
+import { RainbowProgressBar } from "@/components/ui/RainbowProgressBar";
 import {
   ArrowLeft,
   Eye,
@@ -21,13 +22,13 @@ import {
   Trash2,
   Copy,
   ExternalLink,
-  Sparkles,
-  Send,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  X
 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/Card";
+import { DeleteConfirmationModal } from "@/components/ui/DeleteConfirmationModal";
 import { 
   getDocument, 
   updateDocument, 
@@ -35,8 +36,10 @@ import {
   deleteDocument,
   type Document 
 } from "@/lib/api/documents";
+import { listCategories, type Category as APICategory } from "@/lib/api/folders";
 
-function htmlToPlainText(html: string) {
+function htmlToPlainText(html: string | null | undefined) {
+  if (!html) return '';
   return html
     .replace(/<br\s*\/?\s*>/gi, "\n")
     .replace(/<\/p>/gi, "\n\n")
@@ -72,7 +75,7 @@ function mapDocumentToUI(doc: Document): UIDocument {
     content: doc.content,
     folder: 'General',
     status: doc.status,
-    visibility: doc.is_public ? 'public' : 'private',
+    visibility: (doc as any).visibility || (doc.is_public ? 'public' : 'team'),
     author: authorName,
     createdAt: doc.created_at,
     updatedAt: doc.updated_at,
@@ -93,27 +96,52 @@ export default function EditDocumentPage() {
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [folder, setFolder] = useState("Uncategorized");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [categories, setCategories] = useState<APICategory[]>([]);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [loadingCategories, setLoadingCategories] = useState(true);
   const [visibility, setVisibility] = useState<"public" | "private" | "team">("team");
   const [mode, setMode] = useState<"edit" | "read">("edit");
-  const [kbQuestion, setKbQuestion] = useState("");
-  const [kbAsking, setKbAsking] = useState(false);
-  const [kbAnswer, setKbAnswer] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const hasFetched = useRef(false);
+
+  // Refetch content when switching to read mode to get latest saved content
+  const refetchContent = async () => {
+    try {
+      const response = await getDocument(documentId, true); // true = skip view increment
+      setContent(response.document.content || '');
+      setTitle(response.document.title);
+    } catch (err) {
+      console.error('Failed to refetch document content:', err);
+    }
+  };
+
+  // Handle mode switch - refetch content when switching to read mode
+  const handleModeSwitch = async (newMode: "edit" | "read") => {
+    if (newMode === "read") {
+      await refetchContent();
+    }
+    setMode(newMode);
+  };
 
   useEffect(() => {
+    // Prevent double fetch in React StrictMode
+    if (hasFetched.current) return;
+    hasFetched.current = true;
+
     const fetchDocument = async () => {
       try {
         setIsLoading(true);
         setError(null);
         
         const response = await getDocument(documentId);
-        const uiDoc = mapDocumentToUI(response.data.document);
+        const uiDoc = mapDocumentToUI(response.document);
         
         setDocument(uiDoc);
         setTitle(uiDoc.title);
         setContent(uiDoc.content);
         setStatus(uiDoc.status);
-        setFolder(uiDoc.folder);
+        setSelectedCategoryId(response.document.category_id || null);
         setVisibility(uiDoc.visibility);
       } catch (err) {
         console.error('Failed to fetch document:', err);
@@ -125,6 +153,35 @@ export default function EditDocumentPage() {
 
     fetchDocument();
   }, [documentId]);
+
+  // Fetch categories on mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await listCategories({ limit: 100 });
+        setCategories(res.categories);
+      } catch (err) {
+        console.error('Failed to fetch categories:', err);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  // Update category when selection changes
+  const handleCategoryChange = async (categoryId: string | null) => {
+    setSelectedCategoryId(categoryId);
+    setShowCategoryDropdown(false);
+    try {
+      await updateDocument(documentId, { category_id: categoryId });
+      console.log(`[EditDocument] Updated category to: ${categoryId || 'root'}`);
+    } catch (err) {
+      console.error('Failed to update category:', err);
+    }
+  };
+
+  const selectedCategory = categories.find(c => c.id === selectedCategoryId);
 
   if (isLoading) {
     return (
@@ -163,7 +220,7 @@ export default function EditDocumentPage() {
       await updateDocument(documentId, {
         title: data.title,
         content: data.content,
-        is_public: visibility === 'public',
+        visibility,
       });
       
       setTitle(data.title);
@@ -174,17 +231,6 @@ export default function EditDocumentPage() {
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const handleAskKb = async () => {
-    if (!kbQuestion.trim()) return;
-    setKbAsking(true);
-    setKbAnswer(null);
-    await new Promise((resolve) => setTimeout(resolve, 900));
-    setKbAnswer(
-      "Here’s an answer grounded in your workspace documentation. Next step: I can summarize, generate an action checklist, or suggest improvements to this doc."
-    );
-    setKbAsking(false);
   };
 
   const handlePublish = async () => {
@@ -203,7 +249,7 @@ export default function EditDocumentPage() {
   const handleUnpublish = async () => {
     try {
       setIsSaving(true);
-      await updateDocument(documentId, { is_public: false });
+      await updateDocument(documentId, { status: 'draft', is_public: false });
       setStatus("draft");
     } catch (err) {
       console.error('Failed to unpublish document:', err);
@@ -214,44 +260,64 @@ export default function EditDocumentPage() {
   };
 
   const handleDelete = async () => {
-    if (confirm("Are you sure you want to delete this document? This action cannot be undone.")) {
-      try {
-        setIsSaving(true);
-        await deleteDocument(documentId);
-        router.push("/dashboard/knowledge");
-      } catch (err) {
-        console.error('Failed to delete document:', err);
-        alert('Failed to delete document. Please try again.');
-        setIsSaving(false);
-      }
+    try {
+      await deleteDocument(documentId);
+      router.push("/dashboard/knowledge");
+    } catch (err) {
+      console.error('Failed to delete document:', err);
+      throw err;
     }
   };
 
   return (
     <div className="min-h-[calc(100vh-64px)] flex flex-col">
+      <RainbowProgressBar isLoading={isLoading} />
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border border-[var(--dash-border-subtle)] bg-[var(--surface-card)] rounded-2xl">
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard/knowledge">
-            <Button variant="ghost" className="gap-2">
-              <ArrowLeft className="w-4 h-4" />
-              Back
-            </Button>
-          </Link>
-          <div className="flex items-center gap-2 text-sm text-[var(--dash-text-tertiary)]">
-            <span className="text-[var(--dash-text-muted)]">Knowledge Base</span>
-            <span>/</span>
-            <span>{folder}</span>
-            <span>/</span>
-            <span className="text-[var(--dash-text-primary)] truncate max-w-[240px]">{title || "Untitled"}</span>
+      <div className="flex flex-col gap-3 px-4 sm:px-6 py-3 sm:py-4 border border-[var(--dash-border-subtle)] bg-[var(--surface-card)] rounded-2xl">
+        {/* Top row: Back button and breadcrumb */}
+        <div className="flex items-center justify-between gap-2 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+            <Link href="/dashboard/knowledge" className="flex-shrink-0">
+              <Button variant="ghost" className="gap-2 px-2 sm:px-3">
+                <ArrowLeft className="w-4 h-4" />
+                <span className="hidden sm:inline">Back</span>
+              </Button>
+            </Link>
+            <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-[var(--dash-text-tertiary)] min-w-0 overflow-hidden">
+              <span className="text-[var(--dash-text-muted)] hidden md:inline">Knowledge Base</span>
+              <span className="hidden md:inline">/</span>
+              <span className="hidden lg:inline">{selectedCategory?.name || 'Uncategorized'}</span>
+              <span className="hidden lg:inline">/</span>
+              <span className="text-[var(--dash-text-primary)] truncate max-w-[120px] sm:max-w-[180px] md:max-w-[240px]">{title || "Untitled"}</span>
+            </div>
+          </div>
+          
+          {/* Status Badge - always visible */}
+          <div className={`flex-shrink-0 flex items-center gap-1.5 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${status === "draft"
+            ? "bg-amber-500/10 text-amber-600"
+            : "bg-green-500/10 text-green-600"
+            }`}>
+            {status === "draft" ? (
+              <>
+                <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                <span className="hidden xs:inline">Draft</span>
+              </>
+            ) : (
+              <>
+                <Globe className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                <span className="hidden xs:inline">Published</span>
+              </>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* Bottom row: Controls */}
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          {/* Edit/Reader Toggle */}
           <div className="flex items-center p-1 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl">
             <button
-              onClick={() => setMode("edit")}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${mode === "edit"
+              onClick={() => handleModeSwitch("edit")}
+              className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors ${mode === "edit"
                 ? "bg-[var(--surface-card)] text-[var(--dash-text-primary)]"
                 : "text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)]"
                 }`}
@@ -259,8 +325,8 @@ export default function EditDocumentPage() {
               Edit
             </button>
             <button
-              onClick={() => setMode("read")}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${mode === "read"
+              onClick={() => handleModeSwitch("read")}
+              className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors ${mode === "read"
                 ? "bg-[var(--surface-card)] text-[var(--dash-text-primary)]"
                 : "text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)]"
                 }`}
@@ -269,58 +335,43 @@ export default function EditDocumentPage() {
             </button>
           </div>
 
-          {/* Status Badge */}
-          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${status === "draft"
-            ? "bg-amber-500/10 text-amber-600"
-            : "bg-green-500/10 text-green-600"
-            }`}>
-            {status === "draft" ? (
-              <>
-                <Clock className="w-3.5 h-3.5" />
-                Draft
-              </>
-            ) : (
-              <>
-                <Globe className="w-3.5 h-3.5" />
-                Published
-              </>
-            )}
-          </div>
-
           {/* Version History */}
           <Button
             variant="ghost"
-            className="gap-2"
+            className="gap-1 sm:gap-2 px-2 sm:px-3"
             onClick={() => setShowHistory(!showHistory)}
           >
             <History className="w-4 h-4" />
-            History
+            <span className="hidden sm:inline">History</span>
           </Button>
 
-          {/* Preview */}
-          <Button variant="ghost" className="gap-2" onClick={() => setMode((m) => (m === "edit" ? "read" : "edit"))}>
+          {/* Preview - hidden on mobile since Edit/Reader toggle serves same purpose */}
+          <Button variant="ghost" className="gap-2 hidden md:flex" onClick={() => handleModeSwitch(mode === "edit" ? "read" : "edit")}>
             <Eye className="w-4 h-4" />
             {mode === "edit" ? "Preview" : "Back to editor"}
           </Button>
 
+          {/* Spacer to push actions to the right on larger screens */}
+          <div className="flex-1 hidden lg:block" />
+
           {/* Publish/Unpublish */}
           {status === "draft" ? (
-            <Button variant="primary" onClick={handlePublish} disabled={isSaving}>
+            <Button variant="primary" onClick={handlePublish} disabled={isSaving} className="px-2 sm:px-3">
               {isSaving ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <Loader2 className="w-4 h-4 sm:mr-2 animate-spin" />
               ) : (
-                <Globe className="w-4 h-4 mr-2" />
+                <Globe className="w-4 h-4 sm:mr-2" />
               )}
-              {isSaving ? 'Publishing...' : 'Publish'}
+              <span className="hidden sm:inline">{isSaving ? 'Publishing...' : 'Publish'}</span>
             </Button>
           ) : (
-            <Button variant="outline" onClick={handleUnpublish} disabled={isSaving}>
+            <Button variant="outline" onClick={handleUnpublish} disabled={isSaving} className="px-2 sm:px-3">
               {isSaving ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <Loader2 className="w-4 h-4 sm:mr-2 animate-spin" />
               ) : (
-                <Lock className="w-4 h-4 mr-2" />
+                <Lock className="w-4 h-4 sm:mr-2" />
               )}
-              {isSaving ? 'Unpublishing...' : 'Unpublish'}
+              <span className="hidden sm:inline">{isSaving ? 'Unpublishing...' : 'Unpublish'}</span>
             </Button>
           )}
 
@@ -335,34 +386,100 @@ export default function EditDocumentPage() {
 
       {/* Main Content */}
       <div className="flex-1 mt-6">
-        {mode === "edit" ? (
-          <div className="flex overflow-hidden">
-            <div className="flex-1 overflow-hidden">
-              <CollaborativeEditor
-                documentId={documentId}
-                initialTitle={title}
-                onTitleChange={setTitle}
-              />
-            </div>
+        {/* Editor - Always mounted to preserve Y.js state */}
+        <div className={mode === "edit" ? "flex overflow-hidden" : "hidden"}>
+          <div className="flex-1 overflow-hidden">
+            <RichTextEditor
+              documentId={documentId}
+              initialTitle={title}
+              onTitleChange={setTitle}
+              showVersionHistory={showHistory}
+              onVersionHistoryToggle={() => setShowHistory(!showHistory)}
+            />
+          </div>
 
             {/* Settings Sidebar */}
             {showSettings && !showHistory && (
-              <div className="w-80 border-l border-[var(--dash-border-subtle)] bg-[var(--surface-card)] overflow-y-auto">
-                <div className="p-4 border-b border-[var(--dash-border-subtle)]">
-                  <h3 className="font-semibold text-[var(--dash-text-primary)]">Document Settings</h3>
-                </div>
+              <>
+                {/* Mobile overlay backdrop */}
+                <div 
+                  className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+                  onClick={() => setShowSettings(false)}
+                />
+                
+                {/* Settings panel - sidebar on desktop, modal on mobile */}
+                <div className="fixed lg:relative inset-y-0 right-0 w-full sm:w-96 lg:w-80 border-l border-[var(--dash-border-subtle)] bg-[var(--surface-card)] overflow-y-auto z-50 lg:z-auto">
+                  <div className="p-4 border-b border-[var(--dash-border-subtle)] flex items-center justify-between">
+                    <h3 className="font-semibold text-[var(--dash-text-primary)]">Document Settings</h3>
+                    <button 
+                      onClick={() => setShowSettings(false)}
+                      className="lg:hidden p-1 hover:bg-[var(--surface-hover)] rounded text-[var(--dash-text-secondary)]"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
 
                 <div className="p-4 space-y-6">
-                  {/* Folder */}
-                  <div>
+                  {/* Category */}
+                  <div className="relative">
                     <label className="text-sm font-medium text-[var(--dash-text-secondary)] flex items-center gap-2 mb-2">
                       <Folder className="w-4 h-4" />
-                      Folder
+                      Category
                     </label>
-                    <button className="w-full flex items-center justify-between px-3 py-2 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-lg text-left">
-                      <span className="text-[var(--dash-text-primary)]">{folder}</span>
-                      <ChevronDown className="w-4 h-4 text-[var(--dash-text-tertiary)]" />
+                    <button 
+                      onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                      className="w-full flex items-center justify-between px-3 py-2 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-lg text-left hover:border-[var(--dash-border-default)] transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        {selectedCategory && (
+                          <div 
+                            className="w-3 h-3 rounded-sm"
+                            style={{ backgroundColor: selectedCategory.color }}
+                          />
+                        )}
+                        <span className="text-[var(--dash-text-primary)]">
+                          {selectedCategory?.name || "No category"}
+                        </span>
+                      </div>
+                      {loadingCategories ? (
+                        <Loader2 className="w-4 h-4 text-[var(--dash-text-tertiary)] animate-spin" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-[var(--dash-text-tertiary)]" />
+                      )}
                     </button>
+                    
+                    {showCategoryDropdown && !loadingCategories && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                        <button
+                          onClick={() => handleCategoryChange(null)}
+                          className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-[var(--surface-hover)] ${
+                            !selectedCategoryId ? 'bg-[var(--brand)]/5' : ''
+                          }`}
+                        >
+                          <span className="text-[var(--dash-text-primary)]">No category</span>
+                        </button>
+                        {categories.map(c => (
+                          <button
+                            key={c.id}
+                            onClick={() => handleCategoryChange(c.id)}
+                            className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-[var(--surface-hover)] ${
+                              selectedCategoryId === c.id ? 'bg-[var(--brand)]/5' : ''
+                            }`}
+                          >
+                            <div 
+                              className="w-3 h-3 rounded-sm flex-shrink-0"
+                              style={{ backgroundColor: c.color }}
+                            />
+                            <span className="text-[var(--dash-text-primary)] truncate">{c.name}</span>
+                          </button>
+                        ))}
+                        {categories.length === 0 && (
+                          <div className="px-3 py-2 text-sm text-[var(--dash-text-tertiary)]">
+                            No categories yet
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Visibility */}
@@ -373,24 +490,38 @@ export default function EditDocumentPage() {
                     </label>
                     <div className="space-y-2">
                       {[
-                        { id: "public", label: "Public", desc: "Anyone can view", icon: Globe },
-                        { id: "team", label: "Team Only", desc: "Workspace members", icon: Users },
-                        { id: "private", label: "Private", desc: "Only you", icon: Lock },
+                        { id: "public", label: "Public", desc: "Coming Soon", icon: Globe, disabled: true },
+                        { id: "team", label: "Team Only", desc: "Workspace members", icon: Users, disabled: false },
+                        { id: "private", label: "Private", desc: "Only you", icon: Lock, disabled: false },
                       ].map((option) => (
                         <button
                           key={option.id}
-                          onClick={() => setVisibility(option.id as typeof visibility)}
-                          className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all ${visibility === option.id
-                            ? "border-[var(--brand)] bg-[var(--brand)]/10"
-                            : "border-[var(--dash-border-subtle)] hover:border-[var(--dash-border-default)]"
-                            }`}
+                          onClick={() => !option.disabled && setVisibility(option.id as typeof visibility)}
+                          disabled={option.disabled}
+                          className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all ${
+                            option.disabled
+                              ? "border-[var(--dash-border-subtle)] opacity-50 cursor-not-allowed"
+                              : visibility === option.id
+                                ? "border-[var(--brand)] bg-[var(--brand)]/10"
+                                : "border-[var(--dash-border-subtle)] hover:border-[var(--dash-border-default)]"
+                          }`}
                         >
-                          <option.icon className={`w-4 h-4 ${visibility === option.id
-                            ? "text-[var(--brand)]"
-                            : "text-[var(--dash-text-tertiary)]"
-                            }`} />
-                          <div className="text-left">
-                            <p className="text-sm font-medium text-[var(--dash-text-primary)]">{option.label}</p>
+                          <option.icon className={`w-4 h-4 ${
+                            option.disabled
+                              ? "text-[var(--dash-text-muted)]"
+                              : visibility === option.id
+                                ? "text-[var(--brand)]"
+                                : "text-[var(--dash-text-tertiary)]"
+                          }`} />
+                          <div className="text-left flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium text-[var(--dash-text-primary)]">{option.label}</p>
+                              {option.disabled && (
+                                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-[var(--surface-ground)] text-[var(--dash-text-muted)] rounded">
+                                  Soon
+                                </span>
+                              )}
+                            </div>
                             <p className="text-xs text-[var(--dash-text-tertiary)]">{option.desc}</p>
                           </div>
                         </button>
@@ -443,7 +574,7 @@ export default function EditDocumentPage() {
                     <Button
                       variant="ghost"
                       className="w-full justify-start gap-2 text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                      onClick={handleDelete}
+                      onClick={() => setShowDeleteModal(true)}
                     >
                       <Trash2 className="w-4 h-4" />
                       Delete Document
@@ -451,97 +582,124 @@ export default function EditDocumentPage() {
                   </div>
                 </div>
               </div>
+              </>
             )}
 
-            {/* Version History Sidebar */}
-            {showHistory && (
-              <VersionHistory
-                onRestore={(versionId) => {
-                  console.log("Restore version:", versionId);
-                  setShowHistory(false);
-                }}
-                onPreview={(versionId) => {
-                  console.log("Preview version:", versionId);
-                }}
-                onCompare={(a, b) => {
-                  console.log("Compare versions:", a, b);
-                }}
-              />
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-12 gap-6 items-start">
+          {/* Version History Sidebar */}
+          {showHistory && (
+            <VersionHistoryPanel
+              documentId={documentId}
+              currentTitle={title}
+              onClose={() => setShowHistory(false)}
+              onRestore={(version) => {
+                console.log("Restore version:", version);
+                setShowHistory(false);
+                // Refresh the page to load restored version
+                window.location.reload();
+              }}
+            />
+          )}
+        </div>
+
+        {/* Preview Mode - Always mounted to avoid re-fetching */}
+        <div className={mode === "read" ? "grid grid-cols-12 gap-6 items-start" : "hidden"}>
             <div className="col-span-12 xl:col-span-8">
-              <MarkdownReader content={htmlToPlainText(content)} />
+              <MarkdownReader content={htmlToPlainText(content)} title={title} />
             </div>
             <div className="col-span-12 xl:col-span-4 space-y-4">
+              {/* Version Control Panel */}
               <Card>
                 <CardHeader className="pb-4 border-b border-[var(--dash-border-subtle)] bg-[var(--surface-ground)] rounded-t-[var(--radius-lg)]">
                   <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-[var(--brand)]" />
-                    <CardTitle className="text-base font-semibold">Ask your knowledge base</CardTitle>
+                    <History className="w-4 h-4 text-[var(--brand)]" />
+                    <CardTitle className="text-base font-semibold">Version Control</CardTitle>
                   </div>
                   <CardDescription className="text-xs mt-1">
-                    Get answers grounded in your docs - ready to share with your team.
+                    Track changes and restore previous versions.
                   </CardDescription>
                 </CardHeader>
 
-                <CardContent className="p-6 space-y-3">
-                  <textarea
-                    value={kbQuestion}
-                    onChange={(e) => setKbQuestion(e.target.value)}
-                    placeholder="Example: What is the recommended authentication method for internal services?"
-                    rows={4}
-                    className="w-full px-4 py-3 rounded-xl bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 resize-none"
-                  />
-
-                  <div className="flex items-center justify-between">
-                    <button
-                      onClick={handleAskKb}
-                      disabled={kbAsking || !kbQuestion.trim()}
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white text-sm font-semibold disabled:opacity-50"
-                    >
-                      <Send className="w-4 h-4" />
-                      Ask
-                    </button>
-                    <button
-                      onClick={() => {
-                        setKbQuestion("Summarize this document into a brief + action items.");
-                        setKbAnswer(null);
-                      }}
-                      className="text-sm font-medium text-[var(--dash-text-secondary)] hover:text-[var(--brand)] transition-colors"
-                    >
-                      Suggested prompt
-                    </button>
-                  </div>
-
-                  {kbAsking && (
-                    <div className="rounded-xl border border-[var(--dash-border-subtle)] bg-[var(--surface-ground)] p-4">
-                      <p className="text-sm text-[var(--dash-text-secondary)]">Thinking…</p>
-                      <p className="text-xs text-[var(--dash-text-tertiary)] mt-1">
-                        Retrieving relevant context and drafting an answer.
-                      </p>
-                    </div>
-                  )}
-
-                  {kbAnswer && (
-                    <div className="rounded-xl border border-[var(--dash-border-subtle)] bg-[var(--surface-ground)] p-4">
-                      <p className="text-sm font-semibold text-[var(--dash-text-primary)]">Answer</p>
-                      <p className="text-sm text-[var(--dash-text-secondary)] mt-1">{kbAnswer}</p>
-                      <div className="mt-3 pt-3 border-t border-[var(--dash-border-subtle)]">
-                        <p className="text-xs font-semibold text-[var(--dash-text-muted)]">Citations (placeholder)</p>
-                        <p className="text-xs text-[var(--dash-text-tertiary)] mt-1">
-                          Add retrieval + citations once backend is wired.
+                <CardContent className="p-4 space-y-4">
+                  {/* Current Version */}
+                  <div className="p-3 rounded-lg bg-[var(--brand)]/5 border border-[var(--brand)]/20">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-medium text-[var(--dash-text-primary)] text-sm">
+                          Current Version
+                        </p>
+                        <p className="text-xs text-[var(--dash-text-tertiary)] mt-0.5">
+                          Last saved: {document ? new Date(document.updatedAt).toLocaleString() : 'Unknown'}
                         </p>
                       </div>
+                      <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5" />
                     </div>
-                  )}
+                  </div>
+
+                  {/* Document Info */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-[var(--dash-text-tertiary)] flex items-center gap-2">
+                        <Clock className="w-3.5 h-3.5" />
+                        Created
+                      </span>
+                      <span className="text-[var(--dash-text-secondary)]">
+                        {document ? new Date(document.createdAt).toLocaleDateString() : '-'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-[var(--dash-text-tertiary)] flex items-center gap-2">
+                        <Users className="w-3.5 h-3.5" />
+                        Author
+                      </span>
+                      <span className="text-[var(--dash-text-secondary)]">
+                        {document?.author || 'Unknown'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-[var(--dash-text-tertiary)] flex items-center gap-2">
+                        {status === 'published' ? (
+                          <Globe className="w-3.5 h-3.5" />
+                        ) : (
+                          <Lock className="w-3.5 h-3.5" />
+                        )}
+                        Status
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        status === 'published' 
+                          ? 'bg-green-500/10 text-green-600' 
+                          : 'bg-amber-500/10 text-amber-600'
+                      }`}>
+                        {status === 'published' ? 'Published' : 'Draft'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* View History Button */}
+                  <button
+                    onClick={() => {
+                      setMode("edit");
+                      setShowHistory(true);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-[var(--dash-border-subtle)] text-[var(--dash-text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)] transition-colors text-sm font-medium"
+                  >
+                    <History className="w-4 h-4" />
+                    View Full History
+                  </button>
                 </CardContent>
               </Card>
             </div>
-          </div>
-        )}
+        </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDelete}
+        title="Delete Document"
+        itemName={title}
+        confirmButtonText="Delete Document"
+      />
     </div>
   );
 }

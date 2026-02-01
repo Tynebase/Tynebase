@@ -3,8 +3,11 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
-import { UserPlus, Shield, Crown, MoreHorizontal, Mail, Search } from "lucide-react";
-import { useState } from "react";
+import { Modal, ModalFooter } from "@/components/ui/Modal";
+import { UserPlus, Shield, Crown, MoreHorizontal, Mail, Search, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { listUsers, User } from "@/lib/api/users";
+import { inviteUser } from "@/lib/api/invites";
 
 const roles = [
   { id: "admin", label: "Admin", description: "Full access, user management, settings, publishing", color: "#f97316" },
@@ -13,15 +16,61 @@ const roles = [
   { id: "viewer", label: "View Only", description: "Read-only access to published content", color: "#6b7280" },
 ];
 
-const mockUsers = [
-  { id: 2, name: "Sarah Chen", email: "sarah@example.com", role: "editor", status: "active", lastActive: "2 hours ago" },
-  { id: 3, name: "Mike Johnson", email: "mike@example.com", role: "contributor", status: "active", lastActive: "1 day ago" },
-  { id: 4, name: "Emily Davis", email: "emily@example.com", role: "viewer", status: "pending", lastActive: "Never" },
-];
 
 export default function UsersPage() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"admin" | "editor" | "member" | "viewer">("member");
+  const [inviting, setInviting] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteSuccess, setInviteSuccess] = useState(false);
+
+  useEffect(() => {
+    async function fetchUsers() {
+      try {
+        setLoading(true);
+        const response = await listUsers();
+        setUsers(response.users);
+      } catch (err: any) {
+        console.error('Failed to fetch users:', err);
+        setError(err.message || 'Failed to load users');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchUsers();
+  }, []);
+
+  const handleInvite = async () => {
+    if (!inviteEmail.trim()) return;
+    
+    try {
+      setInviting(true);
+      setInviteError(null);
+      await inviteUser({ email: inviteEmail.trim(), role: inviteRole });
+      setInviteSuccess(true);
+      setInviteEmail("");
+      setTimeout(() => {
+        setShowInviteModal(false);
+        setInviteSuccess(false);
+      }, 2000);
+    } catch (err: any) {
+      console.error('Failed to invite user:', err);
+      setInviteError(err.message || 'Failed to send invite');
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const filteredUsers = users.filter((u) =>
+    (u.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    u.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const getRoleColor = (role: string) => {
     const found = roles.find(r => r.id === role);
@@ -38,7 +87,7 @@ export default function UsersPage() {
             Manage team members and permissions
           </p>
         </div>
-        <Button variant="primary">
+        <Button variant="primary" onClick={() => setShowInviteModal(true)}>
           <UserPlus className="w-4 h-4" />
           Invite User
         </Button>
@@ -87,24 +136,28 @@ export default function UsersPage() {
             </div>
 
             {/* Other Users */}
-            {mockUsers.map((member) => (
+            {loading ? (
+              <div className="px-6 py-8 flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-[var(--brand)]" />
+              </div>
+            ) : filteredUsers.filter(u => u.id !== user?.id).map((member) => (
               <div key={member.id} className="px-6 py-4 flex items-center justify-between hover:bg-[var(--surface-hover)] transition-colors group">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-full bg-[var(--surface-ground)] flex items-center justify-center text-[var(--dash-text-tertiary)] font-semibold">
-                    {member.name.split(" ").map(n => n[0]).join("")}
+                    {(member.full_name || member.email).split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <p className="font-medium text-[var(--dash-text-primary)]">{member.name}</p>
-                      {member.status === "pending" && (
-                        <span className="px-2 py-0.5 text-xs font-medium bg-[var(--status-warning-bg)] text-[var(--status-warning)] rounded-full">Pending</span>
+                      <p className="font-medium text-[var(--dash-text-primary)]">{member.full_name || member.email.split('@')[0]}</p>
+                      {member.status === "suspended" && (
+                        <span className="px-2 py-0.5 text-xs font-medium bg-[var(--status-error-bg)] text-[var(--status-error)] rounded-full">Suspended</span>
                       )}
                     </div>
                     <p className="text-sm text-[var(--dash-text-muted)]">{member.email}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className="text-xs text-[var(--dash-text-muted)]">{member.lastActive}</span>
+                  <span className="text-xs text-[var(--dash-text-muted)]">{member.last_active_at ? new Date(member.last_active_at).toLocaleDateString() : 'Never'}</span>
                   <span className="px-2.5 py-1 text-xs font-medium rounded-full capitalize" style={{ backgroundColor: `${getRoleColor(member.role)}15`, color: getRoleColor(member.role) }}>
                     {member.role}
                   </span>
@@ -150,12 +203,78 @@ export default function UsersPage() {
             <h3 className="text-lg font-semibold mb-1">Invite your team</h3>
             <p className="text-white/80 text-sm">Collaborate with your team on your knowledge base.</p>
           </div>
-          <button className="px-4 py-2 bg-white text-[var(--brand)] rounded-lg font-medium hover:bg-white/90 transition-colors flex items-center gap-2">
+          <button 
+            onClick={() => setShowInviteModal(true)}
+            className="px-4 py-2 bg-white text-[var(--brand)] rounded-lg font-medium hover:bg-white/90 transition-colors flex items-center gap-2"
+          >
             <Mail className="w-4 h-4" />
             Send Invites
           </button>
         </div>
       </div>
+
+      {/* Invite Modal */}
+      <Modal
+        isOpen={showInviteModal}
+        onClose={() => { setShowInviteModal(false); setInviteError(null); setInviteSuccess(false); }}
+        title="Invite Team Member"
+        description="Send an invitation email to join your workspace"
+        size="md"
+      >
+        {inviteSuccess ? (
+          <div className="py-8 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-100 flex items-center justify-center">
+              <Mail className="w-8 h-8 text-green-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-[var(--dash-text-primary)] mb-2">Invitation Sent!</h3>
+            <p className="text-[var(--dash-text-muted)]">The invitation email has been sent successfully.</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-2">
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="colleague@company.com"
+                className="w-full px-4 py-2.5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-2">
+                Role
+              </label>
+              <select
+                value={inviteRole}
+                onChange={(e) => setInviteRole(e.target.value as any)}
+                className="w-full px-4 py-2.5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
+              >
+                <option value="viewer">Viewer - Read-only access</option>
+                <option value="member">Member - Create and edit own content</option>
+                <option value="editor">Editor - Create, edit, publish content</option>
+                <option value="admin">Admin - Full access</option>
+              </select>
+            </div>
+            {inviteError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                {inviteError}
+              </div>
+            )}
+          </div>
+        )}
+        {!inviteSuccess && (
+          <ModalFooter>
+            <Button variant="ghost" onClick={() => setShowInviteModal(false)}>Cancel</Button>
+            <Button variant="primary" onClick={handleInvite} disabled={inviting || !inviteEmail.trim()}>
+              {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+              {inviting ? 'Sending...' : 'Send Invite'}
+            </Button>
+          </ModalFooter>
+        )}
+      </Modal>
     </div>
   );
 }

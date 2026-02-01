@@ -6,16 +6,21 @@ import { authMiddleware } from '../middleware/auth';
 import { creditGuardMiddleware } from '../middleware/creditGuard';
 import { supabaseAdmin } from '../lib/supabase';
 import { dispatchJob } from '../utils/dispatchJob';
-import { countTokens } from '../utils/tokenCounter';
-import { estimateTextGenerationCredits } from '../utils/creditCalculator';
+import { getModelCreditCost } from '../utils/creditCalculator';
 
+/**
+ * Model credit costs for AI generation:
+ * - deepseek: 1 credit (default, most economical)
+ * - gemini: 2 credits (good balance)
+ * - claude: 5 credits (highest quality)
+ */
 const GenerateRequestSchema = z.object({
   prompt: z.string()
     .min(10, 'Prompt must be at least 10 characters')
     .max(10000, 'Prompt must not exceed 10,000 characters'),
-  model: z.enum(['deepseek-v3', 'claude-sonnet-4.5', 'gemini-3-flash'])
+  model: z.enum(['deepseek', 'claude', 'gemini'])
     .optional()
-    .default('deepseek-v3'),
+    .default('deepseek'),
   max_tokens: z.number()
     .int()
     .min(100)
@@ -104,25 +109,17 @@ export default async function aiGenerateRoutes(fastify: FastifyInstance) {
           });
         }
 
-        const inputTokens = countTokens(validated.prompt, 'gpt-4');
-        const estimatedOutputTokens = validated.max_tokens;
-
-        const estimatedCredits = estimateTextGenerationCredits(
-          inputTokens,
-          estimatedOutputTokens,
-          validated.model as any
-        );
+        // Get credit cost based on model (DeepSeek: 1, Gemini: 2, Claude: 5)
+        const creditsToDeduct = getModelCreditCost(validated.model);
 
         request.log.info(
           {
             tenantId: tenant.id,
             userId: user.id,
-            inputTokens,
-            estimatedOutputTokens,
-            estimatedCredits,
+            credits: creditsToDeduct,
             model: validated.model,
           },
-          'Estimating credits for AI generation'
+          'Deducting credits for AI generation'
         );
 
         const currentMonth = new Date().toISOString().slice(0, 7);
@@ -130,7 +127,7 @@ export default async function aiGenerateRoutes(fastify: FastifyInstance) {
           'deduct_credits',
           {
             p_tenant_id: tenant.id,
-            p_credits: estimatedCredits,
+            p_credits: creditsToDeduct,
             p_month_year: currentMonth,
           }
         );
@@ -156,7 +153,7 @@ export default async function aiGenerateRoutes(fastify: FastifyInstance) {
           request.log.warn(
             {
               tenantId: tenant.id,
-              estimatedCredits,
+              creditsToDeduct,
               errorMessage,
             },
             'Credit deduction failed'
@@ -177,7 +174,7 @@ export default async function aiGenerateRoutes(fastify: FastifyInstance) {
             model: validated.model,
             max_tokens: validated.max_tokens,
             user_id: user.id,
-            estimated_credits: estimatedCredits,
+            estimated_credits: creditsToDeduct,
           },
         });
 
@@ -186,15 +183,28 @@ export default async function aiGenerateRoutes(fastify: FastifyInstance) {
             jobId: job.id,
             tenantId: tenant.id,
             userId: user.id,
-            creditsDeducted: estimatedCredits,
+            creditsDeducted: creditsToDeduct,
           },
           'AI generation job dispatched successfully'
         );
 
         return reply.status(202).send({
-          job_id: job.id,
-          status: 'pending',
-          estimated_credits: estimatedCredits,
+          success: true,
+          data: {
+            job: {
+              id: job.id,
+              tenant_id: job.tenant_id,
+              type: job.type,
+              status: job.status,
+              payload: job.payload,
+              result: null,
+              error_message: null,
+              progress: 0,
+              created_at: job.created_at,
+              started_at: null,
+              completed_at: null,
+            },
+          },
           message: 'Generation job queued successfully',
         });
       } catch (error) {

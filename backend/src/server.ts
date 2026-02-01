@@ -83,9 +83,13 @@ const start = async () => {
     await fastify.register(import('./routes/superadmin-suspend'), { prefix: '' });
     await fastify.register(import('./routes/superadmin-change-tier'), { prefix: '' });
     await fastify.register(import('./routes/tenants'), { prefix: '' });
+    await fastify.register(import('./routes/dashboard'), { prefix: '' });
     await fastify.register(import('./routes/documents'), { prefix: '' });
     await fastify.register(import('./routes/document-assets'), { prefix: '' });
+    await fastify.register(import('./routes/categories'), { prefix: '' });
+    await fastify.register(import('./routes/collections'), { prefix: '' });
     await fastify.register(import('./routes/templates'), { prefix: '' });
+    await fastify.register(import('./routes/tags'), { prefix: '' });
     await fastify.register(import('./routes/ai-test'), { prefix: '' });
     await fastify.register(import('./routes/ai-generate'), { prefix: '' });
     await fastify.register(import('./routes/ai-enhance'), { prefix: '' });
@@ -93,11 +97,19 @@ const start = async () => {
     await fastify.register(import('./routes/ai-scrape'), { prefix: '' });
     await fastify.register(import('./routes/video-upload'), { prefix: '' });
     await fastify.register(import('./routes/youtube-video'), { prefix: '' });
+    await fastify.register(import('./routes/video-transcribe-to-document'), { prefix: '' });
+    await fastify.register(import('./routes/audio-upload'), { prefix: '' });
+    await fastify.register(import('./routes/media-jobs'), { prefix: '' });
     await fastify.register(import('./routes/document-import'), { prefix: '' });
+    await fastify.register(import('./routes/legal-document-upload'), { prefix: '' });
     await fastify.register(import('./routes/jobs'), { prefix: '' });
     await fastify.register(import('./routes/rag'), { prefix: '' });
+    await fastify.register(import('./routes/users'), { prefix: '' });
+    await fastify.register(import('./routes/invites'), { prefix: '' });
     await fastify.register(import('./routes/integrations'), { prefix: '' });
     await fastify.register(import('./routes/gdpr'), { prefix: '' });
+    await fastify.register(import('./routes/knowledge-activity'), { prefix: '' });
+    await fastify.register(import('./routes/audit'), { prefix: '' });
 
     const port = parseInt(env.PORT, 10);
     await fastify.listen({ port, host: '0.0.0.0' });

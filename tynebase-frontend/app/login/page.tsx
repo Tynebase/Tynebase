@@ -4,10 +4,11 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useToast } from "@/components/ui/Toast";
+import { Modal } from "@/components/ui/Modal";
 import { login } from "@/lib/api/auth";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
-import { ArrowRight, Eye, EyeOff } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, AlertCircle } from "lucide-react";
 
 function LoginPageInner() {
   const router = useRouter();
@@ -17,6 +18,8 @@ function LoginPageInner() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const redirect = searchParams.get("redirect") || "/dashboard";
 
@@ -34,15 +37,17 @@ function LoginPageInner() {
         description: "You've successfully signed in.",
       });
 
-      // Redirect to dashboard
+      // Small delay to ensure tokens are stored before redirect
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Redirect to dashboard - use window.location for hard redirect
       // The login() function already stored the JWT token and tenant subdomain
-      router.push(redirect);
+      window.location.href = redirect;
     } catch (error) {
-      addToast({
-        type: "error",
-        title: "Login failed",
-        description: error instanceof Error ? error.message : "Invalid email or password.",
-      });
+      // Show error modal instead of toast
+      const message = error instanceof Error ? error.message : "Invalid email or password.";
+      setErrorMessage(message);
+      setShowErrorModal(true);
     } finally {
       setIsLoading(false);
     }
@@ -187,6 +192,55 @@ function LoginPageInner() {
       </div>
 
       <SiteFooter currentPage="login" />
+
+      {/* Error Modal */}
+      <Modal
+        isOpen={showErrorModal}
+        onClose={() => setShowErrorModal(false)}
+        title="Login Failed"
+        size="sm"
+      >
+        <div style={{ textAlign: 'center', padding: '20px 0' }}>
+          <div style={{ 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            width: '56px',
+            height: '56px',
+            borderRadius: '50%',
+            background: 'var(--status-error-bg)',
+            marginBottom: '16px'
+          }}>
+            <AlertCircle className="w-7 h-7" style={{ color: 'var(--status-error)' }} />
+          </div>
+          <p style={{ 
+            fontSize: '15px', 
+            color: 'var(--text-primary)', 
+            marginBottom: '8px',
+            fontWeight: 500
+          }}>
+            {errorMessage}
+          </p>
+          <p style={{ 
+            fontSize: '14px', 
+            color: 'var(--text-secondary)'
+          }}>
+            Please check your credentials and try again.
+          </p>
+          <button
+            onClick={() => setShowErrorModal(false)}
+            className="btn btn-primary"
+            style={{ 
+              marginTop: '24px',
+              padding: '12px 32px',
+              fontSize: '14px',
+              fontWeight: 600
+            }}
+          >
+            Try Again
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

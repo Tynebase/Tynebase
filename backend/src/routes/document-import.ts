@@ -9,10 +9,12 @@ const ALLOWED_DOCUMENT_TYPES = [
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'text/markdown',
+  'text/x-markdown',
   'text/plain',
+  'application/octet-stream', // Browsers often send .md files as this
 ];
 
-const ALLOWED_DOCUMENT_EXTENSIONS = ['.pdf', '.docx', '.md', '.txt'];
+const ALLOWED_DOCUMENT_EXTENSIONS = ['.pdf', '.docx', '.md', '.markdown', '.txt'];
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 /**
@@ -107,6 +109,12 @@ export default async function documentImportRoutes(fastify: FastifyInstance) {
         const fileBuffer = await data.toBuffer();
         const fileSize = fileBuffer.length;
 
+        // Override MIME type for markdown files since browsers often send them as application/octet-stream
+        let uploadMimetype = mimetype;
+        if ((fileExtension === '.md' || fileExtension === '.markdown') && mimetype === 'application/octet-stream') {
+          uploadMimetype = 'text/markdown';
+        }
+
         if (fileSize > MAX_FILE_SIZE) {
           request.log.warn(
             {
@@ -146,7 +154,7 @@ export default async function documentImportRoutes(fastify: FastifyInstance) {
           .storage
           .from('tenant-uploads')
           .upload(storagePath, fileBuffer, {
-            contentType: mimetype,
+            contentType: uploadMimetype,
             upsert: false,
           });
 

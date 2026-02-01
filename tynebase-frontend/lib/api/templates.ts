@@ -46,42 +46,33 @@ export interface CreateTemplateData {
 }
 
 export interface TemplateListResponse {
-  success: true;
-  data: {
-    templates: Template[];
-    pagination: {
-      page: number;
-      limit: number;
-      total: number;
-      totalPages: number;
-      hasNextPage: boolean;
-      hasPrevPage: boolean;
-    };
+  templates: Template[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
   };
 }
 
 export interface TemplateResponse {
-  success: true;
-  data: {
-    template: Template;
-  };
+  template: Template;
 }
 
 export interface UseTemplateResponse {
-  success: true;
-  data: {
-    document: {
-      id: string;
-      title: string;
-      content: string;
-      parent_id: string | null;
-      is_public: boolean;
-      status: 'draft' | 'published';
-      author_id: string;
-      published_at: string | null;
-      created_at: string;
-      updated_at: string;
-    };
+  document: {
+    id: string;
+    title: string;
+    content: string;
+    parent_id: string | null;
+    is_public: boolean;
+    status: 'draft' | 'published';
+    author_id: string;
+    published_at: string | null;
+    created_at: string;
+    updated_at: string;
   };
 }
 

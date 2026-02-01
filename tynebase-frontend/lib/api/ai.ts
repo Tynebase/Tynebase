@@ -32,15 +32,12 @@ export interface Job {
 
 export interface GenerateRequest {
   prompt: string;
-  model?: 'deepseek-v3' | 'claude-sonnet-4.5' | 'gemini-3-flash';
+  model?: 'deepseek' | 'claude' | 'gemini';
   max_tokens?: number;
 }
 
 export interface GenerateResponse {
-  success: true;
-  data: {
-    job: Job;
-  };
+  job: Job;
 }
 
 export interface EnhanceRequest {
@@ -49,18 +46,22 @@ export interface EnhanceRequest {
 
 export interface EnhanceSuggestion {
   type: 'grammar' | 'clarity' | 'structure' | 'completeness' | 'style';
+  action: 'add' | 'replace' | 'delete';
   title: string;
   reason: string;
-  original?: string;
-  suggested?: string;
+  // For 'add' action: the content to add
+  content?: string;
+  // For 'replace' and 'delete' actions: the exact text to find
+  find?: string;
+  // For 'replace' action: the replacement text
+  replace?: string;
 }
 
 export interface EnhanceResponse {
-  success: true;
-  data: {
-    score: number;
-    suggestions: EnhanceSuggestion[];
-  };
+  score: number;
+  suggestions: EnhanceSuggestion[];
+  credits_used?: number;
+  tokens_used?: number;
 }
 
 export interface ApplySuggestionRequest {
@@ -70,10 +71,7 @@ export interface ApplySuggestionRequest {
 }
 
 export interface ApplySuggestionResponse {
-  success: true;
-  data: {
-    job: Job;
-  };
+  job: Job;
 }
 
 export interface ChatMessage {
@@ -98,31 +96,33 @@ export interface ChatSource {
 }
 
 export interface ChatResponse {
-  success: true;
-  data: {
-    answer: string;
-    sources: ChatSource[];
-    model: string;
-    total_tokens: number;
-  };
+  answer: string;
+  sources: ChatSource[];
+  model: string;
+  total_tokens: number;
 }
 
 export interface ScrapeRequest {
   url: string;
+  output_type?: 'full_article' | 'summary' | 'outline' | 'raw';
+  ai_model?: 'deepseek' | 'claude' | 'gemini';
+  timeout?: number;
 }
 
 export interface ScrapeResponse {
-  success: true;
-  data: {
-    job: Job;
-  };
+  url: string;
+  title: string;
+  markdown: string;
+  raw_markdown?: string;
+  output_type: string;
+  ai_model: string;
+  content_length: number;
+  credits_charged: number;
+  tokens_used: number;
 }
 
 export interface VideoUploadResponse {
-  success: true;
-  data: {
-    job: Job;
-  };
+  job: Job;
 }
 
 export interface YouTubeVideoRequest {
@@ -130,17 +130,55 @@ export interface YouTubeVideoRequest {
 }
 
 export interface YouTubeVideoResponse {
-  success: true;
-  data: {
-    job: Job;
-  };
+  job: Job;
+}
+
+export interface MediaJob {
+  id: string;
+  title: string;
+  media_type: 'video' | 'audio';
+  source: 'youtube' | 'upload' | 'url';
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  duration: string;
+  word_count: number | null;
+  document_id: string | null;
+  credits_used: number | null;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export interface ListMediaJobsResponse {
+  jobs: MediaJob[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface ListMediaJobsParams {
+  limit?: number;
+  offset?: number;
+  type?: 'video' | 'audio' | 'all';
+  status?: 'pending' | 'processing' | 'completed' | 'failed' | 'all';
+}
+
+export interface AudioUploadResponse {
+  job: Job;
+  storage_path: string;
+  filename: string;
+  file_size: number;
+  status: string;
+}
+
+export interface OutputOptions {
+  generate_transcript?: boolean;
+  generate_summary?: boolean;
+  generate_article?: boolean;
+  ai_model?: 'deepseek' | 'gemini' | 'claude';
 }
 
 export interface JobStatusResponse {
-  success: true;
-  data: {
-    job: Job;
-  };
+  job: Job;
 }
 
 export interface SearchRequest {
@@ -159,11 +197,8 @@ export interface SearchResult {
 }
 
 export interface SearchResponse {
-  success: true;
-  data: {
-    results: SearchResult[];
-    total: number;
-  };
+  results: SearchResult[];
+  total: number;
 }
 
 // ============================================================================
@@ -194,6 +229,24 @@ export async function generate(data: GenerateRequest): Promise<GenerateResponse>
  */
 export async function enhance(data: EnhanceRequest): Promise<EnhanceResponse> {
   return apiPost<EnhanceResponse>('/api/ai/enhance', data);
+}
+
+export interface ApplyEnhancementRequest {
+  document_id: string;
+  suggestion_title: string;
+  suggestion_action: 'add' | 'replace' | 'delete';
+  suggestion_type: 'grammar' | 'clarity' | 'structure' | 'completeness' | 'style';
+}
+
+export interface ApplyEnhancementResponse {
+  message: string;
+}
+
+/**
+ * Apply an AI enhancement suggestion and create lineage entry
+ */
+export async function applyEnhancement(data: ApplyEnhancementRequest): Promise<ApplyEnhancementResponse> {
+  return apiPost<ApplyEnhancementResponse>('/api/ai/enhance/lineage', data);
 }
 
 /**
@@ -336,11 +389,20 @@ export async function search(data: SearchRequest): Promise<SearchResponse> {
  * Supported formats: MP4, MOV, AVI (max 500MB)
  * 
  * @param file - Video file to upload
+ * @param options - Output options for transcript/summary/article generation
  * @returns Job details for tracking transcription progress
  */
-export async function uploadVideo(file: File): Promise<VideoUploadResponse> {
+export async function uploadVideo(
+  file: File,
+  options?: OutputOptions
+): Promise<VideoUploadResponse> {
   const formData = new FormData();
   formData.append('file', file);
+  if (options) {
+    Object.entries(options).forEach(([key, value]) => {
+      formData.append(key, String(value));
+    });
+  }
   
   return apiUpload<VideoUploadResponse>('/api/ai/video/upload', formData);
 }
@@ -357,6 +419,53 @@ export async function transcribeYouTube(
   data: YouTubeVideoRequest
 ): Promise<YouTubeVideoResponse> {
   return apiPost<YouTubeVideoResponse>('/api/ai/video/youtube', data);
+}
+
+/**
+ * Upload and transcribe an audio file
+ * 
+ * Uploads an audio file and creates a background job for transcription.
+ * Supported formats: MP3, WAV, OGG, FLAC, AAC, M4A (max 200MB)
+ * 
+ * @param file - Audio file to upload
+ * @param options - Output options for transcript/summary/article generation
+ * @returns Job details for tracking transcription progress
+ */
+export async function uploadAudio(
+  file: File,
+  options?: OutputOptions
+): Promise<AudioUploadResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (options) {
+    Object.entries(options).forEach(([key, value]) => {
+      formData.append(key, String(value));
+    });
+  }
+  
+  return apiUpload<AudioUploadResponse>('/api/ai/audio/upload', formData);
+}
+
+/**
+ * List recent media ingestion jobs (video/audio)
+ * 
+ * Retrieves a paginated list of recent media processing jobs for the tenant.
+ * 
+ * @param params - Optional filter and pagination parameters
+ * @returns List of media jobs with metadata
+ */
+export async function listMediaJobs(
+  params?: ListMediaJobsParams
+): Promise<ListMediaJobsResponse> {
+  const queryParams = new URLSearchParams();
+  if (params?.limit) queryParams.set('limit', String(params.limit));
+  if (params?.offset) queryParams.set('offset', String(params.offset));
+  if (params?.type) queryParams.set('type', params.type);
+  if (params?.status) queryParams.set('status', params.status);
+  
+  const queryString = queryParams.toString();
+  const url = `/api/ai/media/jobs${queryString ? `?${queryString}` : ''}`;
+  return apiGet<ListMediaJobsResponse>(url);
 }
 
 // ============================================================================
@@ -414,7 +523,7 @@ export async function pollJobUntilComplete(
   
   while (attempts < maxAttempts) {
     const response = await getJobStatus(jobId);
-    const job = response.data.job;
+    const job = response.job;
     
     if (onProgress) {
       onProgress(job);
@@ -436,14 +545,11 @@ export async function pollJobUntilComplete(
 // ============================================================================
 
 export interface ReindexResponse {
-  success: true;
-  data: {
-    message: string;
-    job_id: string;
-    status: string;
-    document_id: string;
-    document_title: string;
-  };
+  message: string;
+  job_id: string;
+  status: string;
+  document_id: string;
+  document_title: string;
 }
 
 /**
@@ -457,4 +563,113 @@ export interface ReindexResponse {
  */
 export async function reindexDocument(documentId: string): Promise<ReindexResponse> {
   return apiPost<ReindexResponse>(`/api/sources/${documentId}/reindex`, {});
+}
+
+// ============================================================================
+// LEGAL DOCUMENT UPLOAD FUNCTIONS
+// ============================================================================
+
+export interface LegalDocumentProcessingOptions {
+  enable_ocr?: boolean;
+  extract_text?: boolean;
+  preserve_formatting?: boolean;
+  index_for_search?: boolean;
+  convert_to_pdf_a?: boolean;
+  generate_summary?: boolean;
+  generate_article?: boolean;
+  ai_model?: 'deepseek' | 'gemini' | 'claude';
+}
+
+export interface LegalDocumentChecksums {
+  sha256: string;
+  md5: string;
+}
+
+export interface LegalDocumentMetadata {
+  requires_ocr: boolean;
+  is_archival_format: boolean;
+}
+
+export interface LegalDocumentUploadResponse {
+  job: Job;
+  storage_path: string;
+  filename: string;
+  file_size: number;
+  file_category: string;
+  file_category_label: string;
+  checksums: LegalDocumentChecksums;
+  metadata: LegalDocumentMetadata;
+  processing_options: LegalDocumentProcessingOptions;
+  status: string;
+}
+
+export interface SupportedFileCategory {
+  id: string;
+  label: string;
+  mime_types: string[];
+  extensions: string[];
+  max_size_mb: number;
+}
+
+export interface SupportedTypesResponse {
+  categories: SupportedFileCategory[];
+  total_extensions: string[];
+  total_mime_types: string[];
+  features: {
+    checksum_verification: boolean;
+    ocr_processing: boolean;
+    metadata_extraction: boolean;
+    full_text_search: boolean;
+    pdf_a_conversion: boolean;
+    digital_signature_preservation: boolean;
+  };
+}
+
+/**
+ * Upload a legal document for processing
+ * 
+ * Supports comprehensive file types for legal DMS:
+ * - PDF/A, TIFF (archival formats)
+ * - DOCX, DOC, XLSX, XLS, PPTX, PPT (Office files)
+ * - MSG, EML (email files)
+ * - PNG, JPEG, GIF (images)
+ * - TXT, MD (text files)
+ * - MP3, WAV, MP4, MOV (media files)
+ * 
+ * Features:
+ * - SHA-256 and MD5 checksums for data integrity
+ * - OCR processing for scanned documents
+ * - Metadata extraction and preservation
+ * - Full-text search indexing
+ * 
+ * @param file - Document file to upload
+ * @param options - Optional processing options
+ * @returns Job details and file metadata
+ */
+export async function uploadLegalDocument(
+  file: File,
+  options?: LegalDocumentProcessingOptions
+): Promise<LegalDocumentUploadResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  if (options) {
+    Object.entries(options).forEach(([key, value]) => {
+      formData.append(key, String(value));
+    });
+  }
+  
+  return apiUpload<LegalDocumentUploadResponse>('/api/ai/legal-document/upload', formData);
+}
+
+/**
+ * Get supported file types for legal document upload
+ * 
+ * Returns detailed information about supported file categories,
+ * MIME types, extensions, and size limits.
+ * 
+ * @returns Supported file types and features
+ */
+export async function getSupportedLegalDocumentTypes(): Promise<SupportedTypesResponse> {
+  return apiGet<SupportedTypesResponse>('/api/ai/legal-document/supported-types');
 }

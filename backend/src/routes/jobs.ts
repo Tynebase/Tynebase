@@ -53,7 +53,7 @@ export default async function jobRoutes(fastify: FastifyInstance) {
 
         const { data: job, error: jobError } = await supabaseAdmin
           .from('job_queue')
-          .select('id, tenant_id, type, status, result, created_at, completed_at')
+          .select('id, tenant_id, type, status, result, created_at, started_at, completed_at')
           .eq('id', jobId)
           .single();
 
@@ -119,24 +119,53 @@ export default async function jobRoutes(fastify: FastifyInstance) {
           'Job status retrieved successfully'
         );
 
-        const response: any = {
+        const jobData: any = {
           id: job.id,
           type: job.type,
           status: job.status,
           created_at: job.created_at,
+          progress: 0, // Default progress
         };
 
+        // Set progress based on status and time elapsed
+        if (job.status === 'pending') {
+          jobData.progress = 0;
+        } else if (job.status === 'processing') {
+          // Calculate progress based on time elapsed (more granular)
+          const startedAt = new Date(job.started_at || job.created_at).getTime();
+          const now = Date.now();
+          const elapsed = now - startedAt;
+          
+          // Estimate: AI generation typically takes 5-15 seconds
+          // Progress curve: 10% -> 30% -> 60% -> 90% over ~10 seconds
+          if (elapsed < 2000) {
+            jobData.progress = 10;
+          } else if (elapsed < 4000) {
+            jobData.progress = 30;
+          } else if (elapsed < 7000) {
+            jobData.progress = 60;
+          } else if (elapsed < 10000) {
+            jobData.progress = 80;
+          } else {
+            jobData.progress = 90;
+          }
+        } else if (job.status === 'completed') {
+          jobData.progress = 100;
+        } else if (job.status === 'failed') {
+          jobData.progress = 0;
+        }
+
         if (job.status === 'completed' && job.result) {
-          response.result = job.result;
-          response.completed_at = job.completed_at;
+          jobData.result = job.result;
+          jobData.completed_at = job.completed_at;
         }
 
         if (job.status === 'failed' && job.result) {
-          response.error = job.result.error || 'Job processing failed';
-          response.completed_at = job.completed_at;
+          jobData.error_message = job.result.error || 'Job processing failed';
+          jobData.completed_at = job.completed_at;
         }
 
-        return reply.status(200).send(response);
+        return reply.status(200).send({ job: jobData });
       } catch (error) {
         if (error instanceof z.ZodError) {
           const errorMessages = error.errors.map(e => `${e.path.join('.')}: ${e.message}`);

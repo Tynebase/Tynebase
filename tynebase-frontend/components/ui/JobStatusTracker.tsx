@@ -67,7 +67,7 @@ export function JobStatusTracker({
   const fetchJobStatus = useCallback(async () => {
     try {
       const response = await getJobStatus(jobId);
-      const jobData = response.data.job;
+      const jobData = response.job;
       setJob(jobData);
 
       if (jobData.status === "completed") {
@@ -254,7 +254,7 @@ export function useJobStatus(
     setIsLoading(true);
     try {
       const response = await getJobStatus(jobId);
-      const jobData = response.data.job;
+      const jobData = response.job;
       setJob(jobData);
       setError(null);
 

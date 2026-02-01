@@ -13,9 +13,11 @@ import {
   LogOut,
   HelpCircle,
   Menu,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AccessibilityWidget } from "@/components/ui/AccessibilityWidget";
+import { useCredits } from "@/contexts/CreditsContext";
 
 interface DashboardHeaderProps {
   onOpenCommandPalette?: () => void;
@@ -24,6 +26,7 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({ onOpenCommandPalette, onMenuClick }: DashboardHeaderProps) {
   const { user, signOut } = useAuth();
+  const { creditsRemaining, creditsTotal, isLoading: creditsLoading } = useCredits();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -82,6 +85,25 @@ export function DashboardHeader({ onOpenCommandPalette, onMenuClick }: Dashboard
 
       {/* Right Actions */}
       <div className="flex items-center gap-2 ml-4">
+        {/* AI Credits */}
+        <Link
+          href="/dashboard/settings/billing"
+          className={cn(
+            "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors",
+            creditsRemaining === 0
+              ? "bg-[var(--status-error-bg)] text-[var(--status-error)]"
+              : creditsRemaining <= 3
+              ? "bg-[var(--status-warning-bg)] text-[var(--status-warning)]"
+              : "text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)] hover:bg-[var(--surface-hover)]"
+          )}
+          title={`${creditsRemaining} of ${creditsTotal} AI credits remaining`}
+        >
+          <Sparkles className="w-4 h-4" />
+          <span className="text-sm font-medium">
+            {creditsLoading ? "..." : creditsRemaining}
+          </span>
+        </Link>
+
         {/* Help */}
         <Link
           href="/dashboard/help"

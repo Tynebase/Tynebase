@@ -114,9 +114,7 @@ export default async function youtubeVideoRoutes(fastify: FastifyInstance) {
         );
 
         return reply.status(201).send({
-          job_id: job.id,
-          url: sanitizedUrl,
-          status: 'queued',
+          job,
         });
       } catch (error) {
         request.log.error(

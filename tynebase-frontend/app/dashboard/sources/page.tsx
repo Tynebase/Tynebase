@@ -6,64 +6,72 @@ import {
   Database,
   Upload,
   Search,
-  Filter,
   FileText,
   File,
-  FileType,
+  FileType as FileTypeIcon,
   CheckCircle,
   AlertTriangle,
   Clock,
   Sparkles,
   ArrowRight,
   RefreshCw,
+  Layers,
+  Filter,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { apiGet } from "@/lib/api/client";
 import { reindexDocument, pollJobUntilComplete, Job } from "@/lib/api/ai";
+import { DocumentImportModal } from "@/components/docs/DocumentImportModal";
 
-type SourceType = "pdf" | "docx" | "md";
+type FileType = "pdf" | "docx" | "md" | "unknown";
+type IndexingStatus = "indexed" | "pending" | "outdated" | "failed";
 
-type SourceStatus =
-  | "uploaded"
-  | "normalizing"
-  | "normalized"
-  | "chunking"
-  | "embedded"
-  | "failed";
-
-type Source = {
+interface Source {
   id: string;
   title: string;
-  filename: string;
-  type: SourceType;
-  status: SourceStatus;
-  sizeMb: number;
-  updatedAt: string;
-  chunks?: number;
-  tokens?: number;
-  notes?: string;
-};
+  file_type: FileType;
+  indexing_status: IndexingStatus;
+  chunk_count: number;
+  content_length: number;
+  created_at: string;
+  updated_at: string;
+  last_indexed_at: string | null;
+  author: {
+    id: string;
+    email: string;
+    full_name: string | null;
+  } | null;
+}
 
-interface SourceHealthResponse {
-  success: boolean;
-  data: {
-    total_documents: number;
-    indexed_documents: number;
-    outdated_documents: number;
-    never_indexed_documents: number;
-    failed_jobs: number;
-    documents_needing_reindex: Array<{
-      id: string;
-      title: string;
-      reason: 'never_indexed' | 'outdated';
-      last_indexed_at: string | null;
-      updated_at: string;
-    }>;
+interface SourcesResponse {
+  sources: Source[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
   };
 }
 
-function TypeBadge({ type }: { type: SourceType }) {
-  const label = type.toUpperCase();
+interface SourceHealthResponse {
+  total_documents: number;
+  indexed_documents: number;
+  outdated_documents: number;
+  never_indexed_documents: number;
+  failed_jobs: number;
+  documents_needing_reindex: Array<{
+    id: string;
+    title: string;
+    reason: 'never_indexed' | 'outdated';
+    last_indexed_at: string | null;
+    updated_at: string;
+  }>;
+}
+
+function TypeBadge({ type }: { type: FileType }) {
+  const label = type === "unknown" ? "DOC" : type.toUpperCase();
   const style =
     type === "pdf"
       ? { fg: "#ef4444", bg: "#ef444415" }
@@ -71,7 +79,7 @@ function TypeBadge({ type }: { type: SourceType }) {
         ? { fg: "#3b82f6", bg: "#3b82f615" }
         : { fg: "#10b981", bg: "#10b98115" };
 
-  const Icon = type === "pdf" ? File : type === "docx" ? FileType : FileText;
+  const Icon = type === "pdf" ? File : type === "docx" ? FileTypeIcon : FileText;
 
   return (
     <span
@@ -84,14 +92,11 @@ function TypeBadge({ type }: { type: SourceType }) {
   );
 }
 
-function StatusBadge({ status }: { status: SourceStatus }) {
-  const map: Record<SourceStatus, { label: string; fg: string; bg: string; icon?: React.ElementType }>
-    = {
-    uploaded: { label: "Uploaded", fg: "#6b7280", bg: "#6b728015", icon: Clock },
-    normalizing: { label: "Normalizing", fg: "#8b5cf6", bg: "#8b5cf615", icon: Sparkles },
-    normalized: { label: "Normalized", fg: "#0ea5e9", bg: "#0ea5e915", icon: CheckCircle },
-    chunking: { label: "Chunking", fg: "#f59e0b", bg: "#f59e0b15", icon: Clock },
-    embedded: { label: "Embedded", fg: "#10b981", bg: "#10b98115", icon: CheckCircle },
+function IndexingStatusBadge({ status }: { status: IndexingStatus }) {
+  const map: Record<IndexingStatus, { label: string; fg: string; bg: string; icon: React.ElementType }> = {
+    indexed: { label: "Indexed", fg: "#10b981", bg: "#10b98115", icon: CheckCircle },
+    pending: { label: "Pending", fg: "#6b7280", bg: "#6b728015", icon: Clock },
+    outdated: { label: "Outdated", fg: "#f59e0b", bg: "#f59e0b15", icon: AlertTriangle },
     failed: { label: "Failed", fg: "#ef4444", bg: "#ef444415", icon: AlertTriangle },
   };
 
@@ -103,7 +108,7 @@ function StatusBadge({ status }: { status: SourceStatus }) {
       className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold"
       style={{ color: item.fg, backgroundColor: item.bg }}
     >
-      {Icon && <Icon className="w-3.5 h-3.5" />}
+      <Icon className="w-3.5 h-3.5" />
       {item.label}
     </span>
   );
@@ -111,17 +116,18 @@ function StatusBadge({ status }: { status: SourceStatus }) {
 
 export default function SourcesPage() {
   const [query, setQuery] = useState("");
-  const [healthData, setHealthData] = useState<SourceHealthResponse['data'] | null>(null);
+  const [healthData, setHealthData] = useState<SourceHealthResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reindexingDocs, setReindexingDocs] = useState<Record<string, { jobId: string; progress: number; status: string }>>({});
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const fetchHealthData = async () => {
     try {
       setLoading(true);
       setError(null);
       const response = await apiGet<SourceHealthResponse>('/api/sources/health');
-      setHealthData(response.data);
+      setHealthData(response);
     } catch (err) {
       console.error('Failed to fetch source health data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load source health data');
@@ -137,7 +143,7 @@ export default function SourcesPage() {
   const handleReindex = async (documentId: string, documentTitle: string) => {
     try {
       const response = await reindexDocument(documentId);
-      const jobId = response.data.job_id;
+      const jobId = response.job_id;
       
       setReindexingDocs(prev => ({
         ...prev,
@@ -215,13 +221,16 @@ export default function SourcesPage() {
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <Link
-            href="/dashboard/sources/query"
+            href="/dashboard/ai-assistant/ask"
             className="inline-flex items-center justify-center gap-2 h-12 px-6 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-sm font-semibold text-[var(--dash-text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)] transition-all"
           >
             <Sparkles className="w-4 h-4" />
             Query Workspace
           </Link>
-          <button className="inline-flex items-center justify-center gap-2 h-12 px-7 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-xl text-sm font-semibold transition-all">
+          <button
+            onClick={() => setIsImportModalOpen(true)}
+            className="inline-flex items-center justify-center gap-2 h-12 px-7 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-xl text-sm font-semibold transition-all"
+          >
             <Upload className="w-4 h-4" />
             Add Sources
           </button>
@@ -397,8 +406,16 @@ export default function SourcesPage() {
       </div>
 
       <div className="text-xs text-[var(--dash-text-muted)]">
-        This is a UI scaffold aligned to PRD Part IV: documents are normalized to Markdown before semantic chunking + embeddings.
+        Upload PDFs, DOCX and Markdown. TyneBase normalizes to Markdown and builds embeddings for RAG.
       </div>
+
+      <DocumentImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={() => {
+          fetchHealthData();
+        }}
+      />
     </div>
   );
 }

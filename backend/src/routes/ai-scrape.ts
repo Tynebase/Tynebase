@@ -3,7 +3,12 @@ import { z } from 'zod';
 import { rateLimitMiddleware } from '../middleware/rateLimit';
 import { tenantContextMiddleware } from '../middleware/tenantContext';
 import { authMiddleware } from '../middleware/auth';
+import { creditGuardMiddleware } from '../middleware/creditGuard';
 import { scrapeUrlToMarkdown } from '../services/ai/tavily';
+import { generateText } from '../services/ai/generation';
+import { supabaseAdmin } from '../lib/supabase';
+import { getModelCreditCost } from '../utils/creditCalculator';
+import type { AIModel } from '../services/ai/types';
 
 const ScrapeRequestSchema = z.object({
   url: z.string()
@@ -20,37 +25,89 @@ const ScrapeRequestSchema = z.object({
         const parsedUrl = new URL(url);
         const hostname = parsedUrl.hostname.toLowerCase();
         const blockedHosts = [
-          'localhost',
-          '127.0.0.1',
-          '0.0.0.0',
-          '::1',
-          '169.254.169.254',
-          'metadata.google.internal',
+          'localhost', '127.0.0.1', '0.0.0.0', '::1',
+          '169.254.169.254', 'metadata.google.internal',
         ];
-        
-        if (blockedHosts.includes(hostname)) {
-          return false;
-        }
-        
+        if (blockedHosts.includes(hostname)) return false;
         if (hostname.startsWith('10.') || 
             hostname.startsWith('192.168.') ||
             hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) {
           return false;
         }
-        
         return true;
       },
       { message: 'URL points to a private or internal network address (SSRF protection)' }
     ),
-  timeout: z.number()
-    .int()
-    .min(1000)
-    .max(10000)
+  output_type: z.enum(['full_article', 'summary', 'outline', 'raw'])
     .optional()
-    .default(10000),
+    .default('full_article'),
+  ai_model: z.enum(['deepseek', 'claude', 'gemini'])
+    .optional()
+    .default('deepseek'),
+  timeout: z.number().int().min(1000).max(30000).optional().default(15000),
 });
 
 type ScrapeRequest = z.infer<typeof ScrapeRequestSchema>;
+
+const SCRAPE_BASE_CREDITS = 3;
+
+function getPromptForOutputType(outputType: string, content: string, title: string): string {
+  switch (outputType) {
+    case 'summary':
+      return `Analyze the following web content and create a comprehensive summary that extracts the key knowledge, insights, and takeaways.
+
+DO NOT just list bullet points. Instead:
+- Identify the main topics and themes discussed
+- Extract key insights, facts, and actionable information
+- Organize into clear sections grouped by topic
+- Include any important quotes or statistics mentioned
+- Highlight practical takeaways the reader should remember
+
+Source: ${title}
+
+Content:
+${content.substring(0, 80000)}
+
+Generate a well-organized summary with clear headings:`;
+    
+    case 'outline':
+      return `Analyze the following web content and create a structured outline that captures the hierarchy of information.
+
+Create:
+- Main topics as top-level headings
+- Sub-topics as nested points
+- Key details under each sub-topic
+- Cross-references where topics relate
+
+Source: ${title}
+
+Content:
+${content.substring(0, 80000)}
+
+Generate a comprehensive hierarchical outline:`;
+    
+    case 'full_article':
+    default:
+      return `Transform the following web content into a well-written, professional article.
+
+Requirements:
+- Create a compelling introduction that hooks the reader
+- Organize content into logical sections with clear headings
+- Write in a professional but accessible tone
+- Expand on key points with context and explanation
+- Include a conclusion that summarizes the main takeaways
+- Use proper Markdown formatting (## for headings, **bold** for emphasis, etc.)
+- Remove navigation elements, ads, and other non-content
+- Preserve all important information from the original
+
+Source: ${title}
+
+Content:
+${content.substring(0, 80000)}
+
+Write a polished, publication-ready article:`;
+  }
+}
 
 /**
  * AI Scrape endpoint for extracting content from URLs
@@ -64,6 +121,7 @@ export default async function aiScrapeRoutes(fastify: FastifyInstance) {
         rateLimitMiddleware,
         tenantContextMiddleware,
         authMiddleware,
+        creditGuardMiddleware,
       ],
     },
     async (request, reply) => {
@@ -91,34 +149,139 @@ export default async function aiScrapeRoutes(fastify: FastifyInstance) {
       try {
         const validated = ScrapeRequestSchema.parse(request.body);
 
+        // Calculate credits: 3 base + AI model cost
+        const aiModelCost = getModelCreditCost(validated.ai_model);
+        const totalCredits = SCRAPE_BASE_CREDITS + aiModelCost;
+
         request.log.info(
           {
             tenantId: tenant.id,
             userId: user.id,
             url: validated.url,
-            timeout: validated.timeout,
+            outputType: validated.output_type,
+            aiModel: validated.ai_model,
+            credits: totalCredits,
           },
           'Starting URL scrape request'
         );
 
-        const result = await scrapeUrlToMarkdown(validated.url, validated.timeout);
+        // Step 1: Deduct credits
+        const currentMonth = new Date().toISOString().slice(0, 7);
+        const { data: deductResult, error: deductError } = await supabaseAdmin.rpc(
+          'deduct_credits',
+          {
+            p_tenant_id: tenant.id,
+            p_credits: totalCredits,
+            p_month_year: currentMonth,
+          }
+        );
+
+        if (deductError) {
+          request.log.error(
+            { tenantId: tenant.id, error: deductError.message },
+            'Failed to deduct credits'
+          );
+          return reply.status(500).send({
+            error: {
+              code: 'CREDIT_DEDUCTION_FAILED',
+              message: 'Unable to deduct credits for this operation',
+            },
+          });
+        }
+
+        if (!deductResult || deductResult.length === 0 || !deductResult[0].success) {
+          const errorMessage = deductResult?.[0]?.error_message || 'Insufficient credits';
+          return reply.status(403).send({
+            error: {
+              code: 'INSUFFICIENT_CREDITS',
+              message: errorMessage,
+            },
+          });
+        }
+
+        // Step 2: Scrape the URL with Tavily
+        const scrapeResult = await scrapeUrlToMarkdown(validated.url, validated.timeout);
 
         request.log.info(
           {
             tenantId: tenant.id,
             userId: user.id,
-            url: result.url,
-            title: result.title,
-            markdownLength: result.markdown.length,
+            url: scrapeResult.url,
+            title: scrapeResult.title,
+            markdownLength: scrapeResult.markdown.length,
           },
-          'URL scrape completed successfully'
+          'URL scrape completed with Tavily'
         );
 
+        let finalContent = scrapeResult.markdown;
+        let tokensUsed = 0;
+
+        // Step 3: Process with AI if not raw output
+        if (validated.output_type !== 'raw') {
+          const modelMapping: Record<string, AIModel> = {
+            deepseek: 'deepseek-v3',
+            gemini: 'gemini-2.5-flash',
+            claude: 'claude-sonnet-4.5',
+          };
+
+          const prompt = getPromptForOutputType(
+            validated.output_type,
+            scrapeResult.markdown,
+            scrapeResult.title
+          );
+
+          request.log.info(
+            { tenantId: tenant.id, aiModel: validated.ai_model, outputType: validated.output_type },
+            'Processing scraped content with AI'
+          );
+
+          const aiResponse = await generateText({
+            prompt,
+            model: modelMapping[validated.ai_model],
+            maxTokens: 4000,
+          });
+
+          finalContent = aiResponse.content;
+          tokensUsed = (aiResponse.tokensInput || 0) + (aiResponse.tokensOutput || 0);
+
+          request.log.info(
+            { tenantId: tenant.id, tokensUsed, contentLength: finalContent.length },
+            'AI processing completed'
+          );
+        }
+
+        // Step 4: Log usage
+        await supabaseAdmin.from('query_usage').insert({
+          tenant_id: tenant.id,
+          user_id: user.id,
+          query_type: 'url_scrape',
+          ai_model: validated.ai_model,
+          tokens_input: tokensUsed,
+          tokens_output: 0,
+          credits_charged: totalCredits,
+          metadata: {
+            url: validated.url,
+            output_type: validated.output_type,
+            scraped_title: scrapeResult.title,
+            scraped_length: scrapeResult.markdown.length,
+            credit_breakdown: {
+              base: SCRAPE_BASE_CREDITS,
+              ai_model: aiModelCost,
+              total: totalCredits,
+            },
+          },
+        });
+
         return reply.status(200).send({
-          url: result.url,
-          title: result.title,
-          markdown: result.markdown,
-          content_length: result.markdown.length,
+          url: scrapeResult.url,
+          title: scrapeResult.title,
+          markdown: finalContent,
+          raw_markdown: validated.output_type !== 'raw' ? scrapeResult.markdown : undefined,
+          output_type: validated.output_type,
+          ai_model: validated.ai_model,
+          content_length: finalContent.length,
+          credits_charged: totalCredits,
+          tokens_used: tokensUsed,
         });
       } catch (error) {
         if (error instanceof z.ZodError) {

@@ -16,12 +16,21 @@ import { AIGenerationRequest } from '../ai/types';
 import { countTokens } from '../../utils/tokenCounter';
 
 /**
+ * Chat message for conversation history
+ */
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+/**
  * Chat request interface
  */
 export interface ChatRequest {
   tenantId: string;
   userId: string;
   query: string;
+  history?: ChatMessage[];
   maxContextChunks?: number;
   model?: string;
   temperature?: number;
@@ -40,13 +49,14 @@ export interface ChatResponse {
 }
 
 /**
- * Builds a RAG prompt with context from search results
+ * Builds a RAG prompt with context from search results and conversation history
  * 
  * @param query - User's question
  * @param searchResults - Retrieved context chunks
- * @returns Formatted prompt with context
+ * @param history - Previous conversation messages
+ * @returns Formatted prompt with context and history
  */
-function buildRAGPrompt(query: string, searchResults: SearchResult[]): string {
+function buildRAGPrompt(query: string, searchResults: SearchResult[], history?: ChatMessage[]): string {
   const contextChunks = searchResults
     .map((result, index) => {
       const docTitle = result.metadata?.title || `Document ${result.documentId}`;
@@ -54,15 +64,23 @@ function buildRAGPrompt(query: string, searchResults: SearchResult[]): string {
     })
     .join('\n\n');
 
-  return `You are a helpful AI assistant. Answer the user's question based on the provided context. If the context doesn't contain enough information to answer the question, say so clearly.
+  let conversationHistory = '';
+  if (history && history.length > 0) {
+    conversationHistory = '\n\nConversation History:\n' + history
+      .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
+      .join('\n') + '\n';
+  }
+
+  return `You are a helpful AI assistant. Answer the user's question based on the provided context and conversation history. If the context doesn't contain enough information to answer the question, say so clearly.
 
 Context:
-${contextChunks}
+${contextChunks}${conversationHistory}
 
 User Question: ${query}
 
 Instructions:
 - Answer the question using the context provided above
+- Consider the conversation history for context continuity
 - Cite sources using [1], [2], etc. when referencing specific information
 - If the context doesn't contain relevant information, say "I don't have enough information in the provided context to answer this question."
 - Be concise and accurate
@@ -81,6 +99,7 @@ export async function chatWithRAG(request: ChatRequest): Promise<ChatResponse> {
   const {
     tenantId,
     query,
+    history,
     maxContextChunks = 10,
     model,
     temperature = 0.7,
@@ -98,8 +117,8 @@ export async function chatWithRAG(request: ChatRequest): Promise<ChatResponse> {
   // Step 2: Take top N chunks for context
   const contextChunks = searchResults.slice(0, maxContextChunks);
 
-  // Step 3: Build prompt with context
-  const prompt = buildRAGPrompt(query, contextChunks);
+  // Step 3: Build prompt with context and history
+  const prompt = buildRAGPrompt(query, contextChunks, history);
 
   // Step 4: Generate response (non-streaming)
   const aiRequest: AIGenerationRequest = {
@@ -134,6 +153,7 @@ export async function* chatWithRAGStream(
   const {
     tenantId,
     query,
+    history,
     maxContextChunks = 10,
     model,
     temperature = 0.7,
@@ -151,8 +171,8 @@ export async function* chatWithRAGStream(
   // Step 2: Take top N chunks for context
   const contextChunks = searchResults.slice(0, maxContextChunks);
 
-  // Step 3: Build prompt with context
-  const prompt = buildRAGPrompt(query, contextChunks);
+  // Step 3: Build prompt with context and history
+  const prompt = buildRAGPrompt(query, contextChunks, history);
 
   // Step 4: Generate streaming response
   const aiRequest: AIGenerationRequest = {

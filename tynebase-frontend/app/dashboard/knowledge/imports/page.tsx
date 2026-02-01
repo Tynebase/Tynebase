@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Download,
@@ -12,13 +12,14 @@ import {
   Clock,
   FileText,
   ExternalLink,
+  Loader2,
 } from "lucide-react";
 
 type ImportStatus = "queued" | "running" | "completed" | "failed";
 
 type ImportJob = {
   id: string;
-  source: "Notion" | "Confluence" | "Google Docs" | "Markdown";
+  source: string;
   status: ImportStatus;
   items: number;
   createdAt: string;
@@ -27,62 +28,62 @@ type ImportJob = {
 };
 
 type ImportSource = {
-  name: ImportJob["source"];
+  name: string;
   description: string;
   cta: string;
   href?: string;
+  comingSoon?: boolean;
 };
-
-const jobs: ImportJob[] = [
-  {
-    id: "imp_1",
-    source: "Notion",
-    status: "completed",
-    items: 128,
-    createdAt: "Today",
-    updatedAt: "10 min ago",
-    notes: "Imported Engineering space and Onboarding pages.",
-  },
-  {
-    id: "imp_2",
-    source: "Confluence",
-    status: "running",
-    items: 54,
-    createdAt: "Today",
-    updatedAt: "1 min ago",
-    notes: "Syncing attachments and tables.",
-  },
-  {
-    id: "imp_3",
-    source: "Markdown",
-    status: "failed",
-    items: 12,
-    createdAt: "Yesterday",
-    updatedAt: "Yesterday",
-    notes: "2 files had invalid frontmatter.",
-  },
-];
 
 const sources: ImportSource[] = [
   {
+    name: "Markdown",
+    description: "Batch import .md files with automatic RAG indexing and embedding generation.",
+    cta: "Import Files",
+    href: "/dashboard/knowledge/imports/markdown",
+    comingSoon: false,
+  },
+  {
     name: "Notion",
     description: "Connect a workspace and import pages, databases, and attachments.",
-    cta: "Connect Notion",
+    cta: "Coming Soon",
+    comingSoon: true,
   },
   {
     name: "Confluence",
     description: "Bring in spaces and pages and keep content in sync.",
-    cta: "Connect Confluence",
+    cta: "Coming Soon",
+    comingSoon: true,
   },
   {
     name: "Google Docs",
     description: "Import documents and folder structures from Drive.",
-    cta: "Connect Google",
+    cta: "Coming Soon",
+    comingSoon: true,
   },
   {
-    name: "Markdown",
-    description: "Upload or drop a folder of Markdown files to index quickly.",
-    cta: "Upload Markdown",
+    name: "Slack",
+    description: "Import messages and threads from Slack channels.",
+    cta: "Coming Soon",
+    comingSoon: true,
+  },
+  {
+    name: "Dropbox",
+    description: "Sync documents and files from your Dropbox folders.",
+    cta: "Coming Soon",
+    comingSoon: true,
+  },
+  {
+    name: "SharePoint",
+    description: "Import documents and wikis from Microsoft SharePoint.",
+    cta: "Coming Soon",
+    comingSoon: true,
+  },
+  {
+    name: "Zendesk",
+    description: "Bring in help center articles and knowledge base content.",
+    cta: "Coming Soon",
+    comingSoon: true,
   },
 ];
 
@@ -120,12 +121,22 @@ function StatusBadge({ status }: { status: ImportStatus }) {
 
 export default function ImportsPage() {
   const [query, setQuery] = useState("");
+  const [jobs, setJobs] = useState<ImportJob[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Import jobs endpoint not yet implemented - show empty state
+    // Will be enabled when integrations are available in Milestone 3
+    setLoading(false);
+    setJobs([]);
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return jobs;
     return jobs.filter((j) => `${j.source} ${j.status} ${j.notes ?? ""}`.toLowerCase().includes(q));
-  }, [query]);
+  }, [query, jobs]);
 
   return (
     <div className="flex flex-col gap-6 min-h-[70vh]">
@@ -181,7 +192,7 @@ export default function ImportsPage() {
           {sources.map((s) => (
             <div
               key={s.name}
-              className="rounded-xl border border-[var(--dash-border-subtle)] bg-[var(--surface-ground)] p-4 flex flex-col"
+              className={`rounded-xl border border-[var(--dash-border-subtle)] bg-[var(--surface-ground)] p-4 flex flex-col ${s.comingSoon ? "opacity-75" : ""}`}
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="font-semibold text-[var(--dash-text-primary)]">{s.name}</div>
@@ -190,10 +201,25 @@ export default function ImportsPage() {
                 </span>
               </div>
               <p className="text-sm text-[var(--dash-text-tertiary)] mt-2 flex-1">{s.description}</p>
-              <button className="mt-4 inline-flex items-center justify-center gap-2 px-6 py-3 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-sm font-medium text-[var(--dash-text-secondary)] hover:border-[var(--dash-border-default)] transition-all">
-                {s.cta}
-                <ExternalLink className="w-4 h-4" />
-              </button>
+              {s.comingSoon ? (
+                <div className="mt-4 inline-flex items-center justify-center gap-2 px-6 py-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl text-sm font-medium text-[var(--dash-text-muted)] cursor-not-allowed">
+                  <Clock className="w-4 h-4" />
+                  Coming Soon
+                </div>
+              ) : s.href ? (
+                <Link
+                  href={s.href}
+                  className="mt-4 inline-flex items-center justify-center gap-2 px-6 py-3 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-xl text-sm font-medium transition-all shadow-sm hover:shadow-md"
+                >
+                  <Upload className="w-4 h-4" />
+                  {s.cta}
+                </Link>
+              ) : (
+                <button className="mt-4 inline-flex items-center justify-center gap-2 px-6 py-3 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-sm font-medium text-[var(--dash-text-secondary)] hover:border-[var(--dash-border-default)] transition-all">
+                  {s.cta}
+                  <ExternalLink className="w-4 h-4" />
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -210,10 +236,21 @@ export default function ImportsPage() {
         </div>
 
         <div className="divide-y divide-[var(--dash-border-subtle)]">
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="px-5 py-10 text-center">
+              <Loader2 className="w-6 h-6 animate-spin text-[var(--brand)] mx-auto mb-2" />
+              <p className="text-sm text-[var(--dash-text-tertiary)]">Loading import jobs...</p>
+            </div>
+          ) : error ? (
+            <div className="px-5 py-10 text-center">
+              <AlertTriangle className="w-6 h-6 text-[var(--status-error)] mx-auto mb-2" />
+              <p className="text-sm font-medium text-[var(--dash-text-primary)]">{error}</p>
+              <p className="text-sm text-[var(--dash-text-tertiary)] mt-1">Please try again later.</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="px-5 py-10 text-center">
               <p className="text-sm font-medium text-[var(--dash-text-primary)]">No import jobs found</p>
-              <p className="text-sm text-[var(--dash-text-tertiary)] mt-1">Try a different search or start a new import.</p>
+              <p className="text-sm text-[var(--dash-text-tertiary)] mt-1">Import jobs will appear here once integrations are available.</p>
             </div>
           ) : (
             filtered.map((job) => (
@@ -289,9 +326,6 @@ export default function ImportsPage() {
         </div>
       </div>
 
-      <div className="text-xs text-[var(--dash-text-muted)] mt-auto">
-        Note: This is a UI scaffold. Hook this into your import pipeline (Notion/Confluence connectors) later.
-      </div>
     </div>
   );
 }

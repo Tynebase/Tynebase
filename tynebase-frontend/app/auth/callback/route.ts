@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+  const tenant = searchParams.get("tenant");
   const redirect = searchParams.get("redirect") || "/dashboard";
 
   if (code) {
@@ -11,6 +12,34 @@ export async function GET(request: Request) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     
     if (!error && data.user) {
+      // Check if this is an invited user (has invite metadata)
+      const userMetadata = data.user.user_metadata;
+      const inviteTenantId = userMetadata?.tenant_id;
+      const inviteRole = userMetadata?.role;
+      
+      if (inviteTenantId && inviteRole) {
+        // This is an invited user - check if user record exists
+        const { data: existingUser } = await supabase
+          .from('users')
+          .select('id')
+          .eq('id', data.user.id)
+          .single();
+        
+        if (!existingUser) {
+          // Redirect to accept-invite page to complete profile setup
+          const inviteData = encodeURIComponent(JSON.stringify({
+            userId: data.user.id,
+            email: data.user.email,
+            tenantId: inviteTenantId,
+            tenantName: userMetadata?.tenant_name,
+            tenantSubdomain: userMetadata?.tenant_subdomain,
+            role: inviteRole,
+            invitedBy: userMetadata?.invited_by_name,
+          }));
+          return NextResponse.redirect(`${origin}/auth/accept-invite?data=${inviteData}`);
+        }
+      }
+      
       // Fetch user's tenant context for proper redirect
       const { data: userData } = await supabase
         .from('users')

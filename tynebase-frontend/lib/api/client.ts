@@ -112,7 +112,10 @@ async function refreshAccessToken(): Promise<string | null> {
       return null;
     }
     
-    const data = await response.json();
+    const responseData = await response.json();
+    
+    // Backend wraps responses in { success, data: {...} } format
+    const data = responseData?.data || responseData;
     
     if (data.access_token && data.refresh_token) {
       setAuthTokens(data.access_token, data.refresh_token);
@@ -194,10 +197,11 @@ export function clearAuth(): void {
  */
 export async function apiClient<T = unknown>(
   endpoint: string,
-  options?: RequestInit
+  options?: RequestInit & { skipAutoRedirect?: boolean }
 ): Promise<T> {
   let token = getAccessToken();
   const tenant = getTenantSubdomain();
+  const skipAutoRedirect = options?.skipAutoRedirect || false;
   
   // Check if token needs refresh before making request
   if (token && isTokenExpiringSoon(token)) {
@@ -284,7 +288,7 @@ export async function apiClient<T = unknown>(
       }
 
       // Handle 401 Unauthorized - try to refresh token once
-      if (response.status === 401) {
+      if (response.status === 401 && !skipAutoRedirect) {
         // Try refreshing the token
         if (!isRefreshing) {
           isRefreshing = true;
@@ -315,6 +319,13 @@ export async function apiClient<T = unknown>(
 
     // Parse JSON response
     const data = await response.json();
+    
+    // Backend wraps responses in { success, data: {...} } format
+    // Unwrap the data property if present for consistent frontend usage
+    if (data && typeof data === 'object' && 'success' in data && 'data' in data) {
+      return data.data as T;
+    }
+    
     return data as T;
   } catch (error) {
     // Re-throw ApiClientError as-is
@@ -342,11 +353,13 @@ export async function apiGet<T = unknown>(endpoint: string): Promise<T> {
  */
 export async function apiPost<T = unknown>(
   endpoint: string,
-  body?: unknown
+  body?: unknown,
+  options?: { skipAutoRedirect?: boolean }
 ): Promise<T> {
   return apiClient<T>(endpoint, {
     method: 'POST',
-    body: body ? JSON.stringify(body) : undefined,
+    body: JSON.stringify(body ?? {}),
+    ...options,
   });
 }
 
@@ -461,6 +474,13 @@ export async function apiUpload<T = unknown>(
     }
 
     const data = await response.json();
+    
+    // Backend wraps responses in { success, data: {...} } format
+    // Unwrap the data property if present for consistent frontend usage
+    if (data && typeof data === 'object' && 'success' in data && 'data' in data) {
+      return data.data as T;
+    }
+    
     return data as T;
   } catch (error) {
     if (error instanceof ApiClientError) {

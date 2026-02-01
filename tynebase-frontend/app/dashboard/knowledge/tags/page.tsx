@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Hash,
@@ -11,8 +11,11 @@ import {
   ArrowRight,
   TrendingUp,
   Filter,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
+import { listTags, createTag, type Tag as APITag } from "@/lib/api/tags";
 
 type Tag = {
   id: string;
@@ -24,106 +27,30 @@ type Tag = {
   aiSuggested?: boolean;
 };
 
-const mockTags: Tag[] = [
-  {
-    id: "t1",
-    name: "sso",
-    description: "Single Sign-On setup, providers, and troubleshooting.",
-    documents: 14,
-    updatedAt: "Today",
-    trend: "up",
-    aiSuggested: true,
-  },
-  {
-    id: "t2",
-    name: "api",
-    description: "Endpoints, authentication, rate limits, and examples.",
-    documents: 32,
-    updatedAt: "Yesterday",
-    trend: "up",
-  },
-  {
-    id: "t3",
-    name: "onboarding",
-    description: "Guides for new hires, tooling access, and internal processes.",
-    documents: 18,
-    updatedAt: "3 days ago",
-    trend: "flat",
-  },
-  {
-    id: "t4",
-    name: "incident",
-    description: "Incident workflow, postmortems, runbooks.",
-    documents: 9,
-    updatedAt: "1 week ago",
-    trend: "down",
-  },
-  {
-    id: "t5",
-    name: "rbac",
-    description: "Roles, permissions, access reviews, and policy patterns.",
-    documents: 21,
-    updatedAt: "2 days ago",
-    trend: "up",
-  },
-  {
-    id: "t6",
-    name: "billing",
-    description: "Invoices, subscriptions, proration, refunds, and webhooks.",
-    documents: 12,
-    updatedAt: "5 days ago",
-    trend: "flat",
-  },
-  {
-    id: "t7",
-    name: "observability",
-    description: "Logging, tracing, metrics dashboards, and alerting playbooks.",
-    documents: 27,
-    updatedAt: "Last week",
-    trend: "up",
-  },
-  {
-    id: "t8",
-    name: "security",
-    description: "Threat model notes, secure defaults, and hardening checklists.",
-    documents: 16,
-    updatedAt: "1 week ago",
-    trend: "flat",
-    aiSuggested: true,
-  },
-  {
-    id: "t9",
-    name: "performance",
-    description: "Caching, query tuning, profiling, and load testing results.",
-    documents: 11,
-    updatedAt: "2 weeks ago",
-    trend: "up",
-  },
-  {
-    id: "t10",
-    name: "docs-style",
-    description: "Writing guidelines, templates, tone of voice, and examples.",
-    documents: 8,
-    updatedAt: "3 weeks ago",
-    trend: "flat",
-  },
-  {
-    id: "t11",
-    name: "integrations",
-    description: "Partner APIs, OAuth apps, webhook consumers, and sync jobs.",
-    documents: 19,
-    updatedAt: "Last month",
-    trend: "down",
-  },
-  {
-    id: "t12",
-    name: "database",
-    description: "Migrations, indexing strategy, backups, and restore drills.",
-    documents: 24,
-    updatedAt: "Last month",
-    trend: "flat",
-  },
-];
+const formatRelativeTime = (dateString: string): string => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 60) return diffMins === 0 ? 'Just now' : `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+  return date.toLocaleDateString();
+};
+
+const mapAPITagToUI = (tag: APITag): Tag => ({
+  id: tag.id,
+  name: tag.name,
+  description: tag.description || '',
+  documents: tag.document_count,
+  updatedAt: formatRelativeTime(tag.updated_at),
+  trend: 'flat',
+  aiSuggested: false,
+});
 
 function TrendBadge({ trend }: { trend: Tag["trend"] }) {
   if (trend === "up") {
@@ -150,12 +77,64 @@ function TrendBadge({ trend }: { trend: Tag["trend"] }) {
 
 export default function TagsPage() {
   const [query, setQuery] = useState("");
+  const [showNewTagModal, setShowNewTagModal] = useState(false);
+  const [newTagName, setNewTagName] = useState("");
+  const [newTagDescription, setNewTagDescription] = useState("");
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    const fetchTags = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await listTags({ limit: 100 });
+        const uiTags = response.tags.map(mapAPITagToUI);
+        setTags(uiTags);
+      } catch (err) {
+        console.error('Failed to fetch tags:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load tags');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTags();
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return mockTags;
-    return mockTags.filter((t) => `${t.name} ${t.description}`.toLowerCase().includes(q));
-  }, [query]);
+    if (!q) return tags;
+    return tags.filter((t) => `${t.name} ${t.description}`.toLowerCase().includes(q));
+  }, [query, tags]);
+
+  const handleCreateTag = async () => {
+    if (!newTagName.trim()) return;
+    
+    try {
+      setCreating(true);
+      setError(null);
+      const response = await createTag({
+        name: newTagName.trim(),
+        description: newTagDescription.trim() || undefined,
+      });
+      
+      const newTag = mapAPITagToUI(response.tag);
+      setTags(prev => [newTag, ...prev]);
+      
+      // Reset form and close modal
+      setNewTagName("");
+      setNewTagDescription("");
+      setShowNewTagModal(false);
+    } catch (err) {
+      console.error('Failed to create tag:', err);
+      setError(err instanceof Error ? err.message : 'Failed to create tag');
+    } finally {
+      setCreating(false);
+    }
+  };
 
   return (
     <div className="max-w-6xl mx-auto flex min-h-full flex-col px-2 sm:px-4">
@@ -163,7 +142,7 @@ export default function TagsPage() {
         <div>
           <h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">Tags</h1>
           <p className="text-[var(--dash-text-tertiary)] mt-1">
-            Organise articles with tags, using AI suggestions to reduce duplicates.
+            Organise articles with tags to reduce duplicates.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -174,7 +153,10 @@ export default function TagsPage() {
             <FileText className="w-4 h-4" />
             Browse Docs
           </Link>
-          <button className="inline-flex items-center gap-2 h-11 px-6 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-xl font-semibold transition-all shadow-sm hover:shadow-md">
+          <button 
+            onClick={() => setShowNewTagModal(true)}
+            className="inline-flex items-center gap-2 h-11 px-6 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-xl font-semibold transition-all shadow-sm hover:shadow-md"
+          >
             <Plus className="w-4 h-4" />
             New Tag
           </button>
@@ -201,8 +183,38 @@ export default function TagsPage() {
 
       <div className="h-2" />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 flex-1 content-start">
-        {filtered.map((t) => (
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 text-[var(--brand)] animate-spin" />
+          <span className="ml-3 text-[var(--dash-text-secondary)]">Loading tags...</span>
+        </div>
+      )}
+
+      {error && !loading && (
+        <div className="bg-[var(--status-error-bg)] border border-[var(--status-error)] rounded-xl p-6 flex items-start gap-4">
+          <AlertCircle className="w-6 h-6 text-[var(--status-error)] flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="font-semibold text-[var(--status-error)] mb-1">Failed to load tags</h3>
+            <p className="text-sm text-[var(--dash-text-secondary)]">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {!loading && !error && filtered.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <Hash className="w-16 h-16 text-[var(--dash-text-muted)] mb-4" />
+          <h3 className="text-lg font-semibold text-[var(--dash-text-primary)] mb-2">
+            {query ? 'No tags found' : 'No tags yet'}
+          </h3>
+          <p className="text-sm text-[var(--dash-text-tertiary)] max-w-md">
+            {query ? 'Try adjusting your search query.' : 'Create your first tag to start organizing your documents.'}
+          </p>
+        </div>
+      )}
+
+      {!loading && !error && filtered.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 flex-1 content-start">
+          {filtered.map((t) => (
           <Card
             key={t.id}
             className="hover:shadow-lg hover:border-[var(--brand)] transition-all"
@@ -244,8 +256,93 @@ export default function TagsPage() {
               </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
+
+      {/* New Tag Modal */}
+      {showNewTagModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[var(--surface-card)] rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-[var(--dash-text-primary)]">Create New Tag</h2>
+              <button
+                onClick={() => setShowNewTagModal(false)}
+                className="text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)] transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-2">
+                  Tag Name
+                </label>
+                <input
+                  type="text"
+                  value={newTagName}
+                  onChange={(e) => setNewTagName(e.target.value)}
+                  placeholder="e.g., api, security, onboarding"
+                  disabled={creating}
+                  className="w-full px-4 py-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 transition-all disabled:opacity-50"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-2">
+                  Description (optional)
+                </label>
+                <textarea
+                  value={newTagDescription}
+                  onChange={(e) => setNewTagDescription(e.target.value)}
+                  placeholder="Brief description of what this tag represents..."
+                  rows={3}
+                  disabled={creating}
+                  className="w-full px-4 py-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 transition-all resize-none disabled:opacity-50"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowNewTagModal(false);
+                  setError(null);
+                }}
+                disabled={creating}
+                className="flex-1 h-11 px-4 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl text-sm font-medium text-[var(--dash-text-secondary)] hover:border-[var(--dash-border-default)] transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateTag}
+                disabled={!newTagName.trim() || creating}
+                className="flex-1 h-11 px-4 bg-[var(--brand)] hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2"
+              >
+                {creating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  'Create Tag'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

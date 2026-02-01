@@ -81,7 +81,7 @@ async function processConversion(job: Job, workerId: string): Promise<void> {
     
     const { data: fileData, error: downloadError } = await supabaseAdmin
       .storage
-      .from('documents')
+      .from('tenant-uploads')
       .download(validated.storage_path);
 
     if (downloadError || !fileData) {
@@ -96,6 +96,11 @@ async function processConversion(job: Job, workerId: string): Promise<void> {
     let markdownContent: string;
     let lineageEventType: string;
 
+    // Determine file type from extension if mimetype is generic
+    const fileExtension = validated.original_filename.substring(validated.original_filename.lastIndexOf('.')).toLowerCase();
+    const isMarkdownFile = fileExtension === '.md' || fileExtension === '.markdown';
+    const isTextFile = fileExtension === '.txt';
+
     if (validated.mimetype === 'application/pdf') {
       markdownContent = await convertPdfToMarkdown(buffer, workerId);
       lineageEventType = 'converted_from_pdf';
@@ -105,9 +110,16 @@ async function processConversion(job: Job, workerId: string): Promise<void> {
     ) {
       markdownContent = await convertDocxToMarkdown(tempFilePath, workerId);
       lineageEventType = 'converted_from_docx';
-    } else if (validated.mimetype === 'text/markdown') {
+    } else if (
+      validated.mimetype === 'text/markdown' ||
+      validated.mimetype === 'text/x-markdown' ||
+      isMarkdownFile
+    ) {
       markdownContent = buffer.toString('utf-8');
-      lineageEventType = 'converted_from_markdown';
+      lineageEventType = 'imported_from_markdown';
+    } else if (validated.mimetype === 'text/plain' || isTextFile) {
+      markdownContent = buffer.toString('utf-8');
+      lineageEventType = 'imported_from_text';
     } else {
       throw new Error(`Unsupported file type: ${validated.mimetype}`);
     }
@@ -163,7 +175,7 @@ async function processConversion(job: Job, workerId: string): Promise<void> {
         user_id: validated.user_id,
         query_type: 'document_conversion',
         model_used: 'system',
-        credits_used: 1,
+        credits_charged: 1,
         metadata: {
           job_id: job.id,
           document_id: document.id,

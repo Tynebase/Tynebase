@@ -5,11 +5,11 @@ import {
     Send,
     Bot,
     User,
-    Loader2,
     Trash2,
     FileText,
     ExternalLink
 } from "lucide-react";
+import { GeminiGlow, GeminiThinkingBar } from "@/components/ui/GeminiGlow";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { chatStream, ChatMessage, ChatSource } from "@/lib/api/ai";
@@ -419,8 +419,9 @@ export default function ChatPage() {
                                         <div className="flex-1 min-w-0 space-y-2">
                                             <div className="flex items-center gap-2">
                                                 <span className="font-semibold text-[var(--dash-text-primary)]">AI Assistant</span>
-                                                <Loader2 className="w-3 h-3 animate-spin text-[var(--brand)]" />
+                                                <GeminiGlow size="sm" />
                                             </div>
+                                            <GeminiThinkingBar className="mb-2" />
                                             <div className="prose prose-sm max-w-none text-[var(--dash-text-secondary)] leading-relaxed whitespace-pre-wrap">
                                                 {streamingMessage}
                                             </div>
@@ -453,7 +454,7 @@ export default function ChatPage() {
                                 className="h-12 px-6"
                             >
                                 {isLoading ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <GeminiGlow size="sm" />
                                 ) : (
                                     <>
                                         <Send className="w-4 h-4 mr-2" />

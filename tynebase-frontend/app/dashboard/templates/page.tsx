@@ -31,13 +31,8 @@ export default function TemplatesPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({
-    all: 0,
-    engineering: 0,
-    product: 0,
-    hr: 0,
-    security: 0,
-  });
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
+  const [uniqueCategories, setUniqueCategories] = useState<string[]>([]);
 
   useEffect(() => {
     async function fetchTemplates() {
@@ -45,24 +40,25 @@ export default function TemplatesPage() {
         setLoading(true);
         setError(null);
         const response = await listTemplates();
-        const fetchedTemplates = response.data.templates;
+        const fetchedTemplates = response.templates;
         setTemplates(fetchedTemplates);
 
+        // Dynamically compute categories from templates
         const counts: Record<string, number> = {
           all: fetchedTemplates.length,
-          engineering: 0,
-          product: 0,
-          hr: 0,
-          security: 0,
         };
+        
+        const categoriesSet = new Set<string>();
 
         fetchedTemplates.forEach((t) => {
-          if (t.category && counts[t.category] !== undefined) {
-            counts[t.category]++;
+          if (t.category) {
+            categoriesSet.add(t.category);
+            counts[t.category] = (counts[t.category] || 0) + 1;
           }
         });
 
         setCategoryCounts(counts);
+        setUniqueCategories(Array.from(categoriesSet).sort());
       } catch (err: any) {
         console.error('Failed to fetch templates:', err);
         setError(err.message || 'Failed to load templates');
@@ -92,12 +88,14 @@ export default function TemplatesPage() {
     return categoryColors[category || 'all'] || '#06b6d4';
   };
 
+  // Build dynamic category list from actual templates
   const templateCategories = [
-    { id: 'all', label: 'All', count: categoryCounts.all },
-    { id: 'engineering', label: 'Engineering', count: categoryCounts.engineering },
-    { id: 'product', label: 'Product', count: categoryCounts.product },
-    { id: 'hr', label: 'HR & People', count: categoryCounts.hr },
-    { id: 'security', label: 'Security', count: categoryCounts.security },
+    { id: 'all', label: 'All', count: categoryCounts.all || 0 },
+    ...uniqueCategories.map(cat => ({
+      id: cat,
+      label: cat.charAt(0).toUpperCase() + cat.slice(1),
+      count: categoryCounts[cat] || 0,
+    })),
   ];
 
   return (

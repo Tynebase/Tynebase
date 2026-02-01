@@ -14,7 +14,6 @@
 
 import { supabaseAdmin } from '../lib/supabase';
 import { generateText } from '../services/ai/bedrock';
-import { generateText as generateTextAnthropic } from '../services/ai/anthropic';
 import { generateText as generateTextVertex } from '../services/ai/vertex';
 import { completeJob } from '../utils/completeJob';
 import { failJob } from '../utils/failJob';
@@ -23,7 +22,7 @@ import { z } from 'zod';
 
 const AIGenerationPayloadSchema = z.object({
   prompt: z.string().min(1),
-  model: z.enum(['deepseek-v3', 'claude-sonnet-4.5', 'gemini-3-flash']),
+  model: z.enum(['deepseek', 'claude', 'gemini']),
   max_tokens: z.number().int().positive().optional(),
   user_id: z.string().uuid(),
   estimated_credits: z.number().int().positive(),
@@ -58,9 +57,18 @@ export async function processAIGenerationJob(job: Job): Promise<void> {
       validated.max_tokens || 2000
     );
 
+    console.log(`[Worker ${workerId}] AI generation completed. Content length: ${generatedContent.content?.length || 0}`);
+
     const sanitizedContent = sanitizeAIOutput(generatedContent.content);
+    
+    console.log(`[Worker ${workerId}] Content sanitized. Length: ${sanitizedContent.length}`);
 
     const documentTitle = generateDocumentTitle(validated.prompt, sanitizedContent);
+
+    // NOTE: We intentionally do NOT save yjs_state here.
+    // The collab server will initialize the Y.js document from the markdown content
+    // using initializeYdocFromContent() which properly parses markdown into TipTap nodes
+    // (headings, lists, blockquotes, etc.) for beautiful rich text rendering.
 
     const { data: document, error: docError } = await supabaseAdmin
       .from('documents')
@@ -116,7 +124,7 @@ export async function processAIGenerationJob(job: Job): Promise<void> {
         model: validated.model,
         input_tokens: generatedContent.tokensInput,
         output_tokens: generatedContent.tokensOutput,
-        credits_used: validated.estimated_credits,
+        credits_charged: validated.estimated_credits,
         month_year: currentMonth,
         metadata: {
           job_id: job.id,
@@ -166,7 +174,7 @@ export async function processAIGenerationJob(job: Job): Promise<void> {
  */
 async function callAIProvider(
   prompt: string,
-  model: AIModel,
+  model: 'deepseek' | 'claude' | 'gemini',
   maxTokens: number
 ): Promise<{
   content: string;
@@ -181,21 +189,37 @@ async function callAIProvider(
     setTimeout(() => reject(new Error('AI generation timed out after 60 seconds')), timeout);
   });
 
-  if (model.startsWith('deepseek-')) {
+  // Map simplified model names to actual model IDs
+  const modelMap: Record<string, AIModel> = {
+    'deepseek': 'deepseek-v3',
+    'claude': 'claude-sonnet-4.5',
+    'gemini': 'gemini-2.5-flash',
+  };
+
+  const actualModel = modelMap[model];
+  if (!actualModel) {
+    throw new Error(`Unsupported model: ${model}`);
+  }
+
+  // Route to appropriate provider based on model
+  if (model === 'deepseek') {
+    // DeepSeek via AWS Bedrock
     const result = await Promise.race([
-      generateText({ prompt, model: model as AIModel, maxTokens }),
+      generateText({ prompt, model: actualModel, maxTokens }),
       timeoutPromise,
     ]);
     return result;
-  } else if (model.startsWith('claude-')) {
+  } else if (model === 'claude') {
+    // Claude via AWS Bedrock
     const result = await Promise.race([
-      generateTextAnthropic({ prompt, model: model as AIModel, maxTokens }),
+      generateText({ prompt, model: actualModel, maxTokens }),
       timeoutPromise,
     ]);
     return result;
-  } else if (model.startsWith('gemini-')) {
+  } else if (model === 'gemini') {
+    // Gemini 2.0 via Google Vertex AI
     const result = await Promise.race([
-      generateTextVertex({ prompt, model: model as AIModel, maxTokens }),
+      generateTextVertex({ prompt, model: actualModel, maxTokens }),
       timeoutPromise,
     ]);
     return result;

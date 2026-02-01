@@ -72,7 +72,7 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
 
             <footer className="flex-shrink-0 border-t border-[var(--dash-border-subtle)] bg-[var(--surface-card)] px-8 pr-24 py-3 hidden sm:block">
               <div className="flex items-center justify-between text-xs text-[var(--dash-text-muted)]">
-                <span>© 2024 TyneBase. All rights reserved.</span>
+                <span>© 2026 TyneBase. All rights reserved.</span>
                 <div className="flex items-center gap-6">
                   <Link href="/dashboard/help" className="hover:text-[var(--dash-text-secondary)] transition-colors">Help</Link>
                   <Link href="/privacy" className="hover:text-[var(--dash-text-secondary)] transition-colors">Privacy</Link>

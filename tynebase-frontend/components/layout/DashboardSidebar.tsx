@@ -27,7 +27,10 @@ import {
   Wand2,
   ChevronDown,
   MessageCircle,
-  Users
+  Users,
+  Search,
+  CreditCard,
+  Music
 } from "lucide-react";
 import { useState } from "react";
 
@@ -54,7 +57,7 @@ const mainNavigation: NavItem[] = [
 const knowledgeNavigation: NavItem[] = [
   {
     id: "knowledge",
-    label: "All Articles",
+    label: "All Documents",
     icon: BookOpen,
     href: "/dashboard/knowledge",
     color: "#8b5cf6",
@@ -119,13 +122,6 @@ const sourcesNavigation: NavItem[] = [
     color: "#8b5cf6",
   },
   {
-    id: "sources-query",
-    label: "Query Workspace",
-    icon: Sparkles,
-    href: "/dashboard/sources/query",
-    color: "#ec4899",
-  },
-  {
     id: "sources-health",
     label: "Index Health",
     icon: HeartPulse,
@@ -136,8 +132,22 @@ const sourcesNavigation: NavItem[] = [
 
 const aiNavigation: NavItem[] = [
   {
+    id: "ai-chat",
+    label: "AI Chat",
+    icon: MessageCircle,
+    href: "/dashboard/ai-chat",
+    color: "#8b5cf6",
+  },
+  {
+    id: "ai-ask",
+    label: "ASK",
+    icon: Search,
+    href: "/dashboard/ai-assistant/ask",
+    color: "#ec4899",
+  },
+  {
     id: "ai-prompt",
-    label: "From Prompt",
+    label: "Ingest",
     icon: Sparkles,
     href: "/dashboard/ai-assistant",
     color: "#ec4899",
@@ -150,6 +160,13 @@ const aiNavigation: NavItem[] = [
     color: "#ef4444",
   },
   {
+    id: "ai-audio",
+    label: "From Audio",
+    icon: Music,
+    href: "/dashboard/ai-assistant/audio",
+    color: "#f59e0b",
+  },
+  {
     id: "ai-enhance",
     label: "Enhance",
     icon: Wand2,
@@ -160,13 +177,6 @@ const aiNavigation: NavItem[] = [
 
 const toolsNavigation: NavItem[] = [
   {
-    id: "chat",
-    label: "Chat",
-    icon: MessageCircle,
-    href: "/dashboard/chat",
-    color: "#8b5cf6", // Purple like Slack/Teams often are
-  },
-  {
     id: "audit",
     label: "Content Audit",
     icon: BarChart3,
@@ -176,7 +186,7 @@ const toolsNavigation: NavItem[] = [
   {
     id: "community",
     label: "Community",
-    icon: Users, // Using Users as per original or maybe Hash? User asked for MessageSquare for Forum before, but now Chat takes MessageCircle. Let's revert Community icon if needed or keep standard. Original was Users. User asked to "rename it back to Community".
+    icon: Users,
     href: "/dashboard/community",
     color: "#3b82f6",
     badge: 3,
@@ -197,6 +207,14 @@ const adminNavigation: NavItem[] = [
     icon: Settings,
     href: "/dashboard/settings",
     color: "#6b7280",
+  },
+  {
+    id: "billing",
+    label: "Billing",
+    icon: CreditCard,
+    href: "/dashboard/settings/billing",
+    color: "#10b981",
+    roles: ["admin", "super_admin"],
   },
   {
     id: "users",

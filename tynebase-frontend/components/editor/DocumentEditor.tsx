@@ -27,6 +27,7 @@ import {
   ChevronDown
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { htmlToMarkdown } from "@/lib/utils/htmlToMarkdown";
 
 interface DocumentEditorProps {
   initialTitle?: string;
@@ -102,8 +103,9 @@ export function DocumentEditor({
     }
 
     saveTimeoutRef.current = setTimeout(() => {
-      const currentContent = editorRef.current?.innerHTML || content;
-      onSave?.({ title, content: currentContent });
+      const currentHtml = editorRef.current?.innerHTML || content;
+      const markdownContent = htmlToMarkdown(currentHtml);
+      onSave?.({ title, content: markdownContent });
       setLastSaved(new Date());
     }, 2000);
 
@@ -120,7 +122,9 @@ export function DocumentEditor({
     
     setIsSaving(true);
     try {
-      await onSave?.({ title, content: editorRef.current?.innerHTML || content });
+      const currentHtml = editorRef.current?.innerHTML || content;
+      const markdownContent = htmlToMarkdown(currentHtml);
+      await onSave?.({ title, content: markdownContent });
       setLastSaved(new Date());
     } finally {
       setIsSaving(false);

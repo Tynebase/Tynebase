@@ -90,7 +90,7 @@ export function DocumentImportModal({ isOpen, onClose, onSuccess }: DocumentImpo
     while (attempts < maxAttempts) {
       try {
         const response = await getJobStatus(jobId);
-        const job = response.data.job;
+        const job = response.job;
         setJobStatus(job);
 
         if (job.status === 'completed') {

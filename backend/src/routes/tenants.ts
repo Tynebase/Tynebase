@@ -23,6 +23,12 @@ const settingsSchema = z.object({
     email_enabled: z.boolean().optional(),
     digest_frequency: z.enum(['daily', 'weekly', 'never']).optional(),
   }).optional(),
+  features: z.object({
+    collaboration_enabled: z.boolean().optional(),
+    ai_generation_enabled: z.boolean().optional(),
+    rag_chat_enabled: z.boolean().optional(),
+    document_export_enabled: z.boolean().optional(),
+  }).optional(),
 }).strict();
 
 /**

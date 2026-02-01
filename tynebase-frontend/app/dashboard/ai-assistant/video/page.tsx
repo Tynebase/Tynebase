@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -16,57 +16,50 @@ import {
   Loader2,
   FileVideo,
 } from "lucide-react";
-import { uploadVideo, transcribeYouTube, pollJobUntilComplete, type Job } from "@/lib/api/ai";
+import { uploadVideo, transcribeYouTube, pollJobUntilComplete, listMediaJobs, type Job, type MediaJob, type OutputOptions } from "@/lib/api/ai";
+import { useCredits } from "@/contexts/CreditsContext";
 
 type VideoSource = "upload" | "youtube" | "url";
 type ProcessingStatus = "idle" | "processing" | "complete" | "error";
 
-interface ProcessedVideo {
-  id: number;
-  title: string;
-  thumbnail: string;
-  duration: string;
-  source: VideoSource;
-  status: ProcessingStatus;
-  createdAt: string;
-  wordCount?: number;
+interface UIOutputOptions {
+  transcript: boolean;
+  summary: boolean;
+  article: boolean;
 }
 
-const recentVideos: ProcessedVideo[] = [
-  {
-    id: 1,
-    title: "Product Demo - Q4 Features",
-    thumbnail: "",
-    duration: "12:34",
-    source: "youtube",
-    status: "complete",
-    createdAt: "2 hours ago",
-    wordCount: 2847,
-  },
-  {
-    id: 2,
-    title: "Customer Onboarding Walkthrough",
-    thumbnail: "",
-    duration: "8:21",
-    source: "upload",
-    status: "complete",
-    createdAt: "Yesterday",
-    wordCount: 1923,
-  },
-  {
-    id: 3,
-    title: "API Integration Tutorial",
-    thumbnail: "",
-    duration: "15:45",
-    source: "url",
-    status: "processing",
-    createdAt: "Just now",
-  },
+// Base credits depend on pipeline:
+// - Gemini: 10 credits (Gemini for transcription + AI outputs)
+// - DeepSeek/Claude: 5 credits (Whisper for transcription + selected model for AI outputs)
+const GEMINI_BASE_CREDITS = 10;
+const WHISPER_BASE_CREDITS = 5;
+
+const aiProviders = [
+  { id: 'gemini', name: 'Gemini 2.5', desc: 'Full Gemini pipeline', credits: 2, baseCredits: GEMINI_BASE_CREDITS },
+  { id: 'deepseek', name: 'DeepSeek', desc: 'Whisper + DeepSeek', credits: 1, baseCredits: WHISPER_BASE_CREDITS },
+  { id: 'claude', name: 'Claude Sonnet 4.5', desc: 'Whisper + Claude', credits: 5, baseCredits: WHISPER_BASE_CREDITS },
 ];
+
+function formatTimeAgo(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} min ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  if (diffDays === 1) return 'Yesterday';
+  return `${diffDays} days ago`;
+}
 
 export default function VideoPage() {
   const router = useRouter();
+  const { decrementCredits, refreshCredits } = useCredits();
   const [activeSource, setActiveSource] = useState<VideoSource>("youtube");
+  const [selectedProvider, setSelectedProvider] = useState('gemini');
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -76,6 +69,57 @@ export default function VideoPage() {
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Recent videos from API
+  const [recentVideos, setRecentVideos] = useState<MediaJob[]>([]);
+  const [isLoadingVideos, setIsLoadingVideos] = useState(true);
+  
+  // Output options with credit tracking
+  const [outputOptions, setOutputOptions] = useState<UIOutputOptions>({
+    transcript: true, // Transcript included in base
+    summary: false,
+    article: false,
+  });
+  
+  // Calculate total credits based on AI model selection
+  const calculateCredits = () => {
+    const provider = aiProviders.find(p => p.id === selectedProvider);
+    const baseCredits = provider?.baseCredits || GEMINI_BASE_CREDITS;
+    const modelCreditCost = provider?.credits || 2;
+    let credits = baseCredits;
+    // Transcript is included in base cost
+    if (outputOptions.summary) credits += modelCreditCost;
+    if (outputOptions.article) credits += modelCreditCost;
+    return credits;
+  };
+  
+  const getBaseCredits = () => aiProviders.find(p => p.id === selectedProvider)?.baseCredits || GEMINI_BASE_CREDITS;
+  
+  // Load recent videos on mount
+  useEffect(() => {
+    const loadRecentVideos = async () => {
+      try {
+        setIsLoadingVideos(true);
+        const response = await listMediaJobs({ type: 'video', limit: 5 });
+        setRecentVideos(response.jobs);
+      } catch (err) {
+        console.error('Failed to load recent videos:', err);
+      } finally {
+        setIsLoadingVideos(false);
+      }
+    };
+    loadRecentVideos();
+  }, []);
+  
+  // Refresh videos after processing completes
+  const refreshVideos = async () => {
+    try {
+      const response = await listMediaJobs({ type: 'video', limit: 5 });
+      setRecentVideos(response.jobs);
+    } catch (err) {
+      console.error('Failed to refresh videos:', err);
+    }
+  };
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -136,8 +180,10 @@ export default function VideoPage() {
     setProgress(0);
     
     try {
+      // Note: YouTube transcription currently doesn't support output options via this endpoint
+      // TODO: Update transcribeYouTube to accept output options
       const response = await transcribeYouTube({ url: youtubeUrl.trim() });
-      const job = response.data.job;
+      const job = response.job;
       setCurrentJob(job);
       
       const completedJob = await pollJobUntilComplete(
@@ -149,6 +195,12 @@ export default function VideoPage() {
       );
       
       if (completedJob.status === 'completed' && completedJob.result?.document_id) {
+        const creditsCharged = typeof completedJob.result.credits_charged === 'number'
+          ? completedJob.result.credits_charged
+          : calculateCredits();
+        decrementCredits(creditsCharged);
+        refreshCredits();
+        await refreshVideos();
         router.push(`/dashboard/knowledge/${completedJob.result.document_id}`);
       } else if (completedJob.status === 'failed') {
         setError(completedJob.error_message || 'Video processing failed');
@@ -168,8 +220,15 @@ export default function VideoPage() {
     setProgress(0);
     
     try {
-      const response = await uploadVideo(selectedFile);
-      const job = response.data.job;
+      const apiOptions: OutputOptions = {
+        generate_transcript: outputOptions.transcript,
+        generate_summary: outputOptions.summary,
+        generate_article: outputOptions.article,
+        ai_model: selectedProvider as 'deepseek' | 'gemini' | 'claude',
+      };
+      
+      const response = await uploadVideo(selectedFile, apiOptions);
+      const job = response.job;
       setCurrentJob(job);
       
       const completedJob = await pollJobUntilComplete(
@@ -181,6 +240,12 @@ export default function VideoPage() {
       );
       
       if (completedJob.status === 'completed' && completedJob.result?.document_id) {
+        const creditsCharged = typeof completedJob.result.credits_charged === 'number'
+          ? completedJob.result.credits_charged
+          : calculateCredits();
+        decrementCredits(creditsCharged);
+        refreshCredits();
+        await refreshVideos();
         router.push(`/dashboard/knowledge/${completedJob.result.document_id}`);
       } else if (completedJob.status === 'failed') {
         setError(completedJob.error_message || 'Video upload failed');
@@ -428,29 +493,95 @@ export default function VideoPage() {
 
           {/* Output Options */}
           <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-6 sm:p-7">
-            <h2 className="text-lg font-semibold text-[var(--dash-text-primary)] mb-5">Output Options</h2>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-semibold text-[var(--dash-text-primary)]">Output Options</h2>
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--brand-primary-muted)] rounded-lg">
+                <Sparkles className="w-4 h-4 text-[var(--brand)]" />
+                <span className="text-sm font-medium text-[var(--brand)]">{calculateCredits()} credits</span>
+              </div>
+            </div>
+            <p className="text-sm text-[var(--dash-text-tertiary)] mb-4">
+              Base: {getBaseCredits()} credits ({selectedProvider === 'gemini' ? 'Gemini transcription' : 'Whisper transcription'}) • AI outputs: +{aiProviders.find(p => p.id === selectedProvider)?.credits || 2} credit each
+            </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              <label className="flex items-start gap-3 p-5 border border-[var(--dash-border-subtle)] rounded-lg cursor-pointer hover:border-[var(--brand)] transition-colors">
-                <input type="checkbox" defaultChecked className="mt-1 accent-[var(--brand)]" />
+              <label className={`flex items-start gap-3 p-5 border rounded-lg cursor-pointer transition-colors ${
+                outputOptions.transcript 
+                  ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]' 
+                  : 'border-[var(--dash-border-subtle)] hover:border-[var(--brand)]'
+              }`}>
+                <input 
+                  type="checkbox" 
+                  checked={outputOptions.transcript}
+                  onChange={(e) => setOutputOptions(prev => ({ ...prev, transcript: e.target.checked }))}
+                  className="mt-1 accent-[var(--brand)]" 
+                />
                 <div>
                   <p className="font-medium text-[var(--dash-text-primary)]">Full Transcript</p>
                   <p className="text-sm text-[var(--dash-text-tertiary)]">Complete word-by-word transcription</p>
+                  <p className="text-xs text-[var(--dash-text-tertiary)] mt-1">Included in base</p>
                 </div>
               </label>
-              <label className="flex items-start gap-3 p-5 border border-[var(--dash-border-subtle)] rounded-lg cursor-pointer hover:border-[var(--brand)] transition-colors">
-                <input type="checkbox" defaultChecked className="mt-1 accent-[var(--brand)]" />
+              <label className={`flex items-start gap-3 p-5 border rounded-lg cursor-pointer transition-colors ${
+                outputOptions.summary 
+                  ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]' 
+                  : 'border-[var(--dash-border-subtle)] hover:border-[var(--brand)]'
+              }`}>
+                <input 
+                  type="checkbox" 
+                  checked={outputOptions.summary}
+                  onChange={(e) => setOutputOptions(prev => ({ ...prev, summary: e.target.checked }))}
+                  className="mt-1 accent-[var(--brand)]" 
+                />
                 <div>
                   <p className="font-medium text-[var(--dash-text-primary)]">Summary</p>
                   <p className="text-sm text-[var(--dash-text-tertiary)]">AI-generated key points</p>
+                  <p className="text-xs text-[var(--brand)] mt-1">+{aiProviders.find(p => p.id === selectedProvider)?.credits || 1} credit</p>
                 </div>
               </label>
-              <label className="flex items-start gap-3 p-5 border border-[var(--dash-border-subtle)] rounded-lg cursor-pointer hover:border-[var(--brand)] transition-colors">
-                <input type="checkbox" defaultChecked className="mt-1 accent-[var(--brand)]" />
+              <label className={`flex items-start gap-3 p-5 border rounded-lg cursor-pointer transition-colors ${
+                outputOptions.article 
+                  ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]' 
+                  : 'border-[var(--dash-border-subtle)] hover:border-[var(--brand)]'
+              }`}>
+                <input 
+                  type="checkbox" 
+                  checked={outputOptions.article}
+                  onChange={(e) => setOutputOptions(prev => ({ ...prev, article: e.target.checked }))}
+                  className="mt-1 accent-[var(--brand)]" 
+                />
                 <div>
                   <p className="font-medium text-[var(--dash-text-primary)]">Article</p>
                   <p className="text-sm text-[var(--dash-text-tertiary)]">Formatted documentation</p>
+                  <p className="text-xs text-[var(--brand)] mt-1">+{aiProviders.find(p => p.id === selectedProvider)?.credits || 1} credit</p>
                 </div>
               </label>
+            </div>
+            
+            {/* AI Provider Selection */}
+            <div className="mt-6 pt-6 border-t border-[var(--dash-border-subtle)]">
+              <p className="text-sm font-medium text-[var(--dash-text-secondary)] mb-3">AI Provider for Summary/Article:</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {aiProviders.map((provider) => (
+                  <button
+                    key={provider.id}
+                    onClick={() => setSelectedProvider(provider.id)}
+                    className={`p-4 rounded-lg border-2 text-left transition-all ${
+                      selectedProvider === provider.id
+                        ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]'
+                        : 'border-[var(--dash-border-subtle)] hover:border-[var(--dash-border-default)]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className={`w-3 h-3 rounded-full border-2 ${
+                        selectedProvider === provider.id ? 'border-[var(--brand)] bg-[var(--brand)]' : 'border-[var(--dash-border-default)]'
+                      }`} />
+                      <span className="font-medium text-[var(--dash-text-primary)]">{provider.name}</span>
+                    </div>
+                    <p className="text-xs text-[var(--dash-text-tertiary)] ml-5">{provider.desc}</p>
+                    <p className="text-xs text-[var(--brand)] ml-5 mt-1">{provider.credits} credit per output</p>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -465,62 +596,77 @@ export default function VideoPage() {
               </Link>
             </div>
             <div className="divide-y divide-[var(--dash-border-subtle)]">
-              {recentVideos.map((video) => (
-                <div key={video.id} className="px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-4 hover:bg-[var(--surface-hover)] transition-colors group">
-                  <div className="flex items-center gap-4 w-full sm:w-auto">
-                    <div className="w-20 h-12 rounded-lg bg-[var(--surface-ground)] flex items-center justify-center flex-shrink-0">
-                      <Video className="w-6 h-6 text-[var(--dash-text-muted)]" />
+              {isLoadingVideos ? (
+                <div className="px-6 py-8 flex items-center justify-center">
+                  <Loader2 className="w-6 h-6 animate-spin text-[var(--dash-text-muted)]" />
+                </div>
+              ) : recentVideos.length === 0 ? (
+                <div className="px-6 py-8 text-center">
+                  <Video className="w-10 h-10 mx-auto text-[var(--dash-text-muted)] mb-2" />
+                  <p className="text-[var(--dash-text-tertiary)]">No videos processed yet</p>
+                </div>
+              ) : (
+                recentVideos.map((video) => (
+                  <div key={video.id} className="px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-4 hover:bg-[var(--surface-hover)] transition-colors group">
+                    <div className="flex items-center gap-4 w-full sm:w-auto">
+                      <div className="w-20 h-12 rounded-lg bg-[var(--surface-ground)] flex items-center justify-center flex-shrink-0">
+                        <Video className="w-6 h-6 text-[var(--dash-text-muted)]" />
+                      </div>
+                      <div className="flex-1 min-w-0 sm:hidden">
+                        <h3 className="font-medium text-[var(--dash-text-primary)] truncate">{video.title}</h3>
+                        <div className="flex items-center gap-2 text-sm text-[var(--dash-text-tertiary)] mt-1">
+                          <Clock className="w-3 h-3" />
+                          {video.duration || 'Processing...'}
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0 sm:hidden">
+
+                    <div className="flex-1 min-w-0 hidden sm:block">
                       <h3 className="font-medium text-[var(--dash-text-primary)] truncate">{video.title}</h3>
-                      <div className="flex items-center gap-2 text-sm text-[var(--dash-text-tertiary)] mt-1">
-                        <Clock className="w-3 h-3" />
-                        {video.duration}
+                      <div className="flex items-center gap-3 text-sm text-[var(--dash-text-tertiary)] mt-1">
+                        {video.duration && (
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {video.duration}
+                          </span>
+                        )}
+                        <span>{formatTimeAgo(video.created_at)}</span>
+                        {video.word_count && <span>{video.word_count.toLocaleString()} words</span>}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto mt-2 sm:mt-0 border-t sm:border-0 border-[var(--dash-border-subtle)] pt-2 sm:pt-0">
+                      <span className="text-xs text-[var(--dash-text-tertiary)] sm:hidden">{formatTimeAgo(video.created_at)}</span>
+                      <div className="flex items-center gap-3 ml-auto">
+                        {video.status === "completed" ? (
+                          <span className="flex items-center gap-1 text-sm text-[var(--status-success)]">
+                            <CheckCircle className="w-4 h-4" />
+                            <span className="hidden sm:inline">Complete</span>
+                          </span>
+                        ) : video.status === "processing" || video.status === "pending" ? (
+                          <span className="flex items-center gap-1 text-sm text-[var(--status-warning)]">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span className="hidden sm:inline">{video.status === "pending" ? "Pending" : "Processing"}</span>
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-sm text-[var(--status-error)]">
+                            <AlertCircle className="w-4 h-4" />
+                            <span className="hidden sm:inline">Error</span>
+                          </span>
+                        )}
+                        {video.document_id && (
+                          <Link
+                            href={`/dashboard/knowledge/${video.document_id}`}
+                            className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--brand)]"
+                          >
+                            <ArrowRight className="w-4 h-4" />
+                          </Link>
+                        )}
                       </div>
                     </div>
                   </div>
-
-                  <div className="flex-1 min-w-0 hidden sm:block">
-                    <h3 className="font-medium text-[var(--dash-text-primary)] truncate">{video.title}</h3>
-                    <div className="flex items-center gap-3 text-sm text-[var(--dash-text-tertiary)] mt-1">
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {video.duration}
-                      </span>
-                      <span>{video.createdAt}</span>
-                      {video.wordCount && <span>{video.wordCount.toLocaleString()} words</span>}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto mt-2 sm:mt-0 border-t sm:border-0 border-[var(--dash-border-subtle)] pt-2 sm:pt-0">
-                    <span className="text-xs text-[var(--dash-text-tertiary)] sm:hidden">{video.createdAt}</span>
-                    <div className="flex items-center gap-3 ml-auto">
-                      {video.status === "complete" ? (
-                        <span className="flex items-center gap-1 text-sm text-[var(--status-success)]">
-                          <CheckCircle className="w-4 h-4" />
-                          <span className="hidden sm:inline">Complete</span>
-                        </span>
-                      ) : video.status === "processing" ? (
-                        <span className="flex items-center gap-1 text-sm text-[var(--status-warning)]">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span className="hidden sm:inline">Processing</span>
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-sm text-[var(--status-error)]">
-                          <AlertCircle className="w-4 h-4" />
-                          <span className="hidden sm:inline">Error</span>
-                        </span>
-                      )}
-                      <Link
-                        href={`/dashboard/knowledge/${video.id}`}
-                        className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--brand)]"
-                      >
-                        <ArrowRight className="w-4 h-4" />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>

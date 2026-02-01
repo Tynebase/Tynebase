@@ -8,10 +8,11 @@
  * - Fallback to default provider if tenant settings unavailable
  */
 
-import { AIGenerationRequest, AIGenerationResponse, TenantAISettings } from './types';
+import { AIGenerationRequest, AIGenerationResponse, TenantAISettings, AIModel } from './types';
 import { routeToProvider } from './router';
 import * as bedrock from './bedrock';
 import * as anthropic from './anthropic';
+import * as vertex from './vertex';
 
 /**
  * Generates text using the appropriate AI provider based on tenant settings
@@ -33,9 +34,20 @@ export async function generateText(
   switch (providerConfig.provider) {
     case 'bedrock':
       if (providerConfig.model === 'claude-sonnet-4.5') {
-        return anthropic.generateText(request);
+        try {
+          return await anthropic.generateText(request);
+        } catch (error: any) {
+          // Fallback to deepseek-v3 for text generation only
+          console.warn(`Claude failed, falling back to deepseek-v3:`, error.message);
+          const fallbackRequest: AIGenerationRequest = { ...request, model: 'deepseek-v3' as AIModel };
+          return await bedrock.generateText(fallbackRequest);
+        }
       }
-      return bedrock.generateText(request);
+      return await bedrock.generateText(request);
+    
+    case 'vertex':
+      // No fallback for Vertex - video/audio transcription handled separately in workers
+      return await vertex.generateText(request);
     
     default:
       throw new Error(`Provider ${providerConfig.provider} does not support text generation`);
@@ -62,9 +74,20 @@ export async function* generateTextStream(
   switch (providerConfig.provider) {
     case 'bedrock':
       if (providerConfig.model === 'claude-sonnet-4.5') {
-        return yield* anthropic.generateTextStream(request);
+        try {
+          return yield* anthropic.generateTextStream(request);
+        } catch (error: any) {
+          // Fallback to deepseek-v3 for text generation only
+          console.warn(`Claude streaming failed, falling back to deepseek-v3:`, error.message);
+          const fallbackRequest: AIGenerationRequest = { ...request, model: 'deepseek-v3' as AIModel };
+          return yield* bedrock.generateTextStream(fallbackRequest);
+        }
       }
       return yield* bedrock.generateTextStream(request);
+    
+    case 'vertex':
+      // No fallback for Vertex - video/audio transcription handled separately in workers
+      return yield* vertex.generateTextStream(request);
     
     default:
       throw new Error(`Provider ${providerConfig.provider} does not support streaming text generation`);

@@ -17,13 +17,15 @@ import {
   FileText,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { listNormalizedDocuments, type NormalizedDocument } from "@/lib/api/documents";
+import { ApiClientError } from "@/lib/api/client";
 
 type NormalizedDoc = {
   id: string;
   title: string;
   normalizedMd: string;
-  fileType?: string | null;
-  fileUrl?: string | null;
+  status?: string | null;
+  visibility?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
 };
@@ -34,22 +36,6 @@ type OutlineItem = {
   level: number;
 };
 
-const demoDocs: NormalizedDoc[] = [
-  {
-    id: "n1",
-    title: "Security Best Practices",
-    normalizedMd: `# Security Best Practices\n\n## Overview\n\nThis document represents the **normalized markdown** that the RAG pipeline chunks + embeds.\n\n## Authentication\n\n- Prefer **OAuth 2.0** for user-facing clients\n- Prefer **API keys** for server-to-server\n\n## Checklist\n\n- [ ] Enforce MFA\n- [ ] Rotate secrets\n- [ ] Review access quarterly\n\n> Note: This content is what the model sees. Any formatting issues here will hurt retrieval quality.\n`,
-    fileType: "application/pdf",
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "n2",
-    title: "API Authentication",
-    normalizedMd: `# API Authentication\n\n## Authentication Methods\n\n1. API Keys\n2. OAuth 2.0\n\n## Example\n\n\`\`\`bash\ncurl -H \"Authorization: Bearer $API_KEY\" https://api.tynebase.com/v1/documents\n\`\`\`\n\n## Rate Limits\n\n| Plan | Requests/min |\n|---|---:|\n| Pro | 1000 |\n| Enterprise | 5000 |\n`,
-    fileType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    updatedAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-  },
-];
 
 function toSlug(input: string) {
   return input
@@ -91,59 +77,39 @@ function countMatches(text: string, re: RegExp) {
 export default function NormalizedMarkdownPage() {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [docs, setDocs] = useState<NormalizedDoc[]>(demoDocs);
-  const [isConfigured, setIsConfigured] = useState(false);
+  const [docs, setDocs] = useState<NormalizedDoc[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const loadDocs = useCallback(async () => {
-    const { createClient } = await import("@/lib/supabase/client");
-    const supabase = createClient();
-    setIsConfigured(supabase !== null);
     setIsLoading(true);
     setError(null);
 
-    if (!supabase) {
-      setDocs(demoDocs);
-      setSelectedId((prev) => prev ?? demoDocs[0]?.id ?? null);
+    try {
+      const response = await listNormalizedDocuments(100);
+      const mapped: NormalizedDoc[] = response.documents.map((doc: NormalizedDocument) => ({
+        id: doc.id,
+        title: doc.title,
+        normalizedMd: doc.normalizedMd,
+        status: doc.status,
+        visibility: doc.visibility,
+        createdAt: doc.createdAt,
+        updatedAt: doc.updatedAt,
+      }));
+
+      setDocs(mapped);
+      setSelectedId((prev) => {
+        if (prev && mapped.some((d) => d.id === prev)) return prev;
+        return mapped[0]?.id ?? null;
+      });
+    } catch (err) {
+      const message = err instanceof ApiClientError ? err.message : 'Failed to load documents';
+      setError(message);
+      setDocs([]);
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    const { data, error: queryError } = await supabase
-      .from("documents")
-      .select("id,title,normalized_md,file_type,file_url,created_at,updated_at")
-      .not("normalized_md", "is", null)
-      .order("updated_at", { ascending: false })
-      .limit(100);
-
-    if (queryError) {
-      setDocs(demoDocs);
-      setSelectedId((prev) => prev ?? demoDocs[0]?.id ?? null);
-      setError(queryError.message);
-      setIsLoading(false);
-      return;
-    }
-
-    const mapped: NormalizedDoc[] = (data ?? [])
-      .map((row: Record<string, unknown>) => ({
-        id: String(row.id),
-        title: String(row.title ?? "Untitled"),
-        normalizedMd: String(row.normalized_md ?? ""),
-        fileType: (row.file_type as string | null) ?? null,
-        fileUrl: (row.file_url as string | null) ?? null,
-        createdAt: (row.created_at as string | null) ?? null,
-        updatedAt: (row.updated_at as string | null) ?? null,
-      }))
-      .filter((d: NormalizedDoc) => d.normalizedMd.trim().length > 0);
-
-    setDocs(mapped.length ? mapped : []);
-    setSelectedId((prev) => {
-      if (prev && mapped.some((d) => d.id === prev)) return prev;
-      return mapped[0]?.id ?? null;
-    });
-    setIsLoading(false);
   }, []);
 
   useEffect(() => {
@@ -153,7 +119,7 @@ export default function NormalizedMarkdownPage() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return docs;
-    return docs.filter((d) => `${d.title} ${d.fileType ?? ""}`.toLowerCase().includes(q));
+    return docs.filter((d) => `${d.title} ${d.status ?? ""}`.toLowerCase().includes(q));
   }, [docs, query]);
 
   const selected = useMemo(() => {
@@ -172,7 +138,7 @@ export default function NormalizedMarkdownPage() {
       };
     }
 
-    const md = selected.normalizedMd;
+    const md = selected.normalizedMd || '';
     const outline = extractOutline(md);
     const words = md.trim().length ? md.trim().split(/\s+/).length : 0;
     const headings = outline.length;
@@ -233,13 +199,6 @@ export default function NormalizedMarkdownPage() {
         </div>
       </div>
 
-      {!isConfigured && (
-        <div className="rounded-xl border border-[var(--dash-border-subtle)] bg-[var(--surface-card)] px-4 py-3 text-sm text-[var(--dash-text-tertiary)]">
-          Supabase is not configured. Showing demo data. Add `NEXT_PUBLIC_SUPABASE_URL` and
-          `NEXT_PUBLIC_SUPABASE_ANON_KEY` to load your real knowledge base.
-        </div>
-      )}
-
       {error && (
         <div className="rounded-xl border border-[var(--status-error)]/30 bg-[var(--status-error)]/5 px-4 py-3 text-sm text-[var(--dash-text-secondary)] flex items-start gap-3">
           <AlertTriangle className="w-4 h-4 text-[var(--status-error)] mt-0.5" />
@@ -297,7 +256,7 @@ export default function NormalizedMarkdownPage() {
                     >
                       <p className="font-semibold text-[var(--dash-text-primary)] truncate">{d.title}</p>
                       <p className="text-xs text-[var(--dash-text-muted)] truncate mt-0.5">
-                        {d.fileType ?? "Unknown type"}
+                        {d.status ?? "draft"}
                         {d.updatedAt ? ` • Updated ${new Date(d.updatedAt).toLocaleString()}` : ""}
                       </p>
                     </button>
@@ -325,14 +284,23 @@ export default function NormalizedMarkdownPage() {
               {selected && selectedSignals.outline.length > 0 && (
                 <div className="space-y-2 max-h-64 overflow-auto pr-1">
                   {selectedSignals.outline.map((h) => (
-                    <a
+                    <button
                       key={h.id}
-                      href={`#${h.id}`}
-                      className="block text-sm text-[var(--dash-text-secondary)] hover:text-[var(--brand)] transition-colors"
+                      onClick={() => {
+                        const element = document.getElementById(h.id);
+                        const scrollContainer = document.getElementById('markdown-reader-scroll');
+                        if (element && scrollContainer) {
+                          const containerRect = scrollContainer.getBoundingClientRect();
+                          const elementRect = element.getBoundingClientRect();
+                          const scrollTop = scrollContainer.scrollTop + (elementRect.top - containerRect.top) - 24;
+                          scrollContainer.scrollTo({ top: scrollTop, behavior: 'smooth' });
+                        }
+                      }}
+                      className="block text-left w-full text-sm text-[var(--dash-text-secondary)] hover:text-[var(--brand)] transition-colors"
                       style={{ paddingLeft: `${Math.min(20, (h.level - 1) * 10)}px` }}
                     >
                       {h.text}
-                    </a>
+                    </button>
                   ))}
                 </div>
               )}
@@ -384,7 +352,7 @@ export default function NormalizedMarkdownPage() {
                 </p>
               </div>
               <div className="px-6 py-10 text-sm text-[var(--dash-text-tertiary)]">
-                Your normalized markdown is stored as `documents.normalized_md`.
+                Your normalized markdown is stored as `documents.content`.
               </div>
             </Card>
           )}
@@ -397,21 +365,10 @@ export default function NormalizedMarkdownPage() {
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-[var(--dash-text-primary)] truncate">{selected.title}</p>
                       <p className="text-xs text-[var(--dash-text-tertiary)] mt-1">
-                        {selected.fileType ?? "Unknown type"}
+                        {selected.status ?? "draft"} • {selected.visibility ?? "team"}
                         {selected.updatedAt ? ` • Updated ${new Date(selected.updatedAt).toLocaleString()}` : ""}
-                        {selected.fileUrl ? " • Source attached" : ""}
                       </p>
                     </div>
-                    {selected.fileUrl && (
-                      <a
-                        href={selected.fileUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center justify-center h-9 px-4 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-sm font-medium text-[var(--dash-text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)] transition-all"
-                      >
-                        Open source
-                      </a>
-                    )}
                   </div>
                 </div>
                 <div className="px-6 py-4 grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -436,7 +393,7 @@ export default function NormalizedMarkdownPage() {
                 </div>
               </Card>
 
-              <MarkdownReader content={selected.normalizedMd} />
+              <MarkdownReader content={selected.normalizedMd || ''} id="markdown-reader" />
             </div>
           )}
         </div>

@@ -5,24 +5,14 @@ import { useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { updateTenant } from "@/lib/api/settings";
 import Link from "next/link";
+import { TIER_CONFIG, TierType } from "@/types/api";
 import { 
   Upload, Palette, Type, Globe, Eye, Check, Crown, Sparkles,
   Monitor, Smartphone, Sun, Moon, RefreshCw, Save, ExternalLink
 } from "lucide-react";
 
-// Pricing tiers with features
-const tiers = {
-  free: { name: "Free", price: 0, whiteLabel: false, customDomain: false },
-  base: { name: "Base", price: 29, whiteLabel: false, customDomain: false },
-  pro: { name: "Pro", price: 99, whiteLabel: true, customDomain: true },
-  enterprise: { name: "Enterprise", price: null, whiteLabel: true, customDomain: true },
-};
-
-// Mock current tier - in production this would come from subscription context
-const currentTier = "pro"; // Change to "free" or "base" to test tier restrictions
-
 export default function BrandingPage() {
-  const { branding, tenant } = useTenant();
+  const { branding, tenant, tierConfig, canUseFeature } = useTenant();
   const { addToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
@@ -43,9 +33,10 @@ export default function BrandingPage() {
     fontBody: "Inter",
   });
 
-  const tierConfig = tiers[currentTier as keyof typeof tiers];
-  const canUseWhiteLabel = tierConfig.whiteLabel;
-  const canUseCustomDomain = tierConfig.customDomain;
+  // Get tier-based feature access from context
+  const currentTier = tenant?.tier || 'free';
+  const canUseWhiteLabel = canUseFeature('whiteLabel');
+  const canUseCustomDomain = canUseFeature('customDomain');
 
   const handleSave = async () => {
     if (!tenant?.id) {
@@ -122,14 +113,14 @@ export default function BrandingPage() {
               : "bg-[var(--surface-ground)] text-[var(--dash-text-muted)]"
           }`}>
             <Crown className="w-4 h-4" />
-            {tierConfig.name} Plan
+            {tierConfig?.name || 'Free'} Plan
           </span>
         </div>
       </div>
 
       {/* Tier Upgrade Banner (shown for lower tiers) */}
       {!canUseWhiteLabel && (
-        <div className="bg-gradient-to-r from-[var(--brand)] to-[var(--accent-purple)] rounded-xl p-7 sm:p-8 text-white">
+        <div className="bg-gradient-to-r from-[#E85002] to-[#8b5cf6] rounded-xl p-7 sm:p-8 text-white">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
@@ -143,8 +134,9 @@ export default function BrandingPage() {
               </div>
             </div>
             <Link 
-              href="/pricing"
-              className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-[var(--brand)] rounded-xl font-semibold hover:bg-white/90 transition-colors"
+              href="/dashboard/settings/billing"
+              className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-[#E85002] rounded-xl font-semibold hover:bg-white/90 transition-colors shadow-md"
+              style={{ backgroundColor: '#ffffff', color: '#E85002' }}
             >
               Upgrade to Pro
               <ExternalLink className="w-4 h-4" />

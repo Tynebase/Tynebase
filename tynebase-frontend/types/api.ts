@@ -13,12 +13,66 @@ export interface Tenant {
   id: string;
   subdomain: string;
   name: string;
-  tier: 'free' | 'pro' | 'enterprise';
+  tier: 'free' | 'base' | 'pro' | 'enterprise';
   settings: TenantSettings;
   storage_limit: number;
   created_at: string;
   updated_at: string;
 }
+
+// Tier configuration with features and limits
+export const TIER_CONFIG = {
+  free: {
+    name: 'Free',
+    price: 0,
+    credits: 10,
+    maxUsers: 2,
+    maxStorageMb: 500,
+    whiteLabel: false,
+    customDomain: false,
+    aiFeatures: true,
+    collaboration: false,
+    prioritySupport: false,
+  },
+  base: {
+    name: 'Base',
+    price: 29,
+    credits: 100,
+    maxUsers: 10,
+    maxStorageMb: 5120,
+    whiteLabel: false,
+    customDomain: false,
+    aiFeatures: true,
+    collaboration: true,
+    prioritySupport: false,
+  },
+  pro: {
+    name: 'Pro',
+    price: 99,
+    credits: 500,
+    maxUsers: 50,
+    maxStorageMb: 51200,
+    whiteLabel: true,
+    customDomain: true,
+    aiFeatures: true,
+    collaboration: true,
+    prioritySupport: true,
+  },
+  enterprise: {
+    name: 'Enterprise',
+    price: null, // Custom pricing
+    credits: 1000,
+    maxUsers: -1, // Unlimited
+    maxStorageMb: -1, // Unlimited
+    whiteLabel: true,
+    customDomain: true,
+    aiFeatures: true,
+    collaboration: true,
+    prioritySupport: true,
+  },
+} as const;
+
+export type TierType = keyof typeof TIER_CONFIG;
 
 export interface TenantSettings {
   branding?: {
@@ -35,6 +89,7 @@ export interface TenantSettings {
     collaboration_enabled?: boolean;
     ai_generation_enabled?: boolean;
     rag_chat_enabled?: boolean;
+    document_export_enabled?: boolean;
   };
 }
 
@@ -164,6 +219,7 @@ export interface SignupRequest {
   tenant_name: string;
   subdomain: string;
   full_name?: string;
+  tier?: TierType;
 }
 
 export interface LoginRequest {

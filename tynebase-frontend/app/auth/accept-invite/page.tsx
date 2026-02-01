@@ -7,94 +7,73 @@ import Image from "next/image";
 import { useToast } from "@/components/ui/Toast";
 import { Button } from "@/components/ui/Button";
 import { Eye, EyeOff, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { acceptInvite } from "@/lib/api/invites";
+import { setAuthTokens, setTenantSubdomain } from "@/lib/api/client";
+
+interface InviteData {
+  userId: string;
+  email: string;
+  tenantId: string;
+  tenantName: string;
+  tenantSubdomain: string;
+  role: 'admin' | 'editor' | 'member' | 'viewer';
+  invitedBy: string;
+}
 
 function AcceptInviteContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { addToast } = useToast();
-  const token = searchParams.get("token");
+  const dataParam = searchParams.get("data");
   
-  const [status, setStatus] = useState<"loading" | "valid" | "invalid" | "expired" | "needs_password" | "success">("loading");
-  const [invite, setInvite] = useState<{
-    email: string;
-    role: string;
-    tenantName: string;
-    invitedBy: string;
-    expiresAt: string;
-  } | null>(null);
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [status, setStatus] = useState<"loading" | "valid" | "invalid" | "expired" | "ready" | "success">("loading");
+  const [invite, setInvite] = useState<InviteData | null>(null);
+  const [fullName, setFullName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (!token) {
+    if (!dataParam) {
       setStatus("invalid");
       return;
     }
     
-    validateToken();
-  }, [token]);
-
-  const validateToken = async () => {
     try {
-      // In a real app, this would call an API to validate the token
-      // For now, we'll simulate the validation
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock invite data
-      const mockInvite = {
-        email: "invited@example.com",
-        role: "Editor",
-        tenantName: "Acme Corp",
-        invitedBy: "Sarah Chen",
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      };
-      
-      setInvite(mockInvite);
-      
-      // Check if user already exists (would be API call)
-      const userExists = false;
-      
-      if (userExists) {
-        // User exists, just link to tenant
-        setStatus("success");
-      } else {
-        // New user, needs to set password
-        setStatus("needs_password");
+      const decoded = JSON.parse(decodeURIComponent(dataParam)) as InviteData;
+      if (!decoded.userId || !decoded.tenantId || !decoded.role) {
+        setStatus("invalid");
+        return;
       }
+      setInvite(decoded);
+      setStatus("ready");
     } catch {
       setStatus("invalid");
     }
-  };
+  }, [dataParam]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const newErrors: Record<string, string> = {};
-    if (password.length < 8) {
-      newErrors.password = "Password must be at least 8 characters";
-    }
-    if (password !== confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match";
-    }
-    
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
+    if (!invite) return;
     
     setIsSubmitting(true);
+    setErrors({});
     
     try {
-      // In a real app, this would call the acceptInvite API
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const response = await acceptInvite({
+        user_id: invite.userId,
+        tenant_id: invite.tenantId,
+        role: invite.role,
+        full_name: fullName.trim() || undefined,
+      });
+      
+      // Set tenant subdomain for future API calls
+      setTenantSubdomain(response.tenant.subdomain);
       
       addToast({
         type: "success",
         title: "Welcome to the team!",
-        description: `You've joined ${invite?.tenantName || 'the team'}`,
+        description: `You've joined ${response.tenant.name}`,
       });
       
       setStatus("success");
@@ -103,11 +82,13 @@ function AcceptInviteContent() {
       setTimeout(() => {
         router.push("/dashboard");
       }, 2000);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Failed to accept invite:', error);
+      setErrors({ submit: error.message || 'Failed to accept invitation' });
       addToast({
         type: "error",
         title: "Failed to accept invite",
-        description: error instanceof Error ? error.message : "An error occurred",
+        description: error.message || "An error occurred",
       });
     } finally {
       setIsSubmitting(false);
@@ -168,7 +149,7 @@ function AcceptInviteContent() {
             </div>
           )}
 
-          {status === "needs_password" && invite && (
+          {status === "ready" && invite && (
             <>
               <div className="text-center mb-6">
                 <h2 className="text-2xl font-semibold text-[var(--text-primary)] mb-2">
@@ -187,7 +168,7 @@ function AcceptInviteContent() {
                 </div>
                 <div className="flex items-center justify-between text-sm mt-2">
                   <span className="text-[var(--text-secondary)]">Role</span>
-                  <span className="px-2 py-0.5 text-xs font-medium bg-blue-500/10 text-blue-500 rounded-full">
+                  <span className="px-2 py-0.5 text-xs font-medium bg-blue-500/10 text-blue-500 rounded-full capitalize">
                     {invite.role}
                   </span>
                 </div>
@@ -196,50 +177,22 @@ function AcceptInviteContent() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-                    Create a password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      value={password}
-                      onChange={(e) => {
-                        setPassword(e.target.value);
-                        setErrors({});
-                      }}
-                      placeholder="••••••••••••"
-                      className="w-full px-4 py-3 pr-12 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 transition-all"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-                    >
-                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                    </button>
-                  </div>
-                  {errors.password && (
-                    <p className="text-xs text-red-500 mt-1">{errors.password}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-                    Confirm password
+                    Your Name (optional)
                   </label>
                   <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => {
-                      setConfirmPassword(e.target.value);
-                      setErrors({});
-                    }}
-                    placeholder="••••••••••••"
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="John Doe"
                     className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 transition-all"
                   />
-                  {errors.confirmPassword && (
-                    <p className="text-xs text-red-500 mt-1">{errors.confirmPassword}</p>
-                  )}
                 </div>
+
+                {errors.submit && (
+                  <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-sm">
+                    {errors.submit}
+                  </div>
+                )}
 
                 <Button
                   type="submit"
@@ -276,7 +229,7 @@ function AcceptInviteContent() {
                 Welcome to the Team!
               </h2>
               <p className="text-[var(--text-secondary)] mb-4">
-                You've successfully joined {invite?.tenantName}
+                You've successfully joined {invite?.tenantName || 'the team'}
               </p>
               <p className="text-sm text-[var(--text-muted)]">
                 Redirecting to dashboard...

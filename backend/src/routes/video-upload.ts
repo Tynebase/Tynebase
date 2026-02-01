@@ -47,9 +47,21 @@ export default async function videoUploadRoutes(fastify: FastifyInstance) {
       }
 
       try {
-        const data = await request.file();
+        // Use parts() to read all multipart fields
+        const parts = request.parts();
+        let fileData: any = null;
+        const formFields: Record<string, string> = {};
+        
+        for await (const part of parts) {
+          if (part.type === 'file') {
+            fileData = part;
+          } else {
+            // Regular field
+            formFields[part.fieldname] = part.value as string;
+          }
+        }
 
-        if (!data) {
+        if (!fileData) {
           return reply.status(400).send({
             error: {
               code: 'NO_FILE_UPLOADED',
@@ -58,8 +70,18 @@ export default async function videoUploadRoutes(fastify: FastifyInstance) {
           });
         }
 
-        const filename = data.filename;
-        const mimetype = data.mimetype;
+        const filename = fileData.filename;
+        const mimetype = fileData.mimetype;
+        
+        // Parse form fields
+        const formData = {
+          generate_transcript: formFields.generate_transcript === 'true',
+          generate_summary: formFields.generate_summary === 'true',
+          generate_article: formFields.generate_article === 'true',
+          ai_model: (formFields.ai_model as 'gemini' | 'deepseek' | 'claude') || 'deepseek',
+        };
+        
+        console.log('[Video Upload] Received form data:', formData);
 
         if (!ALLOWED_VIDEO_TYPES.includes(mimetype)) {
           request.log.warn(
@@ -98,7 +120,7 @@ export default async function videoUploadRoutes(fastify: FastifyInstance) {
           });
         }
 
-        const fileBuffer = await data.toBuffer();
+        const fileBuffer = await fileData.toBuffer();
         const fileSize = fileBuffer.length;
 
         if (fileSize > MAX_FILE_SIZE) {
@@ -168,9 +190,18 @@ export default async function videoUploadRoutes(fastify: FastifyInstance) {
             storagePath: uploadData.path,
             tenantId: tenant.id,
             userId: user.id,
+            outputOptions: formData,
           },
           'Video uploaded successfully, dispatching job'
         );
+
+        // Use parsed form data for output options
+        const outputOptions = {
+          generate_transcript: formData.generate_transcript ?? true,
+          generate_summary: formData.generate_summary ?? false,
+          generate_article: formData.generate_article ?? false,
+          ai_model: formData.ai_model ?? 'deepseek',
+        };
 
         const job = await dispatchJob({
           tenantId: tenant.id,
@@ -181,6 +212,7 @@ export default async function videoUploadRoutes(fastify: FastifyInstance) {
             file_size: fileSize,
             mimetype: mimetype,
             user_id: user.id,
+            output_options: outputOptions,
           },
         });
 
@@ -195,10 +227,12 @@ export default async function videoUploadRoutes(fastify: FastifyInstance) {
         );
 
         return reply.status(201).send({
+          job: job,
           job_id: job.id,
           storage_path: uploadData.path,
           filename: sanitizedFilename,
           file_size: fileSize,
+          output_options: outputOptions,
           status: 'queued',
         });
       } catch (error) {

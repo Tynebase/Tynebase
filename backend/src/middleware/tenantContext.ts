@@ -7,6 +7,7 @@ interface TenantCacheEntry {
   name: string;
   tier: string;
   settings: Record<string, any>;
+  storage_limit: number | null;
   timestamp: number;
 }
 
@@ -89,7 +90,7 @@ export async function tenantContextMiddleware(
   if (!tenant) {
     const { data, error } = await supabaseAdmin
       .from('tenants')
-      .select('id, subdomain, name, tier, settings')
+      .select('id, subdomain, name, tier, settings, storage_limit')
       .eq('subdomain', sanitizedSubdomain)
       .single();
 
@@ -112,6 +113,7 @@ export async function tenantContextMiddleware(
       name: data.name,
       tier: data.tier,
       settings: data.settings || {},
+      storage_limit: data.storage_limit,
       timestamp: Date.now(),
     };
 
@@ -127,6 +129,7 @@ export async function tenantContextMiddleware(
     name: tenant.name,
     tier: tenant.tier,
     settings: tenant.settings,
+    storage_limit: tenant.storage_limit,
   };
 }
 

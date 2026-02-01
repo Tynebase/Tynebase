@@ -1,0 +1,30 @@
+# Fly.io configuration for yt-dlp sidecar service
+# Runs Python yt-dlp with PO-token provider + download API
+# Accessed internally by the worker at http://yt-dlp-sidecar.internal:5000
+
+app = 'tynebase-yt-dlp-sidecar'
+primary_region = 'lhr'
+
+[build]
+  dockerfile = './yt-dlp-sidecar/Dockerfile'
+
+[env]
+  POT_PROVIDER_URL = 'http://localhost:4416'
+
+[http_service]
+  internal_port = 5000
+  force_https = false
+  auto_stop_machines = 'suspend'
+  auto_start_machines = true
+  min_machines_running = 0
+  [[http_service.checks]]
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/health'
+
+[[vm]]
+  memory = '512mb'
+  cpu_kind = 'shared'
+  cpus = 1

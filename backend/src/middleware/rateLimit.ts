@@ -12,17 +12,17 @@ interface RateLimitConfig {
 
 const globalConfig: RateLimitConfig = {
   windowMs: 10 * 60 * 1000,
-  maxRequests: 100,
+  maxRequests: 500, // Increased from 100 - dev mode with StrictMode doubles all requests
 };
 
 const aiConfig: RateLimitConfig = {
   windowMs: 60 * 1000,
-  maxRequests: 10,
+  maxRequests: 20, // 20 requests per minute for normal AI chat usage
 };
 
 const loginConfig: RateLimitConfig = {
   windowMs: 15 * 60 * 1000,
-  maxRequests: 5,
+  maxRequests: 10,
 };
 
 const rateLimitStore = new Map<string, RateLimitEntry>();

@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import Link from "next/link";
+import { useCredits } from "@/contexts/CreditsContext";
 import { useRouter } from "next/navigation";
-import { Sparkles, FileText, Video, Wand2, Upload, Check, Loader2, Zap, Image, AlertCircle, CheckCircle, Link as LinkIcon, Copy } from "lucide-react";
-import { generate, pollJobUntilComplete, scrapeUrl as scrapeUrlApi, type Job } from "@/lib/api/ai";
+import { Sparkles, FileText, Upload, Check, Loader2, Zap, Image, AlertCircle, CheckCircle, Link as LinkIcon, Copy, File, Shield, Search, Eye, FileCheck, X } from "lucide-react";
+import { RainbowProgressBar } from "@/components/ui/RainbowProgressBar";
+import { generate, pollJobUntilComplete, scrapeUrl as scrapeUrlApi, uploadLegalDocument, type Job, type LegalDocumentUploadResponse } from "@/lib/api/ai";
+import { listTemplates, type Template } from "@/lib/api/templates";
 
-type TabType = 'prompt' | 'video' | 'enhance' | 'scrape';
+type TabType = 'prompt' | 'scrape' | 'file';
 
 const recentGenerations = [
   { id: 1, title: "API Documentation", type: "From Prompt", time: "2 hours ago", status: "completed" },
@@ -18,45 +21,105 @@ const outputOptions = [
   { id: 'full', label: 'Full Article', desc: 'Comprehensive document' },
   { id: 'summary', label: 'Summary', desc: 'Key points overview' },
   { id: 'outline', label: 'Outline', desc: 'Structure only' },
-  { id: 'template', label: 'From Template', desc: 'Use existing template' },
+  { id: 'template', label: 'With Template', desc: 'Use existing template structure' },
 ];
 
-const availableTemplates = [
-  { id: 'api-doc', name: 'API Documentation', desc: 'REST API endpoints and examples' },
-  { id: 'onboarding', name: 'Onboarding Guide', desc: 'New team member guide' },
-  { id: 'troubleshooting', name: 'Troubleshooting Guide', desc: 'Common issues and solutions' },
-  { id: 'release-notes', name: 'Release Notes', desc: 'Product updates and changes' },
-  { id: 'how-to', name: 'How-To Guide', desc: 'Step-by-step instructions' },
-  { id: 'runbook', name: 'Runbook', desc: 'Operational procedures' },
-];
 
 const aiProviders = [
-  { id: 'openai', name: 'OpenAI (GPT-5.2)', desc: 'Best for documentation & general tasks', badge: 'Recommended' },
-  { id: 'google', name: 'Google (Gemini 3)', desc: 'Best for video understanding & research', badge: null },
-  { id: 'anthropic', name: 'Anthropic (Claude)', desc: 'Best for analysis & nuanced writing', badge: null },
+  { id: 'deepseek', name: 'DeepSeek', desc: 'Fast and efficient via AWS Bedrock', badge: 'Recommended', credits: 1 },
+  { id: 'gemini', name: 'Gemini 2.5', desc: 'Advanced reasoning via Google Vertex', badge: null, credits: 2 },
+  { id: 'claude', name: 'Claude Sonnet 4.5', desc: 'Best for analysis & nuanced writing', badge: null, credits: 5 },
 ];
 
 export default function AIAssistantPage() {
   const router = useRouter();
+  const { creditsRemaining, refreshCredits, decrementCredits } = useCredits();
   const [activeTab, setActiveTab] = useState<TabType>('prompt');
-  const [prompt, setPrompt] = useState('');
+
+    const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedProvider, setSelectedProvider] = useState('openai');
+  const [selectedProvider, setSelectedProvider] = useState('deepseek');
   const [outputType, setOutputType] = useState('full');
   const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [availableTemplates, setAvailableTemplates] = useState<Template[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
   const [currentJob, setCurrentJob] = useState<Job | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [scrapeUrl, setScrapeUrl] = useState('');
   const [scrapedContent, setScrapedContent] = useState<string | null>(null);
   const [isScraping, setIsScraping] = useState(false);
+  
+  // File upload state
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState<LegalDocumentUploadResponse | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // File processing options
+  const [enableOcr, setEnableOcr] = useState(true);
+  const [indexForSearch, setIndexForSearch] = useState(true);
+  const [preserveFormatting, setPreserveFormatting] = useState(true);
 
   const tabs = [
     { id: 'prompt' as TabType, icon: FileText, label: 'From Prompt', description: 'Generate from text description' },
-    { id: 'video' as TabType, icon: Video, label: 'From Video', description: 'Extract content from media' },
     { id: 'scrape' as TabType, icon: LinkIcon, label: 'From URL', description: 'Extract content from web pages' },
-    { id: 'enhance' as TabType, icon: Wand2, label: 'Enhance', description: 'Improve existing content' },
+    { id: 'file' as TabType, icon: File, label: 'From File', description: 'Import legal documents & media' },
   ];
+  
+  const supportedFileCategories = [
+    { id: 'pdf', label: 'PDF Documents', extensions: '.pdf', icon: FileText, desc: 'PDF/A archival format supported' },
+    { id: 'word', label: 'Word Documents', extensions: '.docx, .doc', icon: FileText, desc: 'Contracts, drafts, templates' },
+    { id: 'excel', label: 'Excel Spreadsheets', extensions: '.xlsx, .xls', icon: FileText, desc: 'Financial data, fee agreements' },
+    { id: 'powerpoint', label: 'PowerPoint', extensions: '.pptx, .ppt', icon: FileText, desc: 'Presentations, evidence' },
+    { id: 'email', label: 'Email Files', extensions: '.msg, .eml', icon: FileText, desc: 'Client communications' },
+    { id: 'image', label: 'Images', extensions: '.tiff, .png, .jpg, .gif', icon: Image, desc: 'Scanned docs, screenshots' },
+    { id: 'text', label: 'Text Files', extensions: '.txt, .md', icon: FileText, desc: 'Plain text, markdown' },
+  ];
+  
+  const allSupportedExtensions = '.pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.msg,.eml,.tiff,.tif,.png,.jpg,.jpeg,.gif,.txt,.md';
+  
+  // File processing output options
+  const [fileOutputOptions, setFileOutputOptions] = useState({
+    extractedText: true,
+    summary: false,
+    article: false,
+  });
+  
+  const BASE_FILE_CREDITS = 5;
+  const LARGE_FILE_CREDITS = 10;
+  const LARGE_FILE_THRESHOLD = 50 * 1024 * 1024; // 50MB
+  const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB hard limit
+  const EXTRA_CREDIT_PER_OPTION = 1;
+  
+  const calculateFileCredits = () => {
+    if (!selectedFile) return BASE_FILE_CREDITS;
+    const baseCredits = selectedFile.size > LARGE_FILE_THRESHOLD ? LARGE_FILE_CREDITS : BASE_FILE_CREDITS;
+    const modelCreditCost = aiProviders.find(p => p.id === selectedProvider)?.credits || 1;
+    let aiCredits = 0;
+    if (fileOutputOptions.summary) aiCredits += modelCreditCost;
+    if (fileOutputOptions.article) aiCredits += modelCreditCost;
+    return baseCredits + aiCredits;
+  };
+  
+  const isFileTooLarge = selectedFile && selectedFile.size > MAX_FILE_SIZE;
+
+  // Fetch templates on component mount
+  useEffect(() => {
+    async function fetchTemplates() {
+      try {
+        setTemplatesLoading(true);
+        const response = await listTemplates();
+        setAvailableTemplates(response.templates);
+      } catch (err) {
+        console.error('Failed to fetch templates:', err);
+      } finally {
+        setTemplatesLoading(false);
+      }
+    }
+    fetchTemplates();
+  }, []);
 
   const quickPrompts = [
     "Create an API documentation for a REST endpoint",
@@ -73,18 +136,27 @@ export default function AIAssistantPage() {
     setProgress(0);
     
     try {
-      const modelMap: Record<string, 'deepseek-v3' | 'claude-sonnet-4.5' | 'gemini-3-flash'> = {
-        'openai': 'deepseek-v3',
-        'anthropic': 'claude-sonnet-4.5',
-        'google': 'gemini-3-flash',
+      const modelMap: Record<string, 'deepseek' | 'claude' | 'gemini'> = {
+        'deepseek': 'deepseek',
+        'claude': 'claude',
+        'gemini': 'gemini',
       };
       
+      // If using template, append template structure to prompt
+      let finalPrompt = prompt.trim();
+      if (outputType === 'template' && selectedTemplate) {
+        const template = availableTemplates.find(t => t.id === selectedTemplate);
+        if (template) {
+          finalPrompt = `${prompt.trim()}\n\nUse this template structure:\n${template.content}`;
+        }
+      }
+      
       const response = await generate({
-        prompt: prompt.trim(),
-        model: modelMap[selectedProvider] || 'deepseek-v3',
+        prompt: finalPrompt,
+        model: modelMap[selectedProvider] || 'deepseek',
       });
       
-      const job = response.data.job;
+      const job = response.job;
       setCurrentJob(job);
       
       const completedJob = await pollJobUntilComplete(
@@ -96,6 +168,9 @@ export default function AIAssistantPage() {
       );
       
       if (completedJob.status === 'completed' && completedJob.result?.document_id) {
+        const creditCost = aiProviders.find(p => p.id === selectedProvider)?.credits || 1;
+        decrementCredits(creditCost);
+        refreshCredits();
         router.push(`/dashboard/knowledge/${completedJob.result.document_id}`);
       } else if (completedJob.status === 'failed') {
         setError(completedJob.error_message || 'Generation failed');
@@ -116,22 +191,27 @@ export default function AIAssistantPage() {
     setScrapedContent(null);
     
     try {
-      const response = await scrapeUrlApi({ url: scrapeUrl.trim() });
-      const job = response.data.job;
-      setCurrentJob(job);
+      const outputTypeMap: Record<string, 'full_article' | 'summary' | 'outline' | 'raw'> = {
+        'full': 'full_article',
+        'summary': 'summary',
+        'outline': 'outline',
+        'template': 'full_article',
+      };
       
-      const completedJob = await pollJobUntilComplete(
-        job.id,
-        (updatedJob) => {
-          setCurrentJob(updatedJob);
-          setProgress(updatedJob.progress || 0);
-        }
-      );
+      const response = await scrapeUrlApi({ 
+        url: scrapeUrl.trim(),
+        output_type: outputTypeMap[outputType] || 'full_article',
+        ai_model: selectedProvider as 'deepseek' | 'claude' | 'gemini',
+      });
       
-      if (completedJob.status === 'completed' && completedJob.result?.markdown) {
-        setScrapedContent(completedJob.result.markdown as string);
-      } else if (completedJob.status === 'failed') {
-        setError(completedJob.error_message || 'URL scraping failed');
+      if (response.markdown) {
+        setScrapedContent(response.markdown);
+        setProgress(100);
+        // Deduct actual credits from response
+        decrementCredits(response.credits_charged);
+        refreshCredits();
+      } else {
+        setError('No content extracted from URL');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to scrape URL');
@@ -150,8 +230,8 @@ export default function AIAssistantPage() {
         content: scrapedContent,
       });
       
-      if (response.data.document?.id) {
-        router.push(`/dashboard/knowledge/${response.data.document.id}`);
+      if (response.document?.id) {
+        router.push(`/dashboard/knowledge/${response.document.id}`);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save content');
@@ -164,8 +244,102 @@ export default function AIAssistantPage() {
     }
   };
 
+  // File upload handlers
+  const handleDrag = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setSelectedFile(e.dataTransfer.files[0]);
+      setUploadResult(null);
+      setError(null);
+    }
+  }, []);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedFile(e.target.files[0]);
+      setUploadResult(null);
+      setError(null);
+    }
+  };
+
+  const handleFileUpload = async () => {
+    if (!selectedFile) return;
+    
+    setIsUploading(true);
+    setError(null);
+    setProgress(0);
+    
+    try {
+      const response = await uploadLegalDocument(selectedFile, {
+        enable_ocr: enableOcr,
+        index_for_search: indexForSearch,
+        preserve_formatting: preserveFormatting,
+        generate_summary: fileOutputOptions.summary,
+        generate_article: fileOutputOptions.article,
+        ai_model: selectedProvider as 'deepseek' | 'gemini' | 'claude',
+      });
+      
+      setUploadResult(response);
+      setCurrentJob(response.job);
+      
+      // Poll for job completion
+      const completedJob = await pollJobUntilComplete(
+        response.job.id,
+        (updatedJob) => {
+          setCurrentJob(updatedJob);
+          setProgress(updatedJob.progress || 0);
+        }
+      );
+      
+      if (completedJob.status === 'completed' && completedJob.result?.document_id) {
+        // Use actual credit cost from backend
+        const creditsCharged = typeof completedJob.result.credits_charged === 'number' 
+          ? completedJob.result.credits_charged 
+          : calculateFileCredits();
+        decrementCredits(creditsCharged);
+        refreshCredits();
+        router.push(`/dashboard/knowledge/${completedJob.result.document_id}`);
+      } else if (completedJob.status === 'failed') {
+        setError(completedJob.error_message || 'Document processing failed');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upload document');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const clearSelectedFile = () => {
+    setSelectedFile(null);
+    setUploadResult(null);
+    setError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className="w-full h-full min-h-full flex flex-col gap-8">
+      <RainbowProgressBar isLoading={isGenerating} />
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -176,7 +350,10 @@ export default function AIAssistantPage() {
         </div>
         <div className="flex items-center gap-2 text-sm text-[var(--dash-text-muted)]">
           <Zap className="w-4 h-4 text-[var(--brand)]" />
-          <span>12 generations remaining this month</span>
+          <span>
+            {Math.floor(creditsRemaining / (aiProviders.find(p => p.id === selectedProvider)?.credits || 1))} generations remaining
+            <span className="text-[var(--dash-text-muted)]"> ({creditsRemaining} credits)</span>
+          </span>
         </div>
       </div>
 
@@ -289,9 +466,9 @@ export default function AIAssistantPage() {
                             }`}>
                               {selectedTemplate === template.id && <Check className="w-2.5 h-2.5 text-white" />}
                             </div>
-                            <span className="font-medium text-[var(--dash-text-primary)]">{template.name}</span>
+                            <span className="font-medium text-[var(--dash-text-primary)]">{template.title}</span>
                           </div>
-                          <p className="text-xs text-[var(--dash-text-tertiary)] ml-6">{template.desc}</p>
+                          <p className="text-xs text-[var(--dash-text-tertiary)] ml-6">{template.description || 'No description'}</p>
                         </button>
                       ))}
                     </div>
@@ -341,81 +518,14 @@ export default function AIAssistantPage() {
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4" />
-                      {outputType === 'template' ? `Generate from ${availableTemplates.find(t => t.id === selectedTemplate)?.name || 'Template'}` : 'Generate Document'}
+                      {outputType === 'template' ? `Generate with ${availableTemplates.find(t => t.id === selectedTemplate)?.title || 'Template'}` : 'Generate Document'}
                     </>
                   )}
                 </button>
               </div>
             )}
 
-        {activeTab === 'video' && (
-          <div className="space-y-6">
-            {/* Upload Area */}
-            <div className="border-2 border-dashed border-[var(--dash-border-subtle)] rounded-2xl p-12 text-center hover:border-[var(--brand)] transition-colors cursor-pointer">
-              <div className="w-16 h-16 rounded-2xl bg-[var(--brand-primary-muted)] flex items-center justify-center mx-auto mb-4">
-                <Upload className="w-8 h-8 text-[var(--brand)]" />
-              </div>
-              <p className="text-lg font-medium text-[var(--dash-text-primary)] mb-2">
-                Drop your video or audio file here
-              </p>
-              <p className="text-sm text-[var(--dash-text-tertiary)] mb-4">
-                Supports MP4, MOV, MP3, WAV up to 500MB
-              </p>
-              <button className="px-4 py-2 border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-secondary)] hover:border-[var(--brand)] transition-colors">
-                Choose File
-              </button>
-            </div>
-
-            {/* Or URL */}
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-[var(--dash-border-subtle)]"></div>
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-[var(--surface-card)] px-3 text-[var(--dash-text-muted)]">
-                  Or paste a URL
-                </span>
-              </div>
-            </div>
-
-            <input
-              type="url"
-              placeholder="https://youtube.com/watch?v=... or https://loom.com/..."
-              className="w-full px-4 py-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
-            />
-
-            {/* Output Options */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-              {[
-                { icon: FileText, label: 'Transcript', desc: 'Word-for-word', checked: true },
-                { icon: Sparkles, label: 'Summary', desc: 'Key takeaways', checked: true },
-                { icon: Wand2, label: 'Full Article', desc: 'Based on content', checked: false },
-              ].map((opt) => (
-                <div
-                  key={opt.label}
-                  className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                    opt.checked
-                      ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]'
-                      : 'border-[var(--dash-border-subtle)] hover:border-[var(--dash-border-default)]'
-                  }`}
-                >
-                  <opt.icon className={`w-5 h-5 mb-2 ${opt.checked ? 'text-[var(--brand)]' : 'text-[var(--dash-text-tertiary)]'}`} />
-                  <p className="font-medium text-[var(--dash-text-primary)]">{opt.label}</p>
-                  <p className="text-xs text-[var(--dash-text-tertiary)]">{opt.desc}</p>
-                </div>
-              ))}
-            </div>
-
-            <button
-              disabled
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[var(--brand)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium"
-            >
-              <Video className="w-4 h-4" />
-              Process Video
-            </button>
-          </div>
-        )}
-
+        
         {activeTab === 'scrape' && (
           <div className="space-y-6">
             <div>
@@ -430,8 +540,52 @@ export default function AIAssistantPage() {
                 className="w-full px-4 py-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 transition-all"
               />
               <p className="text-xs text-[var(--dash-text-muted)] mt-2">
-                Extract and convert web content to markdown format
+                Extract and convert web content to markdown format using Tavily
               </p>
+            </div>
+
+            {/* Output Type Selection */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-medium text-[var(--dash-text-secondary)]">Output type:</p>
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--brand-primary-muted)] rounded-lg">
+                  <Sparkles className="w-4 h-4 text-[var(--brand)]" />
+                  <span className="text-sm font-medium text-[var(--brand)]">
+                    {3 + (aiProviders.find(p => p.id === selectedProvider)?.credits || 1)} credits
+                  </span>
+                </div>
+              </div>
+              <p className="text-xs text-[var(--dash-text-muted)] mb-3">
+                Base: 3 credits (Tavily scrape) + AI: {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1)} credit ({selectedProvider})
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { id: 'full', label: 'Full Article', desc: 'Polished article with structure' },
+                  { id: 'summary', label: 'Summary', desc: 'Key points and takeaways' },
+                  { id: 'outline', label: 'Outline', desc: 'Hierarchical structure only' },
+                  { id: 'raw', label: 'Raw', desc: 'Just Tavily markdown' },
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setOutputType(opt.id)}
+                    className={`p-4 rounded-xl border-2 text-left transition-all ${
+                      outputType === opt.id
+                        ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]'
+                        : 'border-[var(--dash-border-subtle)] hover:border-[var(--dash-border-default)]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                        outputType === opt.id ? 'border-[var(--brand)] bg-[var(--brand)]' : 'border-[var(--dash-border-default)]'
+                      }`}>
+                        {outputType === opt.id && <Check className="w-2.5 h-2.5 text-white" />}
+                      </div>
+                      <span className="font-medium text-[var(--dash-text-primary)]">{opt.label}</span>
+                    </div>
+                    <p className="text-xs text-[var(--dash-text-tertiary)] ml-6">{opt.desc}</p>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {error && (
@@ -516,39 +670,290 @@ export default function AIAssistantPage() {
           </div>
         )}
 
-        {activeTab === 'enhance' && (
+        {activeTab === 'file' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              {[
-                { icon: Wand2, label: 'Improve Writing', desc: 'Better clarity and flow' },
-                { icon: FileText, label: 'Expand Content', desc: 'Add more detail' },
-                { icon: Sparkles, label: 'Summarize', desc: 'Condense to key points' },
-                { icon: Image, label: 'Add Visuals', desc: 'Suggest diagrams & images' },
-              ].map((opt) => (
-                <button
-                  key={opt.label}
-                  className="p-4 rounded-xl border border-[var(--dash-border-subtle)] hover:border-[var(--brand)] hover:bg-[var(--brand-primary-muted)] text-left transition-all"
-                >
-                  <opt.icon className="w-5 h-5 text-[var(--brand)] mb-2" />
-                  <p className="font-medium text-[var(--dash-text-primary)]">{opt.label}</p>
-                  <p className="text-xs text-[var(--dash-text-tertiary)]">{opt.desc}</p>
-                </button>
-              ))}
+            {/* Legal DMS Features Banner */}
+            <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+              <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-blue-900">Legal Document Management</p>
+                <p className="text-xs text-blue-700 mt-1">
+                  Files are verified with SHA-256 checksums, OCR processed for searchability, and metadata preserved for legal admissibility.
+                </p>
+              </div>
             </div>
 
-            <div className="bg-[var(--surface-ground)] rounded-xl p-6 text-center">
-              <p className="text-[var(--dash-text-tertiary)]">
-                Select a document from your Knowledge Base to enhance it with AI
-              </p>
-              <Link href="/dashboard/knowledge">
-                <button className="mt-4 px-4 py-2 border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-secondary)] hover:border-[var(--brand)] transition-colors">
-                  Browse Documents
-                </button>
-              </Link>
+            {/* Drag & Drop Upload Area */}
+            <div
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+              className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all ${
+                dragActive
+                  ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]'
+                  : 'border-[var(--dash-border-subtle)] hover:border-[var(--dash-border-default)]'
+              }`}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={allSupportedExtensions}
+                onChange={handleFileSelect}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              />
+              <div className="flex flex-col items-center gap-3">
+                <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${
+                  dragActive ? 'bg-[var(--brand)] text-white' : 'bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)]'
+                }`}>
+                  <Upload className="w-7 h-7" />
+                </div>
+                <div>
+                  <p className="font-medium text-[var(--dash-text-primary)]">
+                    {dragActive ? 'Drop your file here' : 'Drag & drop or click to upload'}
+                  </p>
+                  <p className="text-sm text-[var(--dash-text-tertiary)] mt-1">
+                    PDF, Word, Excel, PowerPoint, Email, Images, Text (max 500MB)
+                  </p>
+                </div>
+              </div>
             </div>
+
+            {/* Selected File Preview */}
+            {selectedFile && !isUploading && !uploadResult && (
+              <div className="bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl p-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-[var(--brand-primary-muted)] flex items-center justify-center flex-shrink-0">
+                    <File className="w-6 h-6 text-[var(--brand)]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-[var(--dash-text-primary)] truncate">{selectedFile.name}</p>
+                    <p className="text-sm text-[var(--dash-text-tertiary)] mt-0.5">
+                      {formatFileSize(selectedFile.size)} • {selectedFile.type || 'Unknown type'}
+                      {selectedFile.size > LARGE_FILE_THRESHOLD && (
+                        <span className="text-amber-600 ml-2">• Large file (+5 credits)</span>
+                      )}
+                    </p>
+                  </div>
+                  <button
+                    onClick={clearSelectedFile}
+                    className="p-2 rounded-lg hover:bg-[var(--surface-hover)] text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)] transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* File Too Large Error */}
+            {isFileTooLarge && (
+              <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-xl">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-red-900">File Too Large</p>
+                  <p className="text-sm text-red-700 mt-1">
+                    Maximum file size is 500MB. Your file is {formatFileSize(selectedFile?.size || 0)}.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Output Options */}
+            {selectedFile && !isUploading && !uploadResult && !isFileTooLarge && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-[var(--dash-text-secondary)]">Output Options:</p>
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--brand-primary-muted)] rounded-lg">
+                    <Sparkles className="w-4 h-4 text-[var(--brand)]" />
+                    <span className="text-sm font-medium text-[var(--brand)]">{calculateFileCredits()} credits</span>
+                  </div>
+                </div>
+                <p className="text-xs text-[var(--dash-text-muted)]">
+                  Base: {selectedFile.size > LARGE_FILE_THRESHOLD ? LARGE_FILE_CREDITS : BASE_FILE_CREDITS} credits 
+                  {selectedFile.size > LARGE_FILE_THRESHOLD && ' (file &gt;50MB)'} • AI outputs: +{aiProviders.find(p => p.id === selectedProvider)?.credits || 1} credit each ({selectedProvider})
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <label className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-colors ${
+                    fileOutputOptions.extractedText 
+                      ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]' 
+                      : 'border-[var(--dash-border-subtle)] hover:border-[var(--brand)]'
+                  }`}>
+                    <input 
+                      type="checkbox" 
+                      checked={fileOutputOptions.extractedText}
+                      onChange={(e) => setFileOutputOptions(prev => ({ ...prev, extractedText: e.target.checked }))}
+                      className="mt-1 accent-[var(--brand)]" 
+                    />
+                    <div>
+                      <p className="font-medium text-[var(--dash-text-primary)]">Extracted Text</p>
+                      <p className="text-sm text-[var(--dash-text-tertiary)]">Full document content</p>
+                      <p className="text-xs text-[var(--dash-text-tertiary)] mt-1">Included in base</p>
+                    </div>
+                  </label>
+                  <label className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-colors ${
+                    fileOutputOptions.summary 
+                      ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]' 
+                      : 'border-[var(--dash-border-subtle)] hover:border-[var(--brand)]'
+                  }`}>
+                    <input 
+                      type="checkbox" 
+                      checked={fileOutputOptions.summary}
+                      onChange={(e) => setFileOutputOptions(prev => ({ ...prev, summary: e.target.checked }))}
+                      className="mt-1 accent-[var(--brand)]" 
+                    />
+                    <div>
+                      <p className="font-medium text-[var(--dash-text-primary)]">Summary</p>
+                      <p className="text-sm text-[var(--dash-text-tertiary)]">AI-generated key points</p>
+                      <p className="text-xs text-[var(--brand)] mt-1">+{aiProviders.find(p => p.id === selectedProvider)?.credits || 1} credit</p>
+                    </div>
+                  </label>
+                  <label className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-colors ${
+                    fileOutputOptions.article 
+                      ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]' 
+                      : 'border-[var(--dash-border-subtle)] hover:border-[var(--dash-border-default)]'
+                  }`}>
+                    <input 
+                      type="checkbox" 
+                      checked={fileOutputOptions.article}
+                      onChange={(e) => setFileOutputOptions(prev => ({ ...prev, article: e.target.checked }))}
+                      className="mt-1 accent-[var(--brand)]" 
+                    />
+                    <div>
+                      <p className="font-medium text-[var(--dash-text-primary)]">Article</p>
+                      <p className="text-sm text-[var(--dash-text-tertiary)]">Formatted documentation</p>
+                      <p className="text-xs text-[var(--brand)] mt-1">+{aiProviders.find(p => p.id === selectedProvider)?.credits || 1} credit</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* Processing Options (OCR, Search, Format) */}
+            {selectedFile && !isUploading && !uploadResult && !isFileTooLarge && (
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-[var(--dash-text-secondary)]">Processing Options:</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <button
+                    onClick={() => setEnableOcr(!enableOcr)}
+                    className={`p-3 rounded-xl border-2 text-left transition-all ${
+                      enableOcr
+                        ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]'
+                        : 'border-[var(--dash-border-subtle)] hover:border-[var(--dash-border-default)]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Eye className="w-4 h-4 text-[var(--brand)]" />
+                      <span className="font-medium text-sm text-[var(--dash-text-primary)]">OCR Processing</span>
+                    </div>
+                    <p className="text-xs text-[var(--dash-text-tertiary)]">Extract text from images</p>
+                  </button>
+                  
+                  <button
+                    onClick={() => setIndexForSearch(!indexForSearch)}
+                    className={`p-3 rounded-xl border-2 text-left transition-all ${
+                      indexForSearch
+                        ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]'
+                        : 'border-[var(--dash-border-subtle)] hover:border-[var(--dash-border-default)]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Search className="w-4 h-4 text-[var(--brand)]" />
+                      <span className="font-medium text-sm text-[var(--dash-text-primary)]">Full-Text Search</span>
+                    </div>
+                    <p className="text-xs text-[var(--dash-text-tertiary)]">Index for search queries</p>
+                  </button>
+                  
+                  <button
+                    onClick={() => setPreserveFormatting(!preserveFormatting)}
+                    className={`p-3 rounded-xl border-2 text-left transition-all ${
+                      preserveFormatting
+                        ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]'
+                        : 'border-[var(--dash-border-subtle)] hover:border-[var(--dash-border-default)]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <FileCheck className="w-4 h-4 text-[var(--brand)]" />
+                      <span className="font-medium text-sm text-[var(--dash-text-primary)]">Preserve Format</span>
+                    </div>
+                    <p className="text-xs text-[var(--dash-text-tertiary)]">Keep original formatting</p>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Upload Progress */}
+            {isUploading && currentJob && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                <div className="flex items-center gap-3 mb-3">
+                  <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-blue-900">Processing Document...</p>
+                    <p className="text-xs text-blue-700 mt-0.5">
+                      {uploadResult?.checksums && (
+                        <span className="flex items-center gap-1">
+                          <Shield className="w-3 h-3" />
+                          Checksum verified
+                        </span>
+                      )}
+                      {!uploadResult?.checksums && `Status: ${currentJob.status} • Progress: ${progress}%`}
+                    </p>
+                  </div>
+                </div>
+                <div className="w-full bg-blue-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Error State */}
+            {error && (
+              <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-xl">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-red-900">Upload Failed</p>
+                  <p className="text-sm text-red-700 mt-1">{error}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Upload Button */}
+            {selectedFile && !isUploading && !uploadResult && !isFileTooLarge && (
+              <button
+                onClick={handleFileUpload}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[var(--brand)] hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-all"
+              >
+                <Upload className="w-4 h-4" />
+                Process Document ({calculateFileCredits()} credits)
+              </button>
+            )}
+
+            {/* Supported File Types Grid */}
+            {!selectedFile && (
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-[var(--dash-text-secondary)]">Supported File Types:</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {supportedFileCategories.map((cat) => (
+                    <div
+                      key={cat.id}
+                      className="flex items-center gap-3 p-3 bg-[var(--surface-ground)] rounded-lg"
+                    >
+                      <cat.icon className="w-4 h-4 text-[var(--dash-text-tertiary)]" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-[var(--dash-text-primary)]">{cat.label}</p>
+                        <p className="text-xs text-[var(--dash-text-muted)] truncate">{cat.extensions}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
-          </div>
+
+                  </div>
         </div>
 
         <div className="xl:col-span-4 flex flex-col gap-6 min-h-0">
@@ -575,9 +980,17 @@ export default function AIAssistantPage() {
                     }`}>
                       {selectedProvider === provider.id && <div className="w-2 h-2 rounded-full bg-white" />}
                     </div>
-                    <div>
-                      <p className="font-medium text-[var(--dash-text-primary)]">{provider.name}</p>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-medium text-[var(--dash-text-primary)]">{provider.name}</p>
+                      </div>
                       <p className="text-sm text-[var(--dash-text-tertiary)]">{provider.desc}</p>
+                      <div className="flex items-center gap-1.5 mt-2">
+                        <Zap className="w-3.5 h-3.5 text-[var(--brand)]" />
+                        <span className="text-xs font-medium text-[var(--dash-text-secondary)]">
+                          {provider.credits} {provider.credits === 1 ? 'credit' : 'credits'} per generation
+                        </span>
+                      </div>
                     </div>
                   </div>
                   {provider.badge && (
@@ -594,15 +1007,27 @@ export default function AIAssistantPage() {
             </div>
           </div>
 
-          {/* From Template Section */}
+          {/* With Template Section */}
           <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl">
             <div className="px-6 py-4 border-b border-[var(--dash-border-subtle)]">
-              <h2 className="font-semibold text-[var(--dash-text-primary)]">From Template</h2>
-              <p className="text-sm text-[var(--dash-text-tertiary)]">Create full articles using existing templates</p>
+              <h2 className="font-semibold text-[var(--dash-text-primary)]">With Template</h2>
+              <p className="text-sm text-[var(--dash-text-tertiary)]">Use template structure as a guide for AI generation</p>
             </div>
             <div className="p-6">
-              <div className="space-y-3">
-                {availableTemplates.map((template) => (
+              {templatesLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-[var(--brand)]" />
+                </div>
+              ) : availableTemplates.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-sm text-[var(--dash-text-tertiary)]">No templates available</p>
+                  <Link href="/dashboard/templates/new" className="text-sm text-[var(--brand)] hover:underline mt-2 inline-block">
+                    Create your first template
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {availableTemplates.map((template) => (
                   <button
                     key={template.id}
                     onClick={() => setSelectedTemplate(template.id)}
@@ -622,17 +1047,18 @@ export default function AIAssistantPage() {
                         <p className={`font-medium mb-0.5 ${
                           selectedTemplate === template.id ? 'text-[var(--brand)]' : 'text-[var(--dash-text-primary)] group-hover:text-[var(--brand)]'
                         }`}>
-                          {template.name}
+                          {template.title}
                         </p>
-                        <p className="text-xs text-[var(--dash-text-tertiary)]">{template.desc}</p>
+                        <p className="text-xs text-[var(--dash-text-tertiary)]">{template.description || 'No description'}</p>
                       </div>
                       <FileText className={`w-4 h-4 flex-shrink-0 ${
                         selectedTemplate === template.id ? 'text-[var(--brand)]' : 'text-[var(--dash-text-muted)] group-hover:text-[var(--brand)]'
                       }`} />
                     </div>
                   </button>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
               
               {selectedTemplate && (
                 <div className="mt-4 pt-4 border-t border-[var(--dash-border-subtle)]">
@@ -653,7 +1079,7 @@ export default function AIAssistantPage() {
                     ) : (
                       <>
                         <Sparkles className="w-4 h-4" />
-                        Generate from {availableTemplates.find(t => t.id === selectedTemplate)?.name}
+                        Generate with {availableTemplates.find(t => t.id === selectedTemplate)?.title}
                       </>
                     )}
                   </button>

@@ -1,0 +1,18 @@
+{
+  "timestamp": "2026-01-31T23:29:48.986Z",
+  "fieldKeys": [
+    "file"
+  ],
+  "fieldValues": {
+    "file": "[object Object]"
+  },
+  "fieldTypes": {
+    "file": "object"
+  },
+  "parsedFormData": {
+    "generate_transcript": false,
+    "generate_summary": false,
+    "generate_article": false,
+    "ai_model": "gemini"
+  }
+}

@@ -30,14 +30,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
         disableTransitionOnChange
       >
         <ToastProvider>
-          <TenantProvider>
-            <AuthProvider>
+          <AuthProvider>
+            <TenantProvider>
               {children}
               <div className="hidden md:block">
                 <AccessibilityWidget />
               </div>
-            </AuthProvider>
-          </TenantProvider>
+            </TenantProvider>
+          </AuthProvider>
         </ToastProvider>
       </ThemeProvider>
     </QueryClientProvider>

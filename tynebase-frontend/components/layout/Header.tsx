@@ -106,9 +106,9 @@ export function Header({ onOpenCommandPalette }: HeaderProps) {
                     <p className="text-sm text-[var(--text-tertiary)]">
                       {user?.email}
                     </p>
-                    {branding?.name && (
+                    {branding?.company_name && (
                       <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                        {branding.name}
+                        {branding.company_name}
                       </p>
                     )}
                   </div>

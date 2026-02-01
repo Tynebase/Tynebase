@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getAuditLogs, exportAuditLogs, type AuditLog as AuditLogType } from "@/lib/api/audit";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import {
@@ -30,88 +31,12 @@ const activityTypes = [
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
-const auditLogs = [
-  {
-    id: 1,
-    action: "document.published",
-    actor: { name: "Sarah Chen", email: "sarah@company.com", avatar: "SC" },
-    target: "Getting Started Guide",
-    timestamp: "2026-01-11T14:32:00Z",
-    ip: "192.168.1.1",
-    type: "document",
-    details: { version: 3, previousStatus: "draft" }
-  },
-  {
-    id: 2,
-    action: "user.invited",
-    actor: { name: "John Smith", email: "john@company.com", avatar: "JS" },
-    target: "mike@company.com",
-    timestamp: "2026-01-11T13:15:00Z",
-    ip: "192.168.1.2",
-    type: "user",
-    details: { role: "contributor" }
-  },
-  {
-    id: 3,
-    action: "auth.login",
-    actor: { name: "Emily Davis", email: "emily@company.com", avatar: "ED" },
-    target: null,
-    timestamp: "2026-01-11T12:45:00Z",
-    ip: "192.168.1.3",
-    type: "auth",
-    details: { method: "sso", provider: "google" }
-  },
-  {
-    id: 4,
-    action: "document.deleted",
-    actor: { name: "Sarah Chen", email: "sarah@company.com", avatar: "SC" },
-    target: "Old FAQ Page",
-    timestamp: "2026-01-11T11:20:00Z",
-    ip: "192.168.1.1",
-    type: "document",
-    details: { permanently: false }
-  },
-  {
-    id: 5,
-    action: "settings.updated",
-    actor: { name: "John Smith", email: "john@company.com", avatar: "JS" },
-    target: "Workspace branding",
-    timestamp: "2026-01-11T10:05:00Z",
-    ip: "192.168.1.2",
-    type: "settings",
-    details: { field: "logo" }
-  },
-  {
-    id: 6,
-    action: "user.role_changed",
-    actor: { name: "Sarah Chen", email: "sarah@company.com", avatar: "SC" },
-    target: "mike@company.com",
-    timestamp: "2026-01-10T16:30:00Z",
-    ip: "192.168.1.1",
-    type: "user",
-    details: { from: "viewer", to: "contributor" }
-  },
-  {
-    id: 7,
-    action: "document.created",
-    actor: { name: "Mike Johnson", email: "mike@company.com", avatar: "MJ" },
-    target: "API Integration Guide",
-    timestamp: "2026-01-10T15:00:00Z",
-    ip: "192.168.1.4",
-    type: "document",
-    details: { template: "API Documentation" }
-  },
-  {
-    id: 8,
-    action: "auth.logout",
-    actor: { name: "Emily Davis", email: "emily@company.com", avatar: "ED" },
-    target: null,
-    timestamp: "2026-01-10T14:30:00Z",
-    ip: "192.168.1.3",
-    type: "auth",
-    details: {}
-  },
-];
+interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  total_pages: number;
+}
 
 const getActionIcon = (action: string) => {
   if (action.includes("created") || action.includes("invited")) return Plus;
@@ -153,18 +78,73 @@ const formatTimestamp = (timestamp: string) => {
 };
 
 export default function AuditLogsPage() {
-  const [activeType, setActiveType] = useState("all");
+  const [activeType, setActiveType] = useState<'all' | 'document' | 'user' | 'auth' | 'settings'>("all");
   const [searchQuery, setSearchQuery] = useState("");
-
-  const filteredLogs = auditLogs.filter((log) => {
-    const matchesType = activeType === "all" || log.type === activeType;
-    const matchesSearch =
-      log.actor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      log.actor.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (log.target?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
-      log.action.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesType && matchesSearch;
+  const [auditLogs, setAuditLogs] = useState<AuditLogType[]>([]);
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    page: 1,
+    limit: 20,
+    total: 0,
+    total_pages: 0,
   });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  useEffect(() => {
+    fetchAuditLogs();
+  }, [activeType, pagination.page]);
+
+  const fetchAuditLogs = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await getAuditLogs({
+        page: pagination.page,
+        limit: pagination.limit,
+        action_type: activeType,
+        search: searchQuery.trim() || undefined,
+      });
+
+      setAuditLogs(response.logs);
+      setPagination(response.pagination);
+    } catch (err: any) {
+      console.error('Error fetching audit logs:', err);
+      setError(err.message || 'Failed to fetch audit logs');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = () => {
+    setPagination(prev => ({ ...prev, page: 1 }));
+    fetchAuditLogs();
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setPagination(prev => ({ ...prev, page: newPage }));
+  };
+
+  const handleTypeChange = (type: 'all' | 'document' | 'user' | 'auth' | 'settings') => {
+    setActiveType(type);
+    setPagination(prev => ({ ...prev, page: 1 }));
+  };
+
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      await exportAuditLogs({
+        action_type: activeType,
+        search: searchQuery.trim() || undefined,
+      });
+    } catch (err: any) {
+      console.error('Error exporting audit logs:', err);
+      setError(err.message || 'Failed to export audit logs');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="h-full w-full min-h-0 flex flex-col gap-8">
@@ -173,9 +153,14 @@ export default function AuditLogsPage() {
           <h1 className="text-3xl font-bold text-[var(--text-primary)]">Audit Logs</h1>
           <p className="text-[var(--text-tertiary)] mt-1">Track all activity in your workspace</p>
         </div>
-        <Button variant="outline" className="gap-2">
+        <Button 
+          variant="outline" 
+          className="gap-2" 
+          onClick={handleExport}
+          disabled={exporting || loading}
+        >
           <Download className="w-4 h-4" />
-          Export Logs
+          {exporting ? 'Exporting...' : 'Export Logs'}
         </Button>
       </div>
 
@@ -190,6 +175,7 @@ export default function AuditLogsPage() {
                 placeholder="Search by user, action, or target..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand-primary)]"
               />
             </div>
@@ -197,8 +183,9 @@ export default function AuditLogsPage() {
               {activityTypes.map((type) => (
                 <button
                   key={type.id}
-                  onClick={() => setActiveType(type.id)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] focus-visible:ring-offset-2 ${activeType === type.id
+                  onClick={() => handleTypeChange(type.id as 'all' | 'document' | 'user' | 'auth' | 'settings')}
+                  disabled={loading}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${activeType === type.id
                       ? "bg-[var(--brand-primary)] text-white"
                       : "bg-[var(--surface-ground)] text-[var(--text-secondary)] hover:bg-[var(--surface-card)]"
                     }`}
@@ -215,8 +202,33 @@ export default function AuditLogsPage() {
       {/* Logs Table */}
       <Card className="flex-1 min-h-0">
         <CardContent className="p-0 flex flex-col min-h-0">
+          {loading ? (
+            <div className="flex items-center justify-center p-12">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--brand-primary)] mx-auto mb-4"></div>
+                <p className="text-[var(--text-secondary)]">Loading audit logs...</p>
+              </div>
+            </div>
+          ) : error ? (
+            <div className="flex items-center justify-center p-12">
+              <div className="text-center">
+                <p className="text-red-500 mb-2">{error}</p>
+                <Button onClick={fetchAuditLogs} variant="outline" size="sm">
+                  Retry
+                </Button>
+              </div>
+            </div>
+          ) : auditLogs.length === 0 ? (
+            <div className="flex items-center justify-center p-12">
+              <div className="text-center">
+                <Activity className="w-12 h-12 text-[var(--text-tertiary)] mx-auto mb-4" />
+                <p className="text-[var(--text-secondary)]">No audit logs found</p>
+                <p className="text-sm text-[var(--text-tertiary)] mt-1">Activity will appear here as users interact with the system</p>
+              </div>
+            </div>
+          ) : (
           <div className="divide-y divide-[var(--border-subtle)] overflow-auto">
-            {filteredLogs.map((log) => {
+            {auditLogs.map((log) => {
               const ActionIcon = getActionIcon(log.action);
               const actionColor = getActionColor(log.action);
 
@@ -287,36 +299,61 @@ export default function AuditLogsPage() {
               );
             })}
           </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-[var(--text-tertiary)]">
-          Showing {filteredLogs.length} of {auditLogs.length} entries
-        </p>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="px-3" disabled>
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="px-3 bg-[var(--brand-primary)] text-white border-[var(--brand-primary)]"
-          >
-            1
-          </Button>
-          <Button variant="outline" size="sm" className="px-3">
-            2
-          </Button>
-          <Button variant="outline" size="sm" className="px-3">
-            3
-          </Button>
-          <Button variant="outline" size="sm" className="px-3">
-            <ChevronRight className="w-4 h-4" />
-          </Button>
+      {!loading && !error && pagination.total > 0 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-[var(--text-tertiary)]">
+            Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} entries
+          </p>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="px-3" 
+              disabled={pagination.page === 1}
+              onClick={() => handlePageChange(pagination.page - 1)}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            {Array.from({ length: Math.min(5, pagination.total_pages) }, (_, i) => {
+              let pageNum;
+              if (pagination.total_pages <= 5) {
+                pageNum = i + 1;
+              } else if (pagination.page <= 3) {
+                pageNum = i + 1;
+              } else if (pagination.page >= pagination.total_pages - 2) {
+                pageNum = pagination.total_pages - 4 + i;
+              } else {
+                pageNum = pagination.page - 2 + i;
+              }
+              return (
+                <Button
+                  key={pageNum}
+                  variant="outline"
+                  size="sm"
+                  className={`px-3 ${pagination.page === pageNum ? 'bg-[var(--brand-primary)] text-white border-[var(--brand-primary)]' : ''}`}
+                  onClick={() => handlePageChange(pageNum)}
+                >
+                  {pageNum}
+                </Button>
+              );
+            })}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="px-3"
+              disabled={pagination.page === pagination.total_pages}
+              onClick={() => handlePageChange(pagination.page + 1)}
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Retention Notice */}
       <Card className="bg-[var(--surface-ground)] border-[var(--border-subtle)]">

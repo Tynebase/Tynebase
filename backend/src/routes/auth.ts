@@ -3,6 +3,22 @@ import { z } from 'zod';
 import { supabaseAdmin } from '../lib/supabase';
 import { loginRateLimitMiddleware } from '../middleware/rateLimit';
 
+// Tier credit allocations
+const TIER_CREDITS: Record<string, number> = {
+  free: 10,
+  base: 100,
+  pro: 500,
+  enterprise: 1000,
+};
+
+// Tier storage limits (in bytes)
+const TIER_STORAGE: Record<string, number> = {
+  free: 524288000,      // 500MB
+  base: 5368709120,     // 5GB
+  pro: 53687091200,     // 50GB
+  enterprise: -1,       // Unlimited
+};
+
 const signupSchema = z.object({
   email: z.string().email('Invalid email format'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
@@ -14,6 +30,7 @@ const signupSchema = z.object({
     .regex(/^[a-z0-9]/, 'Subdomain must start with a letter or number')
     .regex(/[a-z0-9]$/, 'Subdomain must end with a letter or number'),
   full_name: z.string().optional(),
+  tier: z.enum(['free', 'base', 'pro', 'enterprise']).optional().default('free'),
 });
 
 const loginSchema = z.object({
@@ -29,7 +46,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
   fastify.post('/api/auth/signup', async (request, reply) => {
     try {
       const body = signupSchema.parse(request.body);
-      const { email, password, tenant_name, subdomain, full_name } = body;
+      const { email, password, tenant_name, subdomain, full_name, tier } = body;
 
       fastify.log.info({ subdomain, email }, 'Starting signup process');
 
@@ -80,15 +97,19 @@ export default async function authRoutes(fastify: FastifyInstance) {
       fastify.log.info({ userId }, 'Auth user created');
 
       try {
+        // Get tier-specific limits
+        const tierCredits = TIER_CREDITS[tier] || TIER_CREDITS.free;
+        const tierStorage = TIER_STORAGE[tier] || TIER_STORAGE.free;
+
         // Start transaction by creating tenant
         const { data: tenant, error: tenantError } = await supabaseAdmin
           .from('tenants')
           .insert({
             subdomain,
             name: tenant_name,
-            tier: 'free',
+            tier: tier,
             settings: {},
-            storage_limit: 1073741824, // 1GB
+            storage_limit: tierStorage > 0 ? tierStorage : 107374182400, // Use tier limit or 100GB for unlimited
           })
           .select()
           .single();
@@ -161,7 +182,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
             .insert({
               tenant_id: tenantId,
               month_year: new Date().toISOString().slice(0, 7), // YYYY-MM format
-              total_credits: 100, // Free tier: 100 credits
+              total_credits: tierCredits,
               used_credits: 0,
             });
 
@@ -174,11 +195,44 @@ export default async function authRoutes(fastify: FastifyInstance) {
           fastify.log.warn({ error: creditException }, 'Credit pool creation exception (non-critical)');
         }
 
+        // Sign in the newly created user to get session tokens
+        const { data: signInData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (signInError || !signInData.session) {
+          fastify.log.error({ error: signInError }, 'Failed to sign in newly created user');
+          // User was created but sign-in failed - still return success but without tokens
+          // User can manually log in
+          return reply.code(201).send({
+            success: true,
+            data: {
+              user: {
+                id: userId,
+                email,
+                full_name: full_name || null,
+                role: 'admin',
+              },
+              tenant: {
+                id: tenantId,
+                subdomain,
+                name: tenant_name,
+                tier: tier,
+              },
+            },
+            message: 'Account created successfully. Please log in.',
+          });
+        }
+
         fastify.log.info({ userId, tenantId, subdomain }, 'Signup completed successfully');
 
         return reply.code(201).send({
           success: true,
           data: {
+            access_token: signInData.session.access_token,
+            refresh_token: signInData.session.refresh_token,
+            expires_in: signInData.session.expires_in,
             user: {
               id: userId,
               email,
@@ -189,7 +243,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
               id: tenantId,
               subdomain,
               name: tenant_name,
-              tier: 'free',
+              tier: tier,
             },
           },
           message: 'Account created successfully',
@@ -607,6 +661,68 @@ export default async function authRoutes(fastify: FastifyInstance) {
       }
 
       fastify.log.error({ error }, 'Unexpected error in PATCH /me endpoint');
+      return reply.code(500).send({
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'An unexpected error occurred',
+          details: {},
+        },
+      });
+    }
+  });
+
+  /**
+   * POST /api/auth/refresh
+   * Refreshes access token using refresh token
+   */
+  fastify.post('/api/auth/refresh', async (request, reply) => {
+    try {
+      const refreshSchema = z.object({
+        refresh_token: z.string().min(1, 'Refresh token is required'),
+      });
+
+      const body = refreshSchema.parse(request.body);
+      const { refresh_token } = body;
+
+      fastify.log.info('Token refresh attempt');
+
+      const { data, error } = await supabaseAdmin.auth.refreshSession({
+        refresh_token,
+      });
+
+      if (error || !data.session) {
+        fastify.log.warn({ error }, 'Token refresh failed');
+        return reply.code(401).send({
+          error: {
+            code: 'REFRESH_FAILED',
+            message: 'Invalid or expired refresh token',
+            details: {},
+          },
+        });
+      }
+
+      fastify.log.info({ userId: data.user?.id }, 'Token refresh successful');
+
+      return reply.code(200).send({
+        success: true,
+        data: {
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+          expires_in: data.session.expires_in,
+        },
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.code(400).send({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid input data',
+            details: error.errors,
+          },
+        });
+      }
+
+      fastify.log.error({ error }, 'Unexpected error during token refresh');
       return reply.code(500).send({
         error: {
           code: 'INTERNAL_ERROR',

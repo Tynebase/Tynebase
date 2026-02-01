@@ -103,7 +103,7 @@ export default async function templateRoutes(fastify: FastifyInstance) {
             created_by,
             created_at,
             updated_at,
-            users!templates_created_by_fkey (
+            users:created_by (
               id,
               email,
               full_name
@@ -280,7 +280,7 @@ export default async function templateRoutes(fastify: FastifyInstance) {
             created_by,
             created_at,
             updated_at,
-            users!templates_created_by_fkey (
+            users:created_by (
               id,
               email,
               full_name

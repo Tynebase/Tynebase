@@ -8,7 +8,78 @@ import { signup } from "@/lib/api/auth";
 import { validateSubdomain } from "@/lib/utils";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
-import { ArrowRight, Check, Eye, EyeOff } from "lucide-react";
+import { TIER_CONFIG, TierType } from "@/types/api";
+import { ArrowRight, Check, Eye, EyeOff, Sparkles, Building2, Crown, Zap, X } from "lucide-react";
+
+// Tier display info for signup
+const TIER_DISPLAY = {
+  free: {
+    name: "Free",
+    price: "$0",
+    period: "/month",
+    description: "For individuals getting started",
+    highlight: false,
+    features: [
+      "10 AI credits/month",
+      "500MB storage",
+      "2 team members",
+      "Basic features",
+    ],
+    limitations: [
+      "No white-label branding",
+      "No custom domain",
+    ],
+  },
+  base: {
+    name: "Base",
+    price: "$29",
+    period: "/month",
+    description: "For small teams",
+    highlight: false,
+    features: [
+      "100 AI credits/month",
+      "5GB storage",
+      "10 team members",
+      "Real-time collaboration",
+    ],
+    limitations: [
+      "No white-label branding",
+      "No custom domain",
+    ],
+  },
+  pro: {
+    name: "Pro",
+    price: "$99",
+    period: "/month",
+    description: "For growing businesses",
+    highlight: true,
+    features: [
+      "500 AI credits/month",
+      "50GB storage",
+      "50 team members",
+      "White-label branding",
+      "Custom domain",
+      "Priority support",
+    ],
+    limitations: [],
+  },
+  enterprise: {
+    name: "Enterprise",
+    price: "Custom",
+    period: "",
+    description: "For large organizations",
+    highlight: false,
+    features: [
+      "1000+ AI credits/month",
+      "Unlimited storage",
+      "Unlimited team members",
+      "Full white-label",
+      "Dedicated support",
+      "Custom integrations",
+    ],
+    limitations: [],
+  },
+};
 
 export default function SignupPage() {
   const router = useRouter();
@@ -21,6 +92,7 @@ export default function SignupPage() {
     accountType: "user", // 'user' or 'company'
     companyName: "",
     subdomain: "",
+    tier: "free" as TierType,
   });
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -53,20 +125,40 @@ export default function SignupPage() {
   const validateStep2 = () => {
     const newErrors: Record<string, string> = {};
     if (formData.accountType === 'company' && formData.companyName.length < 2) newErrors.companyName = "Company name is required";
-    if (formData.accountType === 'company' && !validateSubdomain(formData.subdomain)) newErrors.subdomain = "Invalid subdomain format";
+    // Only validate subdomain for Pro/Enterprise (white-label tiers)
+    if (formData.accountType === 'company' && (formData.tier === 'pro' || formData.tier === 'enterprise') && !validateSubdomain(formData.subdomain)) {
+      newErrors.subdomain = "Invalid subdomain format";
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleNext = () => {
     if (validateStep1()) {
-      // Skip step 2 if user selected individual account
+      // Go to tier selection for company accounts, or step 3 for individual
       if (formData.accountType === 'user') {
         handleSubmit();
       } else {
-        setStep(2);
+        setStep(2); // Tier selection
       }
     }
+  };
+
+  const handleTierSelect = (tier: TierType) => {
+    setFormData(prev => ({ ...prev, tier }));
+    if (tier === 'enterprise') {
+      // For enterprise, redirect to contact page
+      addToast({
+        type: "info",
+        title: "Contact Sales",
+        description: "Please contact our sales team for enterprise pricing.",
+      });
+      return;
+    }
+    
+    // All company accounts need to provide company name
+    // Pro tier also needs custom subdomain (white-label)
+    setStep(3);
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -79,22 +171,29 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
-      // For individual accounts, use email username as subdomain
-      // For company accounts, use the provided subdomain
+      // Determine tenant name
       const tenantName = formData.accountType === 'company' 
         ? formData.companyName 
         : formData.fullName || formData.email.split('@')[0];
       
-      const subdomain = formData.accountType === 'company'
-        ? formData.subdomain
-        : formData.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-');
+      // Subdomain logic:
+      // - Pro/Enterprise with company account: use custom subdomain (white-label)
+      // - Free/Base or individual: auto-generate from email
+      let subdomain: string;
+      if (formData.accountType === 'company' && (formData.tier === 'pro' || formData.tier === 'enterprise') && formData.subdomain) {
+        subdomain = formData.subdomain;
+      } else {
+        // Auto-generate subdomain from email for non-white-label tiers
+        subdomain = formData.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-');
+      }
 
-      await signup({
+      const response = await signup({
         email: formData.email,
         password: formData.password,
         tenant_name: tenantName,
         subdomain: subdomain,
         full_name: formData.fullName,
+        tier: formData.tier,
       });
 
       addToast({
@@ -103,8 +202,11 @@ export default function SignupPage() {
         description: `Welcome to TyneBase! Redirecting to dashboard...`,
       });
       
+      // Small delay to ensure tokens are stored before redirect
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       // Redirect to dashboard after successful signup
-      router.push("/dashboard");
+      window.location.href = "/dashboard";
     } catch (error) {
       addToast({
         type: "error",
@@ -158,14 +260,21 @@ export default function SignupPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '32px' }}>
               <div style={{ flex: 1, height: '4px', borderRadius: '2px', background: step >= 1 ? 'var(--brand)' : 'var(--bg-tertiary)' }} />
               <div style={{ flex: 1, height: '4px', borderRadius: '2px', background: step >= 2 ? 'var(--brand)' : 'var(--bg-tertiary)' }} />
+              {formData.accountType === 'company' && (
+                <div style={{ flex: 1, height: '4px', borderRadius: '2px', background: step >= 3 ? 'var(--brand)' : 'var(--bg-tertiary)' }} />
+              )}
             </div>
 
             <div style={{ textAlign: 'center', marginBottom: '32px' }}>
               <h1 style={{ fontSize: '28px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
-                {step === 1 ? "Create your account" : "Set up your workspace"}
+                {step === 1 ? "Create your account" : step === 2 ? "Choose your plan" : "Set up your workspace"}
               </h1>
               <p style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
-                {step === 1 ? (formData.accountType === 'company' ? "Start with a Pro subscription if you choose company" : "Start with a free account") : "Where your team will collaborate"}
+                {step === 1 
+                  ? (formData.accountType === 'company' ? "Start building with your team" : "Start with a free account") 
+                  : step === 2 
+                    ? "Select the plan that fits your needs" 
+                    : "Where your team will collaborate"}
               </p>
             </div>
 
@@ -280,8 +389,166 @@ export default function SignupPage() {
                   Continue with Google
                 </button>
               </div>
+            ) : step === 2 ? (
+              /* Tier Selection Step */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {(['free', 'base', 'pro'] as TierType[]).map((tier) => {
+                  const tierInfo = TIER_DISPLAY[tier];
+                  const isSelected = formData.tier === tier;
+                  const isHighlighted = tierInfo.highlight;
+                  
+                  return (
+                    <button
+                      key={tier}
+                      type="button"
+                      onClick={() => handleTierSelect(tier)}
+                      style={{
+                        position: 'relative',
+                        padding: '20px',
+                        background: isSelected ? 'var(--brand)' : 'var(--bg-secondary)',
+                        border: isHighlighted ? '2px solid var(--brand)' : '1px solid var(--border-subtle)',
+                        borderRadius: '16px',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      {isHighlighted && (
+                        <span style={{
+                          position: 'absolute',
+                          top: '-10px',
+                          right: '16px',
+                          padding: '4px 12px',
+                          background: 'var(--brand)',
+                          borderRadius: '20px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          color: 'white',
+                          textTransform: 'uppercase',
+                        }}>
+                          Most Popular
+                        </span>
+                      )}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                        <div>
+                          <h3 style={{ fontSize: '18px', fontWeight: 600, color: isSelected ? 'white' : 'var(--text-primary)', marginBottom: '4px' }}>
+                            {tierInfo.name}
+                          </h3>
+                          <p style={{ fontSize: '13px', color: isSelected ? 'rgba(255,255,255,0.8)' : 'var(--text-secondary)' }}>
+                            {tierInfo.description}
+                          </p>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ fontSize: '24px', fontWeight: 700, color: isSelected ? 'white' : 'var(--text-primary)' }}>
+                            {tierInfo.price}
+                          </span>
+                          <span style={{ fontSize: '13px', color: isSelected ? 'rgba(255,255,255,0.8)' : 'var(--text-muted)' }}>
+                            {tierInfo.period}
+                          </span>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                        {tierInfo.features.slice(0, 4).map((feature) => (
+                          <span key={feature} style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '4px 8px',
+                            background: isSelected ? 'rgba(255,255,255,0.2)' : 'var(--bg-tertiary)',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            color: isSelected ? 'white' : 'var(--text-secondary)',
+                          }}>
+                            <Check className="w-3 h-3" />
+                            {feature}
+                          </span>
+                        ))}
+                      </div>
+                      {tierInfo.limitations.length > 0 && (
+                        <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                          {tierInfo.limitations.map((limitation) => (
+                            <span key={limitation} style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '4px 8px',
+                              background: isSelected ? 'rgba(255,255,255,0.1)' : 'var(--bg-tertiary)',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              color: isSelected ? 'rgba(255,255,255,0.6)' : 'var(--text-muted)',
+                            }}>
+                              <X className="w-3 h-3" />
+                              {limitation}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+
+                <button
+                  type="button"
+                  onClick={() => handleTierSelect('enterprise')}
+                  style={{
+                    padding: '16px 20px',
+                    background: 'linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <Crown className="w-5 h-5" style={{ color: 'var(--brand)' }} />
+                    <div style={{ textAlign: 'left' }}>
+                      <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>Enterprise</span>
+                      <span style={{ fontSize: '13px', color: 'var(--text-secondary)', marginLeft: '8px' }}>Custom pricing for large teams</span>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-5 h-5" style={{ color: 'var(--text-muted)' }} />
+                </button>
+
+                <button type="button" onClick={() => setStep(1)} style={{
+                  padding: '12px',
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: '14px',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                }}>
+                  ← Back to account details
+                </button>
+              </div>
             ) : (
+              /* Step 3: Company Details */
               <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {/* Selected plan summary */}
+                <div style={{ 
+                  background: 'var(--bg-secondary)', 
+                  borderRadius: '12px', 
+                  padding: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}>
+                  <div>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Selected Plan</p>
+                    <p style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {TIER_DISPLAY[formData.tier].name} - {TIER_DISPLAY[formData.tier].price}{TIER_DISPLAY[formData.tier].period}
+                    </p>
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={() => setStep(2)}
+                    style={{ fontSize: '14px', color: 'var(--brand)', background: 'none', border: 'none', cursor: 'pointer' }}
+                  >
+                    Change
+                  </button>
+                </div>
+
                 <div>
                   <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Company name</label>
                   <input
@@ -296,27 +563,53 @@ export default function SignupPage() {
                   />
                   {errors.companyName && <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px' }}>{errors.companyName}</p>}
                 </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Workspace URL</label>
-                  <div style={{ display: 'flex', alignItems: 'stretch' }}>
-                    <input
-                      type="text"
-                      name="subdomain"
-                      placeholder="acme"
-                      value={formData.subdomain}
-                      onChange={handleChange}
-                      style={{ ...inputStyle, borderTopRightRadius: 0, borderBottomRightRadius: 0, flex: 1 }}
-                      onFocus={(e) => { e.target.style.borderColor = 'var(--brand)'; e.target.style.boxShadow = '0 0 0 3px rgba(255, 77, 0, 0.1)'; }}
-                      onBlur={(e) => { e.target.style.borderColor = 'var(--border-subtle)'; e.target.style.boxShadow = 'none'; }}
-                    />
-                    <span style={{ padding: '14px 16px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderLeft: 'none', borderTopRightRadius: '12px', borderBottomRightRadius: '12px', fontSize: '14px', color: 'var(--text-muted)' }}>.tynebase.com</span>
+                {/* Only show subdomain field for Pro tier (white-label) */}
+                {formData.tier === 'pro' && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                      Custom Workspace URL
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '8px' }}>(White-label feature)</span>
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'stretch' }}>
+                      <input
+                        type="text"
+                        name="subdomain"
+                        placeholder="acme"
+                        value={formData.subdomain}
+                        onChange={handleChange}
+                        style={{ ...inputStyle, borderTopRightRadius: 0, borderBottomRightRadius: 0, flex: 1 }}
+                        onFocus={(e) => { e.target.style.borderColor = 'var(--brand)'; e.target.style.boxShadow = '0 0 0 3px rgba(255, 77, 0, 0.1)'; }}
+                        onBlur={(e) => { e.target.style.borderColor = 'var(--border-subtle)'; e.target.style.boxShadow = 'none'; }}
+                      />
+                      <span style={{ padding: '14px 16px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderLeft: 'none', borderTopRightRadius: '12px', borderBottomRightRadius: '12px', fontSize: '14px', color: 'var(--text-muted)' }}>.tynebase.com</span>
+                    </div>
+                    {errors.subdomain && <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px' }}>{errors.subdomain}</p>}
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px' }}>
+                      Your workspace will be accessible at this custom URL
+                    </p>
                   </div>
-                  {errors.subdomain && <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px' }}>{errors.subdomain}</p>}
-                </div>
+                )}
+                
+                {/* Info for Free/Base tiers */}
+                {(formData.tier === 'free' || formData.tier === 'base') && (
+                  <div style={{ 
+                    background: 'var(--bg-secondary)', 
+                    borderRadius: '12px', 
+                    padding: '12px 16px',
+                    border: '1px solid var(--border-subtle)',
+                  }}>
+                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                      <span style={{ fontWeight: 600 }}>Note:</span> Your workspace URL will be auto-generated. 
+                      Upgrade to Pro for custom domain and white-label branding.
+                    </p>
+                  </div>
+                )}
 
                 <div style={{ background: 'var(--bg-secondary)', borderRadius: '12px', padding: '16px' }}>
-                  <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '12px' }}>Your free trial includes:</p>
-                  {["Full access to all features", "Up to 10 team members", "AI document generation", "Priority support"].map((item) => (
+                  <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '12px' }}>
+                    Your {TIER_DISPLAY[formData.tier].name} plan includes:
+                  </p>
+                  {TIER_DISPLAY[formData.tier].features.map((item) => (
                     <div key={item} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
                       <Check className="w-4 h-4" style={{ color: 'var(--brand)' }} />
                       {item}
@@ -325,7 +618,7 @@ export default function SignupPage() {
                 </div>
 
                 <div style={{ display: 'flex', gap: '12px' }}>
-                  <button type="button" onClick={() => setStep(1)} className="btn btn-secondary" style={{ flex: 1, padding: '14px 24px' }}>
+                  <button type="button" onClick={() => setStep(2)} className="btn btn-secondary" style={{ flex: 1, padding: '14px 24px' }}>
                     Back
                   </button>
                   <button type="submit" disabled={isLoading} className="btn btn-primary" style={{ flex: 1, padding: '14px 24px' }}>

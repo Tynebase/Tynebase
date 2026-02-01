@@ -7,12 +7,51 @@
 
 import { ChatSource } from '@/lib/api/ai';
 
+export type AIModelOption = 'deepseek-v3' | 'claude-sonnet-4.5' | 'gemini-2.5-flash';
+
+export interface ModelInfo {
+  id: AIModelOption;
+  name: string;
+  provider: string;
+  credits: number;
+  description: string;
+  speed: 'fast' | 'medium' | 'slow';
+}
+
+export const AVAILABLE_MODELS: ModelInfo[] = [
+  {
+    id: 'deepseek-v3',
+    name: 'DeepSeek V3',
+    provider: 'AWS Bedrock',
+    credits: 1,
+    description: 'Fast & economical for most tasks',
+    speed: 'fast',
+  },
+  {
+    id: 'gemini-2.5-flash',
+    name: 'Gemini 2.5 Flash',
+    provider: 'Google Vertex',
+    credits: 2,
+    description: 'Balanced performance and quality',
+    speed: 'medium',
+  },
+  {
+    id: 'claude-sonnet-4.5',
+    name: 'Claude Sonnet 4.5',
+    provider: 'AWS Bedrock',
+    credits: 5,
+    description: 'Highest quality, complex reasoning',
+    speed: 'slow',
+  },
+];
+
 export interface StoredMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   sources?: ChatSource[];
   timestamp: Date;
+  model?: AIModelOption;
 }
 
 export interface Conversation {
@@ -21,6 +60,7 @@ export interface Conversation {
   messages: StoredMessage[];
   createdAt: Date;
   updatedAt: Date;
+  model?: AIModelOption;
 }
 
 const STORAGE_KEY = 'tynebase_conversations';
@@ -151,6 +191,29 @@ export function getRecentMessages(conversationId: string, count: number = 20): S
   if (!conversation) return [];
   
   return conversation.messages.slice(-count);
+}
+
+/**
+ * Replace all messages in a conversation (used for editing/regenerating)
+ */
+export function replaceMessages(conversationId: string, messages: StoredMessage[]): void {
+  const conversations = getConversations();
+  const conversation = conversations.find(conv => conv.id === conversationId);
+  
+  if (!conversation) return;
+  
+  conversation.messages = messages;
+  conversation.updatedAt = new Date();
+  
+  // Update title if needed
+  if (messages.length > 0 && conversation.title === 'New Conversation') {
+    const firstUserMsg = messages.find(m => m.role === 'user');
+    if (firstUserMsg) {
+      conversation.title = firstUserMsg.content.slice(0, 50) + (firstUserMsg.content.length > 50 ? '...' : '');
+    }
+  }
+  
+  saveConversations(conversations);
 }
 
 /**

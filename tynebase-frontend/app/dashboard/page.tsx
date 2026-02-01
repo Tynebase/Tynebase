@@ -25,24 +25,61 @@ import {
   CheckCircle,
   AlertCircle,
   FileQuestion,
+  Loader2,
 } from "lucide-react";
-
-const recentDocuments = [
-  { id: 1, title: "Getting Started Guide", state: "Published", views: 234, updated: "2 hours ago" },
-  { id: 2, title: "API Documentation", state: "Draft", views: 0, updated: "5 hours ago" },
-  { id: 3, title: "Best Practices for Teams", state: "Published", views: 156, updated: "1 day ago" },
-  { id: 4, title: "Security Overview", state: "In review", views: 0, updated: "2 days ago" },
-];
-
-const recentActivity = [
-  { id: 1, user: "Sarah Chen", action: "commented on", target: "API Documentation", time: "10 min ago" },
-  { id: 2, user: "Mike Johnson", action: "published", target: "Getting Started Guide", time: "2 hours ago" },
-  { id: 3, user: "Emily Davis", action: "created", target: "New feature request", time: "5 hours ago" },
-];
+import { useEffect, useState } from "react";
+import { getDashboardStats, getRecentDocuments, getRecentActivity, type DashboardStats, type RecentDocument, type RecentActivity } from "@/lib/api/dashboard";
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { branding, subdomain } = useTenant();
+  const { branding, subdomain, tenant } = useTenant();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [recentDocs, setRecentDocs] = useState<RecentDocument[]>([]);
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const [stats, docs, activity] = await Promise.all([
+          getDashboardStats(),
+          getRecentDocuments(),
+          getRecentActivity(),
+        ]);
+        setStats(stats);
+        setRecentDocs(docs.documents);
+        setRecentActivity(activity.activities);
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (seconds < 60) return 'just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+    if (seconds < 604800) return `${Math.floor(seconds / 86400)} days ago`;
+    return date.toLocaleDateString();
+  };
+
+  const getEventAction = (eventType: string) => {
+    switch (eventType) {
+      case 'created': return 'created';
+      case 'updated': return 'updated';
+      case 'published': return 'published';
+      case 'ai_generated': return 'generated with AI';
+      default: return eventType;
+    }
+  };
 
   const getStateColor = (state: string) => {
     switch (state.toLowerCase()) {
@@ -57,7 +94,7 @@ export default function DashboardPage() {
   const isIndividualUser = !subdomain;
   const welcomeTitle = isIndividualUser
     ? `Welcome back, ${user?.full_name || user?.email?.split('@')[0]}!`
-    : `Welcome back to ${branding?.name || 'your workspace'}!`;
+    : `Welcome back to ${tenant?.name || 'your workspace'}!`;
 
   const welcomeSubtitle = isIndividualUser
     ? "Manage your personal knowledge base"
@@ -65,15 +102,15 @@ export default function DashboardPage() {
 
   // Customize stats based on user type
   const quickStats = isIndividualUser ? [
-    { label: "Total documents", value: "24", change: "+3 this week", icon: BookOpen, color: "var(--brand)" },
-    { label: "AI generations", value: "47", change: "12 remaining", icon: Sparkles, color: "var(--accent-purple)" },
-    { label: "Storage Used", value: "2.3GB", change: "5GB free", icon: TrendingUp, color: "var(--accent-blue)" },
-    { label: "Content health", value: "87%", change: "Good", icon: BarChart3, color: "var(--status-success)" },
+    { label: "Total documents", value: stats?.documents.total.toString() || "0", change: `${stats?.documents.published || 0} published`, icon: BookOpen, color: "var(--brand)" },
+    { label: "AI generations", value: stats?.ai.generations.toString() || "0", change: `${stats?.ai.credits_remaining || 0} credits left`, icon: Sparkles, color: "var(--accent-purple)" },
+    { label: "Storage Used", value: stats?.storage.used_mb && stats.storage.used_mb < 1024 ? `${stats.storage.used_mb}MB` : `${stats?.storage.used_gb || 0}GB`, change: stats?.storage.limit_mb && stats.storage.limit_mb < 1024 ? `${stats.storage.limit_mb}MB total` : `${stats?.storage.limit_gb || 5}GB total`, icon: TrendingUp, color: "var(--accent-blue)" },
+    { label: "Content health", value: `${100 - (stats?.storage.percentage || 0)}%`, change: "Good", icon: BarChart3, color: "var(--status-success)" },
   ] : [
-    { label: "Total documents", value: "24", change: "+3 this week", icon: BookOpen, color: "var(--brand)" },
-    { label: "Team members", value: "8", change: "+1 this month", icon: Users, color: "var(--accent-blue)" },
-    { label: "AI generations", value: "47", change: "12 remaining", icon: Sparkles, color: "var(--accent-purple)" },
-    { label: "Content health", value: "87%", change: "Good", icon: BarChart3, color: "var(--status-success)" },
+    { label: "Total documents", value: stats?.documents.total.toString() || "0", change: `${stats?.documents.published || 0} published`, icon: BookOpen, color: "var(--brand)" },
+    { label: "Team members", value: stats?.team.members.toString() || "0", change: "Active users", icon: Users, color: "var(--accent-blue)" },
+    { label: "AI generations", value: stats?.ai.generations.toString() || "0", change: `${stats?.ai.credits_remaining || 0} credits left`, icon: Sparkles, color: "var(--accent-purple)" },
+    { label: "Content health", value: `${100 - (stats?.storage.percentage || 0)}%`, change: "Good", icon: BarChart3, color: "var(--status-success)" },
   ];
 
   return (
@@ -193,7 +230,17 @@ export default function DashboardPage() {
               </Link>
             </CardHeader>
             <div className="flex-1 min-h-0 overflow-auto divide-y divide-[var(--dash-border-subtle)] dashboard-scroll">
-              {recentDocuments.map((doc) => (
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-6 h-6 animate-spin text-[var(--brand)]" />
+                </div>
+              ) : recentDocs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <FileText className="w-12 h-12 text-[var(--dash-text-muted)] mb-3" />
+                  <p className="text-[var(--dash-text-secondary)]">No documents yet</p>
+                  <p className="text-sm text-[var(--dash-text-muted)] mt-1">Create your first document to get started</p>
+                </div>
+              ) : recentDocs.map((doc: RecentDocument) => (
                 <Link
                   key={doc.id}
                   href={`/dashboard/knowledge/${doc.id}`}
@@ -207,18 +254,18 @@ export default function DashboardPage() {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-[var(--dash-text-primary)] truncate">{doc.title}</p>
                       <div className="flex items-center gap-3 mt-1">
-                        <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStateColor(doc.state)}`}>
-                          {doc.state}
+                        <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStateColor(doc.status)}`}>
+                          {doc.status}
                         </span>
                         <span className="text-xs text-[var(--dash-text-muted)] flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          {doc.updated}
+                          {formatTimeAgo(doc.updated_at)}
                         </span>
                       </div>
                     </div>
                     <div className="flex items-center gap-1 text-sm text-[var(--dash-text-muted)]">
-                      <Eye className="w-4 h-4" />
-                      {doc.views}
+                      <Clock className="w-4 h-4" />
+                      {formatTimeAgo(doc.updated_at)}
                     </div>
                   </div>
 
@@ -230,12 +277,12 @@ export default function DashboardPage() {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-[var(--dash-text-primary)] text-sm mb-1 line-clamp-2">{doc.title}</p>
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className={`px-2 py-0.5 text-[10px] font-medium rounded-full ${getStateColor(doc.state)}`}>
-                          {doc.state}
+                        <span className={`px-2 py-0.5 text-[10px] font-medium rounded-full ${getStateColor(doc.status)}`}>
+                          {doc.status}
                         </span>
                         <span className="text-[10px] text-[var(--dash-text-muted)] flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          {doc.updated}
+                          {formatTimeAgo(doc.updated_at)}
                         </span>
                       </div>
                     </div>
@@ -252,18 +299,27 @@ export default function DashboardPage() {
               <CardDescription>Team updates</CardDescription>
             </CardHeader>
             <div className="flex-1 min-h-0 overflow-auto p-6 space-y-4 dashboard-scroll">
-              {recentActivity.map((activity) => (
+              {isLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-[var(--brand)]" />
+                </div>
+              ) : recentActivity.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <Clock className="w-10 h-10 text-[var(--dash-text-muted)] mb-2" />
+                  <p className="text-sm text-[var(--dash-text-secondary)]">No recent activity</p>
+                </div>
+              ) : recentActivity.map((activity: RecentActivity) => (
                 <div key={activity.id} className="flex gap-3">
                   <div className="w-8 h-8 rounded-full bg-[var(--brand-primary-muted)] flex items-center justify-center text-[var(--brand)] font-semibold text-xs flex-shrink-0">
-                    {activity.user.split(" ").map(n => n[0]).join("")}
+                    {(activity.users.full_name || activity.users.email).split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-[var(--dash-text-secondary)]">
-                      <span className="font-medium text-[var(--dash-text-primary)]">{activity.user}</span>
-                      {" "}{activity.action}{" "}
-                      <span className="font-medium text-[var(--dash-text-primary)]">{activity.target}</span>
+                      <span className="font-medium text-[var(--dash-text-primary)]">{activity.users.full_name || activity.users.email}</span>
+                      {" "}{getEventAction(activity.event_type)}{" "}
+                      <span className="font-medium text-[var(--dash-text-primary)]">{activity.documents.title}</span>
                     </p>
-                    <p className="text-xs text-[var(--dash-text-muted)] mt-0.5">{activity.time}</p>
+                    <p className="text-xs text-[var(--dash-text-muted)] mt-0.5">{formatTimeAgo(activity.created_at)}</p>
                   </div>
                 </div>
               ))}
@@ -277,50 +333,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Content Health Summary */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-6 space-y-0">
-          <div>
-            <CardTitle className="text-base">Content Health Summary</CardTitle>
-            <CardDescription>Quick overview of your knowledge base</CardDescription>
-          </div>
-          <Link href="/dashboard/audit" className="text-sm text-[var(--brand)] hover:underline">
-            View full audit
-          </Link>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-5">
-            <div className="flex items-center gap-3 p-4 rounded-lg bg-[var(--status-success-bg)]">
-              <CheckCircle className="w-5 h-5 text-[var(--status-success)]" />
-              <div>
-                <p className="text-lg font-bold text-[var(--status-success)]">18</p>
-                <p className="text-xs text-[var(--status-success)]">Up to date</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-4 rounded-lg bg-[var(--status-warning-bg)]">
-              <AlertCircle className="w-5 h-5 text-[var(--status-warning)]" />
-              <div>
-                <p className="text-lg font-bold text-[var(--status-warning)]">4</p>
-                <p className="text-xs text-[var(--status-warning)]">Needs review</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-4 rounded-lg bg-[var(--status-error-bg)]">
-              <Clock className="w-5 h-5 text-[var(--status-error)]" />
-              <div>
-                <p className="text-lg font-bold text-[var(--status-error)]">2</p>
-                <p className="text-xs text-[var(--status-error)]">Outdated</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-4 rounded-lg bg-[var(--status-info-bg)]">
-              <FileQuestion className="w-5 h-5 text-[var(--status-info)]" />
-              <div>
-                <p className="text-lg font-bold text-[var(--status-info)]">3</p>
-                <p className="text-xs text-[var(--status-info)]">Missing info</p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

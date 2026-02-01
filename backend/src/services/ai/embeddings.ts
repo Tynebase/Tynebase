@@ -14,20 +14,31 @@ import {
   BedrockRuntimeClient,
   InvokeModelCommand,
 } from '@aws-sdk/client-bedrock-runtime';
+import {
+  BedrockAgentRuntimeClient,
+  RerankCommand,
+} from '@aws-sdk/client-bedrock-agent-runtime';
 
 /**
- * Bedrock client configured for EU region
+ * Bedrock clients configured for specific regions
  */
-let bedrockClient: BedrockRuntimeClient | null = null;
+const clients = new Map<string, BedrockRuntimeClient>();
+const agentClients = new Map<string, BedrockAgentRuntimeClient>();
 
 /**
- * Cohere model IDs in Bedrock
+ * Cohere model and region configuration
  */
-const COHERE_EMBED_MODEL_ID = 'cohere.embed-english-v3';
-const COHERE_RERANK_MODEL_ID = 'cohere.rerank-english-v3';
+const EMBED_MODEL_ID = process.env.BEDROCK_EMBED_MODEL_ID || 'cohere.embed-v4:0';
+const EMBED_REGION = process.env.BEDROCK_EMBED_REGION || 'eu-west-1';
+
+const SEARCH_MODEL_ID = process.env.BEDROCK_SEARCH_MODEL_ID || 'cohere.embed-v4:0';
+const SEARCH_REGION = process.env.BEDROCK_SEARCH_REGION || 'eu-west-1';
+
+const RERANK_MODEL_ID = process.env.BEDROCK_RERANK_MODEL_ID || 'cohere.rerank-v3-5:0';
+const RERANK_REGION = process.env.BEDROCK_RERANK_REGION || 'eu-central-1';
 
 /**
- * Embedding dimensions for Cohere Embed v4.0
+ * Embedding dimensions for Cohere Embed v4
  */
 export const EMBEDDING_DIMENSIONS = 1536;
 
@@ -37,55 +48,70 @@ export const EMBEDDING_DIMENSIONS = 1536;
 const RERANK_TIMEOUT_MS = 2000;
 
 /**
- * Initializes the Bedrock client with EU region
- * Uses AWS Bedrock API key from environment
- * @throws Error if AWS credentials are not configured
+ * Gets or creates a Bedrock Runtime client for a specific region
  */
-function getBedrockClient(): BedrockRuntimeClient {
-  if (!bedrockClient) {
-    const apiKey = process.env.AWS_BEDROCK_API_KEY;
-    const region = process.env.AWS_REGION || 'eu-west-2';
+function getBedrockClient(region: string): BedrockRuntimeClient {
+  if (!clients.has(region)) {
+    const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
     
-    if (!apiKey) {
-      throw new Error('AWS_BEDROCK_API_KEY environment variable must be set');
+    if (!accessKeyId || !secretAccessKey) {
+      throw new Error('AWS credentials must be set');
     }
 
-    bedrockClient = new BedrockRuntimeClient({
+    clients.set(region, new BedrockRuntimeClient({
       region,
-      credentials: {
-        accessKeyId: apiKey,
-        secretAccessKey: apiKey,
-      },
+      credentials: { accessKeyId, secretAccessKey },
       maxAttempts: 3,
-    });
+    }));
   }
-  return bedrockClient;
+  return clients.get(region)!;
 }
 
 /**
- * Generates embeddings for text using Cohere Embed v4.0 via AWS Bedrock
- * Used for RAG (Retrieval-Augmented Generation) pipeline
- * 
- * @param text - Text to embed
- * @param inputType - Type of input: 'search_document' for indexing, 'search_query' for querying
- * @returns Array of embedding values (1536 dimensions)
+ * Gets or creates a Bedrock Agent Runtime client for a specific region
+ */
+function getAgentRuntimeClient(region: string): BedrockAgentRuntimeClient {
+  if (!agentClients.has(region)) {
+    const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+    
+    if (!accessKeyId || !secretAccessKey) {
+      throw new Error('AWS credentials must be set');
+    }
+
+    agentClients.set(region, new BedrockAgentRuntimeClient({
+      region,
+      credentials: { accessKeyId, secretAccessKey },
+      maxAttempts: 3,
+    }));
+  }
+  return agentClients.get(region)!;
+}
+
+/**
+ * Generates embeddings for text (Optimized for Search/Query)
+ * Uses London region + Global profile for best performance
  */
 export async function generateEmbedding(
   text: string,
-  inputType: 'search_document' | 'search_query' = 'search_document'
+  inputType: 'search_document' | 'search_query' = 'search_query'
 ): Promise<number[]> {
-  const client = getBedrockClient();
+  const client = getBedrockClient(SEARCH_REGION);
 
   try {
     const payload = {
       texts: [text],
       input_type: inputType,
       embedding_types: ['float'],
-      truncate: 'END',
+      output_dimension: EMBEDDING_DIMENSIONS,
+      truncate: 'RIGHT',
     };
 
+    console.log(`[Bedrock] Generating embedding (Search) with model ${SEARCH_MODEL_ID} in ${SEARCH_REGION}`);
+
     const command = new InvokeModelCommand({
-      modelId: COHERE_EMBED_MODEL_ID,
+      modelId: SEARCH_MODEL_ID,
       contentType: 'application/json',
       accept: 'application/json',
       body: JSON.stringify(payload),
@@ -94,58 +120,29 @@ export async function generateEmbedding(
     const response = await client.send(command);
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
     
-    if (!responseBody.embeddings || !responseBody.embeddings.float || !responseBody.embeddings.float[0]) {
+    if (!responseBody.embeddings?.float?.[0]) {
       throw new Error('Invalid response format from Cohere Embed API');
     }
 
     return responseBody.embeddings.float[0];
   } catch (error: any) {
-    if (error?.name === 'ThrottlingException' || error?.$metadata?.httpStatusCode === 429) {
-      throw new Error('Cohere Bedrock rate limit exceeded. Please try again later.');
-    }
-
-    if (error?.name === 'TimeoutError' || error?.message?.includes('timeout')) {
-      throw new Error('Cohere Bedrock request timed out');
-    }
-
-    if (error?.name === 'UnauthorizedException' || error?.$metadata?.httpStatusCode === 401) {
-      throw new Error('AWS Bedrock API credentials are invalid or expired');
-    }
-
-    if (error?.name === 'AccessDeniedException' || error?.$metadata?.httpStatusCode === 403) {
-      throw new Error('AWS Bedrock API credentials do not have permission to invoke Cohere Embed model');
-    }
-
-    if (error?.name === 'ResourceNotFoundException' || error?.$metadata?.httpStatusCode === 404) {
-      throw new Error('Cohere Embed model not found or not enabled in eu-west-2 region');
-    }
-
-    if (error?.name === 'ValidationException' || error?.$metadata?.httpStatusCode === 400) {
-      throw new Error(`Invalid request to Cohere Embed: ${error?.message || 'Unknown validation error'}`);
-    }
-
-    throw new Error(
-      `Cohere Embed API error: ${error?.message || 'Unknown error'}`
-    );
+    handleBedrockError(error, 'Embedding');
+    throw error;
   }
 }
 
 /**
- * Batch generates embeddings for multiple texts
- * More efficient than calling generateEmbedding multiple times
- * 
- * @param texts - Array of texts to embed (max 96 for Cohere)
- * @param inputType - Type of input: 'search_document' for indexing, 'search_query' for querying
- * @returns Array of embedding arrays
+ * Batch generates embeddings (Optimized for Indexing)
+ * Uses Ireland region + Regional ID for batch support
  */
 export async function generateEmbeddingsBatch(
   texts: string[],
   inputType: 'search_document' | 'search_query' = 'search_document'
 ): Promise<number[][]> {
-  const client = getBedrockClient();
+  const client = getBedrockClient(EMBED_REGION);
 
   if (texts.length > 96) {
-    throw new Error('Maximum 96 texts allowed per batch for Cohere Embed');
+    throw new Error('Maximum 96 texts allowed per batch');
   }
 
   try {
@@ -153,11 +150,14 @@ export async function generateEmbeddingsBatch(
       texts,
       input_type: inputType,
       embedding_types: ['float'],
-      truncate: 'END',
+      output_dimension: EMBEDDING_DIMENSIONS,
+      truncate: 'RIGHT',
     };
 
+    console.log(`[Bedrock] Generating batch embeddings (${texts.length}) with model ${EMBED_MODEL_ID} in ${EMBED_REGION}`);
+
     const command = new InvokeModelCommand({
-      modelId: COHERE_EMBED_MODEL_ID,
+      modelId: EMBED_MODEL_ID,
       contentType: 'application/json',
       accept: 'application/json',
       body: JSON.stringify(payload),
@@ -166,47 +166,39 @@ export async function generateEmbeddingsBatch(
     const response = await client.send(command);
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
     
-    if (!responseBody.embeddings || !responseBody.embeddings.float) {
+    if (!responseBody.embeddings?.float) {
       throw new Error('Invalid response format from Cohere Embed API');
     }
 
     return responseBody.embeddings.float;
   } catch (error: any) {
-    if (error?.name === 'ThrottlingException' || error?.$metadata?.httpStatusCode === 429) {
-      throw new Error('Cohere Bedrock rate limit exceeded for batch embeddings. Please try again later.');
-    }
+    handleBedrockError(error, 'Batch embedding');
+    throw error;
+  }
+}
 
-    if (error?.name === 'TimeoutError' || error?.message?.includes('timeout')) {
-      throw new Error('Cohere Bedrock batch request timed out');
-    }
-
-    if (error?.name === 'UnauthorizedException' || error?.$metadata?.httpStatusCode === 401) {
-      throw new Error('AWS Bedrock API credentials are invalid or expired');
-    }
-
-    if (error?.name === 'AccessDeniedException' || error?.$metadata?.httpStatusCode === 403) {
-      throw new Error('AWS Bedrock API credentials do not have permission to invoke Cohere Embed model');
-    }
-
-    if (error?.name === 'ResourceNotFoundException' || error?.$metadata?.httpStatusCode === 404) {
-      throw new Error('Cohere Embed model not found or not enabled in eu-west-2 region');
-    }
-
-    if (error?.name === 'ValidationException' || error?.$metadata?.httpStatusCode === 400) {
-      throw new Error(`Invalid batch request to Cohere Embed: ${error?.message || 'Unknown validation error'}`);
-    }
-
-    throw new Error(
-      `Cohere Embed batch API error: ${error?.message || 'Unknown error'}`
-    );
+/**
+ * Handles and normalizes Bedrock service errors
+ */
+function handleBedrockError(error: any, operation: string): void {
+  const name = error?.name || error?.constructor?.name;
+  const statusCode = error?.$metadata?.httpStatusCode;
+  
+  if (name === 'ThrottlingException' || statusCode === 429) {
+    console.error(`[Bedrock] ${operation} rate limit exceeded`);
+    error.message = 'Bedrock rate limit exceeded. Please try again later.';
+  } else if (name === 'AccessDeniedException' || statusCode === 403) {
+    console.error(`[Bedrock] ${operation} access denied (check IAM and Model Access in Console)`);
+    error.message = 'AWS Bedrock permission denied for this model/region.';
+  } else if (name === 'ValidationException' || statusCode === 400) {
+    console.error(`[Bedrock] ${operation} validation failed: ${error.message}`);
+  } else {
+    console.error(`[Bedrock] ${operation} failed: ${error.message}`);
   }
 }
 
 /**
  * Wraps a promise with a timeout
- * @param promise - Promise to wrap
- * @param timeoutMs - Timeout in milliseconds
- * @returns Promise that rejects if timeout is exceeded
  */
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return Promise.race([
@@ -235,75 +227,58 @@ export interface RerankResult {
 }
 
 /**
- * Reranks search results using Cohere Rerank v3.5 via AWS Bedrock
- * Improves search quality by reordering results based on relevance to query
- * 
- * @param query - Search query
- * @param documents - Array of documents to rerank
- * @param topN - Number of top results to return (default: all)
- * @returns Array of reranked results with relevance scores
+ * Reranks documents using Cohere Rerank 3.5
+ * Uses Frankfurt region as required
  */
 export async function rerankDocuments(
   query: string,
   documents: RerankDocument[],
   topN?: number
 ): Promise<RerankResult[]> {
-  const client = getBedrockClient();
+  const client = getAgentRuntimeClient(RERANK_REGION);
 
   try {
-    const payload = {
-      query,
-      documents: documents.map(doc => doc.text),
-      top_n: topN || documents.length,
-      return_documents: false,
-    };
-
-    const command = new InvokeModelCommand({
-      modelId: COHERE_RERANK_MODEL_ID,
-      contentType: 'application/json',
-      accept: 'application/json',
-      body: JSON.stringify(payload),
+    console.log(`[Bedrock] Reranking with model ${RERANK_MODEL_ID} in ${RERANK_REGION}`);
+    
+    const command = new RerankCommand({
+      queries: [
+        {
+          type: 'TEXT',
+          textQuery: { text: query },
+        },
+      ],
+      sources: documents.map(doc => ({
+        type: 'INLINE',
+        inlineDocumentSource: {
+          type: 'TEXT',
+          textDocument: { text: doc.text },
+        },
+      })),
+      rerankingConfiguration: {
+        type: 'BEDROCK_RERANKING_MODEL',
+        bedrockRerankingConfiguration: {
+          numberOfResults: topN || documents.length,
+          modelConfiguration: {
+            modelArn: RERANK_MODEL_ID,
+          },
+        },
+      },
     });
 
     const response = await withTimeout(client.send(command), RERANK_TIMEOUT_MS);
-    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
     
-    if (!responseBody.results || !Array.isArray(responseBody.results)) {
+    if (!response.results) {
       throw new Error('Invalid response format from Cohere Rerank API');
     }
 
-    return responseBody.results.map((result: any) => ({
+    return response.results.map((result: any) => ({
       index: result.index,
-      relevanceScore: result.relevance_score,
+      relevanceScore: result.relevanceScore,
       document: documents[result.index],
     }));
   } catch (error: any) {
-    if (error?.name === 'ThrottlingException' || error?.$metadata?.httpStatusCode === 429) {
-      throw new Error('Cohere Bedrock rate limit exceeded for reranking. Please try again later.');
-    }
-
-    if (error?.name === 'TimeoutError' || error?.message?.includes('timeout')) {
-      throw new Error('Cohere Bedrock rerank request timed out');
-    }
-
-    if (error?.name === 'UnauthorizedException' || error?.$metadata?.httpStatusCode === 401) {
-      throw new Error('AWS Bedrock API credentials are invalid or expired');
-    }
-
-    if (error?.name === 'AccessDeniedException' || error?.$metadata?.httpStatusCode === 403) {
-      throw new Error('AWS Bedrock API credentials do not have permission to invoke Cohere Rerank model');
-    }
-
-    if (error?.name === 'ResourceNotFoundException' || error?.$metadata?.httpStatusCode === 404) {
-      throw new Error('Cohere Rerank model not found or not enabled in eu-west-2 region');
-    }
-
-    if (error?.name === 'ValidationException' || error?.$metadata?.httpStatusCode === 400) {
-      throw new Error(`Invalid request to Cohere Rerank: ${error?.message || 'Unknown validation error'}`);
-    }
-
-    throw new Error(
-      `Cohere Rerank API error: ${error?.message || 'Unknown error'}`
-    );
+    console.error(`[Bedrock] Rerank failed: ${error.message}`);
+    throw error;
   }
 }
+

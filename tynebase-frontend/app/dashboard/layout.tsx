@@ -2,6 +2,7 @@
 
 import { DashboardLayout as DashLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/contexts/AuthContext";
+import { CreditsProvider } from "@/contexts/CreditsContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -34,5 +35,9 @@ export default function DashboardLayout({
     return null;
   }
 
-  return <DashLayout>{children}</DashLayout>;
+  return (
+    <CreditsProvider>
+      <DashLayout>{children}</DashLayout>
+    </CreditsProvider>
+  );
 }

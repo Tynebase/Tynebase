@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { listUsers, User } from "@/lib/api/users";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Modal, ModalFooter } from "@/components/ui/Modal";
@@ -21,69 +22,6 @@ import {
   Send
 } from "lucide-react";
 
-// Mock team data
-const teamMembers = [
-  {
-    id: 1,
-    name: "Daniel G",
-    email: "support@tynebase.com",
-    role: "SEO",
-    status: "active",
-    avatar: null,
-    lastActive: "Just now",
-    documents: 45,
-    joinedAt: "Jan 2024"
-  },
-  {
-    id: 2,
-    name: "Mai",
-    email: "ennersmai@gmail.com",
-    role: "CEO",
-    status: "active",
-    avatar: null,
-    lastActive: "2 hours ago",
-    documents: 28,
-    joinedAt: "Mar 2024"
-  },
-  {
-    id: 3,
-    name: "Emily Davis",
-    email: "emily@company.com",
-    role: "Contributor",
-    status: "active",
-    avatar: null,
-    lastActive: "Yesterday",
-    documents: 12,
-    joinedAt: "Jun 2024"
-  },
-  {
-    id: 4,
-    name: "Mike Johnson",
-    email: "mike@company.com",
-    role: "Viewer",
-    status: "active",
-    avatar: null,
-    lastActive: "3 days ago",
-    documents: 0,
-    joinedAt: "Sep 2024"
-  },
-  {
-    id: 5,
-    name: "Lisa Wang",
-    email: "lisa@company.com",
-    role: "Editor",
-    status: "pending",
-    avatar: null,
-    lastActive: "Never",
-    documents: 0,
-    joinedAt: "Invited"
-  },
-];
-
-const pendingInvites = [
-  { id: 1, email: "alex@company.com", role: "Contributor", invitedAt: "2 days ago", invitedBy: "Sarah Chen" },
-  { id: 2, email: "jordan@company.com", role: "Viewer", invitedAt: "5 days ago", invitedBy: "John Smith" },
-];
 
 const roleColors: Record<string, string> = {
   Admin: "bg-purple-500/10 text-purple-600",
@@ -265,24 +203,43 @@ export default function UsersPage() {
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState("Contributor");
+  const [inviteRole, setInviteRole] = useState("member");
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredMembers = teamMembers.filter((member) => {
+  useEffect(() => {
+    async function fetchUsers() {
+      try {
+        setLoading(true);
+        const response = await listUsers();
+        setUsers(response.users);
+      } catch (err: any) {
+        console.error('Failed to fetch users:', err);
+        setError(err.message || 'Failed to load users');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchUsers();
+  }, []);
+
+  const filteredMembers = users.filter((user) => {
     const matchesSearch =
-      member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = roleFilter === "all" || member.role === roleFilter;
+      (user.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesRole = roleFilter === "all" || user.role === roleFilter;
     return matchesSearch && matchesRole;
   });
 
-  const activeCount = teamMembers.filter(m => m.status === "active").length;
-  const pendingCount = teamMembers.filter(m => m.status === "pending").length + pendingInvites.length;
+  const activeCount = users.filter(u => u.status === "active").length;
+  const suspendedCount = users.filter(u => u.status === "suspended").length;
 
   return (
     <div className="w-full h-full min-h-0 flex flex-col gap-8">
       <UsersPageHeader onInvite={() => setShowInviteModal(true)} />
 
-      <UsersStats totalCount={teamMembers.length} activeCount={activeCount} pendingCount={pendingCount} />
+      <UsersStats totalCount={users.length} activeCount={activeCount} pendingCount={suspendedCount} />
 
       <UsersFiltersBar
         searchQuery={searchQuery}
@@ -299,13 +256,13 @@ export default function UsersPage() {
               className="flex flex-col gap-4 px-5 py-4 sm:px-6 sm:flex-row sm:items-center sm:justify-between hover:bg-[var(--surface-ground)] transition-colors"
             >
               <div className="flex items-center gap-4 min-w-0">
-                <Avatar alt={member.name} size="md" />
+                <Avatar alt={member.full_name || member.email} size="md" />
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 min-w-0">
-                    <p className="font-medium text-[var(--text-primary)] truncate">{member.name}</p>
-                    {member.status === "pending" && (
-                      <span className="px-2 py-0.5 text-xs bg-amber-500/10 text-amber-600 rounded-full flex-shrink-0">
-                        Pending
+                    <p className="font-medium text-[var(--text-primary)] truncate">{member.full_name || member.email.split('@')[0]}</p>
+                    {member.status === "suspended" && (
+                      <span className="px-2 py-0.5 text-xs bg-red-500/10 text-red-600 rounded-full flex-shrink-0">
+                        Suspended
                       </span>
                     )}
                   </div>
@@ -321,11 +278,11 @@ export default function UsersPage() {
                 </div>
                 <div className="flex items-center gap-6">
                   <div className="text-left sm:text-right w-24">
-                    <p className="text-sm text-[var(--text-primary)]">{member.documents}</p>
+                    <p className="text-sm text-[var(--text-primary)]">{member.documents_count}</p>
                     <p className="text-xs text-[var(--text-tertiary)]">documents</p>
                   </div>
                   <div className="text-left sm:text-right w-28">
-                    <p className="text-sm text-[var(--text-secondary)]">{member.lastActive}</p>
+                    <p className="text-sm text-[var(--text-secondary)]">{member.last_active_at ? new Date(member.last_active_at).toLocaleDateString() : 'Never'}</p>
                     <p className="text-xs text-[var(--text-tertiary)]">Last active</p>
                   </div>
                 </div>
@@ -345,47 +302,6 @@ export default function UsersPage() {
           ))}
         </MembersCard>
 
-        {pendingInvites.length > 0 && (
-          <PendingInvitesCard>
-            {pendingInvites.map((invite) => (
-              <div
-                key={invite.id}
-                className="flex flex-col gap-4 px-5 py-4 sm:px-6 sm:flex-row sm:items-center sm:justify-between hover:bg-[var(--surface-ground)] transition-colors"
-              >
-                <div className="flex items-center gap-4 min-w-0">
-                  <div className="w-10 h-10 rounded-full bg-[var(--surface-ground)] flex items-center justify-center flex-shrink-0">
-                    <Mail className="w-5 h-5 text-[var(--text-tertiary)]" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-medium text-[var(--text-primary)] truncate">{invite.email}</p>
-                    <p className="text-sm text-[var(--text-tertiary)] truncate">
-                      Invited by {invite.invitedBy} • {invite.invitedAt}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4 justify-between sm:justify-end">
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleBadgeClass(invite.role)}`}>
-                    {invite.role}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon-sm" title="Resend invite">
-                      <Send className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      title="Cancel invite"
-                      className="text-red-500 hover:text-red-600"
-                    >
-                      <XCircle className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </PendingInvitesCard>
-        )}
       </div>
 
       <Modal

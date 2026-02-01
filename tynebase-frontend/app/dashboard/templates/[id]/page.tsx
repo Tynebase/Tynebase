@@ -23,7 +23,7 @@ export default function TemplateDetailPage() {
       setSuccess(false);
 
       const response = await useTemplate(templateId);
-      const documentId = response.data.document.id;
+      const documentId = response.document.id;
 
       setSuccess(true);
       

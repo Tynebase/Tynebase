@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   FileEdit,
@@ -9,76 +9,174 @@ import {
   Trash2,
   Send,
   ArrowUpRight,
+  Loader2,
 } from "lucide-react";
+import { listDocuments, deleteDocument, updateDocument, Document } from "@/lib/api/documents";
+import { listCategories, Category } from "@/lib/api/folders";
+import { Modal, ModalFooter } from "@/components/ui/Modal";
 
 interface Draft {
-  id: number;
+  id: string;
   title: string;
   excerpt: string;
   category: string;
   createdAt: string;
   lastEdited: string;
+  createdAtRaw: string;
+  lastEditedRaw: string;
   wordCount: number;
   completeness: number;
 }
 
-const drafts: Draft[] = [
-  {
-    id: 1,
-    title: "Advanced API Rate Limiting",
-    excerpt: "Documentation covering rate limiting strategies, best practices, and implementation details for high-traffic applications...",
-    category: "API Docs",
-    createdAt: "3 days ago",
-    lastEdited: "2 hours ago",
-    wordCount: 1247,
-    completeness: 75,
-  },
-  {
-    id: 2,
-    title: "Team Onboarding Checklist",
-    excerpt: "A comprehensive checklist for new team members including account setup, permissions, and first-day tasks...",
-    category: "Onboarding",
-    createdAt: "1 week ago",
-    lastEdited: "Yesterday",
-    wordCount: 856,
-    completeness: 60,
-  },
-  {
-    id: 3,
-    title: "Security Incident Response",
-    excerpt: "Procedures and protocols for responding to security incidents, including escalation paths and communication templates...",
-    category: "Security",
-    createdAt: "2 weeks ago",
-    lastEdited: "3 days ago",
-    wordCount: 2134,
-    completeness: 90,
-  },
-  {
-    id: 4,
-    title: "Webhook Integration Guide",
-    excerpt: "Step-by-step guide for setting up webhooks, including payload formats, authentication, and error handling...",
-    category: "Integrations",
-    createdAt: "5 days ago",
-    lastEdited: "4 days ago",
-    wordCount: 543,
-    completeness: 35,
-  },
-  {
-    id: 5,
-    title: "Data Export Documentation",
-    excerpt: "How to export your data from TyneBase in various formats including CSV, JSON, and PDF...",
-    category: "Admin",
-    createdAt: "1 day ago",
-    lastEdited: "1 day ago",
-    wordCount: 312,
-    completeness: 20,
-  },
-];
+function formatRelativeTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins} minutes ago`;
+  if (diffHours < 24) return `${diffHours} hours ago`;
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+  return date.toLocaleDateString();
+}
+
+function calculateWordCount(content: string): number {
+  const text = content.replace(/<[^>]*>/g, ' ').trim();
+  if (!text) return 0;
+  return text.split(/\s+/).filter(Boolean).length;
+}
+
+function calculateCompleteness(doc: Document): number {
+  let score = 0;
+  if (doc.title && doc.title !== "Untitled Document") score += 30;
+  const wordCount = calculateWordCount(doc.content || "");
+  if (wordCount > 50) score += 20;
+  if (wordCount > 200) score += 20;
+  if (wordCount > 500) score += 15;
+  if (doc.content && doc.content.length > 100) score += 15;
+  return Math.min(score, 100);
+}
+
+function documentToDraft(doc: Document): Draft {
+  const content = doc.content || "";
+  const plainText = content.replace(/<[^>]*>/g, ' ').trim();
+  const excerpt = plainText.length > 150 ? plainText.substring(0, 150) + "..." : plainText || "No content yet";
+  
+  return {
+    id: doc.id,
+    title: doc.title || "Untitled Document",
+    excerpt,
+    category: "Uncategorized",
+    createdAt: formatRelativeTime(doc.created_at),
+    lastEdited: formatRelativeTime(doc.updated_at),
+    createdAtRaw: doc.created_at,
+    lastEditedRaw: doc.updated_at,
+    wordCount: calculateWordCount(content),
+    completeness: calculateCompleteness(doc),
+  };
+}
 
 export default function DraftsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"recent" | "oldest" | "completeness">("recent");
-  const [selectedDrafts, setSelectedDrafts] = useState<number[]>([]);
+  const [selectedDrafts, setSelectedDrafts] = useState<string[]>([]);
+  const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [moveCategoryModalOpen, setMoveCategoryModalOpen] = useState(false);
+  const [selectedCategoryForMove, setSelectedCategoryForMove] = useState<string | null>(null);
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    async function fetchDrafts() {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const response = await listDocuments({ status: 'draft' });
+        const mappedDrafts = response.documents.map(documentToDraft);
+        setDrafts(mappedDrafts);
+      } catch (err) {
+        console.error('Failed to fetch drafts:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load drafts');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchDrafts();
+  }, []);
+
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        setLoadingCategories(true);
+        const response = await listCategories({ limit: 50 });
+        setCategories(response.categories);
+      } catch (err) {
+        console.error('Failed to fetch categories:', err);
+      } finally {
+        setLoadingCategories(false);
+      }
+    }
+    fetchCategories();
+  }, []);
+
+  const handleDeleteDraft = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this draft?')) return;
+    try {
+      await deleteDocument(id);
+      setDrafts(prev => prev.filter(d => d.id !== id));
+      setSelectedDrafts(prev => prev.filter(i => i !== id));
+    } catch (err) {
+      console.error('Failed to delete draft:', err);
+      alert('Failed to delete draft');
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    try {
+      setDeleting(true);
+      await Promise.all(selectedDrafts.map(id => deleteDocument(id)));
+      setDrafts(prev => prev.filter(d => !selectedDrafts.includes(d.id)));
+      setSelectedDrafts([]);
+      setDeleteModalOpen(false);
+    } catch (err) {
+      console.error('Failed to delete drafts:', err);
+      alert('Failed to delete some drafts');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleBulkMoveCategory = async () => {
+    if (!selectedCategoryForMove || selectedDrafts.length === 0) return;
+    
+    try {
+      setBulkActionLoading(true);
+      const promises = selectedDrafts.map(id =>
+        updateDocument(id, { category_id: selectedCategoryForMove === 'none' ? null : selectedCategoryForMove })
+      );
+      await Promise.all(promises);
+      
+      setMoveCategoryModalOpen(false);
+      setSelectedCategoryForMove(null);
+      setSelectedDrafts([]);
+    } catch (err) {
+      console.error('Failed to move drafts to category:', err);
+      alert('Failed to move some drafts');
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
 
   const filteredDrafts = drafts.filter(draft =>
     draft.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -87,10 +185,14 @@ export default function DraftsPage() {
 
   const sortedDrafts = [...filteredDrafts].sort((a, b) => {
     if (sortBy === "completeness") return b.completeness - a.completeness;
-    return 0;
+    if (sortBy === "oldest") {
+      return new Date(a.createdAtRaw).getTime() - new Date(b.createdAtRaw).getTime();
+    }
+    // Default: most recent (sort by lastEditedRaw descending)
+    return new Date(b.lastEditedRaw).getTime() - new Date(a.lastEditedRaw).getTime();
   });
 
-  const toggleSelect = (id: number) => {
+  const toggleSelect = (id: string) => {
     setSelectedDrafts(prev =>
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     );
@@ -189,10 +291,16 @@ export default function DraftsPage() {
             {selectedDrafts.length} selected
           </span>
           <div className="flex-1" />
-          <button className="px-3 py-1.5 text-sm text-[var(--dash-text-secondary)] hover:text-[var(--brand)]">
+          <button 
+            onClick={() => setMoveCategoryModalOpen(true)}
+            className="px-3 py-1.5 text-sm text-[var(--dash-text-secondary)] hover:text-[var(--brand)]"
+          >
             Move to Category
           </button>
-          <button className="px-3 py-1.5 text-sm text-[var(--status-error)] hover:bg-[var(--status-error-bg)] rounded">
+          <button 
+            onClick={() => setDeleteModalOpen(true)}
+            className="px-3 py-1.5 text-sm text-[var(--status-error)] hover:bg-[var(--status-error-bg)] rounded"
+          >
             Delete Selected
           </button>
         </div>
@@ -217,7 +325,23 @@ export default function DraftsPage() {
           </div>
         </div>
 
-        {sortedDrafts.length === 0 ? (
+        {isLoading ? (
+          <div className="flex-1 min-h-0 flex items-center justify-center p-12">
+            <Loader2 className="w-8 h-8 animate-spin text-[var(--brand)]" />
+          </div>
+        ) : error ? (
+          <div className="flex-1 min-h-0 flex items-center justify-center p-12 text-center">
+            <div>
+              <p className="text-[var(--status-error)] mb-4">{error}</p>
+              <button 
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-lg font-medium"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        ) : sortedDrafts.length === 0 ? (
           <div className="flex-1 min-h-0 flex items-center justify-center p-12 text-center">
             <div>
               <FileEdit className="w-12 h-12 mx-auto text-[var(--dash-text-muted)] mb-4" />
@@ -321,6 +445,7 @@ export default function DraftsPage() {
                       <Send className="w-4 h-4" />
                     </button>
                     <button
+                      onClick={() => handleDeleteDraft(draft.id)}
                       className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--status-error)]"
                       title="Delete"
                     >
@@ -333,6 +458,106 @@ export default function DraftsPage() {
           </div>
         )}
       </div>
+
+      {/* Move to Category Modal */}
+      <Modal
+        isOpen={moveCategoryModalOpen}
+        onClose={() => {
+          setMoveCategoryModalOpen(false);
+          setSelectedCategoryForMove(null);
+        }}
+        title="Move to Category"
+        description={`Move ${selectedDrafts.length} draft${selectedDrafts.length !== 1 ? 's' : ''} to a category`}
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-[var(--dash-text-primary)]">Select Category</label>
+            <select
+              value={selectedCategoryForMove || ''}
+              onChange={(e) => setSelectedCategoryForMove(e.target.value || null)}
+              className="w-full px-3 py-2 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
+            >
+              <option value="">Select a category...</option>
+              <option value="none">Remove from category</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        
+        <ModalFooter>
+          <button
+            onClick={() => {
+              setMoveCategoryModalOpen(false);
+              setSelectedCategoryForMove(null);
+            }}
+            disabled={bulkActionLoading}
+            className="px-4 py-2 text-sm font-medium text-[var(--dash-text-secondary)] bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleBulkMoveCategory}
+            disabled={bulkActionLoading || !selectedCategoryForMove}
+            className="px-4 py-2 text-sm font-medium text-white bg-[var(--brand)] rounded-lg hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+          >
+            {bulkActionLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Moving...
+              </>
+            ) : (
+              'Move'
+            )}
+          </button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        title="Delete Drafts"
+        description={`Are you sure you want to delete ${selectedDrafts.length} draft${selectedDrafts.length !== 1 ? 's' : ''}? This action cannot be undone.`}
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="p-4 bg-[var(--status-error-bg)] border border-[var(--status-error)]/20 rounded-lg">
+            <p className="text-sm text-[var(--status-error)]">
+              <strong>Warning:</strong> This will permanently delete {selectedDrafts.length} draft{selectedDrafts.length !== 1 ? 's' : ''} from your knowledge base.
+            </p>
+          </div>
+        </div>
+        
+        <ModalFooter>
+          <button
+            onClick={() => setDeleteModalOpen(false)}
+            disabled={deleting}
+            className="px-4 py-2 text-sm font-medium text-[var(--dash-text-secondary)] bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleDeleteSelected}
+            disabled={deleting}
+            className="px-4 py-2 text-sm font-medium text-white bg-[var(--status-error)] rounded-lg hover:bg-[var(--status-error)]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+          >
+            {deleting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Deleting...
+              </>
+            ) : (
+              <>
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </>
+            )}
+          </button>
+        </ModalFooter>
+      </Modal>
     </div>
   );
 }

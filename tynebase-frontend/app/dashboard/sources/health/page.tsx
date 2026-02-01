@@ -131,8 +131,8 @@ export default function SourcesHealthPage() {
             <CardContent className="p-5">
               <p className="text-sm font-semibold text-[var(--dash-text-primary)]">What this page guarantees</p>
               <div className="mt-3 space-y-2 text-sm text-[var(--dash-text-secondary)]">
-                <p>- Every file is normalized to Markdown (PRD 4.4) before chunking.</p>
-                <p>- Chunking is structure-aware + semantic (PRD 4.5).</p>
+                <p>- Every file is normalized to Markdown before chunking.</p>
+                <p>- Chunking is structure-aware + semantic.</p>
                 <p>- Embeddings + retrieval are measurable and auditable.</p>
               </div>
             </CardContent>

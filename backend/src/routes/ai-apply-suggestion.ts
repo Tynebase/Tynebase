@@ -5,6 +5,7 @@ import { tenantContextMiddleware } from '../middleware/tenantContext';
 import { authMiddleware } from '../middleware/auth';
 import { supabaseAdmin } from '../lib/supabase';
 import { generateText } from '../services/ai/bedrock';
+import { getModelCreditCost } from '../utils/creditCalculator';
 
 const ApplySuggestionRequestSchema = z.object({
   document_id: z.string().uuid('Invalid document ID format'),
@@ -150,7 +151,8 @@ export default async function aiApplySuggestionRoutes(fastify: FastifyInstance) 
         }
 
         const currentMonth = new Date().toISOString().slice(0, 7);
-        const creditsToDeduct = 1;
+        // Apply suggestion uses DeepSeek = 1 credit
+        const creditsToDeduct = getModelCreditCost('deepseek');
 
         const { data: deductResult, error: deductError } = await supabaseAdmin.rpc(
           'deduct_credits',

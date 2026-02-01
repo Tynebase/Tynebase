@@ -8,6 +8,7 @@ import { ingestDocument, reIngestTenantDocuments } from '../services/rag/ingesti
 import { searchDocuments, findSimilarChunks, getEmbeddingStats } from '../services/rag/search';
 import { chatWithRAGStream } from '../services/rag/chat';
 import { supabaseAdmin } from '../lib/supabase';
+import { getModelCreditCost } from '../utils/creditCalculator';
 
 /**
  * Zod schema for POST /api/rag/ingest request body
@@ -47,6 +48,10 @@ const similarChunksQuerySchema = z.object({
  */
 const chatBodySchema = z.object({
   query: z.string().min(1).max(2000),
+  history: z.array(z.object({
+    role: z.enum(['user', 'assistant']),
+    content: z.string(),
+  })).optional().default([]),
   max_context_chunks: z.number().int().min(1).max(20).default(10),
   model: z.string().optional(),
   temperature: z.number().min(0).max(2).default(0.7),
@@ -844,7 +849,7 @@ export default async function ragRoutes(fastify: FastifyInstance) {
         const user = (request as any).user;
 
         const body = chatBodySchema.parse(request.body);
-        const { query, max_context_chunks, model, temperature, stream } = body;
+        const { query, history, max_context_chunks, model, temperature, stream } = body;
 
         // Step 1: Check knowledge_indexing consent
         const { data: consent, error: consentError } = await supabaseAdmin
@@ -853,7 +858,11 @@ export default async function ragRoutes(fastify: FastifyInstance) {
           .eq('user_id', user.id)
           .single();
 
-        if (consentError || !consent || !consent.knowledge_indexing) {
+        // Default to true if no consent record exists (new users)
+        // Only block if consent record exists AND knowledge_indexing is explicitly false
+        const hasConsent = consentError?.code === 'PGRST116' ? true : (consent?.knowledge_indexing ?? true);
+        
+        if (!hasConsent) {
           fastify.log.warn(
             { userId: user.id, tenantId: tenant.id },
             'RAG chat blocked: knowledge_indexing consent not granted'
@@ -869,9 +878,9 @@ export default async function ragRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Step 2: Deduct 1 credit
+        // Step 2: Deduct credits based on model (default: deepseek = 1 credit)
         const currentMonth = new Date().toISOString().slice(0, 7);
-        const creditsToDeduct = 1;
+        const creditsToDeduct = getModelCreditCost(model || 'deepseek');
 
         const { data: deductResult, error: deductError } = await supabaseAdmin.rpc(
           'deduct_credits',
@@ -915,10 +924,15 @@ export default async function ragRoutes(fastify: FastifyInstance) {
 
         // Step 3-7: Execute RAG pipeline with streaming
         if (stream) {
+          // Get origin from request for CORS
+          const origin = request.headers.origin || 'http://localhost:3000';
+          
           reply.raw.writeHead(200, {
             'Content-Type': 'text/event-stream',
             'Cache-Control': 'no-cache',
             'Connection': 'keep-alive',
+            'Access-Control-Allow-Origin': origin,
+            'Access-Control-Allow-Credentials': 'true',
           });
 
           try {
@@ -926,6 +940,7 @@ export default async function ragRoutes(fastify: FastifyInstance) {
               tenantId: tenant.id,
               userId: user.id,
               query,
+              history,
               maxContextChunks: max_context_chunks,
               model,
               temperature,
@@ -990,10 +1005,17 @@ export default async function ragRoutes(fastify: FastifyInstance) {
             reply.raw.write('data: [DONE]\n\n');
             reply.raw.end();
           } catch (streamError: any) {
-            fastify.log.error({ error: streamError }, 'Error during RAG chat streaming');
+            const errorMessage = streamError?.message || streamError?.toString() || 'Unknown streaming error';
+            const errorStack = streamError?.stack || '';
+            fastify.log.error({ 
+              error: errorMessage,
+              stack: errorStack,
+              name: streamError?.name,
+              code: streamError?.code,
+            }, 'Error during RAG chat streaming');
             reply.raw.write(`data: ${JSON.stringify({ 
               type: 'error', 
-              error: streamError.message || 'Streaming failed' 
+              error: errorMessage
             })}\n\n`);
             reply.raw.end();
           }
@@ -1068,6 +1090,319 @@ export default async function ragRoutes(fastify: FastifyInstance) {
         }
 
         fastify.log.error({ error }, 'Unexpected error in POST /api/ai/chat');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
+   * GET /api/sources
+   * Lists all documents for the tenant with their indexing status
+   * 
+   * Query Parameters:
+   * - page (optional): Page number (default: 1)
+   * - limit (optional): Results per page (default: 20, max: 100)
+   * - status (optional): Filter by indexing status ('indexed', 'pending', 'outdated', 'failed')
+   * - search (optional): Search by title
+   * 
+   * Authorization:
+   * - Requires valid JWT
+   * - User must be member of tenant
+   */
+  fastify.get(
+    '/api/sources',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        const querySchema = z.object({
+          page: z.coerce.number().int().min(1).default(1),
+          limit: z.coerce.number().int().min(1).max(100).default(20),
+          status: z.enum(['indexed', 'pending', 'outdated', 'failed']).optional(),
+          search: z.string().optional(),
+        });
+
+        const query = querySchema.parse(request.query);
+        const { page, limit, status, search } = query;
+        const offset = (page - 1) * limit;
+
+        // Build base query for documents
+        let docsQuery = supabaseAdmin
+          .from('documents')
+          .select(`
+            id,
+            title,
+            content,
+            status,
+            created_at,
+            updated_at,
+            last_indexed_at,
+            author_id,
+            users:author_id (
+              id,
+              email,
+              full_name
+            )
+          `, { count: 'exact' })
+          .eq('tenant_id', tenant.id)
+          .order('updated_at', { ascending: false });
+
+        // Apply search filter
+        if (search) {
+          docsQuery = docsQuery.ilike('title', `%${search}%`);
+        }
+
+        // Fetch documents
+        const { data: documents, error: docsError, count } = await docsQuery
+          .range(offset, offset + limit - 1);
+
+        if (docsError) {
+          fastify.log.error(
+            { error: docsError, tenantId: tenant.id },
+            'Failed to fetch documents for sources list'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'QUERY_FAILED',
+              message: 'Failed to retrieve sources',
+              details: {},
+            },
+          });
+        }
+
+        // Get chunk counts for each document
+        const docIds = (documents || []).map((d: any) => d.id);
+        const { data: chunkCounts, error: chunkError } = await supabaseAdmin
+          .from('document_chunks')
+          .select('document_id')
+          .in('document_id', docIds.length > 0 ? docIds : ['00000000-0000-0000-0000-000000000000']);
+
+        const chunkCountMap: Record<string, number> = {};
+        if (!chunkError && chunkCounts) {
+          chunkCounts.forEach((chunk: { document_id: string }) => {
+            chunkCountMap[chunk.document_id] = (chunkCountMap[chunk.document_id] || 0) + 1;
+          });
+        }
+
+        // Get failed job counts
+        const { data: failedJobs, error: failedJobsError } = await supabaseAdmin
+          .from('job_queue')
+          .select('payload')
+          .eq('tenant_id', tenant.id)
+          .eq('type', 'rag_index')
+          .eq('status', 'failed');
+
+        const failedDocIds = new Set<string>();
+        if (!failedJobsError && failedJobs) {
+          failedJobs.forEach((job: { payload: { document_id?: string } }) => {
+            if (job.payload?.document_id) {
+              failedDocIds.add(job.payload.document_id);
+            }
+          });
+        }
+
+        // Transform documents with indexing status
+        const sources = (documents || []).map((doc: any) => {
+          let indexingStatus: 'indexed' | 'pending' | 'outdated' | 'failed' = 'pending';
+          
+          if (failedDocIds.has(doc.id)) {
+            indexingStatus = 'failed';
+          } else if (doc.last_indexed_at) {
+            if (new Date(doc.updated_at) > new Date(doc.last_indexed_at)) {
+              indexingStatus = 'outdated';
+            } else {
+              indexingStatus = 'indexed';
+            }
+          }
+
+          // Detect file type from content or title
+          let fileType: 'pdf' | 'docx' | 'md' | 'unknown' = 'md';
+          const titleLower = doc.title.toLowerCase();
+          if (titleLower.includes('.pdf') || titleLower.includes('(pdf)')) {
+            fileType = 'pdf';
+          } else if (titleLower.includes('.docx') || titleLower.includes('(docx)')) {
+            fileType = 'docx';
+          }
+
+          return {
+            id: doc.id,
+            title: doc.title,
+            file_type: fileType,
+            indexing_status: indexingStatus,
+            chunk_count: chunkCountMap[doc.id] || 0,
+            content_length: doc.content?.length || 0,
+            created_at: doc.created_at,
+            updated_at: doc.updated_at,
+            last_indexed_at: doc.last_indexed_at,
+            author: doc.users,
+          };
+        });
+
+        // Apply status filter (post-query since it's computed)
+        const filteredSources = status
+          ? sources.filter((s: any) => s.indexing_status === status)
+          : sources;
+
+        const totalPages = Math.ceil((count || 0) / limit);
+
+        fastify.log.info(
+          {
+            tenantId: tenant.id,
+            userId: user.id,
+            page,
+            limit,
+            totalSources: count,
+            returnedSources: filteredSources.length,
+          },
+          'Sources list retrieved successfully'
+        );
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            sources: filteredSources,
+            pagination: {
+              page,
+              limit,
+              total: count || 0,
+              totalPages,
+              hasNextPage: page < totalPages,
+              hasPrevPage: page > 1,
+            },
+          },
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid query parameters',
+              details: error.errors,
+            },
+          });
+        }
+
+        fastify.log.error({ error }, 'Unexpected error in GET /api/sources');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
+   * GET /api/sources/normalized
+   * Returns documents with normalized markdown content for RAG
+   * 
+   * Authorization:
+   * - Requires valid JWT
+   * - User must be member of tenant
+   */
+  fastify.get(
+    '/api/sources/normalized',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        // Parse query parameters
+        const querySchema = z.object({
+          limit: z.coerce.number().int().min(1).max(500).default(100),
+        });
+        const { limit } = querySchema.parse(request.query);
+
+        // Fetch documents with content for the tenant
+        // Only include documents that have non-empty content
+        const { data: documents, error } = await supabaseAdmin
+          .from('documents')
+          .select(`
+            id,
+            title,
+            content,
+            status,
+            visibility,
+            created_at,
+            updated_at
+          `)
+          .eq('tenant_id', tenant.id)
+          .not('content', 'is', null)
+          .not('content', 'eq', '')
+          .not('content', 'like', '__CATEGORY__%')
+          .order('updated_at', { ascending: false })
+          .limit(limit);
+
+        if (error) {
+          fastify.log.error(
+            { error, tenantId: tenant.id, userId: user.id },
+            'Failed to fetch normalized documents'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'FETCH_FAILED',
+              message: 'Failed to fetch documents',
+              details: {},
+            },
+          });
+        }
+
+        // Map documents to the normalized format expected by frontend
+        const normalizedDocs = (documents || [])
+          .filter((doc: any) => doc.content && doc.content.trim().length > 0)
+          .map((doc: any) => ({
+            id: doc.id,
+            title: doc.title,
+            normalizedMd: doc.content,
+            status: doc.status,
+            visibility: doc.visibility,
+            createdAt: doc.created_at,
+            updatedAt: doc.updated_at,
+          }));
+
+        fastify.log.info(
+          {
+            tenantId: tenant.id,
+            userId: user.id,
+            count: normalizedDocs.length,
+          },
+          'Normalized documents fetched successfully'
+        );
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            documents: normalizedDocs,
+            count: normalizedDocs.length,
+          },
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid query parameters',
+              details: error.errors,
+            },
+          });
+        }
+
+        fastify.log.error({ error }, 'Unexpected error in GET /api/sources/normalized');
         return reply.code(500).send({
           error: {
             code: 'INTERNAL_ERROR',

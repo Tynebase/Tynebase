@@ -24,8 +24,10 @@ RUN npm prune --production
 # Stage 2: Runtime stage
 FROM node:18-alpine AS runtime
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+# Install dumb-init for proper signal handling, ffmpeg for audio/video processing,
+# and python3/pip for yt-dlp plugins (bgutil-ytdlp-pot-provider)
+RUN apk add --no-cache dumb-init ffmpeg python3 py3-pip \
+    && pip3 install --break-system-packages bgutil-ytdlp-pot-provider
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \

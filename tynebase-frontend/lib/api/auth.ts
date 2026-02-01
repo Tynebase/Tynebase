@@ -42,7 +42,7 @@ export async function signup(data: SignupRequest): Promise<AuthResponse> {
  * @returns Auth response with user, tenant, and tokens
  */
 export async function login(data: LoginRequest): Promise<AuthResponse> {
-  const response = await apiPost<AuthResponse>('/api/auth/login', data);
+  const response = await apiPost<AuthResponse>('/api/auth/login', data, { skipAutoRedirect: true });
   
   // Store tokens and tenant subdomain
   setAuthTokens(response.access_token, response.refresh_token);

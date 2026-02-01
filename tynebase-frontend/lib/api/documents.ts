@@ -11,26 +11,43 @@ import { apiGet, apiPost, apiPatch, apiDelete, apiUpload } from './client';
 // TYPE DEFINITIONS
 // ============================================================================
 
+export interface DocumentCollection {
+  id: string;
+  name: string;
+  color: string;
+}
+
+export interface DocumentTag {
+  id: string;
+  name: string;
+  description: string | null;
+}
+
 export interface Document {
   id: string;
   title: string;
   content: string;
   parent_id: string | null;
+  category_id: string | null;
   is_public: boolean;
+  visibility: 'private' | 'team' | 'public';
   status: 'draft' | 'published';
   author_id: string;
   published_at: string | null;
   created_at: string;
   updated_at: string;
+  view_count?: number;
   users?: {
     id: string;
     email: string;
     full_name: string | null;
   };
+  collections?: DocumentCollection[];
+  tags?: DocumentTag[];
 }
 
 export interface DocumentListParams {
-  parent_id?: string;
+  category_id?: string;
   status?: 'draft' | 'published';
   page?: number;
   limit?: number;
@@ -39,8 +56,9 @@ export interface DocumentListParams {
 export interface CreateDocumentData {
   title: string;
   content?: string;
-  parent_id?: string;
+  category_id?: string;
   is_public?: boolean;
+  visibility?: 'private' | 'team' | 'public';
 }
 
 export interface UpdateDocumentData {
@@ -48,6 +66,9 @@ export interface UpdateDocumentData {
   content?: string;
   yjs_state?: string;
   is_public?: boolean;
+  visibility?: 'private' | 'team' | 'public';
+  status?: 'draft' | 'published';
+  category_id?: string | null;
 }
 
 export interface DocumentListResponse {
@@ -88,6 +109,21 @@ export interface NormalizedContentResponse {
   };
 }
 
+export interface NormalizedDocument {
+  id: string;
+  title: string;
+  normalizedMd: string;
+  status: 'draft' | 'published';
+  visibility: 'private' | 'team' | 'public';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NormalizedDocumentsListResponse {
+  documents: NormalizedDocument[];
+  count: number;
+}
+
 export interface ImportDocumentResponse {
   job_id: string;
   storage_path: string;
@@ -108,11 +144,21 @@ export interface ImportDocumentResponse {
  */
 export async function listDocuments(
   params?: DocumentListParams
-): Promise<DocumentListResponse> {
+): Promise<{
+  documents: Document[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  };
+}> {
   const queryParams = new URLSearchParams();
   
-  if (params?.parent_id) {
-    queryParams.append('parent_id', params.parent_id);
+  if (params?.category_id) {
+    queryParams.append('category_id', params.category_id);
   }
   
   if (params?.status) {
@@ -130,17 +176,29 @@ export async function listDocuments(
   const queryString = queryParams.toString();
   const endpoint = queryString ? `/api/documents?${queryString}` : '/api/documents';
   
-  return apiGet<DocumentListResponse>(endpoint);
+  return apiGet<{
+    documents: Document[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      hasNextPage: boolean;
+      hasPrevPage: boolean;
+    };
+  }>(endpoint);
 }
 
 /**
  * Get a single document by ID
  * 
  * @param id - Document UUID
+ * @param skipViewIncrement - If true, don't increment view count (for refetches)
  * @returns Document details
  */
-export async function getDocument(id: string): Promise<DocumentResponse> {
-  return apiGet<DocumentResponse>(`/api/documents/${id}`);
+export async function getDocument(id: string, skipViewIncrement?: boolean): Promise<{ document: Document }> {
+  const queryParams = skipViewIncrement ? '?skip_view_increment=true' : '';
+  return apiGet<{ document: Document }>(`/api/documents/${id}${queryParams}`);
 }
 
 /**
@@ -151,8 +209,8 @@ export async function getDocument(id: string): Promise<DocumentResponse> {
  */
 export async function createDocument(
   data: CreateDocumentData
-): Promise<DocumentResponse> {
-  return apiPost<DocumentResponse>('/api/documents', data);
+): Promise<{ document: Document }> {
+  return apiPost<{ document: Document }>('/api/documents', data);
 }
 
 /**
@@ -165,8 +223,8 @@ export async function createDocument(
 export async function updateDocument(
   id: string,
   data: UpdateDocumentData
-): Promise<DocumentResponse> {
-  return apiPatch<DocumentResponse>(`/api/documents/${id}`, data);
+): Promise<{ document: Document }> {
+  return apiPatch<{ document: Document }>(`/api/documents/${id}`, data);
 }
 
 /**
@@ -175,8 +233,8 @@ export async function updateDocument(
  * @param id - Document UUID
  * @returns Deletion confirmation
  */
-export async function deleteDocument(id: string): Promise<DeleteDocumentResponse> {
-  return apiDelete<DeleteDocumentResponse>(`/api/documents/${id}`);
+export async function deleteDocument(id: string): Promise<{ message: string; documentId: string }> {
+  return apiDelete<{ message: string; documentId: string }>(`/api/documents/${id}`);
 }
 
 /**
@@ -185,8 +243,8 @@ export async function deleteDocument(id: string): Promise<DeleteDocumentResponse
  * @param id - Document UUID
  * @returns Published document details
  */
-export async function publishDocument(id: string): Promise<DocumentResponse> {
-  return apiPost<DocumentResponse>(`/api/documents/${id}/publish`);
+export async function publishDocument(id: string): Promise<{ document: Document }> {
+  return apiPost<{ document: Document }>(`/api/documents/${id}/publish`);
 }
 
 /**
@@ -199,6 +257,26 @@ export async function getNormalizedContent(
   id: string
 ): Promise<NormalizedContentResponse> {
   return apiGet<NormalizedContentResponse>(`/api/documents/${id}/normalized`);
+}
+
+/**
+ * List all documents with their normalized markdown content
+ * Used for the RAG normalized markdown viewer
+ * 
+ * @param limit - Maximum number of documents to return (default: 100)
+ * @returns List of normalized documents with their content
+ */
+export async function listNormalizedDocuments(
+  limit?: number
+): Promise<NormalizedDocumentsListResponse> {
+  const queryParams = new URLSearchParams();
+  if (limit !== undefined) {
+    queryParams.append('limit', limit.toString());
+  }
+  const queryString = queryParams.toString();
+  const endpoint = queryString ? `/api/sources/normalized?${queryString}` : '/api/sources/normalized';
+  
+  return apiGet<NormalizedDocumentsListResponse>(endpoint);
 }
 
 /**
@@ -215,4 +293,100 @@ export async function importDocument(file: File): Promise<ImportDocumentResponse
   formData.append('file', file);
   
   return apiUpload<ImportDocumentResponse>('/api/documents/import', formData);
+}
+
+// ============================================================================
+// DOCUMENT ASSET UPLOAD
+// ============================================================================
+
+export interface AssetUploadResponse {
+  storage_path: string;
+  signed_url: string;
+  filename: string;
+  file_size: number;
+  mimetype: string;
+  asset_type: 'image' | 'video';
+  expires_in: number;
+}
+
+/**
+ * Upload an image or video asset for a document
+ * 
+ * @param documentId - Document UUID to associate the asset with
+ * @param file - Image or video file to upload
+ * @returns Asset details including signed URL
+ */
+export async function uploadDocumentAsset(
+  documentId: string,
+  file: File
+): Promise<AssetUploadResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  return apiUpload<AssetUploadResponse>(`/api/documents/${documentId}/upload`, formData);
+}
+
+// ============================================================================
+// DOCUMENT VIDEO INGESTION
+// ============================================================================
+
+export interface EmbeddedVideo {
+  url: string;
+  type: 'youtube' | 'uploaded';
+  storagePath?: string;
+  estimatedDurationMinutes?: number;
+}
+
+export interface DocumentVideosResponse {
+  documentId: string;
+  videos: EmbeddedVideo[];
+  totalEstimatedCredits: number;
+}
+
+export interface VideoIngestionJobResponse {
+  job_id: string;
+  video_url: string;
+  status: 'queued';
+  estimated_credits: number;
+}
+
+export interface DocumentVideoIngestionResponse {
+  documentId: string;
+  jobs: VideoIngestionJobResponse[];
+  totalCredits: number;
+}
+
+/**
+ * Detect embedded videos in a document
+ * 
+ * @param documentId - Document UUID
+ * @returns List of embedded videos with estimated credits
+ */
+export async function detectDocumentVideos(
+  documentId: string
+): Promise<DocumentVideosResponse> {
+  return apiGet<DocumentVideosResponse>(`/api/documents/${documentId}/videos`);
+}
+
+/**
+ * Ingest all embedded videos in a document
+ * Creates transcription jobs for each video and deducts credits
+ * 
+ * @param documentId - Document UUID
+ * @param options - Ingestion options (transcript, summary, article generation)
+ * @returns Job details for tracking ingestion progress
+ */
+export async function ingestDocumentVideos(
+  documentId: string,
+  options?: {
+    generate_transcript?: boolean;
+    generate_summary?: boolean;
+    generate_article?: boolean;
+    ai_model?: 'deepseek' | 'gemini' | 'claude';
+  }
+): Promise<DocumentVideoIngestionResponse> {
+  return apiPost<DocumentVideoIngestionResponse>(
+    `/api/documents/${documentId}/videos/ingest`,
+    options || { generate_transcript: true }
+  );
 }
