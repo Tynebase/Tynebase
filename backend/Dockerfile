@@ -1,19 +1,19 @@
 # Multi-stage Dockerfile for TyneBase Backend
 # Stage 1: Build stage
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 # Set working directory
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
-COPY tsconfig.json ./
+COPY backend/package*.json ./
+COPY backend/tsconfig.json ./
 
 # Install dependencies (including devDependencies for build)
 RUN npm ci
 
 # Copy source code
-COPY src ./src
+COPY backend/src ./src
 
 # Build TypeScript to JavaScript
 RUN npm run build
@@ -22,7 +22,7 @@ RUN npm run build
 RUN npm prune --production
 
 # Stage 2: Runtime stage
-FROM node:18-alpine AS runtime
+FROM node:20-alpine AS runtime
 
 # Install dumb-init for proper signal handling, ffmpeg for audio/video processing,
 # and python3/pip for yt-dlp plugins (bgutil-ytdlp-pot-provider)
@@ -37,7 +37,7 @@ RUN addgroup -g 1001 -S nodejs && \
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY backend/package*.json ./
 
 # Copy production dependencies from builder
 COPY --from=builder /app/node_modules ./node_modules

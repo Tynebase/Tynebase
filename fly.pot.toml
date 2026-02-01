@@ -19,7 +19,7 @@ primary_region = 'lhr'
   min_machines_running = 0
   [[http_service.checks]]
     interval = '30s'
-    timeout = '5s'
+    timeout = '10s'
     grace_period = '10s'
     method = 'GET'
     path = '/health'

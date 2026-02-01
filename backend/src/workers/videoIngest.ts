@@ -25,7 +25,6 @@ import { getModelCreditCost } from '../utils/creditCalculator';
 import { generateText } from '../services/ai/generation';
 import type { AIModel } from '../services/ai/types';
 import { z } from 'zod';
-import ytDlp from 'yt-dlp-exec';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -658,100 +657,13 @@ async function downloadYouTubeAudio(
   outputTemplate: string,
   workerId: string
 ): Promise<string> {
-  const MAX_RETRIES = 2;
-  const RETRY_DELAY_MS = 2000;
-
-  // Base options with Node.js runtime for JavaScript extraction
-  const baseOptions: Record<string, any> = {
-    output: outputTemplate,
-    format: 'bestaudio[ext=m4a]/bestaudio[ext=mp3]/bestaudio/best[height<=480]',
-    noPlaylist: true,
-    jsRuntimes: 'node',
-    extractAudio: true,
-    audioFormat: 'mp3',
-  };
-
-  // Extract base path to find downloaded file (template uses %(ext)s)
-  const basePath = outputTemplate.replace('.%(ext)s', '');
-
-  // If sidecar is configured, use it instead of local yt-dlp
+  // Use sidecar (required)
   if (YT_DLP_SIDECAR_URL) {
     console.log(`[Worker ${workerId}] Using yt-dlp sidecar: ${YT_DLP_SIDECAR_URL}`);
     return await downloadFromSidecar(videoUrl, outputTemplate, workerId);
   }
 
-  // Fallback to local yt-dlp with multiple strategies
-  const strategies: Array<{ name: string; options: Record<string, any> }> = [];
-  strategies.push(
-    {
-      name: 'default',
-      options: { ...baseOptions }
-    },
-    {
-      name: 'web-client',
-      options: {
-        ...baseOptions,
-        extractorArgs: 'youtube:player_client=web',
-      }
-    },
-    {
-      name: 'android-client',
-      options: {
-        ...baseOptions,
-        extractorArgs: 'youtube:player_client=android',
-      }
-    },
-    {
-      name: 'ios-client',
-      options: {
-        ...baseOptions,
-        extractorArgs: 'youtube:player_client=ios',
-      }
-    }
-  );
-
-  let lastError: Error | null = null;
-
-  for (const strategy of strategies) {
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        console.log(`[Worker ${workerId}] yt-dlp attempt ${attempt}/${MAX_RETRIES} with strategy: ${strategy.name}`);
-        
-        await ytDlp(videoUrl, strategy.options as any);
-        
-        // Find the actual downloaded file (yt-dlp adds the extension)
-        const possibleExtensions = ['m4a', 'mp3', 'mp4', 'webm', 'opus', 'ogg'];
-        for (const ext of possibleExtensions) {
-          const filePath = `${basePath}.${ext}`;
-          if (fs.existsSync(filePath)) {
-            console.log(`[Worker ${workerId}] Download successful with strategy: ${strategy.name}, file: ${filePath}`);
-            return filePath;
-          }
-        }
-        
-        throw new Error('Output file not created - no matching file found');
-      } catch (error: any) {
-        lastError = error;
-        const errorMsg = error.message || String(error);
-        
-        console.warn(`[Worker ${workerId}] yt-dlp attempt ${attempt} failed (strategy: ${strategy.name}): ${errorMsg.substring(0, 200)}`);
-        
-        // If it's a 403 error, try next strategy immediately
-        if (errorMsg.includes('403') || errorMsg.includes('Forbidden')) {
-          console.log(`[Worker ${workerId}] Got 403 error, trying next strategy...`);
-          break; // Move to next strategy
-        }
-        
-        // For other errors, retry with delay
-        if (attempt < MAX_RETRIES) {
-          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * attempt));
-        }
-      }
-    }
-  }
-
-  // All strategies failed
-  throw new Error(`Failed to download YouTube video after trying all strategies: ${lastError?.message || 'Unknown error'}`);
+  throw new Error('YT_DLP_SIDECAR_URL not configured - sidecar is required for YouTube downloads');
 }
 
 /**

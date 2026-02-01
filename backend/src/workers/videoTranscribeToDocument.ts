@@ -23,7 +23,6 @@ import { completeJob } from '../utils/completeJob';
 import { failJob } from '../utils/failJob';
 import { AIModel } from '../services/ai/types';
 import { z } from 'zod';
-import ytDlp from 'yt-dlp-exec';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -383,27 +382,9 @@ async function downloadYouTubeAudio(
     });
     
     return outputPath;
-  } else {
-    // Fallback to local yt-dlp
-    await ytDlp(videoUrl, {
-      output: outputTemplate,
-      format: 'bestaudio[ext=m4a]/bestaudio[ext=mp3]/bestaudio',
-      noPlaylist: true,
-      extractAudio: true,
-      audioFormat: 'mp3',
-    });
-    
-    const basePath = outputTemplate.replace('.%(ext)s', '');
-    const possibleExtensions = ['m4a', 'mp3', 'mp4', 'webm'];
-    for (const ext of possibleExtensions) {
-      const filePath = `${basePath}.${ext}`;
-      if (fs.existsSync(filePath)) {
-        return filePath;
-      }
-    }
-    
-    throw new Error('Downloaded file not found');
   }
+  
+  throw new Error('YT_DLP_SIDECAR_URL not configured - sidecar is required for YouTube downloads');
 }
 
 /**
