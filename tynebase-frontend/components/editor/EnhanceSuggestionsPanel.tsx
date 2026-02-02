@@ -24,6 +24,7 @@ import {
   ArrowRight,
   RotateCcw,
   Coins,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { enhance, applyEnhancement, reindexDocument, type EnhanceSuggestion } from "@/lib/api/ai";
@@ -476,7 +477,7 @@ export function EnhanceSuggestionsPanel({
         <div className="p-4 border-b border-[var(--dash-border-subtle)] flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-[var(--brand)]" />
-          <h3 className="font-semibold text-[var(--dash-text-primary)]">AI Enhancement (close this window to apply changes and re-index)</h3>
+          <h3 className="font-semibold text-[var(--dash-text-primary)]">AI Enhancement</h3>
         </div>
         <div className="flex items-center gap-3">
           {score !== null && (
@@ -522,6 +523,14 @@ export function EnhanceSuggestionsPanel({
             )}
           </button>
         </div>
+      </div>
+
+      {/* Info Banner - Close to apply changes */}
+      <div className="px-4 py-2 bg-blue-50 border-b border-blue-100 flex items-center gap-2">
+        <Info className="w-4 h-4 text-blue-600 flex-shrink-0" />
+        <p className="text-sm text-blue-700">
+          Close this panel to apply accepted changes and re-index your document
+        </p>
       </div>
 
       {/* Content */}
