@@ -476,7 +476,7 @@ export function EnhanceSuggestionsPanel({
         <div className="p-4 border-b border-[var(--dash-border-subtle)] flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-[var(--brand)]" />
-          <h3 className="font-semibold text-[var(--dash-text-primary)]">AI Enhancement</h3>
+          <h3 className="font-semibold text-[var(--dash-text-primary)]">AI Enhancement (close this window to apply changes and re-index)</h3>
         </div>
         <div className="flex items-center gap-3">
           {score !== null && (
