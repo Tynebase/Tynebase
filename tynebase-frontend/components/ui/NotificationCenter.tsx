@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { 
   Bell, 
   X, 
@@ -12,72 +13,18 @@ import {
   Sparkles,
   Settings,
   Clock,
-  Trash2
+  Trash2,
+  Loader2
 } from "lucide-react";
 import { Button } from "./Button";
-
-interface Notification {
-  id: string;
-  type: "document" | "comment" | "mention" | "system" | "ai";
-  title: string;
-  description: string;
-  timestamp: string;
-  read: boolean;
-  actionUrl?: string;
-}
-
-interface NotificationCenterProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-const mockNotifications: Notification[] = [
-  {
-    id: "1",
-    type: "comment",
-    title: "New comment on your document",
-    description: "Sarah Chen commented on 'Getting Started Guide'",
-    timestamp: "5 min ago",
-    read: false,
-    actionUrl: "/dashboard/knowledge/1",
-  },
-  {
-    id: "2",
-    type: "mention",
-    title: "You were mentioned",
-    description: "John Smith mentioned you in 'API Documentation'",
-    timestamp: "15 min ago",
-    read: false,
-    actionUrl: "/dashboard/knowledge/2",
-  },
-  {
-    id: "3",
-    type: "ai",
-    title: "AI generation complete",
-    description: "Your document 'Q4 Strategy' has been generated",
-    timestamp: "1 hour ago",
-    read: false,
-    actionUrl: "/dashboard/ai-assistant",
-  },
-  {
-    id: "4",
-    type: "document",
-    title: "Document published",
-    description: "'Security Best Practices' is now live",
-    timestamp: "2 hours ago",
-    read: true,
-    actionUrl: "/dashboard/knowledge/3",
-  },
-  {
-    id: "5",
-    type: "system",
-    title: "Welcome to TyneBase!",
-    description: "Complete your profile to get started",
-    timestamp: "1 day ago",
-    read: true,
-    actionUrl: "/dashboard/settings",
-  },
-];
+import { 
+  listNotifications, 
+  markNotificationAsRead, 
+  markAllNotificationsAsRead, 
+  deleteNotification,
+  clearAllNotifications,
+  type Notification 
+} from "@/lib/api/notifications";
 
 const typeIcons = {
   document: FileText,
@@ -95,31 +42,141 @@ const typeColors = {
   ai: "text-pink-500 bg-pink-500/10",
 };
 
+function formatTimestamp(timestamp: string): string {
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+  
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+  if (days < 7) return `${days} day${days > 1 ? 's' : ''} ago`;
+  
+  return date.toLocaleDateString();
+}
+
+interface NotificationCenterProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
 export function NotificationCenter({ isOpen, onClose }: NotificationCenterProps) {
-  const [notifications, setNotifications] = useState(mockNotifications);
+  const router = useRouter();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [filter, setFilter] = useState<"all" | "unread">("all");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
-  const filteredNotifications = filter === "unread" 
-    ? notifications.filter((n) => !n.read)
-    : notifications;
+  // Fetch notifications when opened
+  const fetchNotifications = useCallback(async () => {
+    if (!isOpen) return;
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const response = await listNotifications({ 
+        limit: 50, 
+        unread_only: filter === "unread" 
+      });
+      setNotifications(response.notifications);
+      setUnreadCount(response.unreadCount);
+    } catch (err) {
+      setError("Failed to load notifications");
+      console.error("Error fetching notifications:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isOpen, filter]);
 
-  const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
+
+  const filteredNotifications = notifications;
+
+  const handleNotificationClick = async (notification: Notification) => {
+    // Mark as read if unread
+    if (!notification.read) {
+      try {
+        await markNotificationAsRead(notification.id, true);
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === notification.id ? { ...n, read: true } : n))
+        );
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      } catch (err) {
+        console.error("Error marking notification as read:", err);
+      }
+    }
+
+    // Navigate to action URL if provided
+    if (notification.action_url) {
+      onClose();
+      router.push(notification.action_url);
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  const handleMarkAsRead = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    
+    try {
+      await markNotificationAsRead(id, true);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+      );
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+    } catch (err) {
+      console.error("Error marking notification as read:", err);
+    }
   };
 
-  const deleteNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  const handleMarkAllAsRead = async () => {
+    if (unreadCount === 0) return;
+    
+    try {
+      await markAllNotificationsAsRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      setUnreadCount(0);
+    } catch (err) {
+      console.error("Error marking all notifications as read:", err);
+      setError("Failed to mark all as read");
+    }
   };
 
-  const clearAll = () => {
-    setNotifications([]);
+  const handleDeleteNotification = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    
+    try {
+      await deleteNotification(id);
+      const deleted = notifications.find(n => n.id === id);
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      if (deleted && !deleted.read) {
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      }
+    } catch (err) {
+      console.error("Error deleting notification:", err);
+    }
+  };
+
+  const handleClearAll = async () => {
+    try {
+      await clearAllNotifications();
+      setNotifications([]);
+      setUnreadCount(0);
+    } catch (err) {
+      console.error("Error clearing all notifications:", err);
+      setError("Failed to clear notifications");
+    }
+  };
+
+  const handleViewAll = () => {
+    onClose();
+    router.push("/dashboard/notifications");
   };
 
   if (!isOpen) return null;
@@ -148,9 +205,9 @@ export function NotificationCenter({ isOpen, onClose }: NotificationCenterProps)
             <Button 
               variant="ghost" 
               size="sm" 
-              onClick={markAllAsRead}
+              onClick={handleMarkAllAsRead}
               title="Mark all as read"
-              disabled={unreadCount === 0}
+              disabled={unreadCount === 0 || isLoading}
             >
               <CheckCheck className="w-4 h-4" />
             </Button>
@@ -158,6 +215,7 @@ export function NotificationCenter({ isOpen, onClose }: NotificationCenterProps)
               variant="ghost" 
               size="sm" 
               title="Settings"
+              onClick={handleViewAll}
             >
               <Settings className="w-4 h-4" />
             </Button>
@@ -195,9 +253,21 @@ export function NotificationCenter({ isOpen, onClose }: NotificationCenterProps)
           </button>
         </div>
 
+        {/* Error Message */}
+        {error && (
+          <div className="p-3 bg-red-500/10 border-b border-[var(--border-subtle)]">
+            <p className="text-sm text-red-500">{error}</p>
+          </div>
+        )}
+
         {/* Notifications List */}
         <div className="max-h-[400px] overflow-y-auto">
-          {filteredNotifications.length === 0 ? (
+          {isLoading ? (
+            <div className="p-8 text-center">
+              <Loader2 className="w-8 h-8 mx-auto mb-3 text-[var(--text-tertiary)] animate-spin" />
+              <p className="text-[var(--text-secondary)]">Loading notifications...</p>
+            </div>
+          ) : filteredNotifications.length === 0 ? (
             <div className="p-8 text-center">
               <Bell className="w-12 h-12 mx-auto mb-3 text-[var(--text-tertiary)] opacity-50" />
               <p className="text-[var(--text-secondary)]">
@@ -216,7 +286,7 @@ export function NotificationCenter({ isOpen, onClose }: NotificationCenterProps)
                     className={`p-4 hover:bg-[var(--surface-ground)] transition-colors cursor-pointer group ${
                       !notification.read ? "bg-[var(--brand-primary)]/5" : ""
                     }`}
-                    onClick={() => markAsRead(notification.id)}
+                    onClick={() => handleNotificationClick(notification)}
                   >
                     <div className="flex gap-3">
                       <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${colorClass}`}>
@@ -241,18 +311,26 @@ export function NotificationCenter({ isOpen, onClose }: NotificationCenterProps)
                         <div className="flex items-center justify-between mt-1">
                           <span className="text-xs text-[var(--text-tertiary)] flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            {notification.timestamp}
+                            {formatTimestamp(notification.created_at)}
                           </span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteNotification(notification.id);
-                            }}
-                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[var(--surface-card)] rounded transition-all"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-3 h-3 text-[var(--text-tertiary)]" />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            {!notification.read && (
+                              <button
+                                onClick={(e) => handleMarkAsRead(e, notification.id)}
+                                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[var(--surface-card)] rounded transition-all"
+                                title="Mark as read"
+                              >
+                                <CheckCheck className="w-3 h-3 text-[var(--text-tertiary)]" />
+                              </button>
+                            )}
+                            <button
+                              onClick={(e) => handleDeleteNotification(e, notification.id)}
+                              className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[var(--surface-card)] rounded transition-all"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-3 h-3 text-[var(--text-tertiary)]" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -266,10 +344,10 @@ export function NotificationCenter({ isOpen, onClose }: NotificationCenterProps)
         {/* Footer */}
         {notifications.length > 0 && (
           <div className="p-3 border-t border-[var(--border-subtle)] flex items-center justify-between">
-            <Button variant="ghost" size="sm" onClick={clearAll}>
+            <Button variant="ghost" size="sm" onClick={handleClearAll} disabled={isLoading}>
               Clear all
             </Button>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" onClick={handleViewAll}>
               View all notifications
             </Button>
           </div>

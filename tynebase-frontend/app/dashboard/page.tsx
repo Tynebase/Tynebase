@@ -28,11 +28,13 @@ import {
   Loader2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { getDashboardStats, getRecentDocuments, getRecentActivity, type DashboardStats, type RecentDocument, type RecentActivity } from "@/lib/api/dashboard";
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const { branding, subdomain, tenant } = useTenant();
+  const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentDocs, setRecentDocs] = useState<RecentDocument[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
@@ -241,10 +243,10 @@ export default function DashboardPage() {
                   <p className="text-sm text-[var(--dash-text-muted)] mt-1">Create your first document to get started</p>
                 </div>
               ) : recentDocs.map((doc: RecentDocument) => (
-                <Link
+                <div
                   key={doc.id}
-                  href={`/dashboard/knowledge/${doc.id}`}
-                  className="block hover:bg-[var(--surface-hover)] transition-colors"
+                  onClick={() => router.push(`/dashboard/knowledge/${doc.id}`)}
+                  className="block hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
                 >
                   {/* Desktop View */}
                   <div className="hidden md:flex items-center gap-4 px-6 py-5">
@@ -287,7 +289,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   </div>
-                </Link>
+                </div>
               ))}
             </div>
           </Card>

@@ -155,10 +155,13 @@ export default function ImportsPage() {
             <FileText className="w-4 h-4" />
             Browse Docs
           </Link>
-          <button className="inline-flex items-center justify-center gap-2 px-7 py-3 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-xl font-semibold transition-all shadow-sm hover:shadow-md">
+          <Link
+            href="/dashboard/knowledge/imports/markdown"
+            className="inline-flex items-center justify-center gap-2 px-7 py-3 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-xl font-semibold transition-all shadow-sm hover:shadow-md"
+          >
             <Upload className="w-4 h-4" />
             Start Import
-          </button>
+          </Link>
         </div>
       </div>
 

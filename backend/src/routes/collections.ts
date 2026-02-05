@@ -104,8 +104,23 @@ export default async function collectionRoutes(fastify: FastifyInstance) {
         if (visibility) {
           dbQuery = dbQuery.eq('visibility', visibility);
         } else {
-          // Show all collections user can access
+          // Show all collections user can access:
+          // - public collections (all org members)
+          // - team collections (all org members)
+          // - user's own collections (any visibility)
+          // - private collections where user is a member
           dbQuery = dbQuery.or(`visibility.eq.public,visibility.eq.team,author_id.eq.${user.id}`);
+          
+          // Additionally, get collection IDs where user is a member
+          const { data: memberCollections } = await supabaseAdmin
+            .from('collection_members')
+            .select('collection_id')
+            .eq('user_id', user.id);
+          
+          if (memberCollections && memberCollections.length > 0) {
+            const memberCollectionIds = memberCollections.map(mc => mc.collection_id);
+            dbQuery = dbQuery.in('id', memberCollectionIds);
+          }
         }
 
         const { data: collections, error, count } = await dbQuery;
@@ -220,8 +235,16 @@ export default async function collectionRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Check access
-        if (collection.visibility === 'private' && collection.author_id !== user.id) {
+        // Check access:
+        // - Public collections: all tenant members can access
+        // - Team collections: all tenant members can access  
+        // - Private collections: only author and invited members can access
+        const hasAccess = 
+          collection.visibility !== 'private' || 
+          collection.author_id === user.id ||
+          await checkCollectionMembership(id, user.id);
+
+        if (!hasAccess) {
           return reply.code(403).send({
             error: { code: 'ACCESS_DENIED', message: 'You do not have access to this collection', details: {} },
           });
@@ -667,11 +690,6 @@ export default async function collectionRoutes(fastify: FastifyInstance) {
           },
         });
       } catch (error) {
-        if (error instanceof z.ZodError) {
-          return reply.code(400).send({
-            error: { code: 'VALIDATION_ERROR', message: 'Invalid parameters', details: error.errors },
-          });
-        }
         fastify.log.error({ error }, 'Unexpected error in DELETE /api/collections/:id/documents/:documentId');
         return reply.code(500).send({
           error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred', details: {} },
@@ -679,4 +697,296 @@ export default async function collectionRoutes(fastify: FastifyInstance) {
       }
     }
   );
+
+  /**
+   * GET /api/collections/:id/members
+   * Get all members of a collection
+   */
+  fastify.get(
+    '/api/collections/:id/members',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+        const { id } = request.params as { id: string };
+
+        if (!z.string().uuid().safeParse(id).success) {
+          return reply.code(400).send({
+            error: { code: 'VALIDATION_ERROR', message: 'Invalid collection ID format', details: {} },
+          });
+        }
+
+        // Verify collection exists and user has access
+        const { data: collection, error: collectionError } = await supabaseAdmin
+          .from('collections')
+          .select('id, author_id, visibility')
+          .eq('id', id)
+          .eq('tenant_id', tenant.id)
+          .single();
+
+        if (collectionError || !collection) {
+          return reply.code(404).send({
+            error: { code: 'COLLECTION_NOT_FOUND', message: 'Collection not found', details: {} },
+          });
+        }
+
+        // Only author and members can view members list
+        const hasAccess = 
+          collection.visibility !== 'private' || 
+          collection.author_id === user.id ||
+          await checkCollectionMembership(id, user.id);
+
+        if (!hasAccess) {
+          return reply.code(403).send({
+            error: { code: 'ACCESS_DENIED', message: 'You do not have access to this collection', details: {} },
+          });
+        }
+
+        // Get members with user details
+        const { data: members, error } = await supabaseAdmin
+          .from('collection_members')
+          .select(`
+            id,
+            role,
+            added_at,
+            invited_by,
+            users!user_id (
+              id,
+              email,
+              full_name
+            )
+          `)
+          .eq('collection_id', id)
+          .order('added_at', { ascending: true });
+
+        if (error) {
+          fastify.log.error({ error }, 'Failed to fetch collection members');
+          return reply.code(500).send({
+            error: { code: 'FETCH_FAILED', message: 'Failed to fetch members', details: {} },
+          });
+        }
+
+        return reply.code(200).send({
+          success: true,
+          data: { members: members || [] },
+        });
+      } catch (error) {
+        fastify.log.error({ error }, 'Unexpected error in GET /api/collections/:id/members');
+        return reply.code(500).send({
+          error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred', details: {} },
+        });
+      }
+    }
+  );
+
+  /**
+   * POST /api/collections/:id/members
+   * Add a member to a collection
+   */
+  fastify.post(
+    '/api/collections/:id/members',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+        const { id } = request.params as { id: string };
+
+        if (!z.string().uuid().safeParse(id).success) {
+          return reply.code(400).send({
+            error: { code: 'VALIDATION_ERROR', message: 'Invalid collection ID format', details: {} },
+          });
+        }
+
+        const bodySchema = z.object({
+          user_id: z.string().uuid(),
+          role: z.enum(['viewer', 'editor']).default('viewer'),
+        });
+
+        const body = bodySchema.parse(request.body);
+
+        // Verify collection exists and user is the author
+        const { data: collection, error: collectionError } = await supabaseAdmin
+          .from('collections')
+          .select('id, author_id')
+          .eq('id', id)
+          .eq('tenant_id', tenant.id)
+          .single();
+
+        if (collectionError || !collection) {
+          return reply.code(404).send({
+            error: { code: 'COLLECTION_NOT_FOUND', message: 'Collection not found', details: {} },
+          });
+        }
+
+        if (collection.author_id !== user.id) {
+          return reply.code(403).send({
+            error: { code: 'ACCESS_DENIED', message: 'Only the collection author can add members', details: {} },
+          });
+        }
+
+        // Verify the user to invite exists and belongs to the same tenant
+        const { data: targetUser, error: userError } = await supabaseAdmin
+          .from('users')
+          .select('id')
+          .eq('id', body.user_id)
+          .eq('tenant_id', tenant.id)
+          .single();
+
+        if (userError || !targetUser) {
+          return reply.code(400).send({
+            error: { code: 'USER_NOT_FOUND', message: 'User not found in this organization', details: {} },
+          });
+        }
+
+        // Cannot invite the author (they already have access)
+        if (body.user_id === collection.author_id) {
+          return reply.code(400).send({
+            error: { code: 'CANNOT_INVITE_AUTHOR', message: 'Collection author already has full access', details: {} },
+          });
+        }
+
+        // Add member
+        const { data: member, error: insertError } = await supabaseAdmin
+          .from('collection_members')
+          .insert({
+            collection_id: id,
+            user_id: body.user_id,
+            role: body.role,
+            invited_by: user.id,
+          })
+          .select(`
+            id,
+            role,
+            added_at,
+            invited_by,
+            users!user_id (
+              id,
+              email,
+              full_name
+            )
+          `)
+          .single();
+
+        if (insertError) {
+          // Handle duplicate key error
+          if (insertError.code === '23505') {
+            return reply.code(409).send({
+              error: { code: 'ALREADY_MEMBER', message: 'User is already a member of this collection', details: {} },
+            });
+          }
+
+          fastify.log.error({ error: insertError }, 'Failed to add collection member');
+          return reply.code(500).send({
+            error: { code: 'ADD_FAILED', message: 'Failed to add member', details: {} },
+          });
+        }
+
+        return reply.code(201).send({
+          success: true,
+          data: { member },
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: { code: 'VALIDATION_ERROR', message: 'Invalid request body', details: error.errors },
+          });
+        }
+        fastify.log.error({ error }, 'Unexpected error in POST /api/collections/:id/members');
+        return reply.code(500).send({
+          error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred', details: {} },
+        });
+      }
+    }
+  );
+
+  /**
+   * DELETE /api/collections/:id/members/:memberId
+   * Remove a member from a collection
+   */
+  fastify.delete(
+    '/api/collections/:id/members/:memberId',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+        const { id, memberId } = request.params as { id: string; memberId: string };
+
+        if (!z.string().uuid().safeParse(id).success || !z.string().uuid().safeParse(memberId).success) {
+          return reply.code(400).send({
+            error: { code: 'VALIDATION_ERROR', message: 'Invalid ID format', details: {} },
+          });
+        }
+
+        // Verify collection exists and user is the author
+        const { data: collection, error: collectionError } = await supabaseAdmin
+          .from('collections')
+          .select('id, author_id')
+          .eq('id', id)
+          .eq('tenant_id', tenant.id)
+          .single();
+
+        if (collectionError || !collection) {
+          return reply.code(404).send({
+            error: { code: 'COLLECTION_NOT_FOUND', message: 'Collection not found', details: {} },
+          });
+        }
+
+        if (collection.author_id !== user.id) {
+          return reply.code(403).send({
+            error: { code: 'ACCESS_DENIED', message: 'Only the collection author can remove members', details: {} },
+          });
+        }
+
+        // Remove member
+        const { error: deleteError } = await supabaseAdmin
+          .from('collection_members')
+          .delete()
+          .eq('id', memberId)
+          .eq('collection_id', id);
+
+        if (deleteError) {
+          fastify.log.error({ error: deleteError }, 'Failed to remove collection member');
+          return reply.code(500).send({
+            error: { code: 'REMOVE_FAILED', message: 'Failed to remove member', details: {} },
+          });
+        }
+
+        return reply.code(200).send({
+          success: true,
+          data: { message: 'Member removed successfully' },
+        });
+      } catch (error) {
+        fastify.log.error({ error }, 'Unexpected error in DELETE /api/collections/:id/members/:memberId');
+        return reply.code(500).send({
+          error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred', details: {} },
+        });
+      }
+    }
+  );
+}
+
+/**
+ * Check if a user is a member of a collection
+ */
+async function checkCollectionMembership(
+  collectionId: string,
+  userId: string
+): Promise<boolean> {
+  const { data, error } = await supabaseAdmin
+    .from('collection_members')
+    .select('id')
+    .eq('collection_id', collectionId)
+    .eq('user_id', userId)
+    .single();
+
+  return !error && !!data;
 }

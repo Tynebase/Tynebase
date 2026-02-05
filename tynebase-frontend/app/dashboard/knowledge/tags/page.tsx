@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
-import { Hash, Plus, Search, Sparkles, FileText, ArrowRight, TrendingUp, Filter, Loader2, AlertCircle, Trash2 } from "lucide-react";
+import { Hash, Plus, Search, Sparkles, FileText, ArrowRight, TrendingUp, Filter, Loader2, AlertCircle, Trash2, ChevronDown, RotateCcw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { listTags, createTag, type Tag as APITag } from "@/lib/api/tags";
 
@@ -75,6 +75,12 @@ export default function TagsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  
+  // Filter states
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [sortBy, setSortBy] = useState<'name' | 'documents' | 'updated'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [showUnused, setShowUnused] = useState<boolean | null>(null);
 
   useEffect(() => {
     const fetchTags = async () => {
@@ -96,10 +102,37 @@ export default function TagsPage() {
   }, []);
 
   const filtered = useMemo(() => {
+    let result = tags;
+    
+    // Search filter
     const q = query.trim().toLowerCase();
-    if (!q) return tags;
-    return tags.filter((t) => `${t.name} ${t.description}`.toLowerCase().includes(q));
-  }, [query, tags]);
+    if (q) {
+      result = result.filter((t) => `${t.name} ${t.description}`.toLowerCase().includes(q));
+    }
+    
+    // Show unused/used filter
+    if (showUnused === true) {
+      result = result.filter((t) => t.documents === 0);
+    } else if (showUnused === false) {
+      result = result.filter((t) => t.documents > 0);
+    }
+    
+    // Sort
+    result = [...result].sort((a, b) => {
+      let comparison = 0;
+      if (sortBy === 'name') {
+        comparison = a.name.localeCompare(b.name);
+      } else if (sortBy === 'documents') {
+        comparison = a.documents - b.documents;
+      } else if (sortBy === 'updated') {
+        // Sort by updatedAt string (which is relative time, so we need to compare original)
+        comparison = 0;
+      }
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+    
+    return result;
+  }, [query, tags, sortBy, sortOrder, showUnused]);
 
   const handleCreateTag = async () => {
     if (!newTagName.trim()) return;
@@ -156,7 +189,7 @@ export default function TagsPage() {
 
       <div className="h-6" />
 
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-4 relative">
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--dash-text-muted)] pointer-events-none" />
           <input
@@ -166,10 +199,85 @@ export default function TagsPage() {
             className="w-full h-12 pl-12 pr-4 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 transition-all leading-none"
           />
         </div>
-        <button className="inline-flex items-center justify-center gap-2 h-12 px-5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-sm font-medium text-[var(--dash-text-secondary)] hover:border-[var(--dash-border-default)] transition-all">
-          <Filter className="w-4 h-4" />
-          Filters
-        </button>
+        <div className="relative">
+          <button 
+            className="inline-flex items-center justify-center gap-2 h-12 px-5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-sm font-medium text-[var(--dash-text-secondary)] hover:border-[var(--dash-border-default)] transition-all"
+            onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+          >
+            <Filter className="w-4 h-4" />
+            Filters
+            {(sortBy !== 'name' || sortOrder !== 'asc' || showUnused !== null) && (
+              <span className="ml-1 w-2 h-2 bg-[var(--brand)] rounded-full"></span>
+            )}
+          </button>
+          
+          {/* Filter Dropdown */}
+          {showFilterDropdown && (
+            <div className="absolute top-full right-0 mt-2 w-56 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl shadow-lg z-50 overflow-hidden">
+              <div className="p-3 border-b border-[var(--dash-border-subtle)]">
+                <p className="text-xs font-medium text-[var(--dash-text-muted)] uppercase">Sort by</p>
+                <div className="mt-2 space-y-1">
+                  <button
+                    onClick={() => { setSortBy('name'); setSortOrder('asc'); }}
+                    className={`w-full px-3 py-2 text-left text-sm rounded-lg transition-colors ${sortBy === 'name' && sortOrder === 'asc' ? 'bg-[var(--brand)]/10 text-[var(--brand)]' : 'text-[var(--dash-text-secondary)] hover:bg-[var(--surface-hover)]'}`}
+                  >
+                    Name (A-Z)
+                  </button>
+                  <button
+                    onClick={() => { setSortBy('name'); setSortOrder('desc'); }}
+                    className={`w-full px-3 py-2 text-left text-sm rounded-lg transition-colors ${sortBy === 'name' && sortOrder === 'desc' ? 'bg-[var(--brand)]/10 text-[var(--brand)]' : 'text-[var(--dash-text-secondary)] hover:bg-[var(--surface-hover)]'}`}
+                  >
+                    Name (Z-A)
+                  </button>
+                  <button
+                    onClick={() => { setSortBy('documents'); setSortOrder('desc'); }}
+                    className={`w-full px-3 py-2 text-left text-sm rounded-lg transition-colors ${sortBy === 'documents' ? 'bg-[var(--brand)]/10 text-[var(--brand)]' : 'text-[var(--dash-text-secondary)] hover:bg-[var(--surface-hover)]'}`}
+                  >
+                    Most Documents
+                  </button>
+                  <button
+                    onClick={() => { setSortBy('documents'); setSortOrder('asc'); }}
+                    className={`w-full px-3 py-2 text-left text-sm rounded-lg transition-colors ${sortBy === 'documents' && sortOrder === 'asc' ? 'bg-[var(--brand)]/10 text-[var(--brand)]' : 'text-[var(--dash-text-secondary)] hover:bg-[var(--surface-hover)]'}`}
+                  >
+                    Least Documents
+                  </button>
+                </div>
+              </div>
+              <div className="p-3">
+                <p className="text-xs font-medium text-[var(--dash-text-muted)] uppercase">Filter</p>
+                <div className="mt-2 space-y-1">
+                  <button
+                    onClick={() => setShowUnused(showUnused === false ? null : false)}
+                    className={`w-full px-3 py-2 text-left text-sm rounded-lg transition-colors ${showUnused === false ? 'bg-[var(--brand)]/10 text-[var(--brand)]' : 'text-[var(--dash-text-secondary)] hover:bg-[var(--surface-hover)]'}`}
+                  >
+                    With Documents
+                  </button>
+                  <button
+                    onClick={() => setShowUnused(showUnused === true ? null : true)}
+                    className={`w-full px-3 py-2 text-left text-sm rounded-lg transition-colors ${showUnused === true ? 'bg-[var(--brand)]/10 text-[var(--brand)]' : 'text-[var(--dash-text-secondary)] hover:bg-[var(--surface-hover)]'}`}
+                  >
+                    Unused Only
+                  </button>
+                </div>
+              </div>
+              {(sortBy !== 'name' || sortOrder !== 'asc' || showUnused !== null) && (
+                <div className="p-3 border-t border-[var(--dash-border-subtle)]">
+                  <button
+                    onClick={() => {
+                      setSortBy('name');
+                      setSortOrder('asc');
+                      setShowUnused(null);
+                    }}
+                    className="w-full px-3 py-2 text-left text-sm text-[var(--status-error)] hover:bg-[var(--status-error-bg)] rounded-lg transition-colors flex items-center gap-2"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Reset Filters
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="h-2" />

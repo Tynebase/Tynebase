@@ -24,10 +24,10 @@ import {
 
 
 const roleColors: Record<string, string> = {
-  Admin: "bg-purple-500/10 text-purple-600",
-  Editor: "bg-blue-500/10 text-blue-600",
-  Contributor: "bg-green-500/10 text-green-600",
-  Viewer: "bg-gray-500/10 text-gray-600",
+  admin: "bg-purple-500/10 text-purple-600",
+  editor: "bg-blue-500/10 text-blue-600",
+  member: "bg-green-500/10 text-green-600",
+  viewer: "bg-gray-500/10 text-gray-600",
 };
 
 function getRoleBadgeClass(role: string) {
@@ -144,10 +144,10 @@ function UsersFiltersBar({
             className="w-full sm:w-auto px-3 py-2 bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]"
           >
             <option value="all">All Roles</option>
-            <option value="Admin">Admin</option>
-            <option value="Editor">Editor</option>
-            <option value="Contributor">Contributor</option>
-            <option value="Viewer">Viewer</option>
+            <option value="admin">Admin</option>
+            <option value="editor">Editor</option>
+            <option value="member">Member</option>
+            <option value="viewer">Viewer</option>
           </select>
         </div>
       </div>
@@ -273,7 +273,7 @@ export default function UsersPage() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
                 <div className="text-left sm:text-right">
                   <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleBadgeClass(member.role)}`}>
-                    {member.role}
+                    {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
                   </span>
                 </div>
                 <div className="flex items-center gap-6">
@@ -334,10 +334,10 @@ export default function UsersPage() {
               onChange={(e) => setInviteRole(e.target.value)}
               className="w-full px-4 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]"
             >
-              <option value="Viewer">Viewer - Read-only access</option>
-              <option value="Contributor">Contributor - Can create & edit own docs</option>
-              <option value="Editor">Editor - Can edit any document</option>
-              <option value="Admin">Admin - Full access</option>
+              <option value="viewer">Viewer - Read-only access</option>
+              <option value="member">Member - Can create & edit own docs</option>
+              <option value="editor">Editor - Can edit any document</option>
+              <option value="admin">Admin - Full access</option>
             </select>
           </div>
 

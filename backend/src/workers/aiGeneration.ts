@@ -14,6 +14,7 @@
 
 import { supabaseAdmin } from '../lib/supabase';
 import { generateText } from '../services/ai/bedrock';
+import { generateText as generateTextAnthropic } from '../services/ai/anthropic';
 import { generateText as generateTextVertex } from '../services/ai/vertex';
 import { completeJob } from '../utils/completeJob';
 import { failJob } from '../utils/failJob';
@@ -121,9 +122,9 @@ export async function processAIGenerationJob(job: Job): Promise<void> {
         tenant_id: job.tenant_id,
         user_id: validated.user_id,
         query_type: 'text_generation',
-        model: validated.model,
-        input_tokens: generatedContent.tokensInput,
-        output_tokens: generatedContent.tokensOutput,
+        ai_model: validated.model,
+        tokens_input: generatedContent.tokensInput,
+        tokens_output: generatedContent.tokensOutput,
         credits_charged: validated.estimated_credits,
         month_year: currentMonth,
         metadata: {
@@ -210,9 +211,9 @@ async function callAIProvider(
     ]);
     return result;
   } else if (model === 'claude') {
-    // Claude via AWS Bedrock
+    // Claude via AWS Bedrock (Anthropic service)
     const result = await Promise.race([
-      generateText({ prompt, model: actualModel, maxTokens }),
+      generateTextAnthropic({ prompt, model: actualModel, maxTokens }),
       timeoutPromise,
     ]);
     return result;

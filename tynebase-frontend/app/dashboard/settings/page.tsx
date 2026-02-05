@@ -8,6 +8,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Users, Palette, Key, Webhook, FileDown, Shield, ClipboardList, ChevronRight, Lock } from "lucide-react";
 import { updateProfile } from "@/lib/api/auth";
+import { updateTenant } from "@/lib/api/tenants";
 
 const settingsNav = [
   { label: "Privacy & Data", href: "/dashboard/settings/privacy", icon: Lock, description: "GDPR consents and data export" },
@@ -39,28 +40,67 @@ export default function SettingsPage() {
   }, [user, tenant]);
 
   const handleSave = async () => {
-    if (!user) return;
+    if (!user || !tenant) return;
 
     setIsLoading(true);
+    const hasNameChanged = fullName !== (user.full_name || "");
+    const hasCompanyChanged = companyName !== (tenant.name || "");
+
     try {
-      // Update user profile
-      await updateProfile({
-        full_name: fullName,
-      });
+      // Track if any update was attempted
+      let profileUpdated = false;
+      let tenantUpdated = false;
+
+      // Update user profile if name changed
+      if (hasNameChanged) {
+        await updateProfile({
+          full_name: fullName,
+        });
+        profileUpdated = true;
+      }
+
+      // Update tenant if company name changed
+      if (hasCompanyChanged) {
+        await updateTenant(tenant.id, {
+          name: companyName,
+        });
+        tenantUpdated = true;
+      }
 
       // Refresh user context to get updated data
       await refreshUser();
 
-      addToast({
-        type: "success",
-        title: "Settings saved",
-        description: "Your profile has been updated successfully.",
-      });
+      // Show appropriate success message
+      if (profileUpdated && tenantUpdated) {
+        addToast({
+          type: "success",
+          title: "Settings saved",
+          description: "Your profile and workspace have been updated successfully.",
+        });
+      } else if (tenantUpdated) {
+        addToast({
+          type: "success",
+          title: "Workspace updated",
+          description: "Your workspace has been updated successfully.",
+        });
+      } else if (profileUpdated) {
+        addToast({
+          type: "success",
+          title: "Profile updated",
+          description: "Your profile has been updated successfully.",
+        });
+      } else {
+        addToast({
+          type: "info",
+          title: "No changes",
+          description: "No changes were made to save.",
+        });
+      }
     } catch (error) {
       addToast({
         type: "error",
         title: "Save failed",
-        description: error instanceof Error ? error.message : "Failed to update profile. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to update settings. Please try again.",
       });
     } finally {
       setIsLoading(false);

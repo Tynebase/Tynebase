@@ -13,6 +13,7 @@ import { dispatchJob } from '../utils/dispatchJob';
 const listDocumentsQuerySchema = z.object({
   category_id: z.string().uuid().optional(),
   status: z.enum(['draft', 'published']).optional(),
+  tag_id: z.string().uuid().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
@@ -46,6 +47,9 @@ const updateDocumentBodySchema = z.object({
   visibility: z.enum(['private', 'team', 'public']).optional(),
   status: z.enum(['draft', 'published']).optional(),
   category_id: z.string().uuid().nullable().optional(), // Category/folder ID
+  draft_content: z.string().max(10485760).optional(), // Draft content for published docs
+  draft_title: z.string().min(1).max(500).optional(), // Draft title
+  save_as_draft: z.boolean().optional(), // Flag to indicate saving to draft vs publishing
 }).refine((data) => Object.keys(data).length > 0, {
   message: 'At least one field must be provided for update',
 });
@@ -118,7 +122,7 @@ export default async function documentRoutes(fastify: FastifyInstance) {
 
         // Validate query parameters
         const query = listDocumentsQuerySchema.parse(request.query);
-        const { category_id, status, page, limit } = query;
+        const { category_id, status, tag_id, page, limit } = query;
 
         // Calculate pagination offset
         const offset = (page - 1) * limit;
@@ -158,6 +162,37 @@ export default async function documentRoutes(fastify: FastifyInstance) {
 
         if (status !== undefined) {
           dbQuery = dbQuery.eq('status', status);
+        }
+
+        // Apply tag filter by filtering to documents that have the specified tag
+        if (tag_id !== undefined) {
+          // First, get all document IDs that have this tag
+          const { data: taggedDocs } = await supabaseAdmin
+            .from('document_tags')
+            .select('document_id')
+            .eq('tag_id', tag_id);
+          
+          const taggedDocIds = taggedDocs?.map(td => td.document_id) || [];
+          
+          if (taggedDocIds.length > 0) {
+            dbQuery = dbQuery.in('id', taggedDocIds);
+          } else {
+            // No documents have this tag, return empty result
+            return reply.code(200).send({
+              success: true,
+              data: {
+                documents: [],
+                pagination: {
+                  page,
+                  limit,
+                  total: 0,
+                  totalPages: 0,
+                  hasNextPage: false,
+                  hasPrevPage: false,
+                },
+              },
+            });
+          }
         }
 
         // Execute query
@@ -331,13 +366,17 @@ export default async function documentRoutes(fastify: FastifyInstance) {
         const params = getDocumentParamsSchema.parse(request.params);
         const { id } = params;
 
-        // Fetch document with tenant isolation
+        // Fetch document with tenant isolation - include draft fields
         const { data: document, error } = await supabaseAdmin
           .from('documents')
           .select(`
             id,
             title,
             content,
+            draft_content,
+            draft_title,
+            has_draft,
+            draft_updated_at,
             parent_id,
             category_id,
             visibility,
@@ -625,12 +664,12 @@ export default async function documentRoutes(fastify: FastifyInstance) {
 
         // Validate request body
         const body = updateDocumentBodySchema.parse(request.body);
-        const { title, content, yjs_state, visibility, status, category_id } = body;
+        const { title, content, yjs_state, visibility, status, category_id, draft_content, draft_title, save_as_draft } = body;
 
-        // Fetch document to verify ownership and tenant
+        // Fetch document to verify ownership and tenant - include draft fields
         const { data: existingDoc, error: fetchError } = await supabaseAdmin
           .from('documents')
-          .select('id, author_id, tenant_id, title, content, status')
+          .select('id, author_id, tenant_id, title, content, status, has_draft, draft_content, draft_title')
           .eq('id', id)
           .eq('tenant_id', tenant.id)
           .single();
@@ -679,32 +718,94 @@ export default async function documentRoutes(fastify: FastifyInstance) {
         }
 
         // Build update object with only provided fields
+        // Handle draft workflow: if save_as_draft is true and document is published, save to draft fields
         const updateData: any = {};
-        if (title !== undefined) updateData.title = title;
-        if (content !== undefined) updateData.content = content;
+        const isPublished = existingDoc.status === 'published';
+        const isDraftSave = save_as_draft === true;
+        
+        // Track if we're updating draft or published content
+        let draftContentUpdated = false;
+        let publishedContentUpdated = false;
+        
+        if (isPublished && isDraftSave) {
+          // Saving draft changes to a published document
+          if (content !== undefined) {
+            updateData.draft_content = content;
+            updateData.has_draft = true;
+            updateData.draft_updated_at = new Date().toISOString();
+            draftContentUpdated = true;
+          }
+          if (title !== undefined) {
+            updateData.draft_title = title;
+            updateData.has_draft = true;
+            updateData.draft_updated_at = new Date().toISOString();
+          }
+          // Also update yjs_state for collaborative editing
+          if (yjs_state !== undefined) {
+            try {
+              const buffer = Buffer.from(yjs_state, 'base64');
+              updateData.yjs_state = buffer;
+            } catch (decodeError) {
+              fastify.log.warn(
+                { documentId: id, userId: user.id },
+                'Invalid base64 encoding for yjs_state'
+              );
+              return reply.code(400).send({
+                error: {
+                  code: 'INVALID_YJS_STATE',
+                  message: 'yjs_state must be valid base64-encoded data',
+                  details: {},
+                },
+              });
+            }
+          }
+        } else {
+          // Normal update (draft document or direct published update)
+          if (title !== undefined) {
+            updateData.title = title;
+            publishedContentUpdated = true;
+          }
+          if (content !== undefined) {
+            updateData.content = content;
+            publishedContentUpdated = true;
+          }
+          if (yjs_state !== undefined) {
+            try {
+              const buffer = Buffer.from(yjs_state, 'base64');
+              updateData.yjs_state = buffer;
+            } catch (decodeError) {
+              fastify.log.warn(
+                { documentId: id, userId: user.id },
+                'Invalid base64 encoding for yjs_state'
+              );
+              return reply.code(400).send({
+                error: {
+                  code: 'INVALID_YJS_STATE',
+                  message: 'yjs_state must be valid base64-encoded data',
+                  details: {},
+                },
+              });
+            }
+          }
+        }
+        
+        // Handle draft content and title directly if provided
+        if (draft_content !== undefined) {
+          updateData.draft_content = draft_content;
+          updateData.has_draft = true;
+          updateData.draft_updated_at = new Date().toISOString();
+          draftContentUpdated = true;
+        }
+        if (draft_title !== undefined) {
+          updateData.draft_title = draft_title;
+          updateData.has_draft = true;
+          updateData.draft_updated_at = new Date().toISOString();
+        }
+        
+        // Other fields that can always be updated
         if (visibility !== undefined) updateData.visibility = visibility;
         if (status !== undefined) updateData.status = status;
         if (category_id !== undefined) updateData.category_id = category_id;
-        
-        // Handle yjs_state - convert base64 to buffer for BYTEA storage
-        if (yjs_state !== undefined) {
-          try {
-            const buffer = Buffer.from(yjs_state, 'base64');
-            updateData.yjs_state = buffer;
-          } catch (decodeError) {
-            fastify.log.warn(
-              { documentId: id, userId: user.id },
-              'Invalid base64 encoding for yjs_state'
-            );
-            return reply.code(400).send({
-              error: {
-                code: 'INVALID_YJS_STATE',
-                message: 'yjs_state must be valid base64-encoded data',
-                details: {},
-              },
-            });
-          }
-        }
 
         // Update document
         const { data: updatedDoc, error: updateError } = await supabaseAdmin
@@ -716,6 +817,10 @@ export default async function documentRoutes(fastify: FastifyInstance) {
             id,
             title,
             content,
+            draft_content,
+            draft_title,
+            has_draft,
+            draft_updated_at,
             parent_id,
             category_id,
             visibility,
@@ -747,6 +852,12 @@ export default async function documentRoutes(fastify: FastifyInstance) {
         };
         
         // Track what changed for audit purposes
+        if (draftContentUpdated) {
+          lineageMetadata.draft_content_saved = true;
+        }
+        if (publishedContentUpdated) {
+          lineageMetadata.published_content_updated = true;
+        }
         if (title !== undefined && title !== existingDoc.title) {
           lineageMetadata.title_changed = true;
         }
@@ -755,6 +866,9 @@ export default async function documentRoutes(fastify: FastifyInstance) {
         }
         if (yjs_state !== undefined) {
           lineageMetadata.yjs_state_updated = true;
+        }
+        if (isPublished && isDraftSave) {
+          lineageMetadata.saved_as_draft = true;
         }
 
         const { error: lineageError } = await supabaseAdmin
@@ -1065,10 +1179,10 @@ export default async function documentRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Fetch document to verify it exists and belongs to tenant
+        // Fetch document to verify it exists and belongs to tenant - include draft fields
         const { data: existingDoc, error: fetchError } = await supabaseAdmin
           .from('documents')
-          .select('id, status, title, tenant_id, category_id')
+          .select('id, status, title, tenant_id, category_id, has_draft, draft_content, draft_title')
           .eq('id', id)
           .eq('tenant_id', tenant.id)
           .single();
@@ -1102,15 +1216,18 @@ export default async function documentRoutes(fastify: FastifyInstance) {
         }
 
         // Check if document is already published
-        if (existingDoc.status === 'published') {
+        // If published with draft changes, we allow re-publishing (publishing the draft)
+        const hasDraftChanges = existingDoc.has_draft && (existingDoc.draft_content || existingDoc.draft_title);
+        
+        if (existingDoc.status === 'published' && !hasDraftChanges) {
           fastify.log.warn(
             { documentId: id, tenantId: tenant.id, userId: user.id },
-            'Attempted to publish already published document'
+            'Attempted to publish already published document with no draft changes'
           );
           return reply.code(400).send({
             error: {
               code: 'ALREADY_PUBLISHED',
-              message: 'Document is already published',
+              message: 'Document is already published with no pending draft changes',
               details: {},
             },
           });
@@ -1158,11 +1275,40 @@ export default async function documentRoutes(fastify: FastifyInstance) {
           }
         }
 
-        // Update document status to published and set published_at (and category if assigned)
-        const updateData: { status: string; published_at: string; category_id?: string } = {
+        // Update document status to published and set published_at
+        // If there are draft changes, copy them to the published fields
+        const isRepublishingWithDraft = existingDoc.status === 'published' && hasDraftChanges;
+        
+        const updateData: { 
+          status: string; 
+          published_at: string; 
+          category_id?: string;
+          title?: string;
+          content?: string;
+          has_draft?: boolean;
+          draft_content?: string | null;
+          draft_title?: string | null;
+          draft_updated_at?: string | null;
+        } = {
           status: 'published',
           published_at: new Date().toISOString(),
         };
+        
+        // If republishing with draft changes, copy draft to published
+        if (isRepublishingWithDraft) {
+          if (existingDoc.draft_title) {
+            updateData.title = existingDoc.draft_title;
+          }
+          if (existingDoc.draft_content) {
+            updateData.content = existingDoc.draft_content;
+          }
+          // Clear draft fields after publishing
+          updateData.has_draft = false;
+          updateData.draft_content = null;
+          updateData.draft_title = null;
+          updateData.draft_updated_at = null;
+        }
+        
         if (categoryId && categoryId !== existingDoc.category_id) {
           updateData.category_id = categoryId;
         }
@@ -1176,6 +1322,10 @@ export default async function documentRoutes(fastify: FastifyInstance) {
             id,
             title,
             content,
+            draft_content,
+            draft_title,
+            has_draft,
+            draft_updated_at,
             parent_id,
             category_id,
             visibility,
@@ -1292,6 +1442,189 @@ export default async function documentRoutes(fastify: FastifyInstance) {
         }
 
         fastify.log.error({ error }, 'Unexpected error in POST /api/documents/:id/publish');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
+   * POST /api/documents/:id/discard-draft
+   * Discards draft changes for a published document
+   * Clears draft_content, draft_title, and has_draft fields
+   * 
+   * Path Parameters:
+   * - id: Document UUID
+   * 
+   * Authorization:
+   * - Requires valid JWT
+   * - User must be member of tenant
+   * - User must be the document author
+   * - Document must belong to user's tenant
+   * - Document must have has_draft = true
+   * 
+   * Security:
+   * - Enforces tenant isolation via explicit tenant_id filtering
+   * - Validates user is document author
+   * - Returns 404 if document not found or belongs to different tenant
+   * - Returns 403 if user doesn't own document
+   * - Returns 400 if document has no draft to discard
+   */
+  fastify.post(
+    '/api/documents/:id/discard-draft',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        // Validate path parameters
+        const params = publishDocumentParamsSchema.parse(request.params);
+        const { id } = params;
+
+        // Fetch document to verify ownership and draft status
+        const { data: existingDoc, error: fetchError } = await supabaseAdmin
+          .from('documents')
+          .select('id, status, title, tenant_id, author_id, has_draft, draft_content, draft_title')
+          .eq('id', id)
+          .eq('tenant_id', tenant.id)
+          .single();
+
+        if (fetchError) {
+          if (fetchError.code === 'PGRST116') {
+            return reply.code(404).send({
+              error: {
+                code: 'DOCUMENT_NOT_FOUND',
+                message: 'Document not found',
+                details: {},
+              },
+            });
+          }
+          return reply.code(500).send({
+            error: {
+              code: 'FETCH_FAILED',
+              message: 'Failed to fetch document',
+              details: {},
+            },
+          });
+        }
+
+        // Verify ownership - only author can discard draft
+        if (existingDoc.author_id !== user.id) {
+          return reply.code(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Only the document author can discard draft changes',
+              details: {},
+            },
+          });
+        }
+
+        // Check if document has draft to discard
+        if (!existingDoc.has_draft) {
+          return reply.code(400).send({
+            error: {
+              code: 'NO_DRAFT',
+              message: 'Document has no draft changes to discard',
+              details: {},
+            },
+          });
+        }
+
+        // Clear draft fields
+        const { data: updatedDoc, error: updateError } = await supabaseAdmin
+          .from('documents')
+          .update({
+            has_draft: false,
+            draft_content: null,
+            draft_title: null,
+            draft_updated_at: null,
+          })
+          .eq('id', id)
+          .eq('tenant_id', tenant.id)
+          .select(`
+            id,
+            title,
+            content,
+            draft_content,
+            draft_title,
+            has_draft,
+            draft_updated_at,
+            parent_id,
+            category_id,
+            visibility,
+            status,
+            author_id,
+            published_at,
+            created_at,
+            updated_at
+          `)
+          .single();
+
+        if (updateError) {
+          fastify.log.error(
+            { error: updateError, documentId: id, tenantId: tenant.id, userId: user.id },
+            'Failed to discard draft'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'DISCARD_FAILED',
+              message: 'Failed to discard draft changes',
+              details: {},
+            },
+          });
+        }
+
+        // Create lineage event
+        const { error: lineageError } = await supabaseAdmin
+          .from('document_lineage')
+          .insert({
+            document_id: id,
+            event_type: 'draft_discarded',
+            actor_id: user.id,
+            metadata: {
+              had_draft_title: !!existingDoc.draft_title,
+              had_draft_content: !!existingDoc.draft_content,
+            },
+          });
+
+        if (lineageError) {
+          fastify.log.error(
+            { error: lineageError, documentId: id, userId: user.id },
+            'Failed to create lineage event for draft discard'
+          );
+        }
+
+        fastify.log.info(
+          { documentId: id, tenantId: tenant.id, userId: user.id },
+          'Draft discarded successfully'
+        );
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            document: updatedDoc,
+          },
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid document ID format',
+              details: error.errors,
+            },
+          });
+        }
+
+        fastify.log.error({ error }, 'Unexpected error in POST /api/documents/:id/discard-draft');
         return reply.code(500).send({
           error: {
             code: 'INTERNAL_ERROR',

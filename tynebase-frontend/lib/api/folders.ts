@@ -18,9 +18,11 @@ export interface Category {
   color: string;
   icon: string;
   parent_id: string | null;
+  sort_order: number;
   document_count: number;
   subcategory_count: number;
   author_id: string;
+  is_system?: boolean;
   created_at: string;
   updated_at: string;
   users?: {
@@ -29,6 +31,31 @@ export interface Category {
     full_name: string | null;
   };
   subcategories?: { id: string; name: string; color: string; icon: string }[];
+}
+
+export interface CategoryDocument {
+  id: string;
+  title: string;
+  content: string;
+  status: string;
+  author_id: string;
+  created_at: string;
+  updated_at: string;
+  users?: {
+    id: string;
+    email: string;
+    full_name: string | null;
+  };
+}
+
+export interface CategoryWithDocuments {
+  category: {
+    id: string;
+    name: string;
+    is_system?: boolean;
+  };
+  documents: CategoryDocument[];
+  count: number;
 }
 
 export interface CategoryListParams {
@@ -50,6 +77,8 @@ export interface UpdateCategoryData {
   description?: string;
   color?: string;
   icon?: string;
+  parent_id?: string | null;
+  sort_order?: number;
 }
 
 // ============================================================================
@@ -142,11 +171,53 @@ export async function updateCategory(
 }
 
 /**
- * Delete a category (must be empty)
+ * Get all documents in a category
  * 
  * @param id - Category UUID
- * @returns Deletion confirmation
+ * @returns Category details with documents
  */
-export async function deleteCategory(id: string): Promise<{ message: string; categoryId: string }> {
-  return apiDelete<{ message: string; categoryId: string }>(`/api/categories/${id}`);
+export async function getCategoryDocuments(id: string): Promise<CategoryWithDocuments> {
+  return apiGet<CategoryWithDocuments>(`/api/categories/${id}/documents`);
+}
+
+/**
+ * Get the Uncategorized system category
+ * Creates it if it doesn't exist
+ * 
+ * @returns Uncategorized category details
+ */
+export async function getUncategorizedCategory(): Promise<{ category: Category }> {
+  return apiGet<{ category: Category }>('/api/categories/uncategorized');
+}
+
+/**
+ * Delete a category with optional document migration
+ * 
+ * @param id - Category UUID
+ * @param migrateToCategoryId - Optional target category ID to migrate documents to (null for Uncategorized)
+ * @returns Deletion result with migration details
+ */
+export interface DeleteCategoryResult {
+  message: string;
+  categoryId: string;
+  categoryName: string;
+  migrated: {
+    documents: number;
+    subcategories: number;
+    toCategory: {
+      id: string;
+      name: string;
+      is_system?: boolean;
+    } | null;
+  };
+}
+
+export async function deleteCategory(
+  id: string, 
+  migrateToCategoryId?: string | null
+): Promise<DeleteCategoryResult> {
+  const queryParams = migrateToCategoryId !== undefined 
+    ? `?migrate_to_category_id=${migrateToCategoryId}` 
+    : '';
+  return apiDelete<DeleteCategoryResult>(`/api/categories/${id}${queryParams}`);
 }

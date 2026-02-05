@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   Plus, Search, Filter, Grid, List, MoreHorizontal, FileText,
   Clock, Users, Star, Eye, Sparkles,
@@ -10,7 +11,7 @@ import {
   CheckCircle, AlertCircle, Zap,
   Globe, Lock, BookOpen, Database, FileSearch, HeartPulse,
   Loader2, AlertTriangle, Trash2, Square, CheckSquare, Minus,
-  FolderInput, Tag as TagIcon, Library, X
+  FolderInput, Tag as TagIcon, Library, X, RotateCcw
 } from "lucide-react";
 import { listDocuments, deleteDocument, updateDocument, type Document } from "@/lib/api/documents";
 import { listCategories, type Category } from "@/lib/api/folders";
@@ -18,6 +19,7 @@ import { listCollections, addDocumentsToCollection, type Collection } from "@/li
 import { listTags, addTagToDocuments, type Tag as TagType } from "@/lib/api/tags";
 import { Modal, ModalFooter } from "@/components/ui/Modal";
 import { DocumentImportModal } from "@/components/docs/DocumentImportModal";
+import { SortableCategories } from "@/components/ui/SortableCategories";
 
 interface DocumentCollectionInfo {
   id: string;
@@ -60,9 +62,17 @@ const quickActions = [
 ];
 
 export default function KnowledgePage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const tagParam = searchParams.get('tag');
+  const categoryParam = searchParams.get('category');
+  const statusParam = searchParams.get('status') as 'all' | 'published' | 'draft' | null;
+  const searchParam = searchParams.get('search');
+  
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState(searchParam || '');
+  const [selectedCategory, setSelectedCategory] = useState<string>(categoryParam || "all");
   const [documents, setDocuments] = useState<UIDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -79,8 +89,8 @@ export default function KnowledgePage() {
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [sortBy, setSortBy] = useState<'updated' | 'title' | 'created'>('updated');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft'>('all');
-  const [filterTagId, setFilterTagId] = useState<string | null>(null);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft'>(statusParam || 'all');
+  const [filterTagId, setFilterTagId] = useState<string | null>(tagParam);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [showTagFilterDropdown, setShowTagFilterDropdown] = useState(false);
@@ -190,16 +200,28 @@ export default function KnowledgePage() {
         setLoading(true);
         setError(null);
         
-        const response = await listDocuments({
+        // Build API params from filters
+        const apiParams: Parameters<typeof listDocuments>[0] = {
           page: currentPage,
           limit: 20,
-        });
+        };
         
-        // Debug: Log the first document to see view_count
-        if (response.documents.length > 0) {
-          console.log('First document from API:', response.documents[0]);
-          console.log('view_count value:', response.documents[0].view_count);
+        // Only pass category filter if not "all"
+        if (selectedCategory !== 'all') {
+          apiParams.category_id = selectedCategory;
         }
+        
+        // Only pass status filter if not "all"
+        if (filterStatus !== 'all') {
+          apiParams.status = filterStatus;
+        }
+        
+        // Pass tag filter if set
+        if (filterTagId) {
+          apiParams.tag_id = filterTagId;
+        }
+        
+        const response = await listDocuments(apiParams);
         
         const uiDocs = response.documents.map(mapDocumentToUI);
         setDocuments(uiDocs);
@@ -216,7 +238,7 @@ export default function KnowledgePage() {
     };
 
     fetchDocuments();
-  }, [currentPage, mapDocumentToUI]);
+  }, [currentPage, selectedCategory, filterStatus, filterTagId, mapDocumentToUI]);
 
   const handleDeleteClick = useCallback((doc: UIDocument, e: React.MouseEvent) => {
     e.preventDefault();
@@ -411,10 +433,7 @@ export default function KnowledgePage() {
 
   const filteredDocs = useMemo(() => documents
     .filter(doc => {
-      if (selectedCategory !== "all" && doc.categoryId !== selectedCategory) return false;
       if (searchQuery && !doc.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-      if (filterStatus !== 'all' && doc.state !== filterStatus) return false;
-      if (filterTagId && !doc.tags.some(tag => tag.id === filterTagId)) return false;
       return true;
     })
     .sort((a, b) => {
@@ -427,7 +446,42 @@ export default function KnowledgePage() {
         comparison = 0;
       }
       return sortOrder === 'asc' ? comparison : -comparison;
-    }), [documents, selectedCategory, searchQuery, filterStatus, filterTagId, sortBy, sortOrder]);
+    }), [documents, searchQuery, sortBy, sortOrder]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, filterStatus, filterTagId, searchQuery]);
+
+  // Sync filter state to URL
+  useEffect(() => {
+    const params = new URLSearchParams();
+    
+    if (selectedCategory !== 'all') {
+      params.set('category', selectedCategory);
+    }
+    
+    if (filterStatus !== 'all') {
+      params.set('status', filterStatus);
+    }
+    
+    if (filterTagId) {
+      params.set('tag', filterTagId);
+    }
+    
+    if (searchQuery) {
+      params.set('search', searchQuery);
+    }
+    
+    if (currentPage > 1) {
+      params.set('page', currentPage.toString());
+    }
+    
+    const queryString = params.toString();
+    const newUrl = queryString ? `${pathname}?${queryString}` : pathname;
+    
+    router.replace(newUrl, { scroll: false });
+  }, [selectedCategory, filterStatus, filterTagId, searchQuery, currentPage, pathname, router]);
 
   // Selection state for filtered docs
   const filteredDocIds = useMemo(() => filteredDocs.map(doc => doc.id), [filteredDocs]);
@@ -593,32 +647,39 @@ export default function KnowledgePage() {
         </div>
       </div>
 
-      {/* Categories */}
+      {/* Categories with Drag and Drop */}
       <div className="flex flex-wrap gap-2">
-        {categories.map((cat) => {
-          return (
-            <button
-              key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
-              className={`px-5 py-3 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${selectedCategory === cat.id
-                  ? "bg-[var(--brand)] text-white shadow-sm"
-                  : "bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] text-[var(--dash-text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)]"
-                }`}
-            >
-              <span 
-                className="w-3 h-3 rounded-sm"
-                style={{ backgroundColor: selectedCategory === cat.id ? 'white' : cat.color }}
-              />
-              {cat.name}
-              <span className={`px-1.5 py-0.5 text-xs rounded-md ${selectedCategory === cat.id
-                  ? 'bg-white/20 text-white'
-                  : 'bg-[var(--surface-ground)] text-[var(--dash-text-muted)]'
-                }`}>
-                {cat.count}
-              </span>
-            </button>
-          );
-        })}
+        <SortableCategories
+          categories={categories.map((cat) => ({
+            ...cat,
+            id: cat.id,
+            name: cat.name,
+            color: cat.color,
+            count: cat.count,
+            sort_order: (cat as any).sort_order ?? 0,
+            description: null,
+            icon: 'folder',
+            parent_id: null,
+            document_count: cat.count,
+            subcategory_count: 0,
+            author_id: '',
+            created_at: '',
+            updated_at: '',
+          }))}
+          selectedCategoryId={selectedCategory}
+          onSelectCategory={setSelectedCategory}
+          onReorder={(newCategories) => {
+            // Update the categories order in the local state
+            const updatedCategories = newCategories.map((cat) => ({
+              id: cat.id,
+              name: cat.name,
+              color: cat.color,
+              count: cat.count,
+            }));
+            // We don't need to do anything else since the API already updated the sort_order
+            console.log('Categories reordered:', updatedCategories);
+          }}
+        />
       </div>
 
       {/* Search, Sort, and View Controls */}
@@ -753,6 +814,24 @@ export default function KnowledgePage() {
               </div>
             )}
           </div>
+          
+          {/* Clear Filters Button - shows when any filter is active */}
+          {(filterStatus !== 'all' || filterTagId || selectedCategory !== 'all' || searchQuery) && (
+            <button
+              onClick={() => {
+                setFilterStatus('all');
+                setFilterTagId(null);
+                setSelectedCategory('all');
+                setSearchQuery('');
+                setCurrentPage(1);
+              }}
+              className="flex items-center gap-2 px-4 py-3 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-sm text-[var(--dash-text-secondary)] hover:border-[var(--status-error)] hover:text-[var(--status-error)] transition-all"
+              title="Clear all filters"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Clear
+            </button>
+          )}
           
           <div className="flex items-center bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl overflow-hidden">
             <button

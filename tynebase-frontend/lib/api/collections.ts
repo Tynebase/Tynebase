@@ -63,6 +63,23 @@ export interface UpdateCollectionData {
   visibility?: 'public' | 'team' | 'private';
 }
 
+export interface CollectionMember {
+  id: string;
+  role: 'viewer' | 'editor';
+  added_at: string;
+  invited_by: string;
+  users: {
+    id: string;
+    email: string;
+    full_name: string | null;
+  };
+}
+
+export interface InviteMemberData {
+  user_id: string;
+  role?: 'viewer' | 'editor';
+}
+
 // ============================================================================
 // API FUNCTIONS
 // ============================================================================
@@ -169,4 +186,40 @@ export async function removeDocumentFromCollection(
   return apiDelete<{ message: string; collectionId: string; documentId: string }>(
     `/api/collections/${collectionId}/documents/${documentId}`
   );
+}
+
+// ============================================================================
+// COLLECTION MEMBER MANAGEMENT
+// ============================================================================
+
+/**
+ * Get all members of a collection
+ */
+export async function getCollectionMembers(
+  collectionId: string
+): Promise<{ members: CollectionMember[] }> {
+  return apiGet<{ members: CollectionMember[] }>(`/api/collections/${collectionId}/members`);
+}
+
+/**
+ * Invite a member to a private collection
+ */
+export async function inviteCollectionMember(
+  collectionId: string,
+  data: InviteMemberData
+): Promise<{ member: CollectionMember }> {
+  return apiPost<{ member: CollectionMember }>(
+    `/api/collections/${collectionId}/members`,
+    data
+  );
+}
+
+/**
+ * Remove a member from a collection
+ */
+export async function removeCollectionMember(
+  collectionId: string,
+  memberId: string
+): Promise<{ message: string }> {
+  return apiDelete<{ message: string }>(`/api/collections/${collectionId}/members/${memberId}`);
 }

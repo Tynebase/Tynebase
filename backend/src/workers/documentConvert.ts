@@ -174,7 +174,7 @@ async function processConversion(job: Job, workerId: string): Promise<void> {
         tenant_id: job.tenant_id,
         user_id: validated.user_id,
         query_type: 'document_conversion',
-        model_used: 'system',
+        ai_model: 'system',
         credits_charged: 1,
         metadata: {
           job_id: job.id,

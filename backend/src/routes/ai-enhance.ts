@@ -199,11 +199,19 @@ export default async function aiEnhanceRoutes(fastify: FastifyInstance) {
           });
         }
 
-        const prompt = `You are a professional document editor. Analyze ONLY the document BODY content and provide specific, actionable improvements.
+        const prompt = `You are a professional document editor. Your task is to analyze document content and provide specific, actionable improvements.
+
+CRITICAL FORMATTING RULES:
+- Preserve ALL original spacing, punctuation, and formatting exactly
+- NEVER add random letters, characters, or gibberish
+- NEVER remove spaces between words or sentences
+- NEVER invent content that doesn't improve the existing text
+- When suggesting replacements, the "find" text MUST match the document exactly character-for-character
 
 IMPORTANT:
-- You MUST NOT suggest changing the document title.
-- You MUST NOT suggest changing metadata, filenames, or anything outside the body content.
+- You MUST NOT suggest changing the document title, metadata, or filenames.
+- You MUST NOT add random characters, hallucinate content, or invent information.
+- You MUST preserve exact spacing and formatting from the original document.
 
 Document Title: ${document.title}
 Document Content:
@@ -265,7 +273,7 @@ CRITICAL RULES:
             prompt,
             model: 'claude-sonnet-4.5',
             maxTokens: 2000,
-            temperature: 0.3,
+            temperature: 0.0,
           });
         } catch (aiError) {
           request.log.error(

@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Card, CardContent } from "@/components/ui/Card";
 import { DashboardPageHeader } from "@/components/layout/DashboardPageHeader";
-import { ArrowLeft, Plus, Send, Tag } from "lucide-react";
+import { createDiscussion } from "@/lib/api/discussions";
+import { ArrowLeft, Plus, Send, Tag, Loader2, AlertCircle } from "lucide-react";
 
 const categories = [
   { id: "announcements", label: "Announcements", color: "#ef4444" },
@@ -19,10 +21,13 @@ const categories = [
 type CategoryId = (typeof categories)[number]["id"];
 
 export default function NewDiscussionPage() {
+  const router = useRouter();
   const [category, setCategory] = useState<CategoryId>("general");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [tags, setTags] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const selectedCategory = useMemo(
     () => categories.find((c) => c.id === category),
@@ -31,8 +36,53 @@ export default function NewDiscussionPage() {
 
   const isValid = title.trim().length > 0 && content.trim().length > 0;
 
+  const handleSubmit = async () => {
+    if (!isValid) return;
+
+    try {
+      setIsSubmitting(true);
+      setError(null);
+
+      const parsedTags = tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter((t) => t.length > 0);
+
+      const response = await createDiscussion({
+        title: title.trim(),
+        content: content.trim(),
+        category,
+        tags: parsedTags,
+      });
+
+      // Redirect to the community page on success
+      router.push("/dashboard/community");
+    } catch (err) {
+      console.error("Failed to create discussion:", err);
+      setError(err instanceof Error ? err.message : "Failed to create discussion. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-full flex flex-col gap-8">
+      {/* Error Banner */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3 mx-0">
+          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold text-red-900">Error</h3>
+            <p className="text-sm text-red-700 mt-1">{error}</p>
+          </div>
+          <button
+            onClick={() => setError(null)}
+            className="text-red-600 hover:text-red-800 text-sm font-medium"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
       <DashboardPageHeader
         left={
           <Button variant="ghost" size="md" className="px-3" asChild>
@@ -49,9 +99,24 @@ export default function NewDiscussionPage() {
           </p>
         }
         right={
-          <Button variant="primary" size="lg" className="gap-2 px-7" disabled={!isValid}>
-            <Send className="w-5 h-5" />
-            Post
+          <Button
+            variant="primary"
+            size="lg"
+            className="gap-2 px-7"
+            disabled={!isValid || isSubmitting}
+            onClick={handleSubmit}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Posting...
+              </>
+            ) : (
+              <>
+                <Send className="w-5 h-5" />
+                Post
+              </>
+            )}
           </Button>
         }
       />

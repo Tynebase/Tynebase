@@ -83,7 +83,22 @@ async function processIndexing(job: Job, workerId: string): Promise<void> {
     }
 
     if (!document.content || document.content.trim().length === 0) {
-      throw new Error('Document has no content to index');
+      console.error(`[Worker ${workerId}] Document has no content to index: ${validated.document_id}`);
+      
+      // Mark job as completed with warning - nothing to index
+      await completeJob({
+        jobId: job.id,
+        result: {
+          document_id: document.id,
+          chunks_created: 0,
+          embeddings_inserted: 0,
+          warning: 'Document has no content to index',
+          indexed_at: new Date().toISOString(),
+        },
+      });
+      
+      console.log(`[Worker ${workerId}] RAG indexing job completed (no content)`);
+      return;
     }
 
     console.log(`[Worker ${workerId}] Document fetched: "${document.title}" (${document.content.length} chars)`);
@@ -96,7 +111,22 @@ async function processIndexing(job: Job, workerId: string): Promise<void> {
     );
 
     if (chunks.length === 0) {
-      throw new Error('Chunking produced no chunks');
+      console.error(`[Worker ${workerId}] Chunking produced no chunks: ${validated.document_id}`);
+      
+      // Mark job as completed with warning - nothing to chunk
+      await completeJob({
+        jobId: job.id,
+        result: {
+          document_id: document.id,
+          chunks_created: 0,
+          embeddings_inserted: 0,
+          warning: 'Chunking produced no chunks',
+          indexed_at: new Date().toISOString(),
+        },
+      });
+      
+      console.log(`[Worker ${workerId}] RAG indexing job completed (no chunks)`);
+      return;
     }
 
     console.log(`[Worker ${workerId}] Chunking complete: ${chunks.length} chunks created`);
@@ -111,6 +141,9 @@ async function processIndexing(job: Job, workerId: string): Promise<void> {
 
     if (deleteError) {
       console.error(`[Worker ${workerId}] Failed to delete old embeddings:`, deleteError);
+      // Continue anyway - we'll overwrite or create new ones
+    } else {
+      console.log(`[Worker ${workerId}] Old embeddings deleted successfully`);
     }
 
     console.log(`[Worker ${workerId}] Generating embeddings in batches...`);
@@ -205,9 +238,14 @@ async function processIndexing(job: Job, workerId: string): Promise<void> {
 
     console.log(`[Worker ${workerId}] Updating document last_indexed_at timestamp...`);
     
+    const now = new Date().toISOString();
+    
     const { error: updateError } = await supabaseAdmin
       .from('documents')
-      .update({ last_indexed_at: new Date().toISOString() })
+      .update({ 
+        last_indexed_at: now,
+        updated_at: now  // Keep updated_at in sync to prevent "outdated" status
+      })
       .eq('id', document.id)
       .eq('tenant_id', job.tenant_id);
 

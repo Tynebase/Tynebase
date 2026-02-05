@@ -27,6 +27,10 @@ export interface Document {
   id: string;
   title: string;
   content: string;
+  draft_content?: string;
+  draft_title?: string;
+  has_draft?: boolean;
+  draft_updated_at?: string;
   parent_id: string | null;
   category_id: string | null;
   is_public: boolean;
@@ -49,6 +53,7 @@ export interface Document {
 export interface DocumentListParams {
   category_id?: string;
   status?: 'draft' | 'published';
+  tag_id?: string;
   page?: number;
   limit?: number;
 }
@@ -69,6 +74,9 @@ export interface UpdateDocumentData {
   visibility?: 'private' | 'team' | 'public';
   status?: 'draft' | 'published';
   category_id?: string | null;
+  draft_content?: string;
+  draft_title?: string;
+  save_as_draft?: boolean;
 }
 
 export interface DocumentListResponse {
@@ -165,6 +173,10 @@ export async function listDocuments(
     queryParams.append('status', params.status);
   }
   
+  if (params?.tag_id) {
+    queryParams.append('tag_id', params.tag_id);
+  }
+  
   if (params?.page !== undefined) {
     queryParams.append('page', params.page.toString());
   }
@@ -239,12 +251,24 @@ export async function deleteDocument(id: string): Promise<{ message: string; doc
 
 /**
  * Publish a document (change status from draft to published)
+ * For already published documents with draft changes, publishes the draft content
  * 
  * @param id - Document UUID
  * @returns Published document details
  */
 export async function publishDocument(id: string): Promise<{ document: Document }> {
   return apiPost<{ document: Document }>(`/api/documents/${id}/publish`);
+}
+
+/**
+ * Discard draft changes for a published document
+ * Clears draft_content, draft_title, and has_draft fields
+ * 
+ * @param id - Document UUID
+ * @returns Updated document details
+ */
+export async function discardDraft(id: string): Promise<{ document: Document }> {
+  return apiPost<{ document: Document }>(`/api/documents/${id}/discard-draft`);
 }
 
 /**

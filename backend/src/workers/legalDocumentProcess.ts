@@ -274,7 +274,7 @@ async function processDocument(job: Job, workerId: string): Promise<void> {
         tenant_id: job.tenant_id,
         user_id: validated.user_id,
         query_type: 'legal_document_import',
-        model_used: processing_options.ai_model || 'system',
+        ai_model: processing_options.ai_model || 'system',
         credits_charged: totalCredits,
         metadata: {
           job_id: job.id,

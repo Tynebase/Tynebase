@@ -35,8 +35,16 @@ const updateCategoryBodySchema = z.object({
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
   icon: z.string().min(1).max(50).optional(),
   parent_id: z.string().uuid().nullable().optional(),
+  sort_order: z.number().int().min(0).optional(),
 }).refine((data) => Object.keys(data).length > 0, {
   message: 'At least one field must be provided for update',
+});
+
+/**
+ * Zod schema for DELETE /api/categories/:id query parameters
+ */
+const deleteCategoryQuerySchema = z.object({
+  migrate_to_category_id: z.string().uuid().nullable().optional(),
 });
 
 /**
@@ -445,6 +453,7 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
         if (body.color !== undefined) updateData.color = body.color;
         if (body.icon !== undefined) updateData.icon = body.icon;
         if (body.parent_id !== undefined) updateData.parent_id = body.parent_id;
+        if (body.sort_order !== undefined) updateData.sort_order = body.sort_order;
 
         // Update category
         const { data: category, error: updateError } = await supabaseAdmin
@@ -503,8 +512,155 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
   );
 
   /**
+   * GET /api/categories/:id/documents
+   * Get all documents in a category
+   */
+  fastify.get(
+    '/api/categories/:id/documents',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const { id } = request.params as { id: string };
+
+        if (!z.string().uuid().safeParse(id).success) {
+          return reply.code(400).send({
+            error: { code: 'VALIDATION_ERROR', message: 'Invalid category ID format', details: {} },
+          });
+        }
+
+        // Verify category exists in tenant
+        const { data: category, error: categoryError } = await supabaseAdmin
+          .from('categories')
+          .select('id, name, is_system')
+          .eq('id', id)
+          .eq('tenant_id', tenant.id)
+          .single();
+
+        if (categoryError || !category) {
+          return reply.code(404).send({
+            error: { code: 'CATEGORY_NOT_FOUND', message: 'Category not found', details: {} },
+          });
+        }
+
+        // Get documents in this category
+        const { data: documents, error: docsError } = await supabaseAdmin
+          .from('documents')
+          .select(`
+            id,
+            title,
+            content,
+            status,
+            author_id,
+            created_at,
+            updated_at,
+            users:author_id (
+              id,
+              email,
+              full_name
+            )
+          `)
+          .eq('category_id', id)
+          .eq('tenant_id', tenant.id)
+          .order('updated_at', { ascending: false });
+
+        if (docsError) {
+          fastify.log.error({ error: docsError }, 'Failed to fetch documents for category');
+          return reply.code(500).send({
+            error: { code: 'FETCH_FAILED', message: 'Failed to fetch documents', details: {} },
+          });
+        }
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            category: {
+              id: category.id,
+              name: category.name,
+              is_system: category.is_system,
+            },
+            documents: documents || [],
+            count: documents?.length || 0,
+          },
+        });
+      } catch (error) {
+        fastify.log.error({ error }, 'Unexpected error in GET /api/categories/:id/documents');
+        return reply.code(500).send({
+          error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred', details: {} },
+        });
+      }
+    }
+  );
+
+  /**
+   * GET /api/categories/uncategorized
+   * Get the Uncategorized system category for the tenant
+   */
+  fastify.get(
+    '/api/categories/uncategorized',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        // Find or create Uncategorized category using RPC
+        const { data: categoryId, error: rpcError } = await supabaseAdmin
+          .rpc('get_or_create_uncategorized_category', {
+            p_tenant_id: tenant.id,
+            p_user_id: user.id,
+          });
+
+        if (rpcError) {
+          fastify.log.error({ error: rpcError }, 'Failed to get/create Uncategorized category');
+          return reply.code(500).send({
+            error: { code: 'FETCH_FAILED', message: 'Failed to get Uncategorized category', details: {} },
+          });
+        }
+
+        // Get full category details
+        const { data: category, error: categoryError } = await supabaseAdmin
+          .from('categories')
+          .select(`
+            id,
+            name,
+            description,
+            color,
+            icon,
+            is_system,
+            author_id,
+            created_at,
+            updated_at
+          `)
+          .eq('id', categoryId)
+          .single();
+
+        if (categoryError || !category) {
+          return reply.code(404).send({
+            error: { code: 'CATEGORY_NOT_FOUND', message: 'Uncategorized category not found', details: {} },
+          });
+        }
+
+        return reply.code(200).send({
+          success: true,
+          data: { category },
+        });
+      } catch (error) {
+        fastify.log.error({ error }, 'Unexpected error in GET /api/categories/uncategorized');
+        return reply.code(500).send({
+          error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred', details: {} },
+        });
+      }
+    }
+  );
+
+  /**
    * DELETE /api/categories/:id
-   * Delete a category (documents in it become uncategorized)
+   * Delete a category with optional document migration
    */
   fastify.delete(
     '/api/categories/:id',
@@ -516,6 +672,8 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
         const tenant = (request as any).tenant;
         const user = (request as any).user;
         const { id } = request.params as { id: string };
+        const query = deleteCategoryQuerySchema.parse(request.query);
+        const { migrate_to_category_id } = query;
 
         if (!z.string().uuid().safeParse(id).success) {
           return reply.code(400).send({
@@ -526,7 +684,7 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
         // Verify category exists and user owns it
         const { data: existing, error: fetchError } = await supabaseAdmin
           .from('categories')
-          .select('id, author_id')
+          .select('id, author_id, is_system, name')
           .eq('id', id)
           .eq('tenant_id', tenant.id)
           .single();
@@ -537,36 +695,129 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
           });
         }
 
+        // Prevent deletion of system categories
+        if (existing.is_system) {
+          return reply.code(403).send({
+            error: { code: 'CANNOT_DELETE_SYSTEM', message: 'System categories cannot be deleted', details: {} },
+          });
+        }
+
         if (existing.author_id !== user.id) {
           return reply.code(403).send({
             error: { code: 'FORBIDDEN', message: 'Only the category author can delete this category', details: {} },
           });
         }
 
-        // Delete category (documents will have category_id set to NULL via ON DELETE SET NULL)
-        const { error: deleteError } = await supabaseAdmin
+        // Validate target category if provided
+        if (migrate_to_category_id) {
+          const { data: targetCategory, error: targetError } = await supabaseAdmin
+            .from('categories')
+            .select('id, tenant_id')
+            .eq('id', migrate_to_category_id)
+            .single();
+
+          if (targetError || !targetCategory) {
+            return reply.code(400).send({
+              error: { code: 'INVALID_TARGET', message: 'Target category not found', details: {} },
+            });
+          }
+
+          if (targetCategory.tenant_id !== tenant.id) {
+            return reply.code(403).send({
+              error: { code: 'FORBIDDEN', message: 'Target category must be in the same tenant', details: {} },
+            });
+          }
+
+          if (targetCategory.id === id) {
+            return reply.code(400).send({
+              error: { code: 'INVALID_TARGET', message: 'Cannot migrate to the same category', details: {} },
+            });
+          }
+        }
+
+        // Count subcategories
+        const { count: subcategoryCount } = await supabaseAdmin
           .from('categories')
-          .delete()
-          .eq('id', id)
+          .select('id', { count: 'exact', head: true })
+          .eq('parent_id', id)
           .eq('tenant_id', tenant.id);
 
+        // Use the RPC function to safely delete with migration
+        const { data: result, error: deleteError } = await supabaseAdmin
+          .rpc('delete_category_with_migration', {
+            p_category_id: id,
+            p_target_category_id: migrate_to_category_id || null,
+            p_user_id: user.id,
+          });
+
         if (deleteError) {
-          fastify.log.error({ error: deleteError }, 'Failed to delete category');
+          fastify.log.error({ error: deleteError }, 'Failed to delete category with migration');
+          
+          // Handle specific error cases
+          if (deleteError.message?.includes('Cannot delete system categories')) {
+            return reply.code(403).send({
+              error: { code: 'CANNOT_DELETE_SYSTEM', message: 'System categories cannot be deleted', details: {} },
+            });
+          }
+          
+          if (deleteError.message?.includes('Not authorized')) {
+            return reply.code(403).send({
+              error: { code: 'FORBIDDEN', message: 'Not authorized to delete this category', details: {} },
+            });
+          }
+          
+          if (deleteError.message?.includes('Target category not found')) {
+            return reply.code(400).send({
+              error: { code: 'INVALID_TARGET', message: 'Target category not found', details: {} },
+            });
+          }
+          
           return reply.code(500).send({
             error: { code: 'DELETE_FAILED', message: 'Failed to delete category', details: {} },
           });
         }
 
-        fastify.log.info({ categoryId: id, tenantId: tenant.id, userId: user.id }, 'Category deleted');
+        // Get the target category info for response
+        const migratedToId = result?.[0]?.target_category_id;
+        const migratedCount = result?.[0]?.migrated_document_count || 0;
+
+        let migratedToCategory = null;
+        if (migratedToId) {
+          const { data: targetCat } = await supabaseAdmin
+            .from('categories')
+            .select('id, name, is_system')
+            .eq('id', migratedToId)
+            .single();
+          migratedToCategory = targetCat;
+        }
+
+        fastify.log.info({ 
+          categoryId: id, 
+          tenantId: tenant.id, 
+          userId: user.id,
+          migratedDocuments: migratedCount,
+          migratedToCategoryId: migratedToId,
+        }, 'Category deleted with migration');
 
         return reply.code(200).send({
           success: true,
           data: {
             message: 'Category deleted successfully',
             categoryId: id,
+            categoryName: existing.name,
+            migrated: {
+              documents: migratedCount,
+              subcategories: subcategoryCount || 0,
+              toCategory: migratedToCategory,
+            },
           },
         });
       } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: { code: 'VALIDATION_ERROR', message: 'Invalid query parameters', details: error.errors },
+          });
+        }
         fastify.log.error({ error }, 'Unexpected error in DELETE /api/categories/:id');
         return reply.code(500).send({
           error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred', details: {} },

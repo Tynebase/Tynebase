@@ -42,7 +42,15 @@ import {
   Zap,
   type LucideIcon,
 } from "lucide-react";
-import { listCategories, createCategory, updateCategory, deleteCategory, type Category as APICategory } from "@/lib/api/folders";
+import { 
+  listCategories, 
+  createCategory, 
+  updateCategory, 
+  deleteCategory, 
+  getCategoryDocuments,
+  type Category as APICategory,
+  type DeleteCategoryResult 
+} from "@/lib/api/folders";
 
 const formatRelativeTime = (dateString: string): string => {
   const date = new Date(dateString);
@@ -112,6 +120,15 @@ export default function CategoriesPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+
+  // Delete modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingCategory, setDeletingCategory] = useState<APICategory | null>(null);
+  const [deleteStep, setDeleteStep] = useState<'confirm' | 'migrate'>('confirm');
+  const [selectedTargetCategory, setSelectedTargetCategory] = useState<string>('uncategorized');
+  const [categoryDocuments, setCategoryDocuments] = useState<{id: string, title: string}[]>([]);
+  const [loadingDocuments, setLoadingDocuments] = useState(false);
+  const [deleteResult, setDeleteResult] = useState<DeleteCategoryResult | null>(null);
 
   useEffect(() => {
     fetchCategories();
@@ -206,18 +223,85 @@ export default function CategoriesPage() {
     }
   };
 
-  const handleDeleteCategory = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this category? It must be empty.')) return;
+  const openDeleteModal = async (category: APICategory) => {
+    setDeletingCategory(category);
+    setDeleteStep('confirm');
+    setSelectedTargetCategory('uncategorized');
+    setDeleteResult(null);
+    setShowDeleteModal(true);
+    
+    // Load documents in this category
+    if ((category.document_count || 0) > 0) {
+      setLoadingDocuments(true);
+      try {
+        const result = await getCategoryDocuments(category.id);
+        setCategoryDocuments(result.documents.map(d => ({ id: d.id, title: d.title })));
+      } catch (err) {
+        console.error('Failed to load category documents:', err);
+      } finally {
+        setLoadingDocuments(false);
+      }
+    }
+  };
+
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setDeletingCategory(null);
+    setDeleteStep('confirm');
+    setSelectedTargetCategory('uncategorized');
+    setCategoryDocuments([]);
+    setDeleteResult(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingCategory) return;
+    
+    const hasDocuments = (deletingCategory.document_count || 0) > 0;
+    const hasSubcategories = (deletingCategory.subcategory_count || 0) > 0;
+    
+    if (hasDocuments || hasSubcategories) {
+      setDeleteStep('migrate');
+    } else {
+      // No documents or subcategories, delete immediately
+      await executeDelete();
+    }
+  };
+
+  const executeDelete = async () => {
+    if (!deletingCategory) return;
     
     try {
-      setDeleting(id);
-      await deleteCategory(id);
-      setCategories(prev => prev.filter(c => c.id !== id));
+      setDeleting(deletingCategory.id);
+      
+      // Determine target category ID
+      let targetId: string | null = null;
+      if (selectedTargetCategory === 'uncategorized') {
+        targetId = null; // Will use Uncategorized
+      } else if (selectedTargetCategory.startsWith('category:')) {
+        targetId = selectedTargetCategory.replace('category:', '');
+      }
+      
+      const result = await deleteCategory(deletingCategory.id, targetId);
+      setDeleteResult(result);
+      
+      // Remove from list after a short delay to show success
+      setTimeout(() => {
+        setCategories(prev => prev.filter(c => c.id !== deletingCategory.id));
+        closeDeleteModal();
+      }, 1500);
     } catch (err) {
       console.error('Failed to delete category:', err);
       alert(err instanceof Error ? err.message : 'Failed to delete category');
     } finally {
       setDeleting(null);
+    }
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    // This is now replaced by openDeleteModal - keeping for compatibility
+    const category = categories.find(c => c.id === id);
+    if (category) {
+      openDeleteModal(category);
     }
   };
 
@@ -408,9 +492,10 @@ export default function CategoriesPage() {
                           <Edit3 className="w-4 h-4" />
                         </button>
                         <button 
-                          onClick={() => handleDeleteCategory(category.id)}
-                          disabled={deleting === category.id}
+                          onClick={() => openDeleteModal(category)}
+                          disabled={deleting === category.id || category.is_system}
                           className="p-2.5 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--status-error)] disabled:opacity-50"
+                          title={category.is_system ? 'System categories cannot be deleted' : 'Delete category'}
                         >
                           {deleting === category.id ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
@@ -437,7 +522,236 @@ export default function CategoriesPage() {
         </div>
       )}
 
-      {/* Category Modal (Create/Edit) */}
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && deletingCategory && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[var(--surface-card)] rounded-2xl shadow-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+            {deleteResult ? (
+              // Success State
+              <div className="text-center py-6">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-500/10 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h2 className="text-xl font-bold text-[var(--dash-text-primary)] mb-2">
+                  Category Deleted
+                </h2>
+                <p className="text-[var(--dash-text-secondary)] mb-4">
+                  <strong>{deleteResult.categoryName}</strong> has been successfully deleted.
+                </p>
+                {deleteResult.migrated.documents > 0 && (
+                  <p className="text-sm text-[var(--dash-text-tertiary)]">
+                    {deleteResult.migrated.documents} document(s) moved to{' '}
+                    <strong>{deleteResult.migrated.toCategory?.name || 'Uncategorized'}</strong>
+                  </p>
+                )}
+              </div>
+            ) : deleteStep === 'confirm' ? (
+              // Confirm Step
+              <>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center">
+                    <Trash2 className="w-6 h-6 text-red-500" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-[var(--dash-text-primary)]">
+                      Delete Category?
+                    </h2>
+                    <p className="text-sm text-[var(--dash-text-tertiary)]">
+                      {deletingCategory.name}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-4 mb-6">
+                  <p className="text-[var(--dash-text-secondary)]">
+                    Are you sure you want to delete this category? This action cannot be undone.
+                  </p>
+
+                  {/* Content Summary */}
+                  <div className="bg-[var(--surface-ground)] rounded-xl p-4">
+                    <h3 className="text-sm font-medium text-[var(--dash-text-secondary)] mb-3">
+                      Category Contents:
+                    </h3>
+                    <div className="flex gap-4 text-sm">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-[var(--dash-text-muted)]" />
+                        <span className="text-[var(--dash-text-primary)]">
+                          {deletingCategory.document_count || 0} documents
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Folder className="w-4 h-4 text-[var(--dash-text-muted)]" />
+                        <span className="text-[var(--dash-text-primary)]">
+                          {deletingCategory.subcategory_count || 0} subcategories
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {loadingDocuments && (
+                      <div className="mt-3 flex items-center gap-2 text-sm text-[var(--dash-text-muted)]">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Loading documents...
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Warning for system categories */}
+                  {deletingCategory.is_system && (
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                      <p className="text-sm text-red-600">
+                        This is a system category and cannot be deleted.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={closeDeleteModal}
+                    disabled={deleting === deletingCategory.id}
+                    className="flex-1 h-11 px-4 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl text-sm font-medium text-[var(--dash-text-secondary)] hover:border-[var(--dash-border-default)] transition-all disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleConfirmDelete}
+                    disabled={deleting === deletingCategory.id || deletingCategory.is_system}
+                    className="flex-1 h-11 px-4 bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2"
+                  >
+                    {deleting === deletingCategory.id ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Deleting...
+                      </>
+                    ) : (
+                      'Delete Category'
+                    )}
+                  </button>
+                </div>
+              </>
+            ) : (
+              // Migrate Step
+              <>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                    <FolderOpen className="w-6 h-6 text-amber-500" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-[var(--dash-text-primary)]">
+                      Move Documents
+                    </h2>
+                    <p className="text-sm text-[var(--dash-text-tertiary)]">
+                      Choose where to migrate content
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-4 mb-6">
+                  <p className="text-[var(--dash-text-secondary)]">
+                    <strong>{deletingCategory.name}</strong> contains{' '}
+                    <strong>{deletingCategory.document_count || 0} documents</strong> and{' '}
+                    <strong>{deletingCategory.subcategory_count || 0} subcategories</strong>.
+                    Where would you like to move them?
+                  </p>
+
+                  {/* Migration Options */}
+                  <div className="space-y-2">
+                    {/* Uncategorized Option */}
+                    <label className="flex items-start gap-3 p-4 bg-[var(--surface-ground)] rounded-xl cursor-pointer hover:bg-[var(--surface-hover)] transition-colors">
+                      <input
+                        type="radio"
+                        name="targetCategory"
+                        value="uncategorized"
+                        checked={selectedTargetCategory === 'uncategorized'}
+                        onChange={(e) => setSelectedTargetCategory(e.target.value)}
+                        className="mt-1 w-4 h-4 text-[var(--brand)]"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <Folder className="w-5 h-5 text-gray-400" />
+                          <span className="font-medium text-[var(--dash-text-primary)]">
+                            Uncategorized (Default)
+                          </span>
+                        </div>
+                        <p className="text-sm text-[var(--dash-text-tertiary)] mt-1">
+                          Move all documents to the default Uncategorized category
+                        </p>
+                      </div>
+                    </label>
+
+                    {/* Other Categories */}
+                    {categories
+                      .filter(c => c.id !== deletingCategory.id && !c.is_system)
+                      .map(category => (
+                        <label
+                          key={category.id}
+                          className="flex items-start gap-3 p-4 bg-[var(--surface-ground)] rounded-xl cursor-pointer hover:bg-[var(--surface-hover)] transition-colors"
+                        >
+                          <input
+                            type="radio"
+                            name="targetCategory"
+                            value={`category:${category.id}`}
+                            checked={selectedTargetCategory === `category:${category.id}`}
+                            onChange={(e) => setSelectedTargetCategory(e.target.value)}
+                            className="mt-1 w-4 h-4 text-[var(--brand)]"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              {(() => {
+                                const IconComponent = getIconComponent(category.icon || 'folder');
+                                return (
+                                  <div
+                                    className="w-8 h-8 rounded-lg flex items-center justify-center"
+                                    style={{ backgroundColor: `${category.color}15` }}
+                                  >
+                                    <IconComponent className="w-4 h-4" style={{ color: category.color }} />
+                                  </div>
+                                );
+                              })()}
+                              <span className="font-medium text-[var(--dash-text-primary)]">
+                                {category.name}
+                              </span>
+                            </div>
+                            <p className="text-sm text-[var(--dash-text-tertiary)] mt-1">
+                              {category.document_count || 0} documents, {category.subcategory_count || 0} subcategories
+                            </p>
+                          </div>
+                        </label>
+                      ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setDeleteStep('confirm')}
+                    disabled={deleting === deletingCategory.id}
+                    className="flex-1 h-11 px-4 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl text-sm font-medium text-[var(--dash-text-secondary)] hover:border-[var(--dash-border-default)] transition-all disabled:opacity-50"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={executeDelete}
+                    disabled={deleting === deletingCategory.id}
+                    className="flex-1 h-11 px-4 bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2"
+                  >
+                    {deleting === deletingCategory.id ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Migrating & Deleting...
+                      </>
+                    ) : (
+                      'Confirm & Delete'
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
       {showCategoryModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-[var(--surface-card)] rounded-2xl shadow-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">

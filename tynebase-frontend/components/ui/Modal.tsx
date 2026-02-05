@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +37,9 @@ export function Modal({
   closeOnEscape = true,
   className,
 }: ModalProps) {
+  // Track scroll position for restoration
+  const [scrollPosition, setScrollPosition] = useState(0);
+
   const handleEscape = useCallback(
     (e: KeyboardEvent) => {
       if (closeOnEscape && e.key === "Escape") {
@@ -48,14 +51,18 @@ export function Modal({
 
   useEffect(() => {
     if (isOpen) {
+      // Save current scroll position
+      setScrollPosition(window.scrollY);
       document.addEventListener("keydown", handleEscape);
       document.body.style.overflow = "hidden";
     }
     return () => {
       document.removeEventListener("keydown", handleEscape);
       document.body.style.overflow = "";
+      // Restore scroll position when modal closes
+      window.scrollTo(0, scrollPosition);
     };
-  }, [isOpen, handleEscape]);
+  }, [isOpen, handleEscape, scrollPosition]);
 
   if (!isOpen) return null;
 
@@ -106,7 +113,7 @@ export function Modal({
         {/* Content */}
         <div
           className={cn(
-            "min-h-0 overflow-auto px-6 sm:px-8",
+            "min-h-0 overflow-y-scroll px-6 sm:px-8",
             title || showCloseButton ? "pt-2 pb-6 sm:pt-3 sm:pb-8" : "py-6 sm:py-8"
           )}
         >

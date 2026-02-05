@@ -25,6 +25,24 @@ import { Modal, ModalFooter } from "@/components/ui/Modal";
 
 type Visibility = "private" | "team" | "public";
 
+const VISIBILITY_INFO: Record<Visibility, { label: string; description: string; icon: typeof Lock }> = {
+  private: {
+    label: "Private",
+    description: "Only you and invited members can see this collection",
+    icon: Lock,
+  },
+  team: {
+    label: "Team",
+    description: "Visible to all members of your organization",
+    icon: Users,
+  },
+  public: {
+    label: "Public",
+    description: "Visible to anyone with the link",
+    icon: Globe,
+  },
+};
+
 const COLLECTION_COLORS = [
   '#6366f1', '#8b5cf6', '#ec4899', '#06b6d4', 
   '#10b981', '#f59e0b', '#ef4444', '#3b82f6',
@@ -361,24 +379,36 @@ export default function CollectionsPage() {
             <label className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-2">
               Visibility
             </label>
-            <div className="grid grid-cols-3 gap-2">
-              {(['private', 'team', 'public'] as Visibility[]).map((v) => (
-                <button
-                  key={v}
-                  onClick={() => setNewVisibility(v)}
-                  disabled={creating}
-                  className={`flex items-center justify-center gap-2 p-3 rounded-lg border transition-all ${
-                    newVisibility === v
-                      ? 'border-[var(--brand)] bg-[var(--brand)]/5'
-                      : 'border-[var(--dash-border-subtle)] hover:border-[var(--dash-border-default)]'
-                  }`}
-                >
-                  {v === 'private' && <Lock className="w-4 h-4" />}
-                  {v === 'team' && <Users className="w-4 h-4" />}
-                  {v === 'public' && <Globe className="w-4 h-4" />}
-                  <span className="text-sm capitalize">{v}</span>
-                </button>
-              ))}
+            <div className="space-y-2">
+              {(['private', 'team', 'public'] as Visibility[]).map((v) => {
+                const info = VISIBILITY_INFO[v];
+                const Icon = info.icon;
+                return (
+                  <button
+                    key={v}
+                    onClick={() => setNewVisibility(v)}
+                    disabled={creating}
+                    className={`w-full flex items-start gap-3 p-3 rounded-lg border transition-all text-left ${
+                      newVisibility === v
+                        ? 'border-[var(--brand)] bg-[var(--brand)]/5'
+                        : 'border-[var(--dash-border-subtle)] hover:border-[var(--dash-border-default)]'
+                    }`}
+                  >
+                    <Icon className={`w-5 h-5 mt-0.5 ${newVisibility === v ? 'text-[var(--brand)]' : 'text-[var(--dash-text-muted)]'}`} />
+                    <div className="flex-1">
+                      <span className={`text-sm font-medium block ${newVisibility === v ? 'text-[var(--brand)]' : 'text-[var(--dash-text-primary)]'}`}>
+                        {info.label}
+                      </span>
+                      <span className="text-xs text-[var(--dash-text-tertiary)]">
+                        {info.description}
+                      </span>
+                    </div>
+                    {newVisibility === v && (
+                      <div className="w-2 h-2 rounded-full bg-[var(--brand)] mt-2" />
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

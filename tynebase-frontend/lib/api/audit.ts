@@ -109,7 +109,8 @@ export async function getAuditLogs(params: AuditLogsParams = {}): Promise<AuditL
   if (params.search) searchParams.append('search', params.search);
   
   const queryString = searchParams.toString();
-  return apiGet<AuditLogsResponse>(`/api/audit/logs${queryString ? `?${queryString}` : ''}`);
+  const response = await apiGet<{ success: boolean; data: AuditLogsResponse }>(`/api/audit/logs${queryString ? `?${queryString}` : ''}`);
+  return response.data || { logs: [], pagination: { page: 1, limit: 20, total: 0, total_pages: 0 } };
 }
 
 /**
@@ -164,21 +165,24 @@ export async function exportAuditLogs(params: Omit<AuditLogsParams, 'page' | 'li
  * Get content audit statistics
  */
 export async function getAuditStats(days: number = 30): Promise<AuditStats> {
-  return apiGet<AuditStats>(`/api/audit/stats?days=${days}`);
+  const response = await apiGet<{ data: AuditStats }>(`/api/audit/stats?days=${days}`);
+  return response.data;
 }
 
 /**
  * Get stale documents that need updates
  */
 export async function getStaleDocuments(days: number = 90, limit: number = 10): Promise<{ documents: StaleDocument[] }> {
-  return apiGet<{ documents: StaleDocument[] }>(`/api/audit/stale-documents?days=${days}&limit=${limit}`);
+  const response = await apiGet<{ data: { documents: StaleDocument[] } }>(`/api/audit/stale-documents?days=${days}&limit=${limit}`);
+  return response.data || { documents: [] };
 }
 
 /**
  * Get top performing documents by views
  */
 export async function getTopPerformers(limit: number = 5): Promise<{ documents: TopPerformer[] }> {
-  return apiGet<{ documents: TopPerformer[] }>(`/api/audit/top-performers?limit=${limit}`);
+  const response = await apiGet<{ data: { documents: TopPerformer[] } }>(`/api/audit/top-performers?limit=${limit}`);
+  return response.data || { documents: [] };
 }
 
 /**
@@ -188,7 +192,8 @@ export async function getReviewQueue(
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled' | 'all' = 'pending',
   limit: number = 10
 ): Promise<{ reviews: DocumentReview[] }> {
-  return apiGet<{ reviews: DocumentReview[] }>(`/api/audit/reviews?status=${status}&limit=${limit}`);
+  const response = await apiGet<{ data: { reviews: DocumentReview[] } }>(`/api/audit/reviews?status=${status}&limit=${limit}`);
+  return response.data || { reviews: [] };
 }
 
 /**

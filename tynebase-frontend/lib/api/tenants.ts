@@ -10,6 +10,14 @@ export interface UpdateTenantResponse {
   tenant: Tenant;
 }
 
+/**
+ * Update tenant settings (name, branding, AI preferences)
+ * Requires admin role
+ * 
+ * @param tenantId - Tenant UUID
+ * @param data - Tenant update data (name and/or settings)
+ * @returns Updated tenant details
+ */
 export async function updateTenant(
   tenantId: string,
   data: UpdateTenantRequest

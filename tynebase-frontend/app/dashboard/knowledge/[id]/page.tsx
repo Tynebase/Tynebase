@@ -34,6 +34,7 @@ import {
   updateDocument, 
   publishDocument, 
   deleteDocument,
+  discardDraft,
   type Document 
 } from "@/lib/api/documents";
 import { listCategories, type Category as APICategory } from "@/lib/api/folders";
@@ -58,6 +59,10 @@ interface UIDocument {
   id: string;
   title: string;
   content: string;
+  draftTitle?: string;
+  draftContent?: string;
+  hasDraft: boolean;
+  draftUpdatedAt?: string;
   folder: string;
   status: "draft" | "published";
   visibility: "public" | "private" | "team";
@@ -73,6 +78,10 @@ function mapDocumentToUI(doc: Document): UIDocument {
     id: doc.id,
     title: doc.title,
     content: doc.content,
+    draftTitle: doc.draft_title,
+    draftContent: doc.draft_content,
+    hasDraft: doc.has_draft || false,
+    draftUpdatedAt: doc.draft_updated_at,
     folder: 'General',
     status: doc.status,
     visibility: (doc as any).visibility || (doc.is_public ? 'public' : 'team'),
@@ -106,11 +115,14 @@ export default function EditDocumentPage() {
   const hasFetched = useRef(false);
 
   // Refetch content when switching to read mode to get latest saved content
+  // For published docs with draft, show the published content (not draft)
   const refetchContent = async () => {
     try {
-      const response = await getDocument(documentId, true); // true = skip view increment
-      setContent(response.document.content || '');
-      setTitle(response.document.title);
+      const response = await getDocument(documentId, true);
+      const doc = response.document;
+      // In read mode, always show the published content
+      setContent(doc.content || '');
+      setTitle(doc.title);
     } catch (err) {
       console.error('Failed to refetch document content:', err);
     }
@@ -138,8 +150,14 @@ export default function EditDocumentPage() {
         const uiDoc = mapDocumentToUI(response.document);
         
         setDocument(uiDoc);
-        setTitle(uiDoc.title);
-        setContent(uiDoc.content);
+        // For published docs with draft, load the draft content for editing
+        if (uiDoc.status === 'published' && uiDoc.hasDraft && uiDoc.draftContent) {
+          setTitle(uiDoc.draftTitle || uiDoc.title);
+          setContent(uiDoc.draftContent);
+        } else {
+          setTitle(uiDoc.title);
+          setContent(uiDoc.content);
+        }
         setStatus(uiDoc.status);
         setSelectedCategoryId(response.document.category_id || null);
         setVisibility(uiDoc.visibility);
@@ -217,14 +235,23 @@ export default function EditDocumentPage() {
     try {
       setIsSaving(true);
       
-      await updateDocument(documentId, {
+      // For published documents, save as draft (don't overwrite published content)
+      const isPublished = status === 'published';
+      
+      const response = await updateDocument(documentId, {
         title: data.title,
         content: data.content,
         visibility,
+        save_as_draft: isPublished, // Save as draft for published docs
       });
       
-      setTitle(data.title);
-      setContent(data.content);
+      // Update local state with response data
+      const updatedDoc = response.document;
+      setTitle(updatedDoc.draft_title || updatedDoc.title);
+      setContent(updatedDoc.draft_content || updatedDoc.content);
+      
+      // Update document state with new has_draft status
+      setDocument(prev => prev ? { ...prev, hasDraft: updatedDoc.has_draft || false } : null);
     } catch (err) {
       console.error('Failed to save document:', err);
       alert('Failed to save document. Please try again.');
@@ -236,11 +263,46 @@ export default function EditDocumentPage() {
   const handlePublish = async () => {
     try {
       setIsSaving(true);
-      await publishDocument(documentId);
-      setStatus("published");
+      const response = await publishDocument(documentId);
+      const updatedDoc = response.document;
+      
+      setStatus(updatedDoc.status);
+      // Clear draft fields after publish
+      setTitle(updatedDoc.title);
+      setContent(updatedDoc.content);
+      setDocument(prev => prev ? { 
+        ...prev, 
+        status: updatedDoc.status,
+        hasDraft: updatedDoc.has_draft || false,
+        draftContent: undefined,
+        draftTitle: undefined,
+      } : null);
     } catch (err) {
       console.error('Failed to publish document:', err);
       alert('Failed to publish document. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDiscardDraft = async () => {
+    try {
+      setIsSaving(true);
+      const response = await discardDraft(documentId);
+      const updatedDoc = response.document;
+      
+      // Revert to published content
+      setTitle(updatedDoc.title);
+      setContent(updatedDoc.content);
+      setDocument(prev => prev ? { 
+        ...prev, 
+        hasDraft: false,
+        draftContent: undefined,
+        draftTitle: undefined,
+      } : null);
+    } catch (err) {
+      console.error('Failed to discard draft:', err);
+      alert('Failed to discard draft changes. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -293,11 +355,19 @@ export default function EditDocumentPage() {
           </div>
           
           {/* Status Badge - always visible */}
-          <div className={`flex-shrink-0 flex items-center gap-1.5 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${status === "draft"
-            ? "bg-amber-500/10 text-amber-600"
-            : "bg-green-500/10 text-green-600"
-            }`}>
-            {status === "draft" ? (
+          <div className={`flex-shrink-0 flex items-center gap-1.5 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
+            status === "published" && document?.hasDraft
+              ? "bg-blue-500/10 text-blue-600" // Draft changes on published doc
+              : status === "draft"
+                ? "bg-amber-500/10 text-amber-600"
+                : "bg-green-500/10 text-green-600"
+          }`}>
+            {status === "published" && document?.hasDraft ? (
+              <>
+                <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                <span className="hidden xs:inline">Draft Changes</span>
+              </>
+            ) : status === "draft" ? (
               <>
                 <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 <span className="hidden xs:inline">Draft</span>
@@ -354,7 +424,7 @@ export default function EditDocumentPage() {
           {/* Spacer to push actions to the right on larger screens */}
           <div className="flex-1 hidden lg:block" />
 
-          {/* Publish/Unpublish */}
+          {/* Publish/Unpublish/Discard Draft */}
           {status === "draft" ? (
             <Button variant="primary" onClick={handlePublish} disabled={isSaving} className="px-2 sm:px-3">
               {isSaving ? (
@@ -364,6 +434,21 @@ export default function EditDocumentPage() {
               )}
               <span className="hidden sm:inline">{isSaving ? 'Publishing...' : 'Publish'}</span>
             </Button>
+          ) : document?.hasDraft ? (
+            <>
+              <Button variant="primary" onClick={handlePublish} disabled={isSaving} className="px-2 sm:px-3">
+                {isSaving ? (
+                  <Loader2 className="w-4 h-4 sm:mr-2 animate-spin" />
+                ) : (
+                  <Globe className="w-4 h-4 sm:mr-2" />
+                )}
+                <span className="hidden sm:inline">{isSaving ? 'Publishing...' : 'Publish Changes'}</span>
+              </Button>
+              <Button variant="outline" onClick={handleUnpublish} disabled={isSaving} className="px-2 sm:px-3 hidden md:flex">
+                <Lock className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Unpublish</span>
+              </Button>
+            </>
           ) : (
             <Button variant="outline" onClick={handleUnpublish} disabled={isSaving} className="px-2 sm:px-3">
               {isSaving ? (
@@ -563,6 +648,17 @@ export default function EditDocumentPage() {
 
                   {/* Actions */}
                   <div className="pt-4 border-t border-[var(--dash-border-subtle)] space-y-2">
+                    {status === 'published' && document?.hasDraft && (
+                      <Button 
+                        variant="ghost" 
+                        className="w-full justify-start gap-2 text-amber-600 hover:text-amber-700 hover:bg-amber-500/10"
+                        onClick={handleDiscardDraft}
+                        disabled={isSaving}
+                      >
+                        <Clock className="w-4 h-4" />
+                        Discard Draft Changes
+                      </Button>
+                    )}
                     <Button variant="ghost" className="w-full justify-start gap-2">
                       <Copy className="w-4 h-4" />
                       Duplicate Document

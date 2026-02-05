@@ -96,6 +96,8 @@ export default function DraftsPage() {
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [draftToDelete, setDraftToDelete] = useState<Draft | null>(null);
+  const [singleDeleteModalOpen, setSingleDeleteModalOpen] = useState(false);
 
   useEffect(() => {
     async function fetchDrafts() {
@@ -130,16 +132,32 @@ export default function DraftsPage() {
     fetchCategories();
   }, []);
 
-  const handleDeleteDraft = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this draft?')) return;
+  const handleDeleteDraftClick = (draft: Draft) => {
+    setDraftToDelete(draft);
+    setSingleDeleteModalOpen(true);
+  };
+
+  const handleSingleDeleteConfirm = async () => {
+    if (!draftToDelete) return;
+    
     try {
-      await deleteDocument(id);
-      setDrafts(prev => prev.filter(d => d.id !== id));
-      setSelectedDrafts(prev => prev.filter(i => i !== id));
+      setDeleting(true);
+      await deleteDocument(draftToDelete.id);
+      setDrafts(prev => prev.filter(d => d.id !== draftToDelete.id));
+      setSelectedDrafts(prev => prev.filter(i => i !== draftToDelete.id));
+      setSingleDeleteModalOpen(false);
+      setDraftToDelete(null);
     } catch (err) {
       console.error('Failed to delete draft:', err);
       alert('Failed to delete draft');
+    } finally {
+      setDeleting(false);
     }
+  };
+
+  const handleSingleDeleteCancel = () => {
+    setSingleDeleteModalOpen(false);
+    setDraftToDelete(null);
   };
 
   const handleDeleteSelected = async () => {
@@ -445,7 +463,7 @@ export default function DraftsPage() {
                       <Send className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => handleDeleteDraft(draft.id)}
+                      onClick={() => handleDeleteDraftClick(draft)}
                       className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--status-error)]"
                       title="Delete"
                     >
@@ -553,6 +571,50 @@ export default function DraftsPage() {
               <>
                 <Trash2 className="w-4 h-4" />
                 Delete
+              </>
+            )}
+          </button>
+        </ModalFooter>
+      </Modal>
+      {/* Single Delete Confirmation Modal */}
+      <Modal
+        isOpen={singleDeleteModalOpen}
+        onClose={handleSingleDeleteCancel}
+        title="Delete Draft"
+        description="This action cannot be undone."
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-[var(--dash-text-secondary)]">
+            Are you sure you want to delete <span className="font-semibold text-[var(--dash-text-primary)]">"{draftToDelete?.title}"</span>?
+          </p>
+          <p className="text-sm text-[var(--status-error)]">
+            This will permanently remove the draft and all its content.
+          </p>
+        </div>
+        
+        <ModalFooter>
+          <button
+            onClick={handleSingleDeleteCancel}
+            disabled={deleting}
+            className="px-4 py-2 text-sm font-medium text-[var(--dash-text-secondary)] bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSingleDeleteConfirm}
+            disabled={deleting}
+            className="px-4 py-2 text-sm font-medium text-white bg-[var(--status-error)] rounded-lg hover:bg-[var(--status-error)]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+          >
+            {deleting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Deleting...
+              </>
+            ) : (
+              <>
+                <Trash2 className="w-4 h-4" />
+                Delete Draft
               </>
             )}
           </button>

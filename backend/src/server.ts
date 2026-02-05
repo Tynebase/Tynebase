@@ -110,6 +110,7 @@ const start = async () => {
     await fastify.register(import('./routes/gdpr'), { prefix: '' });
     await fastify.register(import('./routes/knowledge-activity'), { prefix: '' });
     await fastify.register(import('./routes/audit'), { prefix: '' });
+    await fastify.register(import('./routes/notifications'), { prefix: '' });
 
     const port = parseInt(env.PORT, 10);
     await fastify.listen({ port, host: '0.0.0.0' });

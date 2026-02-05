@@ -1413,4 +1413,293 @@ export default async function ragRoutes(fastify: FastifyInstance) {
       }
     }
   );
+
+  /**
+   * POST /api/sources/repair/stuck-jobs
+   * Resets jobs stuck in 'processing' state for too long
+   * This can happen when workers crash or are terminated mid-job
+   * 
+   * Authorization:
+   * - Requires valid JWT
+   * - User must be member of tenant
+   * - User must have 'admin' role
+   */
+  fastify.post(
+    '/api/sources/repair/stuck-jobs',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        if (user.role !== 'admin') {
+          return reply.code(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Only admin users can repair stuck jobs',
+              details: {},
+            },
+          });
+        }
+
+        const bodySchema = z.object({
+          max_age_minutes: z.number().int().min(1).max(1440).default(30),
+        });
+        const body = bodySchema.parse(request.body);
+        const { max_age_minutes } = body;
+
+        // Find jobs stuck in processing state for longer than max_age_minutes
+        const cutoffTime = new Date(Date.now() - max_age_minutes * 60 * 1000).toISOString();
+        
+        const { data: stuckJobs, error: fetchError } = await supabaseAdmin
+          .from('job_queue')
+          .select('id, type, payload, worker_id, attempts, created_at')
+          .eq('tenant_id', tenant.id)
+          .eq('status', 'processing')
+          .lt('created_at', cutoffTime);
+
+        if (fetchError) {
+          fastify.log.error(
+            { error: fetchError, tenantId: tenant.id },
+            'Failed to query stuck jobs'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'QUERY_FAILED',
+              message: 'Failed to query stuck jobs',
+              details: {},
+            },
+          });
+        }
+
+        const stuckRagIndexJobs = (stuckJobs || []).filter(job => job.type === 'rag_index');
+        const resetJobIds: string[] = [];
+        const failedJobIds: string[] = [];
+
+        // Reset each stuck job
+        for (const job of stuckRagIndexJobs) {
+          // If job has exceeded max retry attempts, mark as failed
+          if (job.attempts >= 3) {
+            const { error: failError } = await supabaseAdmin
+              .from('job_queue')
+              .update({
+                status: 'failed',
+                result: { error: 'Job stuck in processing and exceeded retry attempts' },
+                completed_at: new Date().toISOString(),
+                worker_id: null,
+              })
+              .eq('id', job.id);
+
+            if (!failError) {
+              failedJobIds.push(job.id);
+            }
+          } else {
+            // Reset to pending for retry
+            const { error: resetError } = await supabaseAdmin
+              .from('job_queue')
+              .update({
+                status: 'pending',
+                worker_id: null,
+              })
+              .eq('id', job.id);
+
+            if (!resetError) {
+              resetJobIds.push(job.id);
+            }
+          }
+        }
+
+        fastify.log.info(
+          {
+            tenantId: tenant.id,
+            userId: user.id,
+            stuckJobsFound: stuckRagIndexJobs.length,
+            resetJobs: resetJobIds.length,
+            failedJobs: failedJobIds.length,
+          },
+          'Stuck jobs repair completed'
+        );
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            stuck_jobs_found: stuckRagIndexJobs.length,
+            reset_jobs: resetJobIds.length,
+            failed_jobs: failedJobIds.length,
+            job_ids_reset: resetJobIds,
+            job_ids_failed: failedJobIds,
+          },
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid request body',
+              details: error.errors,
+            },
+          });
+        }
+
+        fastify.log.error({ error }, 'Unexpected error in POST /api/sources/repair/stuck-jobs');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
+   * POST /api/sources/repair/orphaned
+   * Fixes documents with orphaned/missing embeddings
+   * - Documents with last_indexed_at but no embeddings
+   * - Documents with embeddings but no last_indexed_at
+   * 
+   * Authorization:
+   * - Requires valid JWT
+   * - User must be member of tenant
+   * - User must have 'admin' role
+   */
+  fastify.post(
+    '/api/sources/repair/orphaned',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        if (user.role !== 'admin') {
+          return reply.code(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Only admin users can repair orphaned embeddings',
+              details: {},
+            },
+          });
+        }
+
+        // Find documents with last_indexed_at but no embeddings (orphaned index state)
+        const { data: indexedDocs, error: indexedError } = await supabaseAdmin
+          .from('documents')
+          .select('id, title, last_indexed_at')
+          .eq('tenant_id', tenant.id)
+          .not('last_indexed_at', 'is', null);
+
+        if (indexedError) {
+          fastify.log.error(
+            { error: indexedError, tenantId: tenant.id },
+            'Failed to query indexed documents'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'QUERY_FAILED',
+              message: 'Failed to query indexed documents',
+              details: {},
+            },
+          });
+        }
+
+        // Get all document IDs that have embeddings
+        const docIds = (indexedDocs || []).map(d => d.id);
+        let docIdsWithEmbeddings: Set<string> = new Set();
+        
+        if (docIds.length > 0) {
+          const { data: embeddings, error: embedError } = await supabaseAdmin
+            .from('document_embeddings')
+            .select('document_id')
+            .eq('tenant_id', tenant.id)
+            .in('document_id', docIds);
+
+          if (!embedError && embeddings) {
+            docIdsWithEmbeddings = new Set(embeddings.map(e => e.document_id));
+          }
+        }
+
+        // Find documents with last_indexed_at but no embeddings
+        const orphanedDocs = (indexedDocs || []).filter(
+          doc => !docIdsWithEmbeddings.has(doc.id)
+        );
+
+        // Find documents with embeddings but no last_indexed_at (inconsistent state)
+        const { data: allDocsNoTimestamp, error: fallbackError } = await supabaseAdmin
+          .from('documents')
+          .select('id, title')
+          .eq('tenant_id', tenant.id)
+          .is('last_indexed_at', null);
+
+        if (!fallbackError && allDocsNoTimestamp && allDocsNoTimestamp.length > 0) {
+          const { data: embeddingsForUntracked, error: embedCheckError } = await supabaseAdmin
+            .from('document_embeddings')
+            .select('document_id')
+            .eq('tenant_id', tenant.id)
+            .in('document_id', allDocsNoTimestamp.map(d => d.id));
+
+          if (!embedCheckError && embeddingsForUntracked) {
+            const untrackedDocIds = new Set(embeddingsForUntracked.map(e => e.document_id));
+            // These docs have embeddings but no last_indexed_at - update them
+            for (const doc of allDocsNoTimestamp) {
+              if (untrackedDocIds.has(doc.id)) {
+                await supabaseAdmin
+                  .from('documents')
+                  .update({ last_indexed_at: new Date().toISOString() })
+                  .eq('id', doc.id)
+                  .eq('tenant_id', tenant.id);
+              }
+            }
+          }
+        }
+
+        // Clear last_indexed_at for orphaned docs and dispatch reindex jobs
+        const repairedDocs: Array<{ id: string; title: string }> = [];
+        
+        for (const doc of orphanedDocs) {
+          // Clear the last_indexed_at to mark as needing reindex
+          const { error: clearError } = await supabaseAdmin
+            .from('documents')
+            .update({ last_indexed_at: null })
+            .eq('id', doc.id)
+            .eq('tenant_id', tenant.id);
+
+          if (!clearError) {
+            repairedDocs.push({ id: doc.id, title: doc.title });
+          }
+        }
+
+        fastify.log.info(
+          {
+            tenantId: tenant.id,
+            userId: user.id,
+            orphanedDocsFound: orphanedDocs.length,
+            repairedDocs: repairedDocs.length,
+          },
+          'Orphaned embeddings repair completed'
+        );
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            orphaned_docs_found: orphanedDocs.length,
+            repaired_docs: repairedDocs,
+          },
+        });
+      } catch (error) {
+        fastify.log.error({ error }, 'Unexpected error in POST /api/sources/repair/orphaned');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
 }

@@ -112,6 +112,21 @@ export async function ingestDocument(
       throw new Error(`Failed to insert embeddings: ${insertError.message}`);
     }
 
+    // Update last_indexed_at timestamp on the document
+    const now = new Date().toISOString();
+    const { error: updateError } = await supabaseAdmin
+      .from('documents')
+      .update({
+        last_indexed_at: now,
+        updated_at: now  // Keep updated_at in sync to prevent "outdated" status
+      })
+      .eq('id', documentId)
+      .eq('tenant_id', tenantId);
+
+    if (updateError) {
+      console.error(`[ingestDocument] Failed to update last_indexed_at:`, updateError);
+    }
+
     return {
       documentId,
       chunksCreated: chunks.length,
