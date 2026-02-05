@@ -411,14 +411,14 @@ export default function CollectionsPage() {
       <Modal
         isOpen={deleteModalOpen}
         onClose={handleDeleteCancel}
-        title="Delete Collection"
+        title="delete collection"
         description="This action cannot be undone."
         size="sm"
       >
         <div className="space-y-4">
           <p className="text-sm text-[var(--dash-text-secondary)]">
-            Are you sure you want to delete
-            <span className="font-semibold text-[var(--dash-text-primary)]"> {collectionToDelete?.name}</span>?
+            Are you sure you want to delete the
+            <span className="font-semibold text-[var(--dash-text-primary)]"> <b>{collectionToDelete?.name}</b></span> collection?
           </p>
           <p className="text-sm text-[var(--status-error)]">
             Documents inside this collection will remain in the knowledge base.

@@ -104,14 +104,12 @@ export default function TemplatesPage() {
       <DashboardPageHeader
         title={<h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">Templates</h1>}
         description={
-          <p className="text-[var(--dash-text-tertiary)] mt-1">
-            Start with pre-built templates for common documentation needs
-          </p>
+          <p className="text-[var(--dash-text-tertiary)] mt-1">Start with our pre-built templates to quickly create the article you need or create your own</p>
         }
         right={
           <Button className="gap-2" size="md" onClick={() => router.push('/dashboard/templates/new')}>
             <Plus className="w-4 h-4" />
-            Create Template
+            Create a Template
           </Button>
         }
       />
@@ -207,7 +205,7 @@ export default function TemplatesPage() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--dash-text-muted)]" />
                     <input
                       type="text"
-                      placeholder="Search templates..."
+                      placeholder="Give a brief description of what this template is for..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-full h-12 leading-none pl-10 pr-4 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"

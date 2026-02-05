@@ -1148,7 +1148,7 @@ export default function KnowledgePage() {
             ) : (
               <>
                 <Trash2 className="w-4 h-4" />
-                Delete Document
+                Delete documents
               </>
             )}
           </button>
@@ -1312,7 +1312,6 @@ export default function KnowledgePage() {
                 onChange={(e) => setSelectedCollectionId(e.target.value || null)}
                 className="w-full px-3 py-2 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
               >
-                <option value="">Select a collection...</option>
                 {collections.map((collection) => (
                   <option key={collection.id} value={collection.id}>{collection.name}</option>
                 ))}
@@ -1356,16 +1355,13 @@ export default function KnowledgePage() {
       <Modal
         isOpen={bulkDeleteModalOpen}
         onClose={() => setBulkDeleteModalOpen(false)}
-        title="Delete Documents"
+        title="Delete documents"
         description="This action cannot be undone."
         size="sm"
       >
         <div className="space-y-4">
           <p className="text-sm text-[var(--dash-text-secondary)]">
-            Are you sure you want to delete <span className="font-semibold text-[var(--dash-text-primary)]">{selectedIds.size} document{selectedIds.size !== 1 ? 's' : ''}</span>?
-          </p>
-          <p className="text-sm text-[var(--status-error)]">
-            This will permanently remove all selected documents and their content.
+            <span className="font-semibold text-[var(--status-error)]">This action cannot be undone.</span> Are you sure you want to delete these {selectedIds.size} document{selectedIds.size !== 1 ? 's' : ''}? This will permanently remove all of the selected documents and their content.
           </p>
         </div>
         

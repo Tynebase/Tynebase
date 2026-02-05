@@ -29,7 +29,7 @@ export default function SourcesHealthPage() {
           </div>
           <h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">Index Health</h1>
           <p className="text-[var(--dash-text-tertiary)] mt-1">
-            Monitor normalization, chunking, embeddings, and retrieval readiness.
+            Monitor normalisation, chunking, embeddings, and retrieval readiness.
           </p>
         </div>
         <button className="inline-flex items-center justify-center gap-2 h-10 px-5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-sm font-medium text-[var(--dash-text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)] transition-all w-full sm:w-auto">
@@ -118,7 +118,7 @@ export default function SourcesHealthPage() {
                 <AlertTriangle className="w-5 h-5" style={{ color: "#ef4444" }} />
               </span>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-[var(--dash-text-primary)]">Normalization failed</p>
+                <p className="text-sm font-semibold text-[var(--dash-text-primary)]">Normalisation failed</p>
                 <p className="text-sm text-[var(--dash-text-secondary)] mt-1">Legacy IT SOP → OCR failed (placeholder)</p>
                 <p className="text-xs text-[var(--dash-text-muted)] mt-2">Yesterday</p>
               </div>
@@ -131,7 +131,7 @@ export default function SourcesHealthPage() {
             <CardContent className="p-5">
               <p className="text-sm font-semibold text-[var(--dash-text-primary)]">What this page guarantees</p>
               <div className="mt-3 space-y-2 text-sm text-[var(--dash-text-secondary)]">
-                <p>- Every file is normalized to Markdown before chunking.</p>
+                <p>- Every file is normalised to Markdown before chunking.</p>
                 <p>- Chunking is structure-aware + semantic.</p>
                 <p>- Embeddings + retrieval are measurable and auditable.</p>
               </div>
@@ -143,11 +143,11 @@ export default function SourcesHealthPage() {
               <p className="text-sm font-semibold text-[var(--dash-text-primary)]">Recommended actions</p>
               <div className="mt-4 space-y-3">
                 <button className="w-full text-left rounded-xl border border-[var(--dash-border-subtle)] hover:border-[var(--brand)] bg-[var(--surface-card)] px-5 py-4 transition-colors">
-                  <p className="text-sm font-semibold text-[var(--dash-text-primary)]">Retry failed normalizations</p>
+                  <p className="text-sm font-semibold text-[var(--dash-text-primary)]">Retry failed normalisations</p>
                   <p className="text-xs text-[var(--dash-text-tertiary)] mt-0.5">Run OCR / convert again for scanned PDFs.</p>
                 </button>
                 <button className="w-full text-left rounded-xl border border-[var(--dash-border-subtle)] hover:border-[var(--brand)] bg-[var(--surface-card)] px-5 py-4 transition-colors">
-                  <p className="text-sm font-semibold text-[var(--dash-text-primary)]">Review normalized Markdown</p>
+                  <p className="text-sm font-semibold text-[var(--dash-text-primary)]">Review normalised Markdown</p>
                   <p className="text-xs text-[var(--dash-text-tertiary)] mt-0.5">Fix headings/tables that harm chunking quality.</p>
                 </button>
                 <button className="w-full text-left rounded-xl border border-[var(--dash-border-subtle)] hover:border-[var(--brand)] bg-[var(--surface-card)] px-5 py-4 transition-colors">

@@ -42,7 +42,7 @@ const helpCategories = [
     color: "#8b5cf6",
     articles: [
       { title: "Generating from Prompts", href: "#" },
-      { title: "Creating Docs from Videos", href: "#" },
+      { title: "Automatically transform videos into comprehensive documentation", href: "#" },
       { title: "Enhancing Existing Content", href: "#" },
       { title: "AI Settings & Providers", href: "#" },
     ],

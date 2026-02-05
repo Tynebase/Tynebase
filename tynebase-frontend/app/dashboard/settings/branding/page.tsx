@@ -10,6 +10,8 @@ import {
   Upload, Palette, Type, Globe, Eye, Check, Crown, Sparkles,
   Monitor, Smartphone, Sun, Moon, RefreshCw, Save, ExternalLink
 } from "lucide-react";
+import { Modal, ModalFooter } from "@/components/ui/Modal";
+import { Button } from "@/components/ui/Button";
 
 export default function BrandingPage() {
   const { branding, tenant, tierConfig, canUseFeature } = useTenant();
@@ -82,17 +84,24 @@ export default function BrandingPage() {
     }
   };
 
-  const handleReset = () => {
+  const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
+
+  const handleResetClick = () => {
+    setShowResetConfirmModal(true);
+  };
+
+  const handleResetConfirm = () => {
     setBrandSettings({
       ...brandSettings,
       primaryColor: "#E85002",
       secondaryColor: "#3b82f6",
       accentColor: "#8b5cf6",
     });
+    setShowResetConfirmModal(false);
     addToast({
-      type: "info",
-      title: "Colors reset",
-      description: "Brand colors have been reset to defaults.",
+      type: "success",
+      title: "Colours reset",
+      description: "Brand colours have been reset to the default settings.",
     });
   };
 
@@ -203,7 +212,7 @@ export default function BrandingPage() {
                 </div>
               ))}
               <button
-                onClick={handleReset}
+                onClick={handleResetClick}
                 className="flex items-center gap-2 text-sm text-[var(--dash-text-tertiary)] hover:text-[var(--brand)] transition-colors"
               >
                 <RefreshCw className="w-4 h-4" />
@@ -285,7 +294,7 @@ export default function BrandingPage() {
           {/* Save Button */}
           <div className="flex items-center justify-end gap-3 pt-2">
             <button
-              onClick={handleReset}
+              onClick={handleResetClick}
               className="px-6 py-3 rounded-xl text-[var(--dash-text-secondary)] hover:text-[var(--dash-text-primary)] font-medium transition-colors"
             >
               Reset All
@@ -441,6 +450,37 @@ export default function BrandingPage() {
           </div>
         </div>
       </div>
+
+      {/* Reset Confirmation Modal */}
+      <Modal
+        isOpen={showResetConfirmModal}
+        onClose={() => setShowResetConfirmModal(false)}
+        title="Reset Brand Colors?"
+        description="This will reset all brand colours to their default values."
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-[var(--dash-text-secondary)]">
+            Are you sure you want to reset your brand colours to the default settings?
+          </p>
+        </div>
+        
+        <ModalFooter>
+          <Button
+            variant="ghost"
+            onClick={() => setShowResetConfirmModal(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleResetConfirm}
+            className="bg-[var(--status-error)] hover:bg-[var(--status-error)]/90"
+          >
+            Reset Colours
+          </Button>
+        </ModalFooter>
+      </Modal>
     </div>
   );
 }

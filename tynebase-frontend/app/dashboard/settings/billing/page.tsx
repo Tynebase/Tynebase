@@ -224,7 +224,7 @@ export default function BillingPage() {
             </div>
             <div className="text-right">
               <div className="text-3xl font-bold text-[var(--dash-text-primary)]">
-                {currentTierDisplay.price !== null ? `$${currentTierDisplay.price}` : 'Custom'}
+                {currentTierDisplay.price !== null ? `£${currentTierDisplay.price}` : 'Custom'}
                 <span className="text-base font-normal text-[var(--dash-text-muted)]">
                   {currentTierDisplay.period}
                 </span>
@@ -351,7 +351,7 @@ export default function BillingPage() {
                   
                   <div className="mb-4">
                     <span className="text-2xl font-bold text-[var(--dash-text-primary)]">
-                      {tierInfo.price !== null ? `$${tierInfo.price}` : 'Custom'}
+                      {tierInfo.price !== null ? `£${tierInfo.price}` : 'Custom'}
                     </span>
                     <span className="text-sm text-[var(--dash-text-muted)]">{tierInfo.period}</span>
                   </div>

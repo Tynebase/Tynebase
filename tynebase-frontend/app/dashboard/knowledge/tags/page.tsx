@@ -2,18 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
-import {
-  Hash,
-  Plus,
-  Search,
-  Sparkles,
-  FileText,
-  ArrowRight,
-  TrendingUp,
-  Filter,
-  Loader2,
-  AlertCircle,
-} from "lucide-react";
+import { Hash, Plus, Search, Sparkles, FileText, ArrowRight, TrendingUp, Filter, Loader2, AlertCircle, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { listTags, createTag, type Tag as APITag } from "@/lib/api/tags";
 
@@ -42,9 +31,11 @@ const formatRelativeTime = (dateString: string): string => {
   return date.toLocaleDateString();
 };
 
+const capitalizeFirstLetter = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
+
 const mapAPITagToUI = (tag: APITag): Tag => ({
   id: tag.id,
-  name: tag.name,
+  name: capitalizeFirstLetter(tag.name),
   description: tag.description || '',
   documents: tag.document_count,
   updatedAt: formatRelativeTime(tag.updated_at),
@@ -227,7 +218,7 @@ export default function TagsPage() {
                       <Hash className="w-5 h-5 text-[var(--dash-text-tertiary)]" />
                     </span>
                     <div className="min-w-0">
-                      <h3 className="font-semibold text-[var(--dash-text-primary)] truncate">#{t.name}</h3>
+                      <h3 className="font-semibold text-[var(--dash-text-primary)] truncate">#{capitalizeFirstLetter(t.name)}</h3>
                       <p className="text-xs text-[var(--dash-text-muted)]">{t.documents} docs</p>
                     </div>
                   </div>
@@ -247,12 +238,18 @@ export default function TagsPage() {
               <div className="mt-4 flex items-center justify-between">
                 <span className="text-xs text-[var(--dash-text-muted)]">Updated {t.updatedAt}</span>
                 <Link
-                  href="/dashboard/knowledge"
+                  href={`/dashboard/knowledge?tag=${t.id}`}
                   className="inline-flex items-center gap-2 text-sm font-medium text-[var(--brand)] hover:underline"
                 >
-                  View docs
+                  View Docs
                   <ArrowRight className="w-4 h-4" />
                 </Link>
+                <button
+                  className="p-1.5 rounded-lg text-[var(--dash-text-tertiary)] hover:text-[var(--status-error)] hover:bg-[var(--surface-hover)] transition-all"
+                  title="Delete tag"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             </CardContent>
           </Card>
