@@ -109,7 +109,7 @@ The system uses a model router to ensure EU data residency:
 - **Video/Audio processing**: Gemini 3.0 Flash (native multimodal)
 - **Transcription**: Whisper 3 Turbo
 - **RAG/Text generation**: Provider preference based on quality/speed/cost priorities
-- **Complex reasoning**: Claude Opus 4.5 or GPT-5.2
+- **Complex reasoning**: Claude Sonnet 4.5 or DeepSeek V3
 
 ## Key Benefits
 

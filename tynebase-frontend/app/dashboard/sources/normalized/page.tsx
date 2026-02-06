@@ -169,14 +169,14 @@ export default function NormalizedMarkdownPage() {
               Sources
             </Link>
             <span>/</span>
-            <span>Normalized Markdown</span>
+            <span>Normalised Markdown</span>
           </div>
         </div>
 
         <div className="col-span-12 lg:col-span-6 text-center">
-          <h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">Normalized Markdown (RAG View)</h1>
+          <h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">Normalised Markdown (RAG View)</h1>
           <p className="text-[var(--dash-text-tertiary)] mt-1">
-            Read the exact normalized Markdown stored for retrieval and chunking.
+            Read the exact normalised Markdown stored for retrieval and chunking.
           </p>
         </div>
 
@@ -217,7 +217,7 @@ export default function NormalizedMarkdownPage() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search normalized docs…"
+                placeholder="Search normalised docs…"
                 className="w-full pl-11 pr-4 py-3 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 transition-all"
               />
             </div>
@@ -240,7 +240,7 @@ export default function NormalizedMarkdownPage() {
 
               {!isLoading && filtered.length === 0 && (
                 <div className="px-4 py-8 text-sm text-[var(--dash-text-tertiary)]">
-                  No normalized documents found.
+                  No normalised documents found.
                 </div>
               )}
 
@@ -310,7 +310,7 @@ export default function NormalizedMarkdownPage() {
           <Card className="p-4">
             <div className="flex items-center gap-2">
               <Database className="w-4 h-4 text-[var(--dash-text-tertiary)]" />
-              <p className="text-sm font-semibold text-[var(--dash-text-primary)]">Normalization signals</p>
+              <p className="text-sm font-semibold text-[var(--dash-text-primary)]">Normalisation signals</p>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-3">
               <div className="rounded-xl bg-[var(--surface-ground)] p-3">
@@ -334,7 +334,7 @@ export default function NormalizedMarkdownPage() {
             </div>
             <div className="mt-3 text-xs text-[var(--dash-text-tertiary)] flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-[var(--brand)]" />
-              PRD Part IV: normalize to Markdown before semantic chunking.
+              PRD Part IV: normalise to Markdown before semantic chunking.
             </div>
           </Card>
         </div>
@@ -348,11 +348,11 @@ export default function NormalizedMarkdownPage() {
                   <p className="text-sm font-semibold text-[var(--dash-text-primary)]">No document selected</p>
                 </div>
                 <p className="text-xs text-[var(--dash-text-tertiary)] mt-1">
-                  Pick a document on the left to preview the normalized markdown used for retrieval.
+                  Pick a document on the left to preview the normalised markdown used for retrieval.
                 </p>
               </div>
               <div className="px-6 py-10 text-sm text-[var(--dash-text-tertiary)]">
-                Your normalized markdown is stored as `documents.content`.
+                Your normalised markdown is stored as `documents.content`.
               </div>
             </Card>
           )}

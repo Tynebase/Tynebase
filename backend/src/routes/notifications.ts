@@ -234,7 +234,9 @@ export default async function notificationRoutes(fastify: FastifyInstance) {
 
         return reply.send({
           success: true,
-          message: 'All notifications marked as read',
+          data: {
+            message: 'All notifications marked as read',
+          },
         });
       } catch (err) {
         const userId = (request as any).user?.id;
@@ -284,7 +286,9 @@ export default async function notificationRoutes(fastify: FastifyInstance) {
 
         return reply.send({
           success: true,
-          message: 'Notification deleted',
+          data: {
+            message: 'Notification deleted',
+          },
         });
       } catch (err) {
         const userId = (request as any).user?.id;
@@ -343,7 +347,9 @@ export default async function notificationRoutes(fastify: FastifyInstance) {
 
         return reply.send({
           success: true,
-          message: 'All notifications cleared',
+          data: {
+            message: 'All notifications cleared',
+          },
         });
       } catch (err) {
         const userId = (request as any).user?.id;

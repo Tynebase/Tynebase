@@ -13,6 +13,7 @@ import {
   PenTool,
   Search,
   Loader2,
+  ExternalLink,
 } from "lucide-react";
 import { listDocuments, getDocument, updateDocument, type Document as APIDocument } from "@/lib/api/documents";
 import { enhance, applyEnhancement, type EnhanceSuggestion as APISuggestion } from "@/lib/api/ai";
@@ -64,6 +65,7 @@ export default function EnhancePage() {
   const [documentContent, setDocumentContent] = useState<string>("");
   const [loadingContent, setLoadingContent] = useState(false);
   const [applyingId, setApplyingId] = useState<string | null>(null);
+  const [customPrompt, setCustomPrompt] = useState<string>("");
   const ENHANCE_CREDIT_COST = 5;
 
   // SessionStorage key for persistence
@@ -145,7 +147,7 @@ export default function EnhancePage() {
     setLoadingContent(true);
     
     try {
-      const response = await enhance({ document_id: pendingDoc.id });
+      const response = await enhance({ document_id: pendingDoc.id, custom_prompt: customPrompt || undefined });
       
       // Update the document's health score
       setDocuments(prev => prev.map(d => 
@@ -180,6 +182,7 @@ export default function EnhancePage() {
   const cancelAnalyse = () => {
     setShowCreditWarning(false);
     setPendingDoc(null);
+    setCustomPrompt("");
   };
 
   const applySuggestion = async (suggestion: Suggestion) => {
@@ -335,7 +338,7 @@ export default function EnhancePage() {
         </div>
 
         {/* Suggestions Panel */}
-        <div className="lg:col-span-2 min-h-0 flex flex-col">
+        <div className="lg:col-span-2 min-h-0 flex flex-col overflow-hidden">
           {!selectedDoc ? (
             <div className="flex-1 min-h-0 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-8 sm:p-12 text-center flex flex-col items-center justify-center">
               <Sparkles className="w-12 h-12 text-[var(--dash-text-muted)] mb-4" />
@@ -357,9 +360,9 @@ export default function EnhancePage() {
               </p>
             </div>
           ) : (
-            <div className="flex-1 min-h-0 flex flex-col gap-6">
+            <div className="flex-1 min-h-0 flex flex-col gap-6 overflow-y-auto pr-1">
               {/* Summary */}
-              <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-6">
+              <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-6 flex-shrink-0">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
                   <div>
                     <h2 className="text-lg font-semibold text-[var(--dash-text-primary)]">{selectedDoc.title}</h2>
@@ -372,6 +375,15 @@ export default function EnhancePage() {
                       </p>
                       <p className="text-xs text-[var(--dash-text-muted)]">Health Score</p>
                     </div>
+                    {appliedSuggestions.length > 0 && (
+                      <Link
+                        href={`/dashboard/knowledge/${selectedDoc.id}`}
+                        className="h-10 px-5 bg-[var(--surface-ground)] hover:bg-[var(--surface-hover)] border border-[var(--dash-border-subtle)] text-[var(--dash-text-primary)] rounded-xl font-medium flex items-center gap-2 transition-colors"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        View Article
+                      </Link>
+                    )}
                     <button className="h-10 px-5 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-xl font-medium flex items-center gap-2">
                       <Zap className="w-4 h-4" />
                       Apply All
@@ -391,7 +403,7 @@ export default function EnhancePage() {
               </div>
 
               {/* Suggestions List */}
-              <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1">
+              <div className="flex-1 min-h-0 space-y-4">
                 {suggestions.map((suggestion, idx) => (
                   <div
                     key={idx}
@@ -480,13 +492,13 @@ export default function EnhancePage() {
 
               {/* Document Preview */}
               {documentContent && (
-                <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-6">
+                <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-6 flex-shrink-0">
                   <h3 className="text-lg font-semibold text-[var(--dash-text-primary)] mb-3 flex items-center gap-2">
                     <BookOpen className="w-5 h-5" />
                     Document Preview
                   </h3>
                   <div className="prose prose-sm max-w-none">
-                    <div className="p-4 bg-[var(--surface-ground)] rounded-lg border border-[var(--dash-border-subtle)] max-h-96 overflow-y-auto">
+                    <div className="p-4 bg-[var(--surface-ground)] rounded-lg border border-[var(--dash-border-subtle)]">
                       <pre className="whitespace-pre-wrap text-sm text-[var(--dash-text-secondary)] font-sans">
                         {documentContent}
                       </pre>
@@ -532,6 +544,23 @@ export default function EnhancePage() {
                   <li>Provide 3-5 actionable suggestions</li>
                   <li>Show before/after previews for changes</li>
                 </ul>
+              </div>
+
+              {/* Custom Prompt Input */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-[var(--dash-text-secondary)]">
+                  Custom Instructions (Optional)
+                </label>
+                <textarea
+                  value={customPrompt}
+                  onChange={(e) => setCustomPrompt(e.target.value)}
+                  placeholder="e.g., Update for 2026, make it more formal, focus on technical details..."
+                  rows={3}
+                  className="w-full px-4 py-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl text-sm text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] resize-none"
+                />
+                <p className="text-xs text-[var(--dash-text-muted)]">
+                  Add specific instructions to guide the AI's analysis
+                </p>
               </div>
             </div>
 

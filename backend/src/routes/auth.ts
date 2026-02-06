@@ -587,20 +587,36 @@ export default async function authRoutes(fastify: FastifyInstance) {
       const updateSchema = z.object({
         full_name: z.string().min(1).max(255).optional(),
         avatar_url: z.string().url().optional().nullable(),
+        notification_preferences: z.object({
+          email_notifications: z.boolean().optional(),
+          push_notifications: z.boolean().optional(),
+          weekly_digest: z.boolean().optional(),
+          marketing_emails: z.boolean().optional(),
+        }).optional(),
+        language: z.string().min(2).max(10).optional(),
+        timezone: z.string().min(1).max(50).optional(),
       });
 
       const body = updateSchema.parse(request.body);
 
+      // Build update object dynamically
+      const updateData: Record<string, unknown> = {
+        updated_at: new Date().toISOString(),
+      };
+      if (body.full_name !== undefined) updateData.full_name = body.full_name;
+      if (body.avatar_url !== undefined) updateData.avatar_url = body.avatar_url;
+      if (body.notification_preferences !== undefined) {
+        updateData.notification_preferences = body.notification_preferences;
+      }
+      if (body.language !== undefined) updateData.language = body.language;
+      if (body.timezone !== undefined) updateData.timezone = body.timezone;
+
       // Update user profile
       const { data: updatedUser, error } = await supabaseAdmin
         .from('users')
-        .update({
-          full_name: body.full_name,
-          avatar_url: body.avatar_url,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', userId)
-        .select('id, email, full_name, avatar_url, role, is_super_admin, status, last_active_at, tenant_id')
+        .select('id, email, full_name, avatar_url, notification_preferences, language, timezone, role, is_super_admin, status, last_active_at, tenant_id')
         .single();
 
       if (error || !updatedUser) {
@@ -640,6 +656,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
             email: updatedUser.email,
             full_name: updatedUser.full_name,
             avatar_url: updatedUser.avatar_url,
+            notification_preferences: updatedUser.notification_preferences,
+            language: updatedUser.language,
+            timezone: updatedUser.timezone,
             role: updatedUser.role,
             is_super_admin: updatedUser.is_super_admin,
             status: updatedUser.status,

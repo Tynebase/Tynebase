@@ -92,12 +92,17 @@ export async function processVideoIngestJob(job: Job): Promise<Record<string, an
     let originalFilename: string;
     let fileSize: number;
 
-    if (validated.youtube_url || validated.url) {
-      const youtubeUrl = validated.youtube_url || validated.url!;
-      console.log(`[Worker ${workerId}] Processing YouTube video: ${youtubeUrl}`);
-      videoUrl = youtubeUrl;
+    if (validated.youtube_url) {
+      console.log(`[Worker ${workerId}] Processing YouTube video: ${validated.youtube_url}`);
+      videoUrl = validated.youtube_url;
       isYouTubeVideo = true;
       originalFilename = validated.original_filename || `YouTube Video - ${new Date().toISOString()}`;
+      fileSize = validated.file_size || 0;
+    } else if (validated.url) {
+      console.log(`[Worker ${workerId}] Processing direct URL video: ${validated.url}`);
+      videoUrl = validated.url;
+      isYouTubeVideo = false;
+      originalFilename = validated.original_filename || `Video from URL - ${new Date().toISOString()}`;
       fileSize = validated.file_size || 0;
     } else if (validated.storage_path) {
       const signedUrl = await getSignedVideoUrl(validated.storage_path, workerId);

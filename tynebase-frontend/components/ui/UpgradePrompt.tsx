@@ -16,7 +16,7 @@ interface UpgradePromptProps {
 const FEATURE_INFO: Record<string, { title: string; description: string; requiredTier: TierType }> = {
   whiteLabel: {
     title: "White-Label Branding",
-    description: "Remove TyneBase branding and fully customize your workspace appearance.",
+    description: "Remove TyneBase branding and fully customise your workspace appearance.",
     requiredTier: "pro",
   },
   customDomain: {

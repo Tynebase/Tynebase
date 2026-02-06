@@ -93,6 +93,7 @@ export default function BrandingPage() {
   const handleResetConfirm = () => {
     setBrandSettings({
       ...brandSettings,
+      companyName: tenant?.name || "Your Company",
       primaryColor: "#E85002",
       secondaryColor: "#3b82f6",
       accentColor: "#8b5cf6",
@@ -100,8 +101,8 @@ export default function BrandingPage() {
     setShowResetConfirmModal(false);
     addToast({
       type: "success",
-      title: "Colours reset",
-      description: "Brand colours have been reset to the default settings.",
+      title: "Settings reset",
+      description: "Brand colours and company name have been reset to defaults.",
     });
   };
 
@@ -455,13 +456,13 @@ export default function BrandingPage() {
       <Modal
         isOpen={showResetConfirmModal}
         onClose={() => setShowResetConfirmModal(false)}
-        title="Reset Brand Colors?"
-        description="This will reset all brand colours to their default values."
+        title="Reset All Settings?"
+        description="This will reset all brand settings to their default values."
         size="sm"
       >
         <div className="space-y-4">
           <p className="text-sm text-[var(--dash-text-secondary)]">
-            Are you sure you want to reset your brand colours to the default settings?
+            Are you sure you want to reset your company name and brand colours to the default settings?
           </p>
         </div>
         
@@ -477,7 +478,7 @@ export default function BrandingPage() {
             onClick={handleResetConfirm}
             className="bg-[var(--status-error)] hover:bg-[var(--status-error)]/90"
           >
-            Reset Colours
+            Reset All
           </Button>
         </ModalFooter>
       </Modal>

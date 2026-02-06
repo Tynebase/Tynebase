@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import {
   FolderOpen,
@@ -40,6 +40,9 @@ import {
   Tag,
   Users,
   Zap,
+  Sparkles,
+  Filter,
+  ArrowUpDown,
   type LucideIcon,
 } from "lucide-react";
 import { 
@@ -129,6 +132,7 @@ export default function CategoriesPage() {
   const [categoryDocuments, setCategoryDocuments] = useState<{id: string, title: string}[]>([]);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
   const [deleteResult, setDeleteResult] = useState<DeleteCategoryResult | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCategories();
@@ -148,10 +152,55 @@ export default function CategoriesPage() {
     }
   };
 
-  const filteredCategories = categories.filter(category =>
-    category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (category.description || '').toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter and sort states
+  const [sortBy, setSortBy] = useState<'name' | 'documents' | 'created' | 'updated'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close filter dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target as Node)) {
+        setShowFilterDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredCategories = useMemo(() => {
+    let result = categories.filter(category =>
+      category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (category.description || '').toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    // Sort
+    result = [...result].sort((a, b) => {
+      let comparison = 0;
+      if (sortBy === 'name') {
+        comparison = a.name.localeCompare(b.name);
+      } else if (sortBy === 'documents') {
+        comparison = (a.document_count || 0) - (b.document_count || 0);
+      } else if (sortBy === 'created') {
+        comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      } else if (sortBy === 'updated') {
+        comparison = new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
+      }
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+
+    return result;
+  }, [categories, searchQuery, sortBy, sortOrder]);
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setSortBy('name');
+    setSortOrder('asc');
+  };
+
+  const hasActiveFilters = searchQuery || sortBy !== 'name' || sortOrder !== 'asc';
 
   const toggleExpand = (id: string) => {
     setExpandedCategories(prev =>
@@ -284,11 +333,9 @@ export default function CategoriesPage() {
       const result = await deleteCategory(deletingCategory.id, targetId);
       setDeleteResult(result);
       
-      // Remove from list after a short delay to show success
-      setTimeout(() => {
-        setCategories(prev => prev.filter(c => c.id !== deletingCategory.id));
-        closeDeleteModal();
-      }, 1500);
+      // Remove from list immediately after success
+      setCategories(prev => prev.filter(c => c.id !== deletingCategory.id));
+      // Modal stays open to show success - user clicks button to close
     } catch (err) {
       console.error('Failed to delete category:', err);
       alert(err instanceof Error ? err.message : 'Failed to delete category');
@@ -310,11 +357,6 @@ export default function CategoriesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-2 text-sm text-[var(--dash-text-tertiary)] mb-1">
-            <Link href="/dashboard/knowledge" className="hover:text-[var(--brand)]">Knowledge Base</Link>
-            <span>/</span>
-            <span>Categories</span>
-          </div>
           <h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">Categories</h1>
           <p className="text-[var(--dash-text-tertiary)] mt-1">
             Organise your documentation into logical groups
@@ -364,16 +406,111 @@ export default function CategoriesPage() {
 
       <div className="h-8" />
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--dash-text-muted)]" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search categories..."
-          className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
-        />
+      {/* Search and Filter */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--dash-text-muted)]" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search categories..."
+            className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
+          />
+        </div>
+        
+        {/* Filter Dropdown */}
+        <div className="relative" ref={filterDropdownRef}>
+          <button
+            onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+            className={`flex items-center gap-2 h-10 px-4 border rounded-lg text-sm font-medium transition-all ${
+              hasActiveFilters
+                ? 'bg-[var(--brand)]/10 border-[var(--brand)] text-[var(--brand)]'
+                : 'bg-[var(--surface-card)] border-[var(--dash-border-subtle)] text-[var(--dash-text-secondary)] hover:border-[var(--dash-border-default)]'
+            }`}
+          >
+            <Filter className="w-4 h-4" />
+            <span className="hidden sm:inline">Filter</span>
+            {hasActiveFilters && (
+              <span className="w-2 h-2 rounded-full bg-[var(--brand)]" />
+            )}
+          </button>
+
+          {showFilterDropdown && (
+            <div className="absolute right-0 top-full mt-2 w-64 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl shadow-lg z-20 p-4 space-y-4">
+              {/* Sort By */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--dash-text-tertiary)] uppercase tracking-wider mb-2">
+                  Sort By
+                </label>
+                <div className="space-y-1">
+                  {[
+                    { value: 'name', label: 'Name' },
+                    { value: 'documents', label: 'Document count' },
+                    { value: 'created', label: 'Most recently created' },
+                    { value: 'updated', label: 'Last updated' },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => setSortBy(option.value as typeof sortBy)}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
+                        sortBy === option.value
+                          ? 'bg-[var(--brand)]/10 text-[var(--brand)]'
+                          : 'text-[var(--dash-text-secondary)] hover:bg-[var(--surface-hover)]'
+                      }`}
+                    >
+                      <span>{option.label}</span>
+                      {sortBy === option.value && <ArrowUpDown className="w-4 h-4" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sort Order */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--dash-text-tertiary)] uppercase tracking-wider mb-2">
+                  Order
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSortOrder('asc')}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm transition-colors ${
+                      sortOrder === 'asc'
+                        ? 'bg-[var(--brand)]/10 text-[var(--brand)]'
+                        : 'bg-[var(--surface-ground)] text-[var(--dash-text-secondary)] hover:bg-[var(--surface-hover)]'
+                    }`}
+                  >
+                    A-Z / Oldest first
+                  </button>
+                  <button
+                    onClick={() => setSortOrder('desc')}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm transition-colors ${
+                      sortOrder === 'desc'
+                        ? 'bg-[var(--brand)]/10 text-[var(--brand)]'
+                        : 'bg-[var(--surface-ground)] text-[var(--dash-text-secondary)] hover:bg-[var(--surface-hover)]'
+                    }`}
+                  >
+                    Z-A / Newest first
+                  </button>
+                </div>
+              </div>
+
+              {/* Clear Filters */}
+              {hasActiveFilters && (
+                <button
+                  onClick={() => {
+                    clearFilters();
+                    setShowFilterDropdown(false);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-[var(--status-error)] hover:bg-[var(--status-error-bg)] rounded-lg transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                  Clear all filters
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="h-6" />
@@ -401,11 +538,10 @@ export default function CategoriesPage() {
       {!loading && !error && filteredCategories.length === 0 && (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <Folder className="w-16 h-16 text-[var(--dash-text-muted)] mb-4" />
-          <h3 className="text-lg font-semibold text-[var(--dash-text-primary)] mb-2">
-            {searchQuery ? 'No categories found' : 'No categories yet'}
-          </h3>
           <p className="text-sm text-[var(--dash-text-tertiary)] max-w-md">
-            {searchQuery ? 'Try adjusting your search query.' : 'Create your first category to start organizing your documents.'}
+            {searchQuery 
+              ? 'No categories found. Try adjusting your search query.' 
+              : 'There are no categories yet, click + New Category to create one'}
           </p>
           {!searchQuery && (
             <button
@@ -413,7 +549,7 @@ export default function CategoriesPage() {
               className="mt-4 flex items-center gap-2 px-4 py-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-lg text-sm font-medium"
             >
               <FolderPlus className="w-4 h-4" />
-              Create Category
+              New Category
             </button>
           )}
         </div>
@@ -469,25 +605,42 @@ export default function CategoriesPage() {
                           )}
                         </div>
 
-                        <button className="sm:hidden p-2 text-[var(--dash-text-tertiary)] ml-auto">
+                        <button
+                          onClick={() => setMobileMenuOpen(mobileMenuOpen === category.id ? null : category.id)}
+                          className="sm:hidden p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] ml-auto"
+                        >
                           <MoreHorizontal className="w-4 h-4" />
                         </button>
                       </div>
 
-                      <p className="text-sm text-[var(--dash-text-muted)] flex-shrink-0 hidden sm:block">
+                      <p className="text-sm text-[var(--dash-text-muted)] flex-shrink-0 hidden sm:block w-28">
                         Updated {formatRelativeTime(category.updated_at)}
                       </p>
 
-                      <div className="hidden sm:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {/* Views Column */}
+                      <div className="hidden sm:flex items-center justify-center w-16">
                         <Link
                           href={`/dashboard/knowledge?category=${category.id}`}
                           className="p-2.5 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--brand)]"
+                          title="View documents"
                         >
                           <FileText className="w-4 h-4" />
+                        </Link>
+                      </div>
+
+                      {/* Actions Column */}
+                      <div className="flex items-center gap-1 w-28 justify-end">
+                        <Link
+                          href={`/dashboard/ai-assistant?category=${category.id}&categoryName=${encodeURIComponent(category.name)}`}
+                          className="p-2.5 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--brand)]"
+                          title="Generate content for this category"
+                        >
+                          <Sparkles className="w-4 h-4" />
                         </Link>
                         <button
                           onClick={() => openEditModal(category)}
                           className="p-2.5 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)]"
+                          title="Edit category"
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>
@@ -505,6 +658,51 @@ export default function CategoriesPage() {
                         </button>
                       </div>
                     </div>
+
+                    {/* Mobile Action Menu */}
+                    {mobileMenuOpen === category.id && (
+                      <div className="sm:hidden mt-3 pt-3 border-t border-[var(--dash-border-subtle)]">
+                        <div className="flex items-center justify-end gap-2">
+                          <Link
+                            href={`/dashboard/knowledge?category=${category.id}`}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-secondary)] text-sm"
+                            onClick={() => setMobileMenuOpen(null)}
+                          >
+                            <FileText className="w-4 h-4" />
+                            View
+                          </Link>
+                          <Link
+                            href={`/dashboard/ai-assistant?category=${category.id}&categoryName=${encodeURIComponent(category.name)}`}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-secondary)] text-sm"
+                            onClick={() => setMobileMenuOpen(null)}
+                          >
+                            <Sparkles className="w-4 h-4" />
+                            Generate
+                          </Link>
+                          <button
+                            onClick={() => {
+                              setMobileMenuOpen(null);
+                              openEditModal(category);
+                            }}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-secondary)] text-sm"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                            Edit
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setMobileMenuOpen(null);
+                              openDeleteModal(category);
+                            }}
+                            disabled={category.is_system}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--status-error)] disabled:opacity-50 text-sm"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Subcategories placeholder - would need additional API call */}
@@ -541,11 +739,17 @@ export default function CategoriesPage() {
                   <strong>{deleteResult.categoryName}</strong> has been successfully deleted.
                 </p>
                 {deleteResult.migrated.documents > 0 && (
-                  <p className="text-sm text-[var(--dash-text-tertiary)]">
+                  <p className="text-sm text-[var(--dash-text-tertiary)] mb-6">
                     {deleteResult.migrated.documents} document(s) moved to{' '}
                     <strong>{deleteResult.migrated.toCategory?.name || 'Uncategorized'}</strong>
                   </p>
                 )}
+                <button
+                  onClick={closeDeleteModal}
+                  className="h-11 px-8 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-xl text-sm font-semibold transition-all"
+                >
+                  Continue
+                </button>
               </div>
             ) : deleteStep === 'confirm' ? (
               // Confirm Step
@@ -568,6 +772,14 @@ export default function CategoriesPage() {
                   <p className="text-[var(--dash-text-secondary)]">
                     Are you sure you want to delete this category? This action cannot be undone.
                   </p>
+                  
+                  {/* Document Reassignment Notice */}
+                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 flex items-start gap-3">
+                    <FolderOpen className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-blue-600">
+                      Documents and subcategories will be moved to the <strong>Uncategorized (Default)</strong> category.
+                    </p>
+                  </div>
 
                   {/* Content Summary */}
                   <div className="bg-[var(--surface-ground)] rounded-xl p-4">

@@ -144,6 +144,7 @@ export async function processAIGenerationJob(job: Job): Promise<void> {
       result: {
         document_id: document.id,
         title: document.title,
+        content: sanitizedContent,
         tokens_input: generatedContent.tokensInput,
         tokens_output: generatedContent.tokensOutput,
         model: generatedContent.model,

@@ -114,10 +114,13 @@ export function NotificationCenter({ isOpen, onClose }: NotificationCenterProps)
       }
     }
 
-    // Navigate to action URL if provided
+    // Navigate to action URL if provided, otherwise close panel
     if (notification.action_url) {
       onClose();
       router.push(notification.action_url);
+    } else {
+      // Close panel even when there's no action URL
+      onClose();
     }
   };
 

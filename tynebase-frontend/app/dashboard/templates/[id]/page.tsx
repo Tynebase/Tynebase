@@ -86,7 +86,7 @@ export default function TemplateDetailPage() {
                 Template Preview
               </h1>
               <p className="text-[var(--dash-text-tertiary)] text-lg">
-                Click "Use Template" to create a new document from this template
+                Click Use Template to create a new document from this template
               </p>
             </div>
 

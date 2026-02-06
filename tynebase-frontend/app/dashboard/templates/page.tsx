@@ -239,7 +239,7 @@ export default function TemplatesPage() {
 
                 <div className="min-h-0 flex flex-col flex-1">
                   <h2 className="text-sm font-semibold text-[var(--dash-text-primary)] mb-5">
-                    {filteredTemplates.length} Templates
+                    {filteredTemplates.length} {filteredTemplates.length === 1 ? 'Template' : 'Templates'}
                   </h2>
                   {filteredTemplates.length === 0 ? (
                     <div className="space-y-6">

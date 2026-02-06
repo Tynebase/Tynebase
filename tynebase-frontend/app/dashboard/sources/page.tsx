@@ -216,7 +216,7 @@ export default function SourcesPage() {
         <div>
           <h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">Knowledge Sources</h1>
           <p className="text-[var(--dash-text-tertiary)] mt-1 max-w-3xl leading-relaxed">
-            Upload PDFs, DOCX and Markdown. TyneBase normalizes to Markdown and builds embeddings for RAG.
+            Upload PDFs, DOCX and Markdown. TyneBase normalises to Markdown and builds embeddings for RAG.
           </p>
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
@@ -254,7 +254,10 @@ export default function SourcesPage() {
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          className="cursor-pointer hover:border-[var(--status-warning)] transition-all"
+          onClick={() => document.getElementById('documents-needing-reindex')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+        >
           <CardContent className="p-6">
             <p className="text-xs text-[var(--dash-text-muted)]">Needs Re-Index</p>
             <p className="text-2xl font-bold text-[var(--status-warning)] mt-1">
@@ -302,7 +305,7 @@ export default function SourcesPage() {
         </div>
       )}
 
-      <div className="flex-1 min-h-0 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-2xl overflow-hidden flex flex-col">
+      <div id="documents-needing-reindex" className="flex-1 min-h-0 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-2xl overflow-hidden flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 bg-[var(--surface-ground)] border-b border-[var(--dash-border-subtle)]">
           <h2 className="text-sm font-semibold text-[var(--dash-text-primary)]">
             Documents Needing Re-Index
@@ -406,7 +409,7 @@ export default function SourcesPage() {
       </div>
 
       <div className="text-xs text-[var(--dash-text-muted)]">
-        Upload PDFs, DOCX and Markdown. TyneBase normalizes to Markdown and builds embeddings for RAG.
+        Upload PDFs, DOCX and Markdown. TyneBase normalises to Markdown and builds embeddings for RAG.
       </div>
 
       <DocumentImportModal

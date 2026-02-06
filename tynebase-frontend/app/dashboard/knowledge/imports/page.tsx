@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { deleteJob } from "@/lib/api/ai";
 import {
   Download,
   Upload,
@@ -13,6 +14,8 @@ import {
   FileText,
   ExternalLink,
   Loader2,
+  Trash2,
+  X,
 } from "lucide-react";
 
 type ImportStatus = "queued" | "running" | "completed" | "failed";
@@ -124,6 +127,11 @@ export default function ImportsPage() {
   const [jobs, setJobs] = useState<ImportJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Delete modal state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [jobToDelete, setJobToDelete] = useState<ImportJob | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     // Import jobs endpoint not yet implemented - show empty state
@@ -137,6 +145,37 @@ export default function ImportsPage() {
     if (!q) return jobs;
     return jobs.filter((j) => `${j.source} ${j.status} ${j.notes ?? ""}`.toLowerCase().includes(q));
   }, [query, jobs]);
+
+  const handleDeleteClick = (job: ImportJob) => {
+    setJobToDelete(job);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteCancel = () => {
+    if (deleting) return;
+    setDeleteModalOpen(false);
+    setJobToDelete(null);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!jobToDelete) return;
+    
+    try {
+      setDeleting(true);
+      // Call API to delete import job
+      await deleteJob(jobToDelete.id);
+      
+      // Update local state
+      setJobs(prev => prev.filter(j => j.id !== jobToDelete.id));
+      setDeleteModalOpen(false);
+      setJobToDelete(null);
+    } catch (err) {
+      console.error('Failed to delete import job:', err);
+      alert(err instanceof Error ? err.message : 'Failed to delete import job');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6 min-h-[70vh]">
@@ -287,10 +326,17 @@ export default function ImportsPage() {
                     {job.notes && <p className="text-xs text-[var(--dash-text-muted)] truncate">{job.notes}</p>}
                   </div>
 
-                  <div className="col-span-1 flex items-center justify-end">
+                  <div className="col-span-1 flex items-center justify-end gap-2">
                     <button className="inline-flex items-center gap-1 text-sm font-medium text-[var(--brand)] hover:underline">
                       Details
                       <ExternalLink className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteClick(job)}
+                      className="p-1.5 rounded-lg text-[var(--dash-text-tertiary)] hover:text-[var(--status-error)] hover:bg-[var(--surface-hover)] transition-all"
+                      title="Delete Import"
+                    >
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -318,9 +364,18 @@ export default function ImportsPage() {
 
                   <div className="flex items-center justify-between text-xs text-[var(--dash-text-muted)] pt-2 border-t border-[var(--dash-border-subtle)]">
                     <span>Updated {job.updatedAt}</span>
-                    <button className="inline-flex items-center gap-1 text-sm font-medium text-[var(--brand)]">
-                      Details <ExternalLink className="w-3 h-3" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button className="inline-flex items-center gap-1 text-sm font-medium text-[var(--brand)]">
+                        Details <ExternalLink className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteClick(job)}
+                        className="p-1 rounded-lg text-[var(--dash-text-tertiary)] hover:text-[var(--status-error)] hover:bg-[var(--surface-hover)] transition-all"
+                        title="Delete Import"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -328,6 +383,61 @@ export default function ImportsPage() {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between p-6 border-b border-[var(--dash-border-subtle)]">
+              <h2 className="text-xl font-bold text-[var(--dash-text-primary)]">Delete Import</h2>
+              <button
+                onClick={handleDeleteCancel}
+                disabled={deleting}
+                className="p-2 rounded-lg hover:bg-[var(--surface-hover)] text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)] transition-colors disabled:opacity-50"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <p className="text-[var(--dash-text-secondary)]">
+                Are you sure you want to delete the import job from{' '}
+                <span className="font-semibold text-[var(--dash-text-primary)]">{jobToDelete?.source}</span>?
+              </p>
+              <p className="text-sm text-[var(--status-error)]">
+                This action cannot be undone. The import job will be permanently removed.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-[var(--dash-border-subtle)]">
+              <button
+                onClick={handleDeleteCancel}
+                disabled={deleting}
+                className="px-6 py-2.5 rounded-xl border border-[var(--dash-border-subtle)] text-[var(--dash-text-secondary)] hover:border-[var(--dash-border-default)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={deleting}
+                className="px-6 py-2.5 rounded-xl bg-[var(--status-error)] hover:bg-[var(--status-error)]/90 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Delete Import
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

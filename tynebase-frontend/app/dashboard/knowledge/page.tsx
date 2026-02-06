@@ -105,6 +105,12 @@ export default function KnowledgePage() {
   const [addToCollectionModalOpen, setAddToCollectionModalOpen] = useState(false);
   const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
 
+  // Confirmation screen states for bulk actions
+  const [moveCategorySuccess, setMoveCategorySuccess] = useState(false);
+  const [moveCategoryTargetName, setMoveCategoryTargetName] = useState<string>('');
+  const [addToCollectionSuccess, setAddToCollectionSuccess] = useState(false);
+  const [addToCollectionTargetName, setAddToCollectionTargetName] = useState<string>('');
+
   // Tags and Collections for bulk actions
   const [tags, setTags] = useState<TagType[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -152,6 +158,14 @@ export default function KnowledgePage() {
     if (score >= 90) return "text-[var(--status-success)]";
     if (score >= 70) return "text-[var(--status-warning)]";
     return "text-[var(--status-error)]";
+  };
+
+  const getAiScoreLabel = (score: number | null) => {
+    if (score === null) return 'Not Scored';
+    if (score >= 90) return 'Excellent';
+    if (score >= 70) return 'Good';
+    if (score >= 50) return 'Fair';
+    return 'Needs Work';
   };
 
   const formatRelativeTime = useCallback((dateString: string): string => {
@@ -343,15 +357,28 @@ export default function KnowledgePage() {
           : doc
       ));
       
-      setMoveCategoryModalOpen(false);
-      setSelectedCategoryForMove(null);
-      clearSelection();
+      // Get target category name for confirmation
+      const targetName = selectedCategoryForMove === 'none' 
+        ? 'Uncategorized' 
+        : apiCategories.find(c => c.id === selectedCategoryForMove)?.name || 'Unknown';
+      setMoveCategoryTargetName(targetName);
+      
+      // Show success confirmation instead of closing
+      setMoveCategorySuccess(true);
     } catch (err) {
       console.error('Failed to move documents:', err);
       setError(err instanceof Error ? err.message : 'Failed to move documents');
     } finally {
       setBulkActionLoading(false);
     }
+  };
+
+  const closeMoveCategoryModal = () => {
+    setMoveCategoryModalOpen(false);
+    setSelectedCategoryForMove(null);
+    setMoveCategorySuccess(false);
+    setMoveCategoryTargetName('');
+    clearSelection();
   };
 
   const handleBulkAssignTag = async () => {
@@ -387,15 +414,26 @@ export default function KnowledgePage() {
       setBulkActionLoading(true);
       await addDocumentsToCollection(selectedCollectionId, Array.from(selectedIds));
       
-      setAddToCollectionModalOpen(false);
-      setSelectedCollectionId(null);
-      clearSelection();
+      // Get target collection name for confirmation
+      const targetName = collections.find(c => c.id === selectedCollectionId)?.name || 'Unknown';
+      setAddToCollectionTargetName(targetName);
+      
+      // Show success confirmation instead of closing
+      setAddToCollectionSuccess(true);
     } catch (err) {
       console.error('Failed to add to collection:', err);
       setError(err instanceof Error ? err.message : 'Failed to add to collection');
     } finally {
       setBulkActionLoading(false);
     }
+  };
+
+  const closeAddToCollectionModal = () => {
+    setAddToCollectionModalOpen(false);
+    setSelectedCollectionId(null);
+    setAddToCollectionSuccess(false);
+    setAddToCollectionTargetName('');
+    clearSelection();
   };
 
   const handleBulkDelete = async () => {
@@ -541,7 +579,7 @@ export default function KnowledgePage() {
             <p className="text-sm text-[var(--dash-text-tertiary)] mt-1">
               <span className="font-semibold text-[var(--dash-text-secondary)]">Articles</span> are authored content.
               <span className="mx-2">•</span>
-              <span className="font-semibold text-[var(--dash-text-secondary)]">Knowledge Sources (RAG)</span> are PDFs/DOCX/MD normalized to Markdown, chunked, embedded and used for retrieval.
+              <span className="font-semibold text-[var(--dash-text-secondary)]">Knowledge Sources (RAG)</span> are PDFs/DOCX/MD normalised to Markdown, chunked, embedded and used for retrieval.
             </p>
           </div>
           <Link
@@ -578,7 +616,7 @@ export default function KnowledgePage() {
                 <FileSearch className="w-5 h-5" style={{ color: "#8b5cf6" }} />
               </span>
               <div>
-                <p className="text-sm font-semibold text-[var(--dash-text-primary)]">Normalized Markdown</p>
+                <p className="text-sm font-semibold text-[var(--dash-text-primary)]">Normalised Markdown</p>
                 <p className="text-xs text-[var(--dash-text-tertiary)] mt-0.5">Inspect what the model sees</p>
               </div>
             </div>
@@ -948,7 +986,7 @@ export default function KnowledgePage() {
           <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl overflow-hidden flex flex-col flex-1 min-h-0">
             {/* Table Header */}
             <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 bg-[var(--surface-ground)] border-b border-[var(--dash-border-subtle)] text-xs font-medium text-[var(--dash-text-muted)] uppercase tracking-wider">
-              <div className="col-span-5 flex items-center gap-3">
+              <div className="col-span-4 flex items-center gap-3">
                 <button
                   onClick={() => handleSelectAll(filteredDocIds)}
                   className="flex-shrink-0 p-0.5 rounded hover:bg-[var(--surface-hover)] transition-colors"
@@ -964,7 +1002,8 @@ export default function KnowledgePage() {
                 </button>
                 Document
               </div>
-              <div className="col-span-2">Category</div>
+              <div className="col-span-1">Category</div>
+              <div className="col-span-2">Categories</div>
               <div className="col-span-1 text-center">Status</div>
               <div className="col-span-1 text-center">AI Score</div>
               <div className="col-span-2">Updated</div>
@@ -977,7 +1016,7 @@ export default function KnowledgePage() {
                     {/* Desktop Table View */}
                     <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-4 items-center">
                       {/* Document Info */}
-                      <div className="col-span-5 flex items-center gap-3 min-w-0">
+                      <div className="col-span-4 flex items-center gap-3 min-w-0">
                         <button
                           onClick={(e) => handleSelectDocument(doc.id, e)}
                           className="flex-shrink-0 p-0.5 rounded hover:bg-[var(--surface-hover)] transition-colors"
@@ -1005,8 +1044,27 @@ export default function KnowledgePage() {
                         </div>
                       </div>
                       {/* Category */}
-                      <div className="col-span-2">
+                      <div className="col-span-1">
                         <span className="text-sm text-[var(--dash-text-secondary)]">{categories.find(c => c.id === doc.categoryId)?.name || 'Uncategorized'}</span>
+                      </div>
+                      {/* Categories (Tags) */}
+                      <div className="col-span-2">
+                        {doc.tags?.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {doc.tags.slice(0, 2).map((tag) => (
+                              <span key={tag.id} className="inline-flex px-2 py-0.5 text-xs rounded-full bg-[var(--surface-hover)] text-[var(--dash-text-secondary)]">
+                                {tag.name}
+                              </span>
+                            ))}
+                            {doc.tags.length > 2 && (
+                              <span className="inline-flex px-2 py-0.5 text-xs rounded-full bg-[var(--surface-hover)] text-[var(--dash-text-tertiary)]">
+                                +{doc.tags.length - 2}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-[var(--dash-text-tertiary)]">-</span>
+                        )}
                       </div>
                       {/* Status */}
                       <div className="col-span-1 text-center">
@@ -1018,7 +1076,7 @@ export default function KnowledgePage() {
                       <div className="col-span-1 text-center">
                         <span className={`inline-flex items-center gap-1 text-sm font-medium ${getAiScoreColor(doc.aiScore)}`}>
                           <Sparkles className="w-3.5 h-3.5" />
-                          {doc.aiScore !== null ? `${doc.aiScore}%` : '?'}
+                          {getAiScoreLabel(doc.aiScore)}
                         </span>
                       </div>
                       {/* Updated */}
@@ -1068,8 +1126,8 @@ export default function KnowledgePage() {
                               <span className={`inline-flex px-2 py-0.5 text-[10px] font-medium rounded-full ${getStateColor(doc.state)}`}>
                                 {doc.state.replace("_", " ")}
                               </span>
-                              <span className="text-xs text-[var(--dash-text-secondary)] flex items-center gap-1">
-                                <Sparkles className="w-3 h-3" /> {doc.aiScore !== null ? `${doc.aiScore}%` : '?'}
+                              <span className={`text-xs flex items-center gap-1 ${getAiScoreColor(doc.aiScore)}`}>
+                                <Sparkles className="w-3 h-3" /> {getAiScoreLabel(doc.aiScore)}
                               </span>
                             </div>
                           </div>
@@ -1138,7 +1196,7 @@ export default function KnowledgePage() {
                       </span>
                       <span className={`flex items-center gap-1 font-medium ${getAiScoreColor(doc.aiScore)}`}>
                         <Sparkles className="w-3 h-3" />
-                        {doc.aiScore !== null ? `${doc.aiScore}%` : '?'} AI Score
+                        {getAiScoreLabel(doc.aiScore)}
                       </span>
                     </div>
 
@@ -1247,60 +1305,85 @@ export default function KnowledgePage() {
       {/* Move to Category Modal */}
       <Modal
         isOpen={moveCategoryModalOpen}
-        onClose={() => {
-          setMoveCategoryModalOpen(false);
-          setSelectedCategoryForMove(null);
-        }}
-        title="Move to Category"
-        description={`Move ${selectedIds.size} document${selectedIds.size !== 1 ? 's' : ''} to a category`}
+        onClose={closeMoveCategoryModal}
+        title={moveCategorySuccess ? 'Category Assigned' : 'Move to Category'}
+        description={moveCategorySuccess 
+          ? `Successfully moved documents to ${moveCategoryTargetName}`
+          : `Move ${selectedIds.size} document${selectedIds.size !== 1 ? 's' : ''} to a category`
+        }
         size="sm"
       >
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-[var(--dash-text-primary)]">Select Category</label>
-            <select
-              value={selectedCategoryForMove || ''}
-              onChange={(e) => setSelectedCategoryForMove(e.target.value || null)}
-              className="w-full px-3 py-2 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
-            >
-              <option value="">Select a category...</option>
-              <option value="none">Remove from category</option>
-              {apiCategories.map((cat) => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
-              ))}
-            </select>
+        {moveCategorySuccess ? (
+          // Success Confirmation Screen
+          <div className="space-y-6">
+            <div className="text-center py-4">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-500/10 flex items-center justify-center">
+                <CheckCircle className="w-8 h-8 text-green-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-[var(--dash-text-primary)] mb-2">
+                Success!
+              </h3>
+              <p className="text-sm text-[var(--dash-text-secondary)]">
+                {selectedIds.size} document{selectedIds.size !== 1 ? 's' : ''} moved to <strong>{moveCategoryTargetName}</strong>
+              </p>
+            </div>
+            
+            <ModalFooter>
+              <button
+                onClick={closeMoveCategoryModal}
+                className="w-full px-4 py-2.5 text-sm font-medium text-white bg-[var(--brand)] rounded-lg hover:bg-[var(--brand-dark)] transition-colors flex items-center justify-center gap-2"
+              >
+                <CheckCircle className="w-4 h-4" />
+                Done
+              </button>
+            </ModalFooter>
           </div>
-        </div>
-        
-        <ModalFooter>
-          <button
-            onClick={() => {
-              setMoveCategoryModalOpen(false);
-              setSelectedCategoryForMove(null);
-            }}
-            disabled={bulkActionLoading}
-            className="px-4 py-2 text-sm font-medium text-[var(--dash-text-secondary)] bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleBulkMoveCategory}
-            disabled={bulkActionLoading || !selectedCategoryForMove}
-            className="px-4 py-2 text-sm font-medium text-white bg-[var(--brand)] rounded-lg hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-          >
-            {bulkActionLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Moving...
-              </>
-            ) : (
-              <>
-                <FolderInput className="w-4 h-4" />
-                Move Documents
-              </>
-            )}
-          </button>
-        </ModalFooter>
+        ) : (
+          // Category Selection Screen
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-[var(--dash-text-primary)]">Select Category</label>
+              <select
+                value={selectedCategoryForMove || ''}
+                onChange={(e) => setSelectedCategoryForMove(e.target.value || null)}
+                className="w-full px-3 py-2 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
+              >
+                <option value="">Select a category...</option>
+                <option value="none">Remove from category</option>
+                {apiCategories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
+            
+            <ModalFooter>
+              <button
+                onClick={closeMoveCategoryModal}
+                disabled={bulkActionLoading}
+                className="px-4 py-2 text-sm font-medium text-[var(--dash-text-secondary)] bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkMoveCategory}
+                disabled={bulkActionLoading || !selectedCategoryForMove}
+                className="px-4 py-2 text-sm font-medium text-white bg-[var(--brand)] rounded-lg hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              >
+                {bulkActionLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Moving...
+                  </>
+                ) : (
+                  <>
+                    <FolderInput className="w-4 h-4" />
+                    Move Documents
+                  </>
+                )}
+              </button>
+            </ModalFooter>
+          </div>
+        )}
       </Modal>
 
       {/* Assign Tag Modal */}
@@ -1317,22 +1400,37 @@ export default function KnowledgePage() {
         <div className="space-y-4">
           <div className="space-y-2">
             <label className="text-sm font-medium text-[var(--dash-text-primary)]">Select Tag</label>
-            {tags.length === 0 ? (
-              <p className="text-sm text-[var(--dash-text-tertiary)]">
-                No tags available. <Link href="/dashboard/knowledge/tags" className="text-[var(--brand)] hover:underline">Create a tag</Link> first.
-              </p>
-            ) : (
-              <select
-                value={selectedTagId || ''}
-                onChange={(e) => setSelectedTagId(e.target.value || null)}
-                className="w-full px-3 py-2 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
-              >
-                <option value="">Select a tag...</option>
-                {tags.map((tag) => (
-                  <option key={tag.id} value={tag.id}>{tag.name}</option>
-                ))}
-              </select>
-            )}
+            {(() => {
+              // Get tags already assigned to all selected documents
+              const selectedDocs = documents.filter(d => selectedIds.has(d.id));
+              const alreadyAssignedTagIds = new Set(
+                tags.filter(tag =>
+                  selectedDocs.length > 0 &&
+                  selectedDocs.every(doc => doc.tags.some(t => t.id === tag.id))
+                ).map(tag => tag.id)
+              );
+              const availableTags = tags.filter(tag => !alreadyAssignedTagIds.has(tag.id));
+
+              if (availableTags.length === 0) {
+                return (
+                  <p className="text-sm text-[var(--dash-text-tertiary)]">
+                    No available tags to assign. All tags are already assigned to the selected documents.
+                  </p>
+                );
+              }
+
+              return (
+                <select
+                  value={selectedTagId || ''}
+                  onChange={(e) => setSelectedTagId(e.target.value || null)}
+                  className="w-full px-3 py-2 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
+                >
+                  {availableTags.map((tag) => (
+                    <option key={tag.id} value={tag.id}>{tag.name}</option>
+                  ))}
+                </select>
+              );
+            })()}
           </div>
         </div>
         
@@ -1370,64 +1468,86 @@ export default function KnowledgePage() {
       {/* Add to Collection Modal */}
       <Modal
         isOpen={addToCollectionModalOpen}
-        onClose={() => {
-          setAddToCollectionModalOpen(false);
-          setSelectedCollectionId(null);
-        }}
-        title="Add to Collection"
-        description={`Add ${selectedIds.size} document${selectedIds.size !== 1 ? 's' : ''} to a collection`}
+        onClose={closeAddToCollectionModal}
+        title="Add to a collection"
+        description={addToCollectionSuccess ? '' : `Add ${selectedIds.size} documents to a collection`}
         size="sm"
       >
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-[var(--dash-text-primary)]">Select Collection</label>
-            {collections.length === 0 ? (
-              <p className="text-sm text-[var(--dash-text-tertiary)]">
-                No collections available. <Link href="/dashboard/knowledge/collections" className="text-[var(--brand)] hover:underline">Create a collection</Link> first.
+        {addToCollectionSuccess ? (
+          // Success Confirmation Screen
+          <div className="space-y-6">
+            <div className="text-center py-4">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-500/10 flex items-center justify-center">
+                <CheckCircle className="w-8 h-8 text-green-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-[var(--dash-text-primary)] mb-2">
+                Success!
+              </h3>
+              <p className="text-sm text-[var(--dash-text-secondary)]">
+                {selectedIds.size} document{selectedIds.size !== 1 ? 's' : ''} added to <strong>{addToCollectionTargetName}</strong>
               </p>
-            ) : (
-              <select
-                value={selectedCollectionId || ''}
-                onChange={(e) => setSelectedCollectionId(e.target.value || null)}
-                className="w-full px-3 py-2 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
+            </div>
+            
+            <ModalFooter>
+              <button
+                onClick={closeAddToCollectionModal}
+                className="w-full px-4 py-2.5 text-sm font-medium text-white bg-[var(--brand)] rounded-lg hover:bg-[var(--brand-dark)] transition-colors flex items-center justify-center gap-2"
               >
-                {collections.map((collection) => (
-                  <option key={collection.id} value={collection.id}>{collection.name}</option>
-                ))}
-              </select>
-            )}
+                <CheckCircle className="w-4 h-4" />
+                Done
+              </button>
+            </ModalFooter>
           </div>
-        </div>
-        
-        <ModalFooter>
-          <button
-            onClick={() => {
-              setAddToCollectionModalOpen(false);
-              setSelectedCollectionId(null);
-            }}
-            disabled={bulkActionLoading}
-            className="px-4 py-2 text-sm font-medium text-[var(--dash-text-secondary)] bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleBulkAddToCollection}
-            disabled={bulkActionLoading || !selectedCollectionId}
-            className="px-4 py-2 text-sm font-medium text-white bg-[var(--brand)] rounded-lg hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-          >
-            {bulkActionLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Adding...
-              </>
-            ) : (
-              <>
-                <Library className="w-4 h-4" />
-                Add to Collection
-              </>
-            )}
-          </button>
-        </ModalFooter>
+        ) : (
+          // Collection Selection Screen
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-[var(--dash-text-primary)]">Select Collection</label>
+              {collections.length === 0 ? (
+                <p className="text-sm text-[var(--dash-text-tertiary)]">
+                  No collections available. <Link href="/dashboard/knowledge/collections" className="text-[var(--brand)] hover:underline">Create a collection</Link> first.
+                </p>
+              ) : (
+                <select
+                  value={selectedCollectionId || ''}
+                  onChange={(e) => setSelectedCollectionId(e.target.value || null)}
+                  className="w-full px-3 py-2 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
+                >
+                  {collections.map((collection) => (
+                    <option key={collection.id} value={collection.id}>{collection.name}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+            
+            <ModalFooter>
+              <button
+                onClick={closeAddToCollectionModal}
+                disabled={bulkActionLoading}
+                className="px-4 py-2 text-sm font-medium text-[var(--dash-text-secondary)] bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkAddToCollection}
+                disabled={bulkActionLoading || !selectedCollectionId}
+                className="px-4 py-2 text-sm font-medium text-white bg-[var(--brand)] rounded-lg hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              >
+                {bulkActionLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  <>
+                    <Library className="w-4 h-4" />
+                    Add to Collection
+                  </>
+                )}
+              </button>
+            </ModalFooter>
+          </div>
+        )}
       </Modal>
 
       {/* Bulk Delete Modal */}
@@ -1435,12 +1555,14 @@ export default function KnowledgePage() {
         isOpen={bulkDeleteModalOpen}
         onClose={() => setBulkDeleteModalOpen(false)}
         title="Delete documents"
-        description="This action cannot be undone."
         size="sm"
       >
         <div className="space-y-4">
+          <p className="text-sm font-semibold text-[var(--status-error)]">
+            This action cannot be undone.
+          </p>
           <p className="text-sm text-[var(--dash-text-secondary)]">
-            <span className="font-semibold text-[var(--status-error)]">This action cannot be undone.</span> Are you sure you want to delete these {selectedIds.size} document{selectedIds.size !== 1 ? 's' : ''}? This will permanently remove all of the selected documents and their content.
+            Are you sure you want to delete these {selectedIds.size} document{selectedIds.size !== 1 ? 's' : ''}? This will permanently remove all of the selected documents and their content.
           </p>
         </div>
         
@@ -1465,7 +1587,7 @@ export default function KnowledgePage() {
             ) : (
               <>
                 <Trash2 className="w-4 h-4" />
-                Delete {selectedIds.size} Document{selectedIds.size !== 1 ? 's' : ''}
+                Delete
               </>
             )}
           </button>

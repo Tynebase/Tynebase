@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Modal, ModalFooter } from "@/components/ui/Modal";
+import { Input } from "@/components/ui/Input";
 import { 
   Shield, 
   Users, 
@@ -18,7 +20,16 @@ import {
   BarChart3
 } from "lucide-react";
 
-const roles = [
+interface Role {
+  id: string;
+  name: string;
+  description: string;
+  color: string;
+  members: number;
+  isDefault: boolean;
+}
+
+const initialRoles: Role[] = [
   {
     id: "admin",
     name: "Admin",
@@ -107,11 +118,36 @@ const permissionGroups = [
 export default function PermissionsPage() {
   const [expandedGroups, setExpandedGroups] = useState<string[]>(["Documents"]);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const [roles, setRoles] = useState<Role[]>(initialRoles);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newRoleName, setNewRoleName] = useState("");
+  const [newRoleDescription, setNewRoleDescription] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
 
   const toggleGroup = (group: string) => {
     setExpandedGroups((prev) =>
       prev.includes(group) ? prev.filter((g) => g !== group) : [...prev, group]
     );
+  };
+
+  const handleCreateRole = () => {
+    if (!newRoleName.trim()) return;
+    
+    setIsCreating(true);
+    const newRole: Role = {
+      id: newRoleName.toLowerCase().replace(/\s+/g, "_"),
+      name: newRoleName.trim(),
+      description: newRoleDescription.trim() || "Custom role",
+      color: "purple",
+      members: 0,
+      isDefault: false,
+    };
+    
+    setRoles((prev) => [...prev, newRole]);
+    setNewRoleName("");
+    setNewRoleDescription("");
+    setShowCreateModal(false);
+    setIsCreating(false);
   };
 
   return (
@@ -123,7 +159,7 @@ export default function PermissionsPage() {
             Manage roles and permissions for your team
           </p>
         </div>
-        <Button variant="primary">
+        <Button variant="primary" onClick={() => setShowCreateModal(true)}>
           <Plus className="w-4 h-4 mr-2" />
           Create Role
         </Button>
@@ -274,6 +310,54 @@ export default function PermissionsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Create Role Modal */}
+      <Modal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        title="Create New Role"
+        description="Add a custom role to your workspace"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+              Role Name
+            </label>
+            <Input
+              value={newRoleName}
+              onChange={(e) => setNewRoleName(e.target.value)}
+              placeholder="e.g., Marketing Manager"
+              className="w-full"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+              Description
+            </label>
+            <Input
+              value={newRoleDescription}
+              onChange={(e) => setNewRoleDescription(e.target.value)}
+              placeholder="What can users with this role do?"
+              className="w-full"
+            />
+          </div>
+        </div>
+        <ModalFooter>
+          <Button
+            variant="secondary"
+            onClick={() => setShowCreateModal(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleCreateRole}
+            disabled={!newRoleName.trim() || isCreating}
+          >
+            {isCreating ? "Creating..." : "Create Role"}
+          </Button>
+        </ModalFooter>
+      </Modal>
     </div>
   );
 }

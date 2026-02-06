@@ -16,6 +16,7 @@ export interface Tag {
   name: string;
   description: string | null;
   created_by: string;
+  sort_order: number;
   created_at: string;
   updated_at: string;
   document_count: number;
@@ -39,6 +40,7 @@ export interface CreateTagData {
 export interface UpdateTagData {
   name?: string;
   description?: string;
+  sort_order?: number;
 }
 
 // ============================================================================
@@ -139,6 +141,20 @@ export async function addTagToDocuments(
 ): Promise<{ message: string; count: number }> {
   return apiPost<{ message: string; count: number }>(`/api/tags/${tagId}/documents`, {
     document_ids: documentIds,
+  });
+}
+
+/**
+ * Reorder tags by updating their sort_order
+ * 
+ * @param tagIds - Array of tag UUIDs in the desired order
+ * @returns Success confirmation
+ */
+export async function reorderTags(
+  tagIds: string[]
+): Promise<{ message: string }> {
+  return apiPost<{ message: string }>('/api/tags/reorder', {
+    tag_ids: tagIds,
   });
 }
 

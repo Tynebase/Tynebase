@@ -1,10 +1,30 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Hash, Plus, Search, Sparkles, FileText, ArrowRight, TrendingUp, Filter, Loader2, AlertCircle, Trash2, ChevronDown, RotateCcw } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Hash, Plus, Search, Sparkles, FileText, ArrowRight, TrendingUp, Filter, Loader2, AlertCircle, Trash2, ChevronDown, RotateCcw, Pencil, Tag as TagIcon, X, CheckCircle, GripVertical } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
-import { listTags, createTag, type Tag as APITag } from "@/lib/api/tags";
+import { listTags, createTag, deleteTag, updateTag, addTagToDocuments, reorderTags, type Tag as APITag } from "@/lib/api/tags";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  rectSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 type Tag = {
   id: string;
@@ -14,6 +34,7 @@ type Tag = {
   updatedAt: string;
   trend: "up" | "flat" | "down";
   aiSuggested?: boolean;
+  sortOrder?: number;
 };
 
 const formatRelativeTime = (dateString: string): string => {
@@ -41,6 +62,7 @@ const mapAPITagToUI = (tag: APITag): Tag => ({
   updatedAt: formatRelativeTime(tag.updated_at),
   trend: 'flat',
   aiSuggested: false,
+  sortOrder: tag.sort_order ?? undefined,
 });
 
 function TrendBadge({ trend }: { trend: Tag["trend"] }) {
@@ -66,6 +88,104 @@ function TrendBadge({ trend }: { trend: Tag["trend"] }) {
   );
 }
 
+interface SortableTagCardProps {
+  tag: Tag;
+  onEdit: (tag: Tag) => void;
+  onDelete: (tag: Tag) => void;
+  onAssign: (tag: Tag) => void;
+}
+
+function SortableTagCard({ tag, onEdit, onDelete, onAssign }: SortableTagCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: tag.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className={isDragging ? 'z-50' : ''}>
+      <Card className="hover:shadow-lg hover:border-[var(--brand)] transition-all group">
+        <CardContent className="p-6">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <button
+                  {...attributes}
+                  {...listeners}
+                  className="p-1 rounded-lg cursor-grab active:cursor-grabbing text-[var(--dash-text-muted)] hover:text-[var(--dash-text-secondary)] hover:bg-[var(--surface-hover)] transition-all opacity-0 group-hover:opacity-100"
+                  title="Drag to reorder"
+                >
+                  <GripVertical className="w-4 h-4" />
+                </button>
+                <span className="w-10 h-10 rounded-xl bg-[var(--surface-ground)] flex items-center justify-center flex-shrink-0">
+                  <Hash className="w-5 h-5 text-[var(--dash-text-tertiary)]" />
+                </span>
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-[var(--dash-text-primary)] truncate">#{tag.name}</h3>
+                  <p className="text-xs text-[var(--dash-text-muted)]">{tag.documents} docs</p>
+                </div>
+              </div>
+              <p className="text-sm text-[var(--dash-text-tertiary)] mt-3 line-clamp-2">{tag.description}</p>
+            </div>
+            <div className="flex flex-col items-end gap-2">
+              <TrendBadge trend={tag.trend} />
+              {tag.aiSuggested && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium bg-[var(--brand)]/10 text-[var(--brand)]">
+                  <Sparkles className="w-3 h-3" />
+                  AI
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between">
+            <span className="text-xs text-[var(--dash-text-muted)]">Updated {tag.updatedAt}</span>
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/dashboard/knowledge?tag=${tag.id}`}
+                className="inline-flex items-center gap-2 text-sm font-medium text-[var(--brand)] hover:underline"
+              >
+                View Docs
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+              <button
+                onClick={() => onAssign(tag)}
+                className="p-1.5 rounded-lg text-[var(--dash-text-tertiary)] hover:text-[var(--brand)] hover:bg-[var(--surface-hover)] transition-all"
+                title="Assign to documents"
+              >
+                <TagIcon className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => onEdit(tag)}
+                className="p-1.5 rounded-lg text-[var(--dash-text-tertiary)] hover:text-[var(--brand)] hover:bg-[var(--surface-hover)] transition-all"
+                title="Edit tag"
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => onDelete(tag)}
+                className="p-1.5 rounded-lg text-[var(--dash-text-tertiary)] hover:text-[var(--status-error)] hover:bg-[var(--surface-hover)] transition-all"
+                title="Delete tag"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function TagsPage() {
   const [query, setQuery] = useState("");
   const [showNewTagModal, setShowNewTagModal] = useState(false);
@@ -75,6 +195,26 @@ export default function TagsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  
+  // Edit modal state
+  const [editingTag, setEditingTag] = useState<Tag | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  
+  // Delete confirmation state
+  const [deletingTag, setDeletingTag] = useState<Tag | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  
+  // Assign modal state
+  const [assigningTag, setAssigningTag] = useState<Tag | null>(null);
+  const [assignQuery, setAssignQuery] = useState("");
+  const [availableDocs, setAvailableDocs] = useState<{id: string; title: string; selected: boolean}[]>([]);
+  const [loadingDocs, setLoadingDocs] = useState(false);
+  const [assigning, setAssigning] = useState(false);
+  const [showAssignSuccess, setShowAssignSuccess] = useState(false);
+  const [assignedCount, setAssignedCount] = useState(0);
+  const assignDropdownRef = useRef<HTMLDivElement>(null);
   
   // Filter states
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
@@ -157,6 +297,178 @@ export default function TagsPage() {
       setError(err instanceof Error ? err.message : 'Failed to create tag');
     } finally {
       setCreating(false);
+    }
+  };
+
+  // Edit tag handlers
+  const openEditModal = (tag: Tag) => {
+    setEditingTag(tag);
+    setEditName(tag.name);
+    setEditDescription(tag.description);
+    setError(null);
+  };
+
+  const handleUpdateTag = async () => {
+    if (!editingTag || !editName.trim()) return;
+    
+    try {
+      setSavingEdit(true);
+      setError(null);
+      const response = await updateTag(editingTag.id, {
+        name: editName.trim(),
+        description: editDescription.trim() || undefined,
+      });
+      
+      const updatedTag = mapAPITagToUI(response.tag);
+      setTags(prev => prev.map(t => t.id === updatedTag.id ? updatedTag : t));
+      setEditingTag(null);
+    } catch (err) {
+      console.error('Failed to update tag:', err);
+      setError(err instanceof Error ? err.message : 'Failed to update tag');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  // Delete tag handlers
+  const openDeleteModal = (tag: Tag) => {
+    setDeletingTag(tag);
+    setError(null);
+  };
+
+  const handleDeleteTag = async () => {
+    if (!deletingTag) return;
+    
+    try {
+      setDeleting(true);
+      setError(null);
+      await deleteTag(deletingTag.id);
+      setTags(prev => prev.filter(t => t.id !== deletingTag.id));
+      setDeletingTag(null);
+    } catch (err) {
+      console.error('Failed to delete tag:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete tag');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Assign tag handlers
+  const openAssignModal = async (tag: Tag) => {
+    setAssigningTag(tag);
+    setAssignQuery("");
+    setAvailableDocs([]);
+    setError(null);
+    
+    // Fetch available documents
+    try {
+      setLoadingDocs(true);
+      const response = await fetch('/api/documents?limit=50');
+      if (response.ok) {
+        const data = await response.json();
+        const docs = data.documents || [];
+        setAvailableDocs(docs.map((d: {id: string; title: string}) => ({ 
+          id: d.id, 
+          title: d.title, 
+          selected: false 
+        })));
+      }
+    } catch (err) {
+      console.error('Failed to fetch documents:', err);
+    } finally {
+      setLoadingDocs(false);
+    }
+  };
+
+  const handleAssignDocuments = async () => {
+    if (!assigningTag) return;
+    
+    const selectedDocs = availableDocs.filter(d => d.selected);
+    if (selectedDocs.length === 0) return;
+    
+    try {
+      setAssigning(true);
+      setError(null);
+      await addTagToDocuments(
+        assigningTag.id, 
+        selectedDocs.map(d => d.id)
+      );
+      
+      // Update the tag's document count
+      setTags(prev => prev.map(t => 
+        t.id === assigningTag.id 
+          ? { ...t, documents: t.documents + selectedDocs.length }
+          : t
+      ));
+      
+      setAssignedCount(selectedDocs.length);
+      setShowAssignSuccess(true);
+    } catch (err) {
+      console.error('Failed to assign documents:', err);
+      setError(err instanceof Error ? err.message : 'Failed to assign documents');
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const closeAssignModal = () => {
+    setAssigningTag(null);
+    setShowAssignSuccess(false);
+    setAssignedCount(0);
+    setError(null);
+  };
+
+  const toggleDocSelection = (docId: string) => {
+    setAvailableDocs(prev => prev.map(d => 
+      d.id === docId ? { ...d, selected: !d.selected } : d
+    ));
+  };
+
+  // Drag and drop setup - only enabled when not filtering/searching
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  // Only allow drag and drop when no filters are applied (custom sort order mode)
+  const isDragEnabled = !query && sortBy === 'name' && sortOrder === 'asc' && showUnused === null;
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
+
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = tags.findIndex((t) => t.id === active.id);
+    const newIndex = tags.findIndex((t) => t.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    // Reorder locally first for immediate feedback
+    const newTags = arrayMove(tags, oldIndex, newIndex);
+    setTags(newTags);
+
+    // Save to backend
+    try {
+      const tagIds = newTags.map(t => t.id);
+      await reorderTags(tagIds);
+    } catch (err) {
+      console.error('Failed to save tag order:', err);
+      // Revert on error
+      setTags(tags);
+      setError('Failed to save tag order. Please try again.');
     }
   };
 
@@ -312,57 +624,15 @@ export default function TagsPage() {
       )}
 
       {!loading && !error && filtered.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 flex-1 content-start">
-          {filtered.map((t) => (
-          <Card
-            key={t.id}
-            className="hover:shadow-lg hover:border-[var(--brand)] transition-all"
-          >
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="w-10 h-10 rounded-xl bg-[var(--surface-ground)] flex items-center justify-center">
-                      <Hash className="w-5 h-5 text-[var(--dash-text-tertiary)]" />
-                    </span>
-                    <div className="min-w-0">
-                      <h3 className="font-semibold text-[var(--dash-text-primary)] truncate">#{capitalizeFirstLetter(t.name)}</h3>
-                      <p className="text-xs text-[var(--dash-text-muted)]">{t.documents} docs</p>
-                    </div>
-                  </div>
-                  <p className="text-sm text-[var(--dash-text-tertiary)] mt-3 line-clamp-2">{t.description}</p>
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  <TrendBadge trend={t.trend} />
-                  {t.aiSuggested && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium bg-[var(--brand)]/10 text-[var(--brand)]">
-                      <Sparkles className="w-3 h-3" />
-                      AI
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-4 flex items-center justify-between">
-                <span className="text-xs text-[var(--dash-text-muted)]">Updated {t.updatedAt}</span>
-                <Link
-                  href={`/dashboard/knowledge?tag=${t.id}`}
-                  className="inline-flex items-center gap-2 text-sm font-medium text-[var(--brand)] hover:underline"
-                >
-                  View Docs
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-                <button
-                  className="p-1.5 rounded-lg text-[var(--dash-text-tertiary)] hover:text-[var(--status-error)] hover:bg-[var(--surface-hover)] transition-all"
-                  title="Delete tag"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </CardContent>
-          </Card>
-          ))}
-        </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          <SortableContext items={filtered.map(t => t.id)} strategy={rectSortingStrategy}>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 flex-1 content-start">
+              {filtered.map((tag) => (
+                <SortableTagCard key={tag.id} tag={tag} onEdit={openEditModal} onDelete={openDeleteModal} onAssign={openAssignModal} />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {/* New Tag Modal */}
@@ -443,6 +713,287 @@ export default function TagsPage() {
                 ) : (
                   'Create Tag'
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Tag Modal */}
+      {editingTag && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[var(--surface-card)] rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-[var(--dash-text-primary)]">Edit Tag</h2>
+              <button
+                onClick={() => setEditingTag(null)}
+                className="text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)] transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-2">
+                  Tag Name
+                </label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="e.g., api, security, onboarding"
+                  disabled={savingEdit}
+                  className="w-full px-4 py-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 transition-all disabled:opacity-50"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-2">
+                  Description (optional)
+                </label>
+                <textarea
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  placeholder="Brief description of what this tag represents..."
+                  rows={3}
+                  disabled={savingEdit}
+                  className="w-full px-4 py-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 transition-all resize-none disabled:opacity-50"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setEditingTag(null);
+                  setError(null);
+                }}
+                disabled={savingEdit}
+                className="flex-1 h-11 px-4 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl text-sm font-medium text-[var(--dash-text-secondary)] hover:border-[var(--dash-border-default)] transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateTag}
+                disabled={!editName.trim() || savingEdit}
+                className="flex-1 h-11 px-4 bg-[var(--brand)] hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2"
+              >
+                {savingEdit ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingTag && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[var(--surface-card)] rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-[var(--dash-text-primary)]">Delete Tag</h2>
+              <button
+                onClick={() => setDeletingTag(null)}
+                className="text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)] transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
+              )}
+
+              <p className="text-[var(--dash-text-secondary)]">
+                Are you sure you want to delete the tag <span className="font-semibold text-[var(--dash-text-primary)]">#{capitalizeFirstLetter(deletingTag.name)}</span>?
+              </p>
+              {deletingTag.documents > 0 && (
+                <p className="text-sm text-[var(--status-error)]">
+                  This tag is assigned to {deletingTag.documents} document{deletingTag.documents !== 1 ? 's' : ''}. The tag will be removed from all documents.
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setDeletingTag(null);
+                  setError(null);
+                }}
+                disabled={deleting}
+                className="flex-1 h-11 px-4 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl text-sm font-medium text-[var(--dash-text-secondary)] hover:border-[var(--dash-border-default)] transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteTag}
+                disabled={deleting}
+                className="flex-1 h-11 px-4 bg-[var(--status-error)] hover:bg-[var(--status-error)]/90 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2"
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete Tag'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Tag Modal */}
+      {assigningTag && !showAssignSuccess && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[var(--surface-card)] rounded-2xl shadow-2xl max-w-lg w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-[var(--dash-text-primary)]">Assign a Tag</h2>
+              <button
+                onClick={() => setAssigningTag(null)}
+                className="text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)] transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
+              )}
+
+              <p className="text-[var(--dash-text-secondary)] text-sm">
+                Add a tag to {availableDocs.filter(d => d.selected).length} document{availableDocs.filter(d => d.selected).length !== 1 ? 's' : ''}
+              </p>
+
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--dash-text-muted)] pointer-events-none" />
+                <input
+                  type="text"
+                  value={assignQuery}
+                  onChange={(e) => setAssignQuery(e.target.value)}
+                  placeholder="Search documents..."
+                  className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 transition-all"
+                />
+              </div>
+
+              {/* Document List */}
+              <div className="max-h-64 overflow-y-auto border border-[var(--dash-border-subtle)] rounded-xl">
+                {loadingDocs ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-5 h-5 text-[var(--brand)] animate-spin" />
+                    <span className="ml-2 text-sm text-[var(--dash-text-secondary)]">Loading documents...</span>
+                  </div>
+                ) : availableDocs.filter(d => d.title.toLowerCase().includes(assignQuery.toLowerCase())).length === 0 ? (
+                  <div className="py-8 text-center text-[var(--dash-text-muted)]">
+                    No documents found
+                  </div>
+                ) : (
+                  <div className="divide-y divide-[var(--dash-border-subtle)]">
+                    {availableDocs
+                      .filter(d => d.title.toLowerCase().includes(assignQuery.toLowerCase()))
+                      .map((doc) => (
+                        <div
+                          key={doc.id}
+                          onClick={() => !assigning && toggleDocSelection(doc.id)}
+                          className={`flex items-center gap-3 p-3 hover:bg-[var(--surface-hover)] cursor-pointer transition-colors ${assigning ? 'opacity-50 pointer-events-none' : ''}`}
+                        >
+                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                            doc.selected 
+                              ? 'bg-[var(--brand)] border-[var(--brand)]' 
+                              : 'border-[var(--dash-border-subtle)]'
+                          }`}>
+                            {doc.selected && (
+                              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </div>
+                          <span className="text-sm text-[var(--dash-text-primary)] truncate flex-1">{doc.title}</span>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+
+              <p className="text-xs text-[var(--dash-text-muted)]">
+                {availableDocs.filter(d => d.selected).length} document{availableDocs.filter(d => d.selected).length !== 1 ? 's' : ''} selected
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 mt-6">
+              <button
+                onClick={closeAssignModal}
+                disabled={assigning}
+                className="flex-1 h-11 px-4 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl text-sm font-medium text-[var(--dash-text-secondary)] hover:border-[var(--dash-border-default)] transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAssignDocuments}
+                disabled={availableDocs.filter(d => d.selected).length === 0 || assigning}
+                className="flex-1 h-11 px-4 bg-[var(--brand)] hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2"
+              >
+                {assigning ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Assigning...
+                  </>
+                ) : (
+                  `Assign to ${availableDocs.filter(d => d.selected).length} Document${availableDocs.filter(d => d.selected).length !== 1 ? 's' : ''}`
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Assign Success Confirmation Modal */}
+      {assigningTag && showAssignSuccess && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[var(--surface-card)] rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 rounded-full bg-[var(--status-success-bg)] flex items-center justify-center mb-4">
+                <CheckCircle className="w-8 h-8 text-[var(--status-success)]" />
+              </div>
+              
+              <h2 className="text-xl font-bold text-[var(--dash-text-primary)] mb-2">
+                Tag Assigned Successfully
+              </h2>
+              
+              <p className="text-[var(--dash-text-secondary)] mb-6">
+                <span className="font-semibold text-[var(--brand)]">#{assigningTag.name}</span> has been assigned to{' '}
+                <span className="font-semibold text-[var(--dash-text-primary)]">{assignedCount}</span> document{assignedCount !== 1 ? 's' : ''}.
+              </p>
+              
+              <button
+                onClick={closeAssignModal}
+                className="w-full h-11 px-4 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2"
+              >
+                Done
               </button>
             </div>
           </div>

@@ -196,4 +196,189 @@ export default async function jobRoutes(fastify: FastifyInstance) {
       }
     }
   );
+
+  /**
+   * Delete a job from the queue
+   * DELETE /api/jobs/:id
+   */
+  fastify.delete<{ Params: JobIdParams }>(
+    '/api/jobs/:id',
+    {
+      preHandler: [
+        rateLimitMiddleware,
+        tenantContextMiddleware,
+        authMiddleware,
+      ],
+    },
+    async (request, reply) => {
+      const tenant = (request as any).tenant;
+      const user = request.user;
+
+      if (!tenant || !tenant.id) {
+        return reply.status(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'Tenant context not available',
+          },
+        });
+      }
+
+      if (!user || !user.id) {
+        return reply.status(401).send({
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'User authentication required',
+          },
+        });
+      }
+
+      try {
+        const validated = JobIdParamsSchema.parse(request.params);
+        const jobId = validated.id;
+
+        // First, fetch the job to verify ownership and status
+        const { data: job, error: jobError } = await supabaseAdmin
+          .from('job_queue')
+          .select('id, tenant_id, status')
+          .eq('id', jobId)
+          .single();
+
+        if (jobError) {
+          if (jobError.code === 'PGRST116') {
+            request.log.warn(
+              {
+                jobId,
+                tenantId: tenant.id,
+                userId: user.id,
+              },
+              'Job not found for deletion'
+            );
+            return reply.status(404).send({
+              error: {
+                code: 'JOB_NOT_FOUND',
+                message: 'The requested job does not exist',
+              },
+            });
+          }
+
+          request.log.error(
+            {
+              jobId,
+              tenantId: tenant.id,
+              error: jobError.message,
+            },
+            'Failed to fetch job for deletion'
+          );
+          return reply.status(500).send({
+            error: {
+              code: 'JOB_FETCH_FAILED',
+              message: 'Unable to retrieve job for deletion',
+            },
+          });
+        }
+
+        // Verify tenant ownership
+        if (job.tenant_id !== tenant.id) {
+          request.log.warn(
+            {
+              jobId,
+              jobTenantId: job.tenant_id,
+              requestTenantId: tenant.id,
+              userId: user.id,
+            },
+            'Unauthorized job deletion attempt'
+          );
+          return reply.status(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'You do not have permission to delete this job',
+            },
+          });
+        }
+
+        // Cannot delete jobs that are currently processing
+        if (job.status === 'processing') {
+          request.log.warn(
+            {
+              jobId,
+              tenantId: tenant.id,
+              userId: user.id,
+              status: job.status,
+            },
+            'Cannot delete processing job'
+          );
+          return reply.status(409).send({
+            error: {
+              code: 'JOB_CANNOT_DELETE',
+              message: 'Cannot delete a job that is currently processing',
+            },
+          });
+        }
+
+        // Delete the job
+        const { error: deleteError } = await supabaseAdmin
+          .from('job_queue')
+          .delete()
+          .eq('id', jobId);
+
+        if (deleteError) {
+          request.log.error(
+            {
+              jobId,
+              tenantId: tenant.id,
+              error: deleteError.message,
+            },
+            'Failed to delete job'
+          );
+          return reply.status(500).send({
+            error: {
+              code: 'JOB_DELETE_FAILED',
+              message: 'Failed to delete the job',
+            },
+          });
+        }
+
+        request.log.info(
+          {
+            jobId,
+            tenantId: tenant.id,
+            userId: user.id,
+          },
+          'Job deleted successfully'
+        );
+
+        return reply.status(200).send({
+          message: 'Job deleted successfully',
+          jobId: jobId,
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          const errorMessages = error.errors.map(e => `${e.path.join('.')}: ${e.message}`);
+          return reply.status(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid request parameters',
+              details: errorMessages,
+            },
+          });
+        }
+
+        request.log.error(
+          {
+            tenantId: tenant.id,
+            userId: user?.id,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          },
+          'Error in job deletion endpoint'
+        );
+
+        return reply.status(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An error occurred while processing your request',
+          },
+        });
+      }
+    }
+  );
 }

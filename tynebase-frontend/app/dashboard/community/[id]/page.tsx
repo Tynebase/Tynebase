@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
 import { Card, CardContent } from "@/components/ui/Card";
 import { DashboardPageHeader } from "@/components/layout/DashboardPageHeader";
+import { PollDisplay } from "@/components/PollDisplay";
+import { Poll } from "@/lib/api/discussions";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -16,7 +18,23 @@ import {
   ThumbsUp,
 } from "lucide-react";
 
-const discussions = [
+interface DiscussionMock {
+  id: number;
+  title: string;
+  excerpt: string;
+  author: string;
+  category: string;
+  createdAt: string;
+  replies: number;
+  views: number;
+  likes: number;
+  isPinned: boolean;
+  isResolved: boolean;
+  tags: string[];
+  poll?: Poll;
+}
+
+const discussions: DiscussionMock[] = [
   {
     id: 1,
     title: "Welcome to the TyneBase Community!",
@@ -31,6 +49,19 @@ const discussions = [
     isPinned: true,
     isResolved: false,
     tags: ["welcome", "introduction"],
+    poll: {
+      id: "poll-1",
+      question: "What feature would you like to see next?",
+      options: [
+        { id: "opt-1", text: "Dark mode", votes_count: 45 },
+        { id: "opt-2", text: "Mobile app", votes_count: 32 },
+        { id: "opt-3", text: "API integrations", votes_count: 28 },
+        { id: "opt-4", text: "Team workspaces", votes_count: 19 },
+      ],
+      total_votes: 124,
+      has_voted: false,
+      created_at: "2026-02-01T10:00:00Z",
+    } as Poll,
   },
   {
     id: 2,
@@ -92,7 +123,7 @@ const discussions = [
     isResolved: false,
     tags: ["roundup", "community"],
   },
-] as const;
+];
 
 export default function DiscussionPage({
   params,
@@ -207,6 +238,13 @@ export default function DiscussionPage({
                 <div className="text-[var(--dash-text-primary)] leading-relaxed">
                   {discussion.excerpt}
                 </div>
+
+                {discussion.poll && (
+                  <PollDisplay
+                    poll={discussion.poll as Poll}
+                    discussionId={discussion.id.toString()}
+                  />
+                )}
 
                 <div className="flex flex-wrap items-center gap-2 pt-2">
                   {discussion.tags.map((tag) => (

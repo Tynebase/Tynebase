@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { Card, CardContent } from "@/components/ui/Card";
 import { DashboardPageHeader } from "@/components/layout/DashboardPageHeader";
 import { createDiscussion } from "@/lib/api/discussions";
-import { ArrowLeft, Plus, Send, Tag, Loader2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Plus, Send, Tag, Loader2, AlertCircle, BarChart3, X } from "lucide-react";
 
 const categories = [
   { id: "announcements", label: "Announcements", color: "#ef4444" },
@@ -26,6 +26,9 @@ export default function NewDiscussionPage() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [tags, setTags] = useState("");
+  const [pollQuestion, setPollQuestion] = useState("");
+  const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
+  const [hasPoll, setHasPoll] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,6 +38,11 @@ export default function NewDiscussionPage() {
   );
 
   const isValid = title.trim().length > 0 && content.trim().length > 0;
+
+  const isPollValid = !hasPoll || (
+    pollQuestion.trim().length > 0 &&
+    pollOptions.filter(o => o.trim().length > 0).length >= 2
+  );
 
   const handleSubmit = async () => {
     if (!isValid) return;
@@ -53,6 +61,10 @@ export default function NewDiscussionPage() {
         content: content.trim(),
         category,
         tags: parsedTags,
+        poll: hasPoll && isPollValid ? {
+          question: pollQuestion.trim(),
+          options: pollOptions.filter(o => o.trim().length > 0),
+        } : undefined,
       });
 
       // Redirect to the community page on success
@@ -103,7 +115,7 @@ export default function NewDiscussionPage() {
             variant="primary"
             size="lg"
             className="gap-2 px-7"
-            disabled={!isValid || isSubmitting}
+            disabled={!isValid || !isPollValid || isSubmitting}
             onClick={handleSubmit}
           >
             {isSubmitting ? (
@@ -166,7 +178,7 @@ export default function NewDiscussionPage() {
                 label="Content"
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder="Share your thoughts, add context, and include any links or snippets your team might need."
+                placeholder="Share your thoughts, add context and include any links or snippets your team might need."
                 rows={10}
                 className="px-4 py-3 bg-[var(--surface-card)]"
               />
@@ -178,6 +190,80 @@ export default function NewDiscussionPage() {
                 placeholder="e.g. webhooks, integrations, best-practices"
                 className="h-12 px-4"
               />
+
+              <div className="border-t border-[var(--dash-border-subtle)] pt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-[var(--brand)]" />
+                    <span className="text-sm font-medium text-[var(--dash-text-secondary)]">Poll</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setHasPoll(!hasPoll)}
+                    className="text-sm font-medium text-[var(--brand)] hover:underline"
+                  >
+                    {hasPoll ? "Remove poll" : "Add a poll"}
+                  </button>
+                </div>
+
+                {hasPoll && (
+                  <div className="space-y-4 bg-[var(--surface-ground)] rounded-lg p-4">
+                    <div>
+                      <label className="text-sm font-medium text-[var(--dash-text-secondary)] mb-1 block">Poll Question</label>
+                      <input
+                        type="text"
+                        value={pollQuestion}
+                        onChange={(e) => setPollQuestion(e.target.value)}
+                        placeholder="Ask your question..."
+                        className="w-full h-10 px-3 rounded-lg border border-[var(--dash-border-subtle)] bg-[var(--surface-card)] text-sm text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-[var(--dash-text-secondary)] mb-2 block">Options</label>
+                      <div className="space-y-2">
+                        {pollOptions.map((option, index) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={option}
+                              onChange={(e) => {
+                                const newOptions = [...pollOptions];
+                                newOptions[index] = e.target.value;
+                                setPollOptions(newOptions);
+                              }}
+                              placeholder={`Option ${index + 1}`}
+                              className="flex-1 h-10 px-3 rounded-lg border border-[var(--dash-border-subtle)] bg-[var(--surface-card)] text-sm text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)]"
+                            />
+                            {pollOptions.length > 2 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newOptions = pollOptions.filter((_, i) => i !== index);
+                                  setPollOptions(newOptions);
+                                }}
+                                className="p-2 text-[var(--dash-text-muted)] hover:text-red-500"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        {pollOptions.length < 6 && (
+                          <button
+                            type="button"
+                            onClick={() => setPollOptions([...pollOptions, ""])}
+                            className="flex items-center gap-2 text-sm text-[var(--brand)] hover:underline mt-2"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Add option
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -188,7 +274,7 @@ export default function NewDiscussionPage() {
               <div className="font-semibold text-[var(--dash-text-primary)] mb-2">Posting tips</div>
               <div className="text-sm text-[var(--dash-text-tertiary)] space-y-2">
                 <div>Use a descriptive title so others can find it later.</div>
-                <div>Include steps, expected behavior, and what you already tried.</div>
+                <div>Include steps, expected behavior and what you already tried.</div>
                 <div>Add tags to help with search and filtering.</div>
               </div>
             </CardContent>

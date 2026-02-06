@@ -84,7 +84,7 @@ export default function CollectionsPage() {
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [newColor, setNewColor] = useState(COLLECTION_COLORS[0]);
-  const [newVisibility, setNewVisibility] = useState<Visibility>("team");
+  const [newVisibility, setNewVisibility] = useState<Visibility>("private");
 
   useEffect(() => {
     fetchCollections();
@@ -127,7 +127,7 @@ export default function CollectionsPage() {
       setNewName("");
       setNewDescription("");
       setNewColor(COLLECTION_COLORS[0]);
-      setNewVisibility("team");
+      setNewVisibility("private");
       setShowNewModal(false);
     } catch (err) {
       console.error('Failed to create collection:', err);
@@ -441,7 +441,7 @@ export default function CollectionsPage() {
       <Modal
         isOpen={deleteModalOpen}
         onClose={handleDeleteCancel}
-        title="delete collection"
+        title="Delete Collection"
         description="This action cannot be undone."
         size="sm"
       >

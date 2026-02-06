@@ -211,7 +211,19 @@ export default async function legalDocumentUploadRoutes(fastify: FastifyInstance
       }
 
       try {
-        const data = await request.file();
+        // Use parts() to read all multipart fields (file + form data)
+        const parts = request.parts();
+        let data: any = null;
+        const formFields: Record<string, string> = {};
+        
+        for await (const part of parts) {
+          if (part.type === 'file') {
+            data = part;
+          } else {
+            // Regular field
+            formFields[part.fieldname] = part.value as string;
+          }
+        }
 
         if (!data) {
           return reply.status(400).send({
@@ -346,16 +358,15 @@ export default async function legalDocumentUploadRoutes(fastify: FastifyInstance
           'Legal document uploaded successfully, dispatching processing job'
         );
 
-        const body = request.body as Record<string, any> || {};
         const processingOptions = {
-          enable_ocr: body.enable_ocr ?? true,
-          extract_text: body.extract_text ?? true,
-          preserve_formatting: body.preserve_formatting ?? true,
-          index_for_search: body.index_for_search ?? true,
-          convert_to_pdf_a: body.convert_to_pdf_a ?? false,
-          generate_summary: body.generate_summary ?? false,
-          generate_article: body.generate_article ?? false,
-          ai_model: body.ai_model ?? 'deepseek',
+          enable_ocr: formFields.enable_ocr === 'true',
+          extract_text: formFields.extract_text === 'true',
+          preserve_formatting: formFields.preserve_formatting === 'true',
+          index_for_search: formFields.index_for_search === 'true',
+          convert_to_pdf_a: formFields.convert_to_pdf_a === 'true',
+          generate_summary: formFields.generate_summary === 'true',
+          generate_article: formFields.generate_article === 'true',
+          ai_model: formFields.ai_model || 'deepseek',
         };
 
         const job = await dispatchJob({

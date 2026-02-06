@@ -17,6 +17,15 @@ const listUsersQuerySchema = z.object({
 });
 
 /**
+ * Zod schema for PATCH /api/users/:id body parameters
+ */
+const updateUserBodySchema = z.object({
+  role: z.enum(['admin', 'editor', 'member', 'viewer']).optional(),
+  status: z.enum(['active', 'suspended']).optional(),
+  full_name: z.string().min(1).max(100).optional(),
+});
+
+/**
  * Users management routes
  */
 export default async function usersRoutes(fastify: FastifyInstance) {
@@ -151,6 +160,148 @@ export default async function usersRoutes(fastify: FastifyInstance) {
             message: 'An unexpected error occurred',
             details: {},
           },
+        });
+      }
+    }
+  );
+
+  /**
+   * PATCH /api/users/:id
+   * Updates a user's role or status
+   */
+  fastify.patch(
+    '/api/users/:id',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const currentUser = (request as any).user;
+        const { id } = request.params as { id: string };
+
+        if (currentUser.role !== 'admin') {
+          return reply.code(403).send({
+            error: { code: 'FORBIDDEN', message: 'Only admins can update users' },
+          });
+        }
+
+        const body = updateUserBodySchema.parse(request.body);
+
+        const { data: targetUser, error: fetchError } = await supabaseAdmin
+          .from('users')
+          .select('id')
+          .eq('id', id)
+          .eq('tenant_id', tenant.id)
+          .single();
+
+        if (fetchError || !targetUser) {
+          return reply.code(404).send({
+            error: { code: 'USER_NOT_FOUND', message: 'User not found' },
+          });
+        }
+
+        if (id === currentUser.id && body.role && body.role !== 'admin') {
+          return reply.code(400).send({
+            error: { code: 'CANNOT_DEMOTE_SELF', message: 'Cannot demote yourself' },
+          });
+        }
+
+        const updateData: Record<string, string> = {};
+        if (body.role) updateData.role = body.role;
+        if (body.status) updateData.status = body.status;
+        if (body.full_name) updateData.full_name = body.full_name;
+
+        if (Object.keys(updateData).length === 0) {
+          return reply.code(400).send({
+            error: { code: 'NO_CHANGES', message: 'No valid fields to update' },
+          });
+        }
+
+        const { data: updatedUser, error: updateError } = await supabaseAdmin
+          .from('users')
+          .update(updateData)
+          .eq('id', id)
+          .eq('tenant_id', tenant.id)
+          .select('id, email, full_name, role, status, created_at, last_active_at')
+          .single();
+
+        if (updateError) {
+          return reply.code(500).send({
+            error: { code: 'UPDATE_FAILED', message: 'Failed to update user' },
+          });
+        }
+
+        return reply.code(200).send({ success: true, data: { user: updatedUser } });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: { code: 'VALIDATION_ERROR', message: 'Invalid request', details: error.errors },
+          });
+        }
+        return reply.code(500).send({
+          error: { code: 'INTERNAL_ERROR', message: 'An error occurred' },
+        });
+      }
+    }
+  );
+
+  /**
+   * DELETE /api/users/:id
+   * Removes a user from the tenant
+   */
+  fastify.delete(
+    '/api/users/:id',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const currentUser = (request as any).user;
+        const { id } = request.params as { id: string };
+
+        if (currentUser.role !== 'admin') {
+          return reply.code(403).send({
+            error: { code: 'FORBIDDEN', message: 'Only admins can remove users' },
+          });
+        }
+
+        if (id === currentUser.id) {
+          return reply.code(400).send({
+            error: { code: 'CANNOT_DELETE_SELF', message: 'Cannot delete yourself' },
+          });
+        }
+
+        const { data: targetUser, error: fetchError } = await supabaseAdmin
+          .from('users')
+          .select('id')
+          .eq('id', id)
+          .eq('tenant_id', tenant.id)
+          .single();
+
+        if (fetchError || !targetUser) {
+          return reply.code(404).send({
+            error: { code: 'USER_NOT_FOUND', message: 'User not found' },
+          });
+        }
+
+        const { error: deleteError } = await supabaseAdmin
+          .from('users')
+          .update({ status: 'deleted', deleted_at: new Date().toISOString() })
+          .eq('id', id)
+          .eq('tenant_id', tenant.id);
+
+        if (deleteError) {
+          return reply.code(500).send({
+            error: { code: 'DELETE_FAILED', message: 'Failed to remove user' },
+          });
+        }
+
+        return reply.code(200).send({ success: true, data: { message: 'User removed' } });
+      } catch (error) {
+        return reply.code(500).send({
+          error: { code: 'INTERNAL_ERROR', message: 'An error occurred' },
         });
       }
     }

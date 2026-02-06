@@ -30,6 +30,7 @@ import {
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getDashboardStats, getRecentDocuments, getRecentActivity, type DashboardStats, type RecentDocument, type RecentActivity } from "@/lib/api/dashboard";
+import { capitalize } from "@/lib/utils";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -257,7 +258,7 @@ export default function DashboardPage() {
                       <p className="font-medium text-[var(--dash-text-primary)] truncate">{doc.title}</p>
                       <div className="flex items-center gap-3 mt-1">
                         <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStateColor(doc.status)}`}>
-                          {doc.status}
+                          {capitalize(doc.status)}
                         </span>
                         <span className="text-xs text-[var(--dash-text-muted)] flex items-center gap-1">
                           <Clock className="w-3 h-3" />
@@ -280,7 +281,7 @@ export default function DashboardPage() {
                       <p className="font-medium text-[var(--dash-text-primary)] text-sm mb-1 line-clamp-2">{doc.title}</p>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className={`px-2 py-0.5 text-[10px] font-medium rounded-full ${getStateColor(doc.status)}`}>
-                          {doc.status}
+                          {capitalize(doc.status)}
                         </span>
                         <span className="text-[10px] text-[var(--dash-text-muted)] flex items-center gap-1">
                           <Clock className="w-3 h-3" />
@@ -311,7 +312,11 @@ export default function DashboardPage() {
                   <p className="text-sm text-[var(--dash-text-secondary)]">No recent activity</p>
                 </div>
               ) : recentActivity.map((activity: RecentActivity) => (
-                <div key={activity.id} className="flex gap-3">
+                <div 
+                  key={activity.id} 
+                  onClick={() => router.push(`/dashboard/knowledge/${activity.document_id}`)}
+                  className="flex gap-3 cursor-pointer hover:bg-[var(--surface-hover)] -mx-6 px-6 py-3 rounded-lg transition-colors"
+                >
                   <div className="w-8 h-8 rounded-full bg-[var(--brand-primary-muted)] flex items-center justify-center text-[var(--brand)] font-semibold text-xs flex-shrink-0">
                     {(activity.users.full_name || activity.users.email).split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
                   </div>

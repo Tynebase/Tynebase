@@ -69,10 +69,15 @@ const Slot = React.forwardRef<HTMLElement, SlotProps>(({ children, className, ..
 Slot.displayName = "Slot";
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild, ...props }, ref) => {
+  ({ className, variant, size, asChild, children, ...props }, ref) => {
     const Comp = asChild ? Slot : "button" as React.ElementType;
+    // When using asChild, don't pass button-specific props (onClick, disabled, type, etc.) to Slot
+    // as they don't apply to the child element (like Link)
+    const slotProps = asChild ? {} : props;
     return (
-      <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref as React.Ref<HTMLButtonElement>} {...props} />
+      <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref as React.Ref<HTMLButtonElement>} {...slotProps}>
+        {children}
+      </Comp>
     );
   }
 );

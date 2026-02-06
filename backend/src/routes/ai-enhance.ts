@@ -9,6 +9,7 @@ import { getModelCreditCost } from '../utils/creditCalculator';
 
 const EnhanceRequestSchema = z.object({
   document_id: z.string().uuid('Invalid document ID format'),
+  custom_prompt: z.string().optional(),
 });
 
 type EnhanceRequest = z.infer<typeof EnhanceRequestSchema>;
@@ -199,6 +200,10 @@ export default async function aiEnhanceRoutes(fastify: FastifyInstance) {
           });
         }
 
+        const customInstructions = validated.custom_prompt
+          ? `\n\nADDITIONAL USER INSTRUCTIONS:\n${validated.custom_prompt}\n\nIncorporate these instructions into your analysis and suggestions where appropriate.`
+          : '';
+
         const prompt = `You are a professional document editor. Your task is to analyze document content and provide specific, actionable improvements.
 
 CRITICAL FORMATTING RULES:
@@ -215,7 +220,7 @@ IMPORTANT:
 
 Document Title: ${document.title}
 Document Content:
-${document.content}
+${document.content}${customInstructions}
 
 Provide:
 1. A DOCUMENT QUALITY SCORE from 0-100 based on these criteria:
@@ -494,6 +499,7 @@ CRITICAL RULES:
               score: enhanceResult.score,
               suggestions_count: enhanceResult.suggestions.length,
               duration_ms: duration,
+              has_custom_prompt: !!validated.custom_prompt,
             },
           });
 

@@ -9,8 +9,8 @@ import Link from "next/link";
 import { TIER_CONFIG, TierType } from "@/types/api";
 import { 
   CreditCard, Check, X, Zap, Crown, Building2, Sparkles,
-  ArrowRight, Calendar, Receipt, AlertCircle, ExternalLink,
-  ChevronRight, Users, HardDrive, Bot
+  ArrowRight, Calendar, AlertCircle, ExternalLink,
+  ChevronRight, Users, HardDrive, Bot, FileText, UserPlus
 } from "lucide-react";
 
 // Tier display configuration for billing page
@@ -303,8 +303,15 @@ export default function BillingPage() {
               style={{ width: usage.users.total === -1 ? '10%' : `${(usage.users.used / usage.users.total) * 100}%` }}
             />
           </div>
-          <p className="text-xs text-[var(--dash-text-muted)] mt-2">
-            {usage.users.total === -1 ? 'Unlimited' : `${usage.users.total - usage.users.used} seats available`}
+          <p className="text-xs text-[var(--dash-text-muted)] mt-2 flex items-center justify-between">
+            <span>{usage.users.total === -1 ? 'Unlimited' : `${usage.users.total - usage.users.used} seats available`}</span>
+            <Link 
+              href="/dashboard/settings/users"
+              className="text-[var(--brand)] hover:text-[var(--brand-dark)] font-medium flex items-center gap-1 transition-colors"
+            >
+              <UserPlus className="w-3 h-3" />
+              Invite users
+            </Link>
           </p>
         </div>
       </div>
@@ -439,14 +446,14 @@ export default function BillingPage() {
       <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl overflow-hidden">
         <div className="px-7 py-5 border-b border-[var(--dash-border-subtle)]">
           <h2 className="font-semibold text-[var(--dash-text-primary)] flex items-center gap-2">
-            <Receipt className="w-5 h-5 text-[var(--brand)]" />
+            <FileText className="w-5 h-5 text-[var(--brand)]" />
             Billing History
           </h2>
         </div>
         <div className="p-7">
           {currentTier === 'free' ? (
             <div className="text-center py-8">
-              <Receipt className="w-12 h-12 text-[var(--dash-text-muted)] mx-auto mb-3" />
+              <FileText className="w-12 h-12 text-[var(--dash-text-muted)] mx-auto mb-3" />
               <p className="text-[var(--dash-text-secondary)]">No billing history</p>
               <p className="text-sm text-[var(--dash-text-muted)] mt-1">
                 Upgrade to a paid plan to see your invoices here
@@ -454,7 +461,7 @@ export default function BillingPage() {
             </div>
           ) : (
             <div className="text-center py-8">
-              <Receipt className="w-12 h-12 text-[var(--dash-text-muted)] mx-auto mb-3" />
+              <FileText className="w-12 h-12 text-[var(--dash-text-muted)] mx-auto mb-3" />
               <p className="text-[var(--dash-text-secondary)]">Billing history will appear here</p>
               <p className="text-sm text-[var(--dash-text-muted)] mt-1">
                 Once Stripe integration is complete, your invoices will be displayed

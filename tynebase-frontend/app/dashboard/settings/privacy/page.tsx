@@ -19,6 +19,8 @@ export default function PrivacySettingsPage() {
     updated_at: null,
   });
   
+  const [originalConsents, setOriginalConsents] = useState<UserConsents | null>(null);
+  
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -36,6 +38,7 @@ export default function PrivacySettingsPage() {
       setIsLoading(true);
       const response = await getConsents();
       setConsents(response.consents);
+      setOriginalConsents(response.consents);
     } catch (error) {
       addToast({
         type: "error",
@@ -52,6 +55,45 @@ export default function PrivacySettingsPage() {
     setConsents((prev) => ({ ...prev, [key]: value }));
   };
 
+  const getChangedConsentsMessage = (): string => {
+    if (!originalConsents) return "Your consent preferences have been saved.";
+    
+    const consentLabels: Record<string, string> = {
+      ai_processing: "AI processing",
+      analytics_tracking: "analytics tracking",
+      knowledge_indexing: "knowledge indexing",
+    };
+    
+    const changed: string[] = [];
+    
+    if (consents.ai_processing !== originalConsents.ai_processing) {
+      changed.push(consentLabels.ai_processing);
+    }
+    if (consents.analytics_tracking !== originalConsents.analytics_tracking) {
+      changed.push(consentLabels.analytics_tracking);
+    }
+    if (consents.knowledge_indexing !== originalConsents.knowledge_indexing) {
+      changed.push(consentLabels.knowledge_indexing);
+    }
+    
+    if (changed.length === 0) {
+      return "Your consent preferences have been saved.";
+    }
+    
+    if (changed.length === 1) {
+      return `Your ${changed[0]} preference has been changed.`;
+    }
+    
+    if (changed.length === 2) {
+      return `Your ${changed[0]} and ${changed[1]} preferences have been changed.`;
+    }
+    
+    // 3 or more items
+    const last = changed[changed.length - 1];
+    const rest = changed.slice(0, -1).join(", ");
+    return `Your ${rest} and ${last} preferences have been changed.`;
+  };
+
   const handleSave = async () => {
     try {
       setIsSaving(true);
@@ -62,11 +104,12 @@ export default function PrivacySettingsPage() {
       });
       
       setConsents(response.consents);
+      setOriginalConsents(response.consents);
       
       addToast({
         type: "success",
         title: "Privacy settings updated",
-        description: response.note || "Your consent preferences have been saved.",
+        description: getChangedConsentsMessage(),
       });
     } catch (error) {
       addToast({

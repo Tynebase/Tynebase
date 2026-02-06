@@ -30,6 +30,7 @@ const helpCategories = [
     articles: [
       { title: "Organizing Articles", href: "#" },
       { title: "Using Categories & Tags", href: "#" },
+      { title: "Collections & Visibility", href: "/dashboard/help/collections" },
       { title: "Version History", href: "#" },
       { title: "Publishing & Unpublishing", href: "#" },
     ],
@@ -97,7 +98,7 @@ export default function HelpPage() {
       <div className="text-center py-6 sm:py-10">
         <h1 className="text-3xl sm:text-4xl font-bold text-[var(--dash-text-primary)] tracking-tight">Help Center</h1>
         <p className="text-[var(--dash-text-tertiary)] mt-3 text-lg max-w-2xl mx-auto px-4">
-          Find answers, guides, and support for TyneBase
+          Find answers, guides and support for TyneBase
         </p>
       </div>
 

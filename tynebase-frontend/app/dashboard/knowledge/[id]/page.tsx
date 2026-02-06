@@ -231,18 +231,20 @@ export default function EditDocumentPage() {
     );
   }
 
-  const handleSave = async (data: { title: string; content: string }) => {
+  const handleSaveDraft = async () => {
     try {
       setIsSaving(true);
       
-      // For published documents, save as draft (don't overwrite published content)
+      // For published documents, save as draft AND unpublish (convert to draft status)
       const isPublished = status === 'published';
       
       const response = await updateDocument(documentId, {
-        title: data.title,
-        content: data.content,
+        title,
+        content,
         visibility,
-        save_as_draft: isPublished, // Save as draft for published docs
+        save_as_draft: true,
+        // If currently published, also change status to draft (unpublish)
+        ...(isPublished && { status: 'draft' }),
       });
       
       // Update local state with response data
@@ -250,36 +252,68 @@ export default function EditDocumentPage() {
       setTitle(updatedDoc.draft_title || updatedDoc.title);
       setContent(updatedDoc.draft_content || updatedDoc.content);
       
+      // If we unpublished, update the status
+      if (isPublished) {
+        setStatus('draft');
+      }
+      
       // Update document state with new has_draft status
-      setDocument(prev => prev ? { ...prev, hasDraft: updatedDoc.has_draft || false } : null);
+      setDocument(prev => prev ? { 
+        ...prev, 
+        hasDraft: updatedDoc.has_draft || false,
+        status: isPublished ? 'draft' : prev.status,
+      } : null);
     } catch (err) {
-      console.error('Failed to save document:', err);
-      alert('Failed to save document. Please try again.');
+      console.error('Failed to save draft:', err);
+      alert('Failed to save draft. Please try again.');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handlePublish = async () => {
+  const handleSaveAndPublish = async () => {
     try {
       setIsSaving(true);
+      
+      // First save the content
+      const isPublished = status === 'published';
+      
+      // For published docs, we need to handle draft workflow
+      if (isPublished) {
+        // Save current content as draft first
+        await updateDocument(documentId, {
+          title,
+          content,
+          visibility,
+          save_as_draft: true,
+        });
+      } else {
+        // For draft docs, update the content directly (it will become published)
+        await updateDocument(documentId, {
+          title,
+          content,
+          visibility,
+        });
+      }
+      
+      // Then publish
       const response = await publishDocument(documentId);
       const updatedDoc = response.document;
       
-      setStatus(updatedDoc.status);
+      setStatus('published');
       // Clear draft fields after publish
       setTitle(updatedDoc.title);
       setContent(updatedDoc.content);
       setDocument(prev => prev ? { 
         ...prev, 
-        status: updatedDoc.status,
-        hasDraft: updatedDoc.has_draft || false,
+        status: 'published',
+        hasDraft: false,
         draftContent: undefined,
         draftTitle: undefined,
       } : null);
     } catch (err) {
-      console.error('Failed to publish document:', err);
-      alert('Failed to publish document. Please try again.');
+      console.error('Failed to save and publish:', err);
+      alert('Failed to save and publish. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -303,19 +337,6 @@ export default function EditDocumentPage() {
     } catch (err) {
       console.error('Failed to discard draft:', err);
       alert('Failed to discard draft changes. Please try again.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleUnpublish = async () => {
-    try {
-      setIsSaving(true);
-      await updateDocument(documentId, { status: 'draft', is_public: false });
-      setStatus("draft");
-    } catch (err) {
-      console.error('Failed to unpublish document:', err);
-      alert('Failed to unpublish document. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -424,41 +445,40 @@ export default function EditDocumentPage() {
           {/* Spacer to push actions to the right on larger screens */}
           <div className="flex-1 hidden lg:block" />
 
-          {/* Publish/Unpublish/Discard Draft */}
-          {status === "draft" ? (
-            <Button variant="primary" onClick={handlePublish} disabled={isSaving} className="px-2 sm:px-3">
-              {isSaving ? (
-                <Loader2 className="w-4 h-4 sm:mr-2 animate-spin" />
-              ) : (
-                <Globe className="w-4 h-4 sm:mr-2" />
-              )}
-              <span className="hidden sm:inline">{isSaving ? 'Publishing...' : 'Publish'}</span>
-            </Button>
-          ) : document?.hasDraft ? (
-            <>
-              <Button variant="primary" onClick={handlePublish} disabled={isSaving} className="px-2 sm:px-3">
-                {isSaving ? (
-                  <Loader2 className="w-4 h-4 sm:mr-2 animate-spin" />
-                ) : (
-                  <Globe className="w-4 h-4 sm:mr-2" />
-                )}
-                <span className="hidden sm:inline">{isSaving ? 'Publishing...' : 'Publish Changes'}</span>
-              </Button>
-              <Button variant="outline" onClick={handleUnpublish} disabled={isSaving} className="px-2 sm:px-3 hidden md:flex">
-                <Lock className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">Unpublish</span>
-              </Button>
-            </>
-          ) : (
-            <Button variant="outline" onClick={handleUnpublish} disabled={isSaving} className="px-2 sm:px-3">
-              {isSaving ? (
-                <Loader2 className="w-4 h-4 sm:mr-2 animate-spin" />
-              ) : (
-                <Lock className="w-4 h-4 sm:mr-2" />
-              )}
-              <span className="hidden sm:inline">{isSaving ? 'Unpublishing...' : 'Unpublish'}</span>
-            </Button>
-          )}
+          {/* Save as Draft - always visible */}
+          <Button
+            variant="outline"
+            onClick={handleSaveDraft}
+            disabled={isSaving}
+            className="px-2 sm:px-3"
+            title={status === 'published' ? 'Save as draft and unpublish' : 'Save as draft'}
+          >
+            {isSaving ? (
+              <Loader2 className="w-4 h-4 sm:mr-2 animate-spin" />
+            ) : (
+              <Clock className="w-4 h-4 sm:mr-2" />
+            )}
+            <span className="hidden sm:inline">
+              {isSaving ? 'Saving...' : (status === 'published' ? 'Save as Draft' : 'Save Draft')}
+            </span>
+          </Button>
+
+          {/* Save and Publish - always visible */}
+          <Button
+            variant="primary"
+            onClick={handleSaveAndPublish}
+            disabled={isSaving}
+            className="px-2 sm:px-3"
+          >
+            {isSaving ? (
+              <Loader2 className="w-4 h-4 sm:mr-2 animate-spin" />
+            ) : (
+              <Globe className="w-4 h-4 sm:mr-2" />
+            )}
+            <span className="hidden sm:inline">
+              {isSaving ? 'Publishing...' : (status === 'published' ? 'Save & Publish' : 'Save & Publish')}
+            </span>
+          </Button>
 
           {/* More Options */}
           <div className="relative">

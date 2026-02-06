@@ -268,11 +268,6 @@ export default function VideoPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-2 text-sm text-[var(--dash-text-tertiary)] mb-1">
-            <Link href="/dashboard/ai-assistant" className="hover:text-[var(--brand)]">AI Assistant</Link>
-            <span>/</span>
-            <span>From Video</span>
-          </div>
           <h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">Generate from Video</h1>
           <p className="text-[var(--dash-text-tertiary)] mt-1">
             Transform videos into comprehensive documentation automatically

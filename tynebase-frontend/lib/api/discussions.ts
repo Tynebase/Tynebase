@@ -26,11 +26,29 @@ export interface Discussion {
   is_pinned: boolean;
   is_resolved: boolean;
   tags: string[];
+  poll?: Poll;
   author?: {
     id: string;
     email: string;
     full_name: string | null;
   };
+}
+
+export interface PollOption {
+  id: string;
+  text: string;
+  votes_count: number;
+}
+
+export interface Poll {
+  id: string;
+  question: string;
+  options: PollOption[];
+  total_votes: number;
+  has_voted: boolean;
+  selected_option_id?: string;
+  created_at: string;
+  ends_at?: string | null;
 }
 
 export interface DiscussionListParams {
@@ -45,6 +63,10 @@ export interface CreateDiscussionData {
   content: string;
   category: 'announcements' | 'questions' | 'ideas' | 'general';
   tags?: string[];
+  poll?: {
+    question: string;
+    options: string[];
+  };
 }
 
 export interface DiscussionListResponse {
@@ -120,4 +142,30 @@ export async function createDiscussion(
  */
 export async function getDiscussion(id: string): Promise<DiscussionResponse> {
   return apiGet<DiscussionResponse>(`/api/discussions/${id}`);
+}
+
+/**
+ * Vote on a poll
+ *
+ * @param discussionId - Discussion UUID containing the poll
+ * @param optionId - Poll option ID to vote for
+ * @returns Updated poll data
+ */
+export async function voteOnPoll(
+  discussionId: string,
+  optionId: string
+): Promise<{ poll: Poll }> {
+  return apiPost<{ poll: Poll }>(`/api/discussions/${discussionId}/poll/vote`, { optionId });
+}
+
+/**
+ * Remove vote from a poll
+ *
+ * @param discussionId - Discussion UUID containing the poll
+ * @returns Updated poll data
+ */
+export async function removePollVote(
+  discussionId: string
+): Promise<{ poll: Poll }> {
+  return apiPost<{ poll: Poll }>(`/api/discussions/${discussionId}/poll/remove-vote`, {});
 }

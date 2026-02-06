@@ -29,7 +29,7 @@ export default function SourcesHealthPage() {
           </div>
           <h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">Index Health</h1>
           <p className="text-[var(--dash-text-tertiary)] mt-1">
-            Monitor normalisation, chunking, embeddings, and retrieval readiness.
+            Monitor normalisation, chunking, embeddings and retrieval readiness.
           </p>
         </div>
         <button className="inline-flex items-center justify-center gap-2 h-10 px-5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-sm font-medium text-[var(--dash-text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)] transition-all w-full sm:w-auto">

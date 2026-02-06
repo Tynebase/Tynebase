@@ -20,7 +20,8 @@ import {
   Key,
   Calendar,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  X
 } from "lucide-react";
 
 const activityTypes = [
@@ -131,6 +132,14 @@ export default function AuditLogsPage() {
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
+  const handleClearFilters = () => {
+    setSearchQuery("");
+    setActiveType("all");
+    setPagination(prev => ({ ...prev, page: 1 }));
+  };
+
+  const hasActiveFilters = searchQuery.trim() !== "" || activeType !== "all";
+
   const handleExport = async () => {
     try {
       setExporting(true);
@@ -153,15 +162,17 @@ export default function AuditLogsPage() {
           <h1 className="text-3xl font-bold text-[var(--text-primary)]">Audit Logs</h1>
           <p className="text-[var(--text-tertiary)] mt-1">Track all activity in your workspace</p>
         </div>
-        <Button 
-          variant="outline" 
-          className="gap-2" 
-          onClick={handleExport}
-          disabled={exporting || loading}
-        >
-          <Download className="w-4 h-4" />
-          {exporting ? 'Exporting...' : 'Export Logs'}
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button 
+            variant="outline" 
+            className="gap-2" 
+            onClick={handleExport}
+            disabled={exporting || loading}
+          >
+            <Download className="w-4 h-4" />
+            {exporting ? 'Exporting...' : 'Export Logs'}
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -176,8 +187,16 @@ export default function AuditLogsPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand-primary)]"
+                className="w-full pl-10 pr-10 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand-primary)]"
               />
+              {searchQuery && (
+                <button
+                  onClick={() => { setSearchQuery(""); handleSearch(); }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {activityTypes.map((type) => (
@@ -196,6 +215,42 @@ export default function AuditLogsPage() {
               ))}
             </div>
           </div>
+          {/* Active Filters & Clear */}
+          {hasActiveFilters && (
+            <div className="flex items-center gap-3 mt-4 pt-4 border-t border-[var(--border-subtle)]">
+              <span className="text-sm text-[var(--text-secondary)]">Active filters:</span>
+              <div className="flex flex-wrap items-center gap-2">
+                {searchQuery.trim() !== "" && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
+                    <Search className="w-3 h-3" />
+                    Search: &quot;{searchQuery.trim()}&quot;
+                  </span>
+                )}
+                {activeType !== "all" && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
+                    {(() => {
+                      const type = activityTypes.find(t => t.id === activeType);
+                      if (type) {
+                        const Icon = type.icon;
+                        return <Icon className="w-3 h-3" />;
+                      }
+                      return null;
+                    })()}
+                    {activityTypes.find(t => t.id === activeType)?.label}
+                  </span>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearFilters}
+                  className="text-xs text-[var(--text-tertiary)] hover:text-red-500"
+                >
+                  <X className="w-3 h-3 mr-1" />
+                  Clear all
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

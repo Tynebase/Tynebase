@@ -171,6 +171,9 @@ export default function AIChatPage() {
     };
 
     const handleDeleteConversation = (id: string) => {
+        if (!confirm('Are you sure you want to delete this conversation?')) {
+            return;
+        }
         deleteConversation(id);
         const updated = conversations.filter(c => c.id !== id);
         setConversations(updated);
@@ -179,7 +182,9 @@ export default function AIChatPage() {
             if (updated.length > 0) {
                 loadConversation(updated[0].id, updated);
             } else {
-                handleNewConversation();
+                setActiveConversationIdState(null);
+                setActiveConversationId(null);
+                setMessages([]);
             }
         }
     };

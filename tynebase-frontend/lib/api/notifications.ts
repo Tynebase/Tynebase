@@ -106,9 +106,8 @@ export async function markNotificationAsRead(
  * 
  * @returns Success confirmation
  */
-export async function markAllNotificationsAsRead(): Promise<{ success: boolean; message: string }> {
+export async function markAllNotificationsAsRead(): Promise<{ message: string }> {
   const response = await apiPost<{
-    success: true;
     message: string;
   }>('/api/notifications/mark-all-read', {});
 
@@ -121,9 +120,8 @@ export async function markAllNotificationsAsRead(): Promise<{ success: boolean; 
  * @param id - Notification UUID
  * @returns Deletion confirmation
  */
-export async function deleteNotification(id: string): Promise<{ success: boolean; message: string }> {
+export async function deleteNotification(id: string): Promise<{ message: string }> {
   const response = await apiDelete<{
-    success: true;
     message: string;
   }>(`/api/notifications/${id}`);
 
@@ -135,9 +133,8 @@ export async function deleteNotification(id: string): Promise<{ success: boolean
  * 
  * @returns Deletion confirmation
  */
-export async function clearAllNotifications(): Promise<{ success: boolean; message: string }> {
+export async function clearAllNotifications(): Promise<{ message: string }> {
   const response = await apiDelete<{
-    success: true;
     message: string;
   }>('/api/notifications');
 

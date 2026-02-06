@@ -28,6 +28,7 @@ const createTagBodySchema = z.object({
 const updateTagBodySchema = z.object({
   name: z.string().min(1).max(100).trim().optional(),
   description: z.string().max(500).optional(),
+  sort_order: z.number().int().min(0).optional(),
 }).refine((data) => Object.keys(data).length > 0, {
   message: 'At least one field must be provided for update',
 });
@@ -44,6 +45,13 @@ const tagIdParamsSchema = z.object({
  */
 const tagDocumentsBodySchema = z.object({
   document_ids: z.array(z.string().uuid()).min(1),
+});
+
+/**
+ * Zod schema for POST /api/tags/reorder request body
+ */
+const reorderTagsBodySchema = z.object({
+  tag_ids: z.array(z.string().uuid()).min(1),
 });
 
 /**
@@ -74,12 +82,14 @@ export default async function tagRoutes(fastify: FastifyInstance) {
             id,
             name,
             description,
+            sort_order,
             created_by,
             created_at,
             updated_at,
             users:created_by(id, email, full_name)
           `, { count: 'exact' })
           .eq('tenant_id', tenant.id)
+          .order('sort_order', { ascending: true, nullsFirst: false })
           .order('name', { ascending: true })
           .range(offset, offset + limit - 1);
 
@@ -224,6 +234,7 @@ export default async function tagRoutes(fastify: FastifyInstance) {
           .update({
             name: body.name,
             description: body.description,
+            sort_order: body.sort_order,
           })
           .eq('id', params.id)
           .eq('tenant_id', tenant.id)
@@ -231,6 +242,7 @@ export default async function tagRoutes(fastify: FastifyInstance) {
             id,
             name,
             description,
+            sort_order,
             created_by,
             created_at,
             updated_at,
@@ -429,4 +441,42 @@ export default async function tagRoutes(fastify: FastifyInstance) {
       }
     }
   );
+
+  fastify.post('/api/tags/reorder', {
+    preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+  }, async (request, reply) => {
+    try {
+      const tenant = (request as any).tenant;
+      const body = reorderTagsBodySchema.parse(request.body);
+      const { tag_ids } = body;
+
+      const { data: existingTags } = await supabaseAdmin
+        .from('tags')
+        .select('id')
+        .eq('tenant_id', tenant.id)
+        .in('id', tag_ids);
+
+      const validTagIds = new Set(existingTags?.map((t: { id: string }) => t.id) || []);
+      const invalidIds = tag_ids.filter((id: string) => !validTagIds.has(id));
+
+      if (invalidIds.length > 0) {
+        return reply.status(400).send({
+          error: { code: 'INVALID_TAGS', message: 'Some tag IDs are invalid' },
+        });
+      }
+
+      for (let i = 0; i < tag_ids.length; i++) {
+        await supabaseAdmin
+          .from('tags')
+          .update({ sort_order: i + 1 })
+          .eq('id', tag_ids[i])
+          .eq('tenant_id', tenant.id);
+      }
+
+      return reply.status(200).send({ success: true, data: { message: 'Tags reordered successfully' } });
+    } catch (error) {
+      request.log.error({ error }, 'Error in reorder tags endpoint');
+      return reply.status(500).send({ error: { code: 'INTERNAL_ERROR', message: 'Failed to reorder tags' } });
+    }
+  });
 }

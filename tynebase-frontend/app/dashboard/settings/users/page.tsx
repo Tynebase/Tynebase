@@ -4,10 +4,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
 import { Modal, ModalFooter } from "@/components/ui/Modal";
-import { UserPlus, Shield, Crown, MoreHorizontal, Mail, Search, Loader2 } from "lucide-react";
+import { UserPlus, Shield, Crown, MoreHorizontal, Mail, Search, Loader2, Edit3, Trash2, AlertTriangle } from "lucide-react";
 import { useState, useEffect } from "react";
-import { listUsers, User } from "@/lib/api/users";
+import { listUsers, updateUser, deleteUser, User } from "@/lib/api/users";
 import { inviteUser } from "@/lib/api/invites";
+import { DropdownMenu, DropdownItem, DropdownDivider } from "@/components/ui/Dropdown";
 
 const roles = [
   { id: "admin", label: "Admin", description: "Full access, user management, settings, publishing", color: "#f97316" },
@@ -29,6 +30,18 @@ export default function UsersPage() {
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState(false);
+  
+  // Edit user modal state
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editRole, setEditRole] = useState<"admin" | "editor" | "member" | "viewer">("member");
+  const [editStatus, setEditStatus] = useState<"active" | "suspended">("active");
+  const [updating, setUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  
+  // Delete confirmation modal state
+  const [deletingUser, setDeletingUser] = useState<User | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchUsers() {
@@ -64,6 +77,59 @@ export default function UsersPage() {
       setInviteError(err.message || 'Failed to send invite');
     } finally {
       setInviting(false);
+    }
+  };
+
+  const handleEditUser = (user: User) => {
+    setEditingUser(user);
+    setEditRole(user.role);
+    setEditStatus(user.status as "active" | "suspended");
+    setUpdateError(null);
+  };
+
+  const handleUpdateUser = async () => {
+    if (!editingUser) return;
+    
+    try {
+      setUpdating(true);
+      setUpdateError(null);
+      const response = await updateUser(editingUser.id, { 
+        role: editRole, 
+        status: editStatus 
+      });
+      
+      // Update local state
+      setUsers(users.map(u => u.id === editingUser.id ? response.user : u));
+      setEditingUser(null);
+    } catch (err: any) {
+      console.error('Failed to update user:', err);
+      setUpdateError(err.message || 'Failed to update user');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleDeleteClick = (user: User) => {
+    setDeletingUser(user);
+    setDeleteError(null);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deletingUser) return;
+    
+    try {
+      setDeleting(true);
+      setDeleteError(null);
+      await deleteUser(deletingUser.id);
+      
+      // Remove from local state
+      setUsers(users.filter(u => u.id !== deletingUser.id));
+      setDeletingUser(null);
+    } catch (err: any) {
+      console.error('Failed to delete user:', err);
+      setDeleteError(err.message || 'Failed to remove user');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -161,9 +227,26 @@ export default function UsersPage() {
                   <span className="px-2.5 py-1 text-xs font-medium rounded-full capitalize" style={{ backgroundColor: `${getRoleColor(member.role)}15`, color: getRoleColor(member.role) }}>
                     {member.role}
                   </span>
-                  <button className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity">
-                    <MoreHorizontal className="w-4 h-4" />
-                  </button>
+                  <DropdownMenu
+                    align="right"
+                    trigger={
+                      <button className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity">
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
+                    }
+                  >
+                    <DropdownItem onClick={() => handleEditUser(member)} icon={<Edit3 className="w-4 h-4" />}>
+                      Edit User
+                    </DropdownItem>
+                    <DropdownDivider />
+                    <DropdownItem 
+                      onClick={() => handleDeleteClick(member)} 
+                      icon={<Trash2 className="w-4 h-4" />}
+                      destructive
+                    >
+                      Remove User
+                    </DropdownItem>
+                  </DropdownMenu>
                 </div>
               </div>
             ))}
@@ -274,6 +357,87 @@ export default function UsersPage() {
             </Button>
           </ModalFooter>
         )}
+      </Modal>
+
+      {/* Edit User Modal */}
+      <Modal
+        isOpen={!!editingUser}
+        onClose={() => setEditingUser(null)}
+        title="Edit User"
+        description={editingUser ? `Update role and status for ${editingUser.full_name || editingUser.email}` : ''}
+        size="md"
+      >
+        <div className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-2">
+              Role
+            </label>
+            <select
+              value={editRole}
+              onChange={(e) => setEditRole(e.target.value as any)}
+              className="w-full px-4 py-2.5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
+            >
+              <option value="viewer">Viewer - Read-only access</option>
+              <option value="member">Member - Create and edit own content</option>
+              <option value="editor">Editor - Create, edit, publish content</option>
+              <option value="admin">Admin - Full access</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-2">
+              Status
+            </label>
+            <select
+              value={editStatus}
+              onChange={(e) => setEditStatus(e.target.value as any)}
+              className="w-full px-4 py-2.5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
+            >
+              <option value="active">Active</option>
+              <option value="suspended">Suspended</option>
+            </select>
+          </div>
+          {updateError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+              {updateError}
+            </div>
+          )}
+        </div>
+        <ModalFooter>
+          <Button variant="ghost" onClick={() => setEditingUser(null)}>Cancel</Button>
+          <Button variant="primary" onClick={handleUpdateUser} disabled={updating}>
+            {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Edit3 className="w-4 h-4" />}
+            {updating ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!deletingUser}
+        onClose={() => setDeletingUser(null)}
+        title="Remove User"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0" />
+            <p className="text-sm text-red-700">
+              This will remove <strong>{deletingUser?.full_name || deletingUser?.email}</strong> from your workspace. This action cannot be undone.
+            </p>
+          </div>
+          {deleteError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+              {deleteError}
+            </div>
+          )}
+        </div>
+        <ModalFooter>
+          <Button variant="ghost" onClick={() => setDeletingUser(null)}>Cancel</Button>
+          <Button variant="destructive" onClick={handleDeleteUser} disabled={deleting}>
+            {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            {deleting ? 'Removing...' : 'Remove User'}
+          </Button>
+        </ModalFooter>
       </Modal>
     </div>
   );

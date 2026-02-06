@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/Toast";
+import { updateProfile } from "@/lib/api/auth";
 import {
   User, Mail, Lock, Bell, Globe, Camera,
   Save, Eye, EyeOff
 } from "lucide-react";
 
 export default function ProfileSettingsPage() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { addToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -20,23 +21,43 @@ export default function ProfileSettingsPage() {
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
-    emailNotifications: true,
-    pushNotifications: true,
-    weeklyDigest: false,
-    marketingEmails: false,
-    language: "en",
-    timezone: "UTC",
+    emailNotifications: user?.notification_preferences?.email_notifications ?? true,
+    pushNotifications: user?.notification_preferences?.push_notifications ?? true,
+    weeklyDigest: user?.notification_preferences?.weekly_digest ?? false,
+    marketingEmails: user?.notification_preferences?.marketing_emails ?? false,
+    language: user?.language || "en",
+    timezone: user?.timezone || "UTC",
   });
 
   const handleSave = async () => {
     setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    addToast({
-      type: "success",
-      title: "Profile updated",
-      description: "Your profile settings have been saved successfully.",
-    });
-    setIsLoading(false);
+    try {
+      await updateProfile({
+        full_name: formData.fullName,
+        notification_preferences: {
+          email_notifications: formData.emailNotifications,
+          push_notifications: formData.pushNotifications,
+          weekly_digest: formData.weeklyDigest,
+          marketing_emails: formData.marketingEmails,
+        },
+        language: formData.language,
+        timezone: formData.timezone,
+      });
+      await refreshUser();
+      addToast({
+        type: "success",
+        title: "Profile updated",
+        description: "Your profile settings have been saved successfully.",
+      });
+    } catch (error) {
+      addToast({
+        type: "error",
+        title: "Failed to save",
+        description: error instanceof Error ? error.message : "An error occurred while saving your profile.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handlePasswordChange = async () => {

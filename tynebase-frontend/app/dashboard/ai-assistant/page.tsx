@@ -2,20 +2,18 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCredits } from "@/contexts/CreditsContext";
 import { useRouter } from "next/navigation";
 import { Sparkles, FileText, Upload, Check, Loader2, Zap, Image, AlertCircle, CheckCircle, Link as LinkIcon, Copy, File, Shield, Search, Eye, FileCheck, X } from "lucide-react";
 import { RainbowProgressBar } from "@/components/ui/RainbowProgressBar";
 import { generate, pollJobUntilComplete, scrapeUrl as scrapeUrlApi, uploadLegalDocument, type Job, type LegalDocumentUploadResponse } from "@/lib/api/ai";
 import { listTemplates, type Template } from "@/lib/api/templates";
+import { listRecentGenerations, type GenerationJob } from "@/lib/api/ai";
+import { capitalize } from "@/lib/utils";
 
 type TabType = 'prompt' | 'scrape' | 'file';
 
-const recentGenerations = [
-  { id: 1, title: "API Documentation", type: "From Prompt", time: "2 hours ago", status: "completed" },
-  { id: 2, title: "Product Demo Transcript", type: "From Video", time: "Yesterday", status: "completed" },
-  { id: 3, title: "User Guide Enhancement", type: "Enhance", time: "2 days ago", status: "completed" },
-];
 
 const outputOptions = [
   { id: 'full', label: 'Full Article', desc: 'Comprehensive document' },
@@ -33,10 +31,16 @@ const aiProviders = [
 
 export default function AIAssistantPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { creditsRemaining, refreshCredits, decrementCredits } = useCredits();
+  
+  // Get category from query params (when coming from category list)
+  const categoryId = searchParams.get('category');
+  const categoryName = searchParams.get('categoryName');
+  
   const [activeTab, setActiveTab] = useState<TabType>('prompt');
 
-    const [prompt, setPrompt] = useState('');
+  const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState('deepseek');
   const [outputType, setOutputType] = useState('full');
@@ -80,12 +84,15 @@ export default function AIAssistantPage() {
   
   const allSupportedExtensions = '.pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.msg,.eml,.tiff,.tif,.png,.jpg,.jpeg,.gif,.txt,.md';
   
-  // File processing output options
   const [fileOutputOptions, setFileOutputOptions] = useState({
     extractedText: true,
     summary: false,
     article: false,
   });
+  
+  // Recent generations state
+  const [recentGenerations, setRecentGenerations] = useState<GenerationJob[]>([]);
+  const [recentGenerationsLoading, setRecentGenerationsLoading] = useState(false);
   
   const BASE_FILE_CREDITS = 5;
   const LARGE_FILE_CREDITS = 10;
@@ -105,7 +112,7 @@ export default function AIAssistantPage() {
   
   const isFileTooLarge = selectedFile && selectedFile.size > MAX_FILE_SIZE;
 
-  // Fetch templates on component mount
+  // Fetch templates and recent generations on component mount
   useEffect(() => {
     async function fetchTemplates() {
       try {
@@ -120,6 +127,29 @@ export default function AIAssistantPage() {
     }
     fetchTemplates();
   }, []);
+
+  // Fetch recent generations
+  useEffect(() => {
+    async function fetchRecentGenerations() {
+      try {
+        setRecentGenerationsLoading(true);
+        const response = await listRecentGenerations({ limit: 5 });
+        setRecentGenerations(response.generations);
+      } catch (err) {
+        console.error('Failed to fetch recent generations:', err);
+      } finally {
+        setRecentGenerationsLoading(false);
+      }
+    }
+    fetchRecentGenerations();
+  }, []);
+
+  // Pre-populate prompt with category context when coming from category list
+  useEffect(() => {
+    if (categoryName && !prompt) {
+      setPrompt(`Create documentation for the "${categoryName}" category. `);
+    }
+  }, [categoryName, prompt]);
 
   const quickPrompts = [
     "Create an API documentation for a REST endpoint",
@@ -171,7 +201,20 @@ export default function AIAssistantPage() {
         const creditCost = aiProviders.find(p => p.id === selectedProvider)?.credits || 1;
         decrementCredits(creditCost);
         refreshCredits();
-        router.push(`/dashboard/knowledge/${completedJob.result.document_id}`);
+        
+        // If we came from a category, assign the document to that category
+        const docId = completedJob.result.document_id as string;
+        if (categoryId && docId) {
+          try {
+            const { updateDocument } = await import('@/lib/api/documents');
+            await updateDocument(docId, { category_id: categoryId });
+          } catch (err) {
+            console.error('Failed to assign category to document:', err);
+            // Continue to redirect even if category assignment fails
+          }
+        }
+        
+        router.push(`/dashboard/knowledge/${docId}`);
       } else if (completedJob.status === 'failed') {
         setError(completedJob.error_message || 'Generation failed');
       }
@@ -337,15 +380,32 @@ export default function AIAssistantPage() {
     }
   };
 
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (seconds < 60) return 'just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+    if (seconds < 604800) return `${Math.floor(seconds / 86400)} days ago`;
+    return date.toLocaleDateString();
+  };
+
   return (
     <div className="w-full h-full min-h-full flex flex-col gap-8">
       <RainbowProgressBar isLoading={isGenerating} />
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">AI Assistant</h1>
+          <h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">
+            {categoryName ? `Generate for ${categoryName}` : 'AI Assistant'}
+          </h1>
           <p className="text-[var(--dash-text-tertiary)] mt-1">
-            Generate content with AI-powered tools
+            {categoryName 
+              ? `Create new documentation in the "${categoryName}" category`
+              : 'Generate content with AI-powered tools'
+            }
           </p>
         </div>
         <div className="flex items-center gap-2 text-sm text-[var(--dash-text-muted)]">
@@ -492,7 +552,7 @@ export default function AIAssistantPage() {
                       <div className="flex-1">
                         <p className="text-sm font-medium text-blue-900">Generating Content...</p>
                         <p className="text-xs text-blue-700 mt-0.5">
-                          Status: {currentJob.status} • Progress: {progress}%
+                          Status: {capitalize(currentJob.status)} • Progress: {progress}%
                         </p>
                       </div>
                     </div>
@@ -895,7 +955,7 @@ export default function AIAssistantPage() {
                           Checksum verified
                         </span>
                       )}
-                      {!uploadResult?.checksums && `Status: ${currentJob.status} • Progress: ${progress}%`}
+                      {!uploadResult?.checksums && `Status: ${capitalize(currentJob.status)} • Progress: ${progress}%`}
                     </p>
                   </div>
                 </div>
@@ -1098,22 +1158,39 @@ export default function AIAssistantPage() {
               <p className="text-sm text-[var(--dash-text-tertiary)]">Your AI-generated content history</p>
             </div>
             <div className="divide-y divide-[var(--dash-border-subtle)]">
-              {recentGenerations.map((gen) => (
-                <div key={gen.id} className="px-6 py-4 flex items-center justify-between hover:bg-[var(--surface-hover)] transition-colors">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-[var(--brand-primary-muted)] flex items-center justify-center">
-                      <Sparkles className="w-5 h-5 text-[var(--brand)]" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-[var(--dash-text-primary)]">{gen.title}</p>
-                      <p className="text-sm text-[var(--dash-text-tertiary)]">{gen.type} • {gen.time}</p>
-                    </div>
-                  </div>
-                  <span className="px-2 py-1 text-xs font-medium bg-[var(--status-success-bg)] text-[var(--status-success)] rounded-full">
-                    {gen.status}
-                  </span>
+              {recentGenerationsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-[var(--brand)]" />
                 </div>
-              ))}
+              ) : recentGenerations.length === 0 ? (
+                <div className="text-center py-8 px-6">
+                  <p className="text-sm text-[var(--dash-text-tertiary)]">No recent generations</p>
+                  <p className="text-xs text-[var(--dash-text-muted)] mt-1">Generate content to see it here</p>
+                </div>
+              ) : (
+                recentGenerations.map((gen: GenerationJob) => (
+                  <div key={gen.id} className="px-6 py-4 flex items-center justify-between hover:bg-[var(--surface-hover)] transition-colors cursor-pointer" onClick={() => gen.document_id && router.push(`/dashboard/knowledge/${gen.document_id}`)}>
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-lg bg-[var(--brand-primary-muted)] flex items-center justify-center">
+                        <Sparkles className="w-5 h-5 text-[var(--brand)]" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-[var(--dash-text-primary)]">{gen.title}</p>
+                        <p className="text-sm text-[var(--dash-text-tertiary)]">{gen.type} • {formatTimeAgo(gen.created_at)}</p>
+                      </div>
+                    </div>
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      gen.status === 'completed' 
+                        ? 'bg-[var(--status-success-bg)] text-[var(--status-success)]' 
+                        : gen.status === 'failed'
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-[var(--status-warning-bg)] text-[var(--status-warning)]'
+                    }`}>
+                      {capitalize(gen.status)}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

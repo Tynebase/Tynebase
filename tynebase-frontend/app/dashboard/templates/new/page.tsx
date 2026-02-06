@@ -311,9 +311,9 @@ export default function NewTemplatePage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">Create Template</h1>
+            <h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">Create a Template</h1>
             <p className="text-sm text-[var(--dash-text-tertiary)] mt-1">
-              Create a reusable template for your team, or let AI help you
+              Create a reusable template for your team or let AI help you
             </p>
           </div>
         </div>

@@ -114,9 +114,13 @@ export function getActiveConversationId(): string | null {
 /**
  * Set the active conversation ID
  */
-export function setActiveConversationId(id: string): void {
+export function setActiveConversationId(id: string | null): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(ACTIVE_CONVERSATION_KEY, id);
+  if (id === null) {
+    localStorage.removeItem(ACTIVE_CONVERSATION_KEY);
+  } else {
+    localStorage.setItem(ACTIVE_CONVERSATION_KEY, id);
+  }
 }
 
 /**

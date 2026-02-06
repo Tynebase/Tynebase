@@ -99,6 +99,14 @@ export interface User {
   email: string;
   full_name: string | null;
   avatar_url?: string | null;
+  notification_preferences?: {
+    email_notifications?: boolean;
+    push_notifications?: boolean;
+    weekly_digest?: boolean;
+    marketing_emails?: boolean;
+  };
+  language?: string;
+  timezone?: string;
   role: 'admin' | 'editor' | 'member' | 'viewer';
   is_super_admin: boolean;
   status: 'active' | 'suspended' | 'deleted';

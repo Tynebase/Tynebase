@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import {
   Plus, MessageSquare, Eye, Pin, Search, TrendingUp,
-  CheckCircle2, HelpCircle, Bell, Award
+  CheckCircle2, HelpCircle, Bell, Award, BarChart3
 } from "lucide-react";
 
 // Forum categories with detailed info
@@ -33,6 +33,7 @@ const discussions = [
     isPinned: true,
     isResolved: false,
     tags: ["welcome", "introduction"],
+    hasPoll: true,
   },
   {
     id: 2,
@@ -268,6 +269,11 @@ export default function CommunityPage() {
                           {discussion.isResolved && (
                             <span className="inline-flex items-center text-[10px] bg-[var(--status-success)]/10 text-[var(--status-success)] px-1.5 py-0.5 rounded font-medium">
                               <CheckCircle2 className="w-3 h-3 mr-1" /> Solved
+                            </span>
+                          )}
+                          {'hasPoll' in discussion && discussion.hasPoll && (
+                            <span className="inline-flex items-center text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-medium">
+                              <BarChart3 className="w-3 h-3 mr-1" /> Poll
                             </span>
                           )}
                           {getCategoryBadge(discussion.category)}

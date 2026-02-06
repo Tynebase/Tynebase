@@ -15,7 +15,7 @@ import { ArrowRight, Check, Eye, EyeOff, Sparkles, Building2, Crown, Zap, X } fr
 const TIER_DISPLAY = {
   free: {
     name: "Free",
-    price: "$0",
+    price: "£0",
     period: "/month",
     description: "For individuals getting started",
     highlight: false,
@@ -32,7 +32,7 @@ const TIER_DISPLAY = {
   },
   base: {
     name: "Base",
-    price: "$29",
+    price: "£29",
     period: "/month",
     description: "For small teams",
     highlight: false,
@@ -49,7 +49,7 @@ const TIER_DISPLAY = {
   },
   pro: {
     name: "Pro",
-    price: "$99",
+    price: "£99",
     period: "/month",
     description: "For growing businesses",
     highlight: true,

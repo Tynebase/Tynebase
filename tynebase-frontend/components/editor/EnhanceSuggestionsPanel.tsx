@@ -67,6 +67,7 @@ export function EnhanceSuggestionsPanel({
   const [showDocument, setShowDocument] = useState(true);
   const [isReindexing, setIsReindexing] = useState(false);
   const [showCreditWarning, setShowCreditWarning] = useState(false);
+  const [customPrompt, setCustomPrompt] = useState<string>("");
 
   // SessionStorage key for this document's enhancement data
   const storageKey = `enhance-${documentId}`;
@@ -112,6 +113,9 @@ export function EnhanceSuggestionsPanel({
   }, [score, suggestions, storageKey]);
 
   const handleAnalyze = () => {
+    // Reset any stuck states to ensure button can be triggered multiple times
+    setIsAnalyzing(false);
+    setError(null);
     // Show credit warning before analyzing
     setShowCreditWarning(true);
   };
@@ -130,7 +134,7 @@ export function EnhanceSuggestionsPanel({
         setDocumentContent(editor.getText());
       }
 
-      const response = await enhance({ document_id: documentId });
+      const response = await enhance({ document_id: documentId, custom_prompt: customPrompt || undefined });
       
       // Decrement credits after successful enhancement
       decrementCredits(ENHANCE_CREDIT_COST);
@@ -161,6 +165,7 @@ export function EnhanceSuggestionsPanel({
 
   const cancelAnalyze = () => {
     setShowCreditWarning(false);
+    setCustomPrompt("");
   };
 
   // Accept a suggestion - apply based on action type
@@ -209,6 +214,7 @@ export function EnhanceSuggestionsPanel({
     const findTextRange = (needle: string): { from: number; to: number } | null => {
       const { text, map } = buildTextIndexToPosMap();
 
+      // First try exact match
       const exactIndex = text.indexOf(needle);
       if (exactIndex !== -1) {
         const from = map[exactIndex];
@@ -216,11 +222,16 @@ export function EnhanceSuggestionsPanel({
         if (typeof from === 'number' && typeof to === 'number') return { from, to };
       }
 
+      // Fuzzy matching: ignore whitespace differences but capture full original range
       const removeWs = (s: string) => s.replace(/\s+/g, '');
       const hayNoWs = removeWs(text);
       const needleNoWs = removeWs(needle);
       if (!needleNoWs) return null;
 
+      const idxNoWs = hayNoWs.indexOf(needleNoWs);
+      if (idxNoWs === -1) return null;
+
+      // Build a mapping from non-whitespace index to original text index
       const noWsToOrig: number[] = [];
       for (let i = 0, j = 0; i < text.length; i++) {
         if (!/\s/.test(text[i])) {
@@ -229,11 +240,16 @@ export function EnhanceSuggestionsPanel({
         }
       }
 
-      const idxNoWs = hayNoWs.indexOf(needleNoWs);
-      if (idxNoWs === -1) return null;
-
+      // Calculate the full range in the original text including whitespace
       const startOrig = noWsToOrig[idxNoWs];
-      const endOrigExclusive = (noWsToOrig[idxNoWs + needleNoWs.length - 1] ?? startOrig) + 1;
+      // Find the end position: last matched non-ws char + any trailing whitespace until next non-ws
+      const lastMatchedIdx = idxNoWs + needleNoWs.length - 1;
+      let endOrigExclusive = noWsToOrig[lastMatchedIdx] + 1;
+      
+      // Include trailing whitespace in the range (up to the next non-whitespace char or end)
+      while (endOrigExclusive < text.length && /\s/.test(text[endOrigExclusive])) {
+        endOrigExclusive++;
+      }
 
       const from = map[startOrig];
       const to = map[endOrigExclusive];
@@ -399,8 +415,11 @@ export function EnhanceSuggestionsPanel({
   };
 
   // Accept all pending suggestions
-  const handleAcceptAll = () => {
-    suggestions.filter(s => s.status === "pending").forEach(s => handleAccept(s.id));
+  const handleAcceptAll = async () => {
+    const pendingSuggestions = suggestions.filter(s => s.status === "pending");
+    for (const suggestion of pendingSuggestions) {
+      await handleAccept(suggestion.id);
+    }
   };
 
   // Reject all pending suggestions
@@ -880,6 +899,23 @@ export function EnhanceSuggestionsPanel({
                   <li>Provide 3-5 actionable suggestions</li>
                   <li>Allow you to accept or reject each change</li>
                 </ul>
+              </div>
+
+              {/* Custom Prompt Input */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Custom Instructions (Optional)
+                </label>
+                <textarea
+                  value={customPrompt}
+                  onChange={(e) => setCustomPrompt(e.target.value)}
+                  placeholder="e.g., Update for 2026, make it more formal, focus on technical details..."
+                  rows={3}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[var(--brand)] resize-none"
+                />
+                <p className="text-xs text-gray-400">
+                  Add specific instructions to guide the AI's analysis
+                </p>
               </div>
             </div>
 

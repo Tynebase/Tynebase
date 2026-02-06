@@ -246,6 +246,12 @@ export function RichTextEditor({
   const [showExportModal, setShowExportModal] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
+  // Drag and drop state
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragCounter, setDragCounter] = useState(0);
+  const editorContentRef = useRef<HTMLDivElement>(null);
+  const editorRefForDrag = useRef<any>(null);
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (colorPickerRef.current && !colorPickerRef.current.contains(e.target as Node)) {
@@ -261,6 +267,124 @@ export function RichTextEditor({
     setWordCount(words.length);
     setCharCount(text.length);
   }, []);
+
+  // Drag and drop handlers
+  const handleDragEnter = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragCounter((prev) => prev + 1);
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragCounter((prev) => {
+      const newCount = prev - 1;
+      if (newCount <= 0) {
+        setIsDragging(false);
+        return 0;
+      }
+      return newCount;
+    });
+  }, []);
+
+  const handleDragOver = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback(async (e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragCounter(0);
+    setIsDragging(false);
+
+    if (readOnly) return;
+
+    const dataTransfer = e.dataTransfer;
+    if (!dataTransfer) return;
+
+    // Get editor instance from ref - updated via useEffect after editor is created
+    const editorInstance = editorRefForDrag.current;
+    if (!editorInstance || readOnly) return;
+
+    // Handle dropped files (images, documents)
+    if (dataTransfer.files && dataTransfer.files.length > 0) {
+      for (let i = 0; i < dataTransfer.files.length; i++) {
+        const file = dataTransfer.files[i];
+
+        if (file.type.startsWith('image/')) {
+          // Handle image upload
+          try {
+            const response = await uploadDocumentAsset(documentId, file);
+            editorInstance.chain().focus().setImage({ src: response.signed_url }).run();
+          } catch (err) {
+            console.error('Failed to upload image:', err);
+          }
+        } else if (file.type.startsWith('video/')) {
+          // Handle video upload
+          try {
+            const response = await uploadDocumentAsset(documentId, file);
+            editorInstance.chain().focus().setVideo({
+              src: response.signed_url,
+              title: response.filename,
+              videoType: 'uploaded' as const
+            }).run();
+          } catch (err) {
+            console.error('Failed to upload video:', err);
+          }
+        } else if (file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.md')) {
+          // Handle text files - read and insert content
+          try {
+            const text = await file.text();
+            editorInstance.chain().focus().insertContent(text).run();
+          } catch (err) {
+            console.error('Failed to read text file:', err);
+          }
+        } else {
+          // Handle other files as attachments (insert as link)
+          try {
+            const response = await uploadDocumentAsset(documentId, file);
+            editorInstance.chain().focus()
+              .insertContent(`<a href="${response.signed_url}" target="_blank" rel="noopener noreferrer">${response.filename || file.name}</a>`)
+              .run();
+          } catch (err) {
+            console.error('Failed to upload file:', err);
+          }
+        }
+      }
+      return;
+    }
+
+    // Handle HTML content (rich text from other sources)
+    const html = dataTransfer.getData('text/html');
+    if (html) {
+      editorInstance.chain().focus().insertContent(html).run();
+      return;
+    }
+
+    // Handle plain text
+    const text = dataTransfer.getData('text/plain');
+    if (text) {
+      editorInstance.chain().focus().insertContent(text).run();
+      return;
+    }
+
+    // Handle URLs (dragged links)
+    const url = dataTransfer.getData('text/uri-list') || dataTransfer.getData('URL');
+    if (url && url.startsWith('http')) {
+      // Check if it's an image URL
+      if (url.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
+        editorInstance.chain().focus().setImage({ src: url }).run();
+      } else {
+        // Insert as link
+        editorInstance.chain().focus()
+          .insertContent(`<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`)
+          .run();
+      }
+    }
+  }, [documentId, readOnly]);
 
   useEffect(() => {
     const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8081";
@@ -370,12 +494,35 @@ export function RichTextEditor({
     onUpdate: ({ editor }) => updateCounts(editor.getText()),
   }, [isReady]);
 
+  // Keep editor ref updated for drag-drop handlers
+  useEffect(() => {
+    editorRefForDrag.current = editor;
+  }, [editor]);
+
   // Update editable state when readOnly changes without recreating the editor
   useEffect(() => {
     if (editor && !editor.isDestroyed) {
       editor.setEditable(!readOnly);
     }
   }, [editor, readOnly]);
+
+  // Set up drag and drop event listeners on the editor container
+  useEffect(() => {
+    if (!editorContainerRef.current || readOnly) return;
+
+    const container = editorContainerRef.current;
+    container.addEventListener('dragenter', handleDragEnter as unknown as EventListener);
+    container.addEventListener('dragleave', handleDragLeave as unknown as EventListener);
+    container.addEventListener('dragover', handleDragOver as unknown as EventListener);
+    container.addEventListener('drop', handleDrop as unknown as EventListener);
+
+    return () => {
+      container.removeEventListener('dragenter', handleDragEnter as unknown as EventListener);
+      container.removeEventListener('dragleave', handleDragLeave as unknown as EventListener);
+      container.removeEventListener('dragover', handleDragOver as unknown as EventListener);
+      container.removeEventListener('drop', handleDrop as unknown as EventListener);
+    };
+  }, [handleDragEnter, handleDragLeave, handleDragOver, handleDrop, readOnly]);
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setTitle(e.target.value);
@@ -1068,7 +1215,19 @@ export function RichTextEditor({
       {/* Editor Content + AI Panel Container */}
       <div className="flex-1 flex overflow-hidden">
         {/* Editor Content */}
-        <div className="flex-1 overflow-y-auto bg-[var(--surface-ground)] p-4">
+        <div className="flex-1 overflow-y-auto bg-[var(--surface-ground)] p-4 relative">
+          {/* Drag and Drop Overlay */}
+          {isDragging && !readOnly && (
+            <div className="absolute inset-0 z-50 bg-[var(--brand-primary)]/10 border-2 border-dashed border-[var(--brand-primary)] rounded-lg m-4 flex items-center justify-center pointer-events-none">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-[var(--brand-primary)]/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Upload className="w-8 h-8 text-[var(--brand-primary)]" />
+                </div>
+                <p className="text-lg font-medium text-[var(--brand-primary)]">Drop to insert</p>
+                <p className="text-sm text-[var(--text-secondary)] mt-1">Images, videos, text, or files</p>
+              </div>
+            </div>
+          )}
           <div 
             className={`mx-auto bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-lg shadow-sm min-h-full ${
               pageMargin === "wide" ? "max-w-none" : pageMargin === "narrow" ? "max-w-3xl" : "max-w-5xl"

@@ -30,7 +30,9 @@ import {
   Users,
   Search,
   CreditCard,
-  Music
+  Music,
+  HelpCircle,
+  X
 } from "lucide-react";
 import { useState } from "react";
 
@@ -184,14 +186,6 @@ const toolsNavigation: NavItem[] = [
     color: "#10b981",
   },
   {
-    id: "community",
-    label: "Community",
-    icon: Users,
-    href: "/dashboard/community",
-    color: "#3b82f6",
-    badge: 3,
-  },
-  {
     id: "templates",
     label: "Templates",
     icon: FileText,
@@ -245,6 +239,9 @@ const adminNavigation: NavItem[] = [
 export function DashboardSidebar({ mobile }: { mobile?: boolean }) {
   const pathname = usePathname();
   const { user } = useAuth();
+
+  // State for role info modal
+  const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
 
   // State for collapsible sections
   // Initializing with 'true' to have them open by default, 
@@ -308,11 +305,15 @@ export function DashboardSidebar({ mobile }: { mobile?: boolean }) {
   const CollapsibleSection = ({
     id,
     label,
-    children
+    children,
+    showHelp,
+    onHelpClick,
   }: {
     id: string;
     label: string;
-    children: React.ReactNode
+    children: React.ReactNode;
+    showHelp?: boolean;
+    onHelpClick?: () => void;
   }) => {
     const isOpen = openSections[id];
 
@@ -322,7 +323,18 @@ export function DashboardSidebar({ mobile }: { mobile?: boolean }) {
           onClick={() => toggleSection(id)}
           className="w-full flex items-center justify-between group px-2 py-1.5 rounded-lg text-xs font-semibold text-[var(--dash-text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--dash-text-primary)] transition-all text-left"
         >
-          <span className="uppercase tracking-wider text-[10px] font-bold">{label}</span>
+          <div className="flex items-center gap-1.5">
+            <span className="uppercase tracking-wider text-[10px] font-bold">{label}</span>
+            {showHelp && onHelpClick && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onHelpClick(); }}
+                className="p-0.5 rounded hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-[var(--brand)] transition-colors"
+                title="Learn about roles"
+              >
+                <HelpCircle className="w-3 h-3" />
+              </button>
+            )}
+          </div>
           <ChevronDown
             className={cn(
               "w-3.5 h-3.5 transition-transform duration-300 ease-out opacity-50 group-hover:opacity-100 flex-shrink-0 ml-2",
@@ -422,13 +434,52 @@ export function DashboardSidebar({ mobile }: { mobile?: boolean }) {
         {/* Push Admin toward bottom so links aren't bunched in the middle */}
         <div className="mt-auto pt-10">
           <div className="h-px bg-[var(--dash-border-subtle)] mb-7" />
-          <CollapsibleSection id="admin" label="Admin">
+          <CollapsibleSection id="admin" label="Admin" showHelp onHelpClick={() => setIsRoleModalOpen(true)}>
             {adminNavigation.filter(hasAccess).map((item) => (
               <NavLink key={item.id} item={item} />
             ))}
           </CollapsibleSection>
         </div>
       </nav>
+
+      {/* Role Information Modal */}
+      {isRoleModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsRoleModalOpen(false)} />
+          <div className="relative w-full max-w-lg bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-xl shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)]">
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">User Roles & Permissions</h2>
+              <button onClick={() => setIsRoleModalOpen(false)} className="p-1.5 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-5">
+              <RoleInfoItem title="Super Admin" color="purple" desc="Full access to all features including user management, billing, branding settings, and audit logs." />
+              <div className="h-px bg-[var(--border-subtle)]" />
+              <RoleInfoItem title="Admin" color="blue" desc="Can manage users, view billing, configure branding, and access audit logs. Extensive permissions with some restrictions." />
+              <div className="h-px bg-[var(--border-subtle)]" />
+              <RoleInfoItem title="Editor" color="green" desc="Can create, edit, and publish content. Access to AI assistant and audit tools. No admin settings access." />
+              <div className="h-px bg-[var(--border-subtle)]" />
+              <RoleInfoItem title="Viewer" color="gray" desc="Read-only access to content. Can view documents and use AI chat but cannot create or edit content." />
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
+  );
+}
+
+function RoleInfoItem({ title, color, desc }: { title: string; color: string; desc: string }) {
+  const colorClasses: Record<string, string> = {
+    purple: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
+    blue: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+    green: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
+    gray: "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300",
+  };
+  return (
+    <div className="space-y-2">
+      <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${colorClasses[color]}`}>{title}</span>
+      <p className="text-sm text-[var(--text-secondary)]">{desc}</p>
+    </div>
   );
 }

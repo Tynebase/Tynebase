@@ -100,6 +100,7 @@ const start = async () => {
     await fastify.register(import('./routes/video-transcribe-to-document'), { prefix: '' });
     await fastify.register(import('./routes/audio-upload'), { prefix: '' });
     await fastify.register(import('./routes/media-jobs'), { prefix: '' });
+    await fastify.register(import('./routes/ai-generations'), { prefix: '' });
     await fastify.register(import('./routes/document-import'), { prefix: '' });
     await fastify.register(import('./routes/legal-document-upload'), { prefix: '' });
     await fastify.register(import('./routes/jobs'), { prefix: '' });

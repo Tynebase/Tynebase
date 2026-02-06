@@ -5,7 +5,7 @@
  * Handles user listing and team member management.
  */
 
-import { apiGet } from './client';
+import { apiGet, apiPatch, apiDelete } from './client';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -41,15 +41,22 @@ export interface UserListResponse {
   };
 }
 
+export interface UpdateUserParams {
+  role?: 'admin' | 'editor' | 'member' | 'viewer';
+  status?: 'active' | 'suspended';
+  full_name?: string;
+}
+
+export interface UpdateUserResponse {
+  user: User;
+}
+
 // ============================================================================
 // API FUNCTIONS
 // ============================================================================
 
 /**
  * List users in the tenant with optional filtering and pagination
- * 
- * @param params - Query parameters for filtering and pagination
- * @returns List of users with pagination metadata
  */
 export async function listUsers(
   params?: UserListParams
@@ -76,4 +83,21 @@ export async function listUsers(
   const endpoint = queryString ? `/api/users?${queryString}` : '/api/users';
   
   return apiGet<UserListResponse>(endpoint);
+}
+
+/**
+ * Update a user's role, status, or full name
+ */
+export async function updateUser(
+  userId: string,
+  params: UpdateUserParams
+): Promise<UpdateUserResponse> {
+  return apiPatch<UpdateUserResponse>(`/api/users/${userId}`, params);
+}
+
+/**
+ * Delete (soft delete) a user from the tenant
+ */
+export async function deleteUser(userId: string): Promise<{ message: string }> {
+  return apiDelete<{ message: string }>(`/api/users/${userId}`);
 }

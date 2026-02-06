@@ -10,7 +10,7 @@
  * - Job status tracking
  */
 
-import { apiGet, apiPost, apiUpload } from './client';
+import { apiGet, apiPost, apiDelete, apiUpload } from './client';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -42,6 +42,7 @@ export interface GenerateResponse {
 
 export interface EnhanceRequest {
   document_id: string;
+  custom_prompt?: string;
 }
 
 export interface EnhanceSuggestion {
@@ -164,7 +165,7 @@ export interface ListMediaJobsParams {
 
 export interface AudioUploadResponse {
   job: Job;
-  storage_path: string;
+  gcs_uri: string;
   filename: string;
   file_size: number;
   status: string;
@@ -421,6 +422,30 @@ export async function transcribeYouTube(
   return apiPost<YouTubeVideoResponse>('/api/ai/video/youtube', data);
 }
 
+export interface DirectVideoURLRequest {
+  url: string;
+  output_options?: OutputOptions;
+}
+
+export interface DirectVideoURLResponse {
+  job: Job;
+}
+
+/**
+ * Transcribe a video from a direct URL
+ * 
+ * Creates a background job to download and transcribe a video from any public URL.
+ * Supports output options for transcript, summary, and article generation.
+ * 
+ * @param data - Direct URL video request with URL and optional output options
+ * @returns Job details for tracking transcription progress
+ */
+export async function transcribeDirectURL(
+  data: DirectVideoURLRequest
+): Promise<DirectVideoURLResponse> {
+  return apiPost<DirectVideoURLResponse>('/api/ai/video/url', data);
+}
+
 /**
  * Upload and transcribe an audio file
  * 
@@ -538,6 +563,19 @@ export async function pollJobUntilComplete(
   }
   
   throw new Error('Job polling timeout - maximum attempts reached');
+}
+
+/**
+ * Delete a job from the queue
+ * 
+ * Removes a pending or completed job from the job queue.
+ * Cannot delete jobs that are currently processing.
+ * 
+ * @param jobId - Job UUID to delete
+ * @returns Deletion confirmation
+ */
+export async function deleteJob(jobId: string): Promise<{ message: string; jobId: string }> {
+  return apiDelete<{ message: string; jobId: string }>(`/api/jobs/${jobId}`);
 }
 
 // ============================================================================
@@ -662,14 +700,46 @@ export async function uploadLegalDocument(
   return apiUpload<LegalDocumentUploadResponse>('/api/ai/legal-document/upload', formData);
 }
 
+export interface GenerationJob {
+  id: string;
+  title: string;
+  type: 'From Prompt' | 'From URL' | 'From File' | 'Enhance' | 'Template';
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  created_at: string;
+  document_id: string | null;
+}
+
+export interface ListRecentGenerationsResponse {
+  generations: GenerationJob[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface ListRecentGenerationsParams {
+  limit?: number;
+  offset?: number;
+  status?: 'pending' | 'processing' | 'completed' | 'failed' | 'all';
+}
+
 /**
- * Get supported file types for legal document upload
+ * List recent AI generation jobs
  * 
- * Returns detailed information about supported file categories,
- * MIME types, extensions, and size limits.
+ * Retrieves a paginated list of recent AI generation jobs for the tenant.
+ * Includes generate, scrape, enhance, and legal document upload jobs.
  * 
- * @returns Supported file types and features
+ * @param params - Optional filter and pagination parameters
+ * @returns List of generation jobs with metadata
  */
-export async function getSupportedLegalDocumentTypes(): Promise<SupportedTypesResponse> {
-  return apiGet<SupportedTypesResponse>('/api/ai/legal-document/supported-types');
+export async function listRecentGenerations(
+  params?: ListRecentGenerationsParams
+): Promise<ListRecentGenerationsResponse> {
+  const queryParams = new URLSearchParams();
+  if (params?.limit) queryParams.set('limit', String(params.limit));
+  if (params?.offset) queryParams.set('offset', String(params.offset));
+  if (params?.status) queryParams.set('status', params.status);
+  
+  const queryString = queryParams.toString();
+  const url = `/api/ai/generations${queryString ? `?${queryString}` : ''}`;
+  return apiGet<ListRecentGenerationsResponse>(url);
 }

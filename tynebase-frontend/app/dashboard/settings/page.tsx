@@ -13,7 +13,7 @@ import { updateTenant } from "@/lib/api/tenants";
 const settingsNav = [
   { label: "Privacy & Data", href: "/dashboard/settings/privacy", icon: Lock, description: "GDPR consents and data export" },
   { label: "Users & Permissions", href: "/dashboard/settings/users", icon: Users, description: "Manage team members and roles" },
-  { label: "Branding", href: "/dashboard/settings/branding", icon: Palette, description: "Customize logo, colors, and themes" },
+  { label: "Branding", href: "/dashboard/settings/branding", icon: Palette, description: "Customise logo, colours and themes" },
   { label: "SSO & Authentication", href: "/dashboard/settings/sso", icon: Key, description: "Configure single sign-on" },
   { label: "Webhooks", href: "/dashboard/settings/webhooks", icon: Webhook, description: "Set up integrations and webhooks" },
   { label: "Import & Export", href: "/dashboard/settings/import-export", icon: FileDown, description: "Migrate content and data" },

@@ -6,6 +6,7 @@ const JobTypeSchema = z.enum([
   'video_ingestion',
   'video_ingest',
   'video_ingest_youtube',
+  'video_ingest_url',
   'video_transcribe_to_document',
   'audio_ingestion',
   'audio_ingest',

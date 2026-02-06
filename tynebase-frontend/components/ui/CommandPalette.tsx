@@ -93,14 +93,6 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
       keywords: ["templates"],
     },
     {
-      id: "nav-community",
-      title: "Go to Community",
-      icon: Users,
-      action: () => router.push("/dashboard/community"),
-      category: "navigation",
-      keywords: ["community", "discussions", "forum"],
-    },
-    {
       id: "nav-analytics",
       title: "Go to Analytics",
       icon: BarChart3,
