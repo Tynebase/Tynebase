@@ -1213,9 +1213,9 @@ export function RichTextEditor({
       )}
 
       {/* Editor Content + AI Panel Container */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex min-h-0 overflow-hidden">
         {/* Editor Content */}
-        <div className="flex-1 overflow-y-auto bg-[var(--surface-ground)] p-4 relative">
+        <div className="flex-1 min-w-0 overflow-y-auto bg-[var(--surface-ground)] p-4 relative">
           {/* Drag and Drop Overlay */}
           {isDragging && !readOnly && (
             <div className="absolute inset-0 z-50 bg-[var(--brand-primary)]/10 border-2 border-dashed border-[var(--brand-primary)] rounded-lg m-4 flex items-center justify-center pointer-events-none">

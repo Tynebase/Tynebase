@@ -95,7 +95,19 @@
 ## 6. Category Delete Server Error
 **Screen:** Category Management → Delete modal  
 **URL:** `/dashboard/knowledge/categories`  
-**Symptom:** Clicking delete (after choosing migration target) returns a server error.  
+**Symptom:** Clicking delete (after choosing migration target) returns a server error.  : 
+Category not found
+
+logs :
+
+Error fetching notifications: TypeError: can't access property "notifications", e is undefined
+    C NextJS
+292f2492e8c16394.js:1:5062
+Failed to load category documents: ApiClientError: Category not found
+    NextJS 2
+2aaafa899e2f166a.js:1:12337
+Failed to delete category: ApiClientError: Category not found
+
 **Files to investigate:**
 - `tynebase-frontend/app/dashboard/knowledge/categories/page.tsx` — `executeDelete` function (~line 318)
 - `tynebase-frontend/lib/api/folders.ts` — `deleteCategory` function
@@ -215,6 +227,7 @@ const roleUserCount = (roleId: string) => users.filter(u => u.role === roleId).l
 **Symptoms:**
 - "Community" button appears here (shouldn't it?)
 - "New Document" button redirects to a 404 page
+- When in AI enhance, see all activity redirects to community instead of redirecting to the correct `/dashboard/knowledge/activity`
 
 **Files to investigate:**
 - `tynebase-frontend/app/dashboard/knowledge/activity/page.tsx` — check for the Community button and New Document link

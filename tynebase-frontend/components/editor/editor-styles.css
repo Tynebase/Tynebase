@@ -25,7 +25,9 @@
 /* Ensure proper overflow handling in preview mode */
 .editor-content .ProseMirror {
   overflow: visible;
-  word-break: break-word;
+  word-break: normal;
+  overflow-wrap: break-word;
+  min-width: 0;
 }
 
 /* Preview mode specific styles */

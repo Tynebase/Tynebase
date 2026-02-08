@@ -80,6 +80,7 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
             icon,
             parent_id,
             author_id,
+            is_system,
             sort_order,
             created_at,
             updated_at,
@@ -164,6 +165,7 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
           document_count: documentCounts[category.id] || 0,
           subcategory_count: subcategoryCounts[category.id] || 0,
           author_id: category.author_id,
+          is_system: category.is_system || false,
           created_at: category.created_at,
           updated_at: category.updated_at,
           users: category.users,
@@ -702,12 +704,6 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
         if (existing.is_system) {
           return reply.code(403).send({
             error: { code: 'CANNOT_DELETE_SYSTEM', message: 'System categories cannot be deleted', details: {} },
-          });
-        }
-
-        if (existing.author_id !== user.id) {
-          return reply.code(403).send({
-            error: { code: 'FORBIDDEN', message: 'Only the category author can delete this category', details: {} },
           });
         }
 

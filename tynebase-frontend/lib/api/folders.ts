@@ -216,7 +216,7 @@ export async function deleteCategory(
   id: string, 
   migrateToCategoryId?: string | null
 ): Promise<DeleteCategoryResult> {
-  const queryParams = migrateToCategoryId !== undefined 
+  const queryParams = migrateToCategoryId 
     ? `?migrate_to_category_id=${migrateToCategoryId}` 
     : '';
   return apiDelete<DeleteCategoryResult>(`/api/categories/${id}${queryParams}`);
