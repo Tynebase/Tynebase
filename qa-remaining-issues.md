@@ -102,24 +102,23 @@
 
 ---
 
-## 7. Indexing Status Reverting to "Outdated"
+## 7. Indexing Status Reverting to "Outdated" ✅ FIXED
 **Screen:** Sources / Indexing  
 **URL:** `/dashboard/sources`  
 **Symptom:** After successfully indexing a document, the status immediately reverts to "Outdated".  
-**Files to investigate:**
-- `tynebase-frontend/app/dashboard/sources/page.tsx` — `handleReindex` function and the polling/status check logic
-- `backend/src/routes/` — the reindex endpoint and job status endpoint
-- Check if the `last_indexed_at` timestamp is being updated in the DB after indexing completes
-- The health check query may compare `updated_at > last_indexed_at` — if the document is touched during indexing, it'll immediately appear outdated
 
-**Steps:**
-1. Trigger a reindex on a document
-2. Watch the Network tab for status polling responses
-3. After "Complete!", check the DB record for `last_indexed_at` vs `updated_at`
+**Root cause:** The DB trigger `update_updated_at_column()` sets `NEW.updated_at = NOW()` on every UPDATE to the documents table. When the worker/ingestion service set `last_indexed_at`, the trigger also bumped `updated_at` to a slightly later timestamp, causing `updated_at > last_indexed_at` — which immediately marked the document as "outdated". The previous 2-second buffer was too tight.
+
+**Fixes applied:**
+- `backend/src/services/rag/ingestion.ts` — Changed to set `last_indexed_at`, then read back the trigger-set `updated_at` and sync `last_indexed_at` to match it exactly
+- `backend/src/workers/ragIndex.ts` — Same two-step sync fix for the worker path
+- `backend/src/routes/rag.ts` — Increased outdated detection buffer from 2s to 30s in both `/api/sources/health` and `/api/sources` endpoints (real content edits have much larger gaps)
+
+**Status:** ✅ Completed
 
 ---
 
-## 8. Unresponsive Buttons on Sources Page
+## 8. Unresponsive Buttons on Sources Page ✅ FIXED
 **Screen:** Sources / Indexing  
 **URL:** `/dashboard/sources`  
 **Buttons affected:**
@@ -127,17 +126,17 @@
 - "Retry failed normalizations" — no onClick handler
 - "Review normalized Markdown" — no onClick handler
 
-**Files to investigate:**
-- `tynebase-frontend/app/dashboard/sources/page.tsx` — search for these button labels
-- These likely need backend endpoints to be created:
-  - `POST /api/sources/health-check` — re-run health analysis
-  - `POST /api/sources/retry-normalization` — retry failed markdown conversions
-  - A route/modal to view normalized markdown output
+**Root cause:** The buttons didn't exist on the page. Backend endpoints already existed (`GET /api/sources/health`, `POST /api/sources/repair/stuck-jobs`, `GET /api/sources/normalized`) but the frontend had no UI to invoke them.
 
-**Steps:**
-1. Check if the buttons exist in the page (they may be in a section not yet scrolled to)
-2. Wire onClick handlers to existing or new API endpoints
-3. Create backend endpoints if missing
+**Fixes applied:**
+- `tynebase-frontend/app/dashboard/sources/page.tsx` — Added three action buttons in an action bar:
+  - **Re-run Health Checks** — calls `fetchHealthData()` to refresh health statistics with loading spinner
+  - **Retry Failed Normalizations** — calls `POST /api/sources/repair/stuck-jobs` to reset stuck jobs for retry, shows result summary
+  - **Review Normalized Markdown** — calls `GET /api/sources/normalized` and opens a full-size modal with expandable accordion for each document's normalized markdown content
+- Added `Modal` component import and state management for the normalized markdown review modal
+- Added `apiPost` import for the retry endpoint call
+
+**Status:** ✅ Completed
 
 ---
 

@@ -516,11 +516,12 @@ export default async function ragRoutes(fastify: FastifyInstance) {
         }
 
         // Filter outdated documents where updated_at is meaningfully newer than last_indexed_at
-        // Use a 2-second buffer to account for DB triggers that auto-update updated_at
+        // Use a 30-second buffer to account for DB triggers that auto-update updated_at
+        // during the indexing process. Real content edits will have much larger gaps.
         const outdatedDocs = (allIndexedDocs || []).filter(doc => {
           const updatedAt = new Date(doc.updated_at).getTime();
           const lastIndexedAt = new Date(doc.last_indexed_at).getTime();
-          return updatedAt - lastIndexedAt > 2000; // 2 second buffer
+          return updatedAt - lastIndexedAt > 30000; // 30 second buffer
         });
 
         // Count failed rag_index jobs
@@ -1221,7 +1222,7 @@ export default async function ragRoutes(fastify: FastifyInstance) {
           if (failedDocIds.has(doc.id)) {
             indexingStatus = 'failed';
           } else if (doc.last_indexed_at) {
-            if (new Date(doc.updated_at).getTime() - new Date(doc.last_indexed_at).getTime() > 2000) {
+            if (new Date(doc.updated_at).getTime() - new Date(doc.last_indexed_at).getTime() > 30000) {
               indexingStatus = 'outdated';
             } else {
               indexingStatus = 'indexed';

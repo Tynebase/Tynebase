@@ -113,18 +113,26 @@ export async function ingestDocument(
     }
 
     // Update last_indexed_at timestamp on the document
-    const now = new Date().toISOString();
-    const { error: updateError } = await supabaseAdmin
+    // Note: The DB trigger update_updated_at_column() will auto-set updated_at = NOW()
+    // We first set last_indexed_at, then read back the trigger-set updated_at and
+    // sync last_indexed_at to match it exactly, preventing false "outdated" status.
+    const { data: updatedRow, error: updateError } = await supabaseAdmin
       .from('documents')
-      .update({
-        last_indexed_at: now,
-        updated_at: now  // Keep updated_at in sync to prevent "outdated" status
-      })
+      .update({ last_indexed_at: new Date().toISOString() })
       .eq('id', documentId)
-      .eq('tenant_id', tenantId);
+      .eq('tenant_id', tenantId)
+      .select('updated_at')
+      .single();
 
     if (updateError) {
       console.error(`[ingestDocument] Failed to update last_indexed_at:`, updateError);
+    } else if (updatedRow) {
+      // Sync last_indexed_at to the exact trigger-set updated_at to guarantee match
+      await supabaseAdmin
+        .from('documents')
+        .update({ last_indexed_at: updatedRow.updated_at })
+        .eq('id', documentId)
+        .eq('tenant_id', tenantId);
     }
 
     return {

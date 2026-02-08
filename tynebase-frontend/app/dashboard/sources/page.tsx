@@ -19,9 +19,10 @@ import {
   Filter,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
-import { apiGet } from "@/lib/api/client";
+import { apiGet, apiPost } from "@/lib/api/client";
 import { reindexDocument, pollJobUntilComplete, Job } from "@/lib/api/ai";
 import { DocumentImportModal } from "@/components/docs/DocumentImportModal";
+import { Modal } from "@/components/ui/Modal";
 
 type FileType = "pdf" | "docx" | "md" | "unknown";
 type IndexingStatus = "indexed" | "pending" | "outdated" | "failed";
@@ -123,6 +124,12 @@ export default function SourcesPage() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [reasonFilter, setReasonFilter] = useState<'all' | 'never_indexed' | 'outdated'>('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [retryingFailed, setRetryingFailed] = useState(false);
+  const [retryResult, setRetryResult] = useState<{ reset: number; failed: number } | null>(null);
+  const [normalizedDocs, setNormalizedDocs] = useState<Array<{ id: string; title: string; normalizedMd: string; status: string; updatedAt: string }> | null>(null);
+  const [loadingNormalized, setLoadingNormalized] = useState(false);
+  const [showNormalizedModal, setShowNormalizedModal] = useState(false);
+  const [expandedDocId, setExpandedDocId] = useState<string | null>(null);
 
   const fetchHealthData = async () => {
     try {
@@ -188,6 +195,37 @@ export default function SourcesPage() {
     } catch (err) {
       console.error('Failed to trigger re-index:', err);
       alert(err instanceof Error ? err.message : 'Failed to trigger re-index');
+    }
+  };
+
+  const handleRetryFailed = async () => {
+    try {
+      setRetryingFailed(true);
+      setRetryResult(null);
+      const response = await apiPost<{ stuck_jobs_found: number; reset_jobs: number; failed_jobs: number }>('/api/sources/repair/stuck-jobs', { max_age_minutes: 5 });
+      setRetryResult({ reset: response.reset_jobs, failed: response.failed_jobs });
+      // Refresh health data after repair
+      await fetchHealthData();
+    } catch (err) {
+      console.error('Failed to retry failed jobs:', err);
+      alert(err instanceof Error ? err.message : 'Failed to retry failed jobs');
+    } finally {
+      setRetryingFailed(false);
+    }
+  };
+
+  const handleReviewNormalized = async () => {
+    try {
+      setLoadingNormalized(true);
+      setShowNormalizedModal(true);
+      const response = await apiGet<{ documents: Array<{ id: string; title: string; normalizedMd: string; status: string; updatedAt: string }>; count: number }>('/api/sources/normalized');
+      setNormalizedDocs(response.documents);
+    } catch (err) {
+      console.error('Failed to fetch normalized documents:', err);
+      alert(err instanceof Error ? err.message : 'Failed to fetch normalized documents');
+      setShowNormalizedModal(false);
+    } finally {
+      setLoadingNormalized(false);
     }
   };
 
@@ -333,6 +371,41 @@ export default function SourcesPage() {
         </div>
       )}
 
+      {/* Action Buttons */}
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          onClick={() => { fetchHealthData(); }}
+          disabled={loading}
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-sm font-semibold text-[var(--dash-text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)] transition-all disabled:opacity-50"
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          Re-run Health Checks
+        </button>
+        <button
+          onClick={handleRetryFailed}
+          disabled={retryingFailed || (stats.failed === 0)}
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-sm font-semibold text-[var(--dash-text-secondary)] hover:border-[var(--status-warning)] hover:text-[var(--status-warning)] transition-all disabled:opacity-50"
+        >
+          <RefreshCw className={`w-4 h-4 ${retryingFailed ? 'animate-spin' : ''}`} />
+          {retryingFailed ? 'Retrying...' : 'Retry Failed Normalizations'}
+        </button>
+        <button
+          onClick={handleReviewNormalized}
+          disabled={loadingNormalized}
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-sm font-semibold text-[var(--dash-text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)] transition-all disabled:opacity-50"
+        >
+          <FileText className="w-4 h-4" />
+          Review Normalized Markdown
+        </button>
+        {retryResult && (
+          <span className="text-xs text-[var(--dash-text-muted)]">
+            {retryResult.reset > 0 ? `${retryResult.reset} job(s) reset for retry.` : ''}
+            {retryResult.failed > 0 ? ` ${retryResult.failed} exceeded retries.` : ''}
+            {retryResult.reset === 0 && retryResult.failed === 0 ? 'No stuck jobs found.' : ''}
+          </span>
+        )}
+      </div>
+
       <div id="documents-needing-reindex" className="flex-1 min-h-0 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-2xl overflow-hidden flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 bg-[var(--surface-ground)] border-b border-[var(--dash-border-subtle)]">
           <h2 className="text-sm font-semibold text-[var(--dash-text-primary)]">
@@ -447,6 +520,57 @@ export default function SourcesPage() {
           fetchHealthData();
         }}
       />
+
+      {/* Normalized Markdown Review Modal */}
+      <Modal
+        isOpen={showNormalizedModal}
+        onClose={() => { setShowNormalizedModal(false); setNormalizedDocs(null); setExpandedDocId(null); }}
+        title="Normalized Markdown"
+        description="Review the markdown content that TyneBase has normalized for RAG indexing."
+        size="full"
+      >
+        {loadingNormalized ? (
+          <div className="flex items-center justify-center py-12">
+            <RefreshCw className="w-6 h-6 text-[var(--dash-text-muted)] animate-spin" />
+            <span className="ml-3 text-sm text-[var(--dash-text-muted)]">Loading normalized documents...</span>
+          </div>
+        ) : normalizedDocs && normalizedDocs.length === 0 ? (
+          <div className="text-center py-12">
+            <FileText className="w-10 h-10 text-[var(--dash-text-muted)] mx-auto mb-3" />
+            <p className="text-sm text-[var(--dash-text-muted)]">No normalized documents found.</p>
+          </div>
+        ) : normalizedDocs ? (
+          <div className="space-y-3">
+            <p className="text-xs text-[var(--dash-text-muted)] mb-4">{normalizedDocs.length} document(s) with normalized content</p>
+            {normalizedDocs.map((doc) => (
+              <div key={doc.id} className="border border-[var(--dash-border-subtle)] rounded-xl overflow-hidden">
+                <button
+                  onClick={() => setExpandedDocId(expandedDocId === doc.id ? null : doc.id)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[var(--surface-hover)] transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <FileText className="w-4 h-4 text-[var(--dash-text-tertiary)] flex-shrink-0" />
+                    <span className="text-sm font-medium text-[var(--dash-text-primary)] truncate">{doc.title}</span>
+                    <span className="text-xs text-[var(--dash-text-muted)] flex-shrink-0">
+                      {doc.normalizedMd.length.toLocaleString()} chars
+                    </span>
+                  </div>
+                  <span className="text-xs text-[var(--dash-text-muted)] flex-shrink-0 ml-2">
+                    {expandedDocId === doc.id ? 'Collapse' : 'Expand'}
+                  </span>
+                </button>
+                {expandedDocId === doc.id && (
+                  <div className="px-4 pb-4 border-t border-[var(--dash-border-subtle)]">
+                    <pre className="mt-3 p-4 bg-[var(--surface-ground)] rounded-lg text-xs text-[var(--dash-text-secondary)] overflow-auto max-h-96 whitespace-pre-wrap font-mono">
+                      {doc.normalizedMd}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 }
