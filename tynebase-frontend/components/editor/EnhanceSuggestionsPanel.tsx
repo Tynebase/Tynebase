@@ -311,7 +311,6 @@ export function EnhanceSuggestionsPanel({
           if (result) {
             appliedPosition = { from: endPos, to: endPos + suggestion.content.length + 2 };
             applied = true;
-            editor.commands.focus();
           }
         }
         break;
@@ -321,17 +320,22 @@ export function EnhanceSuggestionsPanel({
           const range = findTextRange(doc, suggestion.find);
 
           if (range) {
-            // Debug: verify the range maps to the expected text
             const resolvedText = doc.textBetween(range.from, range.to, '');
-            console.log(`[EnhanceSuggestionsPanel] Replace range: ${range.from}-${range.to}, resolved text: "${resolvedText.substring(0, 80)}", expected: "${suggestion.find.substring(0, 80)}"`);
+            console.log(`[EnhanceSuggestionsPanel] Replace range: ${range.from}-${range.to}, resolved: "${resolvedText.substring(0, 80)}", expected: "${suggestion.find.substring(0, 80)}"`);
 
-            // Use ProseMirror transaction for atomic delete+insert
-            const tr = editor.state.tr;
-            tr.insertText(suggestion.replace!, range.from, range.to);
-            editor.view.dispatch(tr);
-            appliedPosition = { from: range.from, to: range.from + suggestion.replace!.length };
-            applied = true;
-            editor.commands.focus();
+            const replaceText = suggestion.replace!;
+            // Route through TipTap's command pipeline (Y.js collaboration aware)
+            const cmdResult = editor.chain().command(({ tr, dispatch }) => {
+              if (dispatch) {
+                tr.insertText(replaceText, range.from, range.to);
+              }
+              return true;
+            }).run();
+
+            if (cmdResult) {
+              appliedPosition = { from: range.from, to: range.from + replaceText.length };
+              applied = true;
+            }
           }
 
           if (!applied) {
@@ -345,12 +349,17 @@ export function EnhanceSuggestionsPanel({
           const range = findTextRange(doc, suggestion.find);
 
           if (range) {
-            const tr = editor.state.tr;
-            tr.delete(range.from, range.to);
-            editor.view.dispatch(tr);
-            appliedPosition = { from: range.from, to: range.from };
-            applied = true;
-            editor.commands.focus();
+            const cmdResult = editor.chain().command(({ tr, dispatch }) => {
+              if (dispatch) {
+                tr.delete(range.from, range.to);
+              }
+              return true;
+            }).run();
+
+            if (cmdResult) {
+              appliedPosition = { from: range.from, to: range.from };
+              applied = true;
+            }
           }
 
           if (!applied) {
@@ -426,9 +435,11 @@ export function EnhanceSuggestionsPanel({
           if (suggestion.replace && suggestion.find) {
             const range = findTextRange(doc, suggestion.replace);
             if (range) {
-              const tr = editor.state.tr;
-              tr.insertText(suggestion.find, range.from, range.to);
-              editor.view.dispatch(tr);
+              const findText = suggestion.find;
+              editor.chain().command(({ tr, dispatch }) => {
+                if (dispatch) tr.insertText(findText, range.from, range.to);
+                return true;
+              }).run();
               reverted = true;
             }
           }
@@ -437,9 +448,12 @@ export function EnhanceSuggestionsPanel({
         case 'delete':
           // Reverse: re-insert the deleted text at stored position
           if (suggestion.find && suggestion.appliedPosition) {
-            const tr = editor.state.tr;
-            tr.insertText(suggestion.find, suggestion.appliedPosition.from, suggestion.appliedPosition.from);
-            editor.view.dispatch(tr);
+            const insertPos = suggestion.appliedPosition.from;
+            const findText = suggestion.find;
+            editor.chain().command(({ tr, dispatch }) => {
+              if (dispatch) tr.insertText(findText, insertPos, insertPos);
+              return true;
+            }).run();
             reverted = true;
           }
           break;
@@ -449,9 +463,10 @@ export function EnhanceSuggestionsPanel({
           if (suggestion.content) {
             const range = findTextRange(doc, suggestion.content);
             if (range) {
-              const tr = editor.state.tr;
-              tr.delete(range.from, range.to);
-              editor.view.dispatch(tr);
+              editor.chain().command(({ tr, dispatch }) => {
+                if (dispatch) tr.delete(range.from, range.to);
+                return true;
+              }).run();
               reverted = true;
             }
           }
