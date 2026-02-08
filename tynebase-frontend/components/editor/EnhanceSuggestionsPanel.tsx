@@ -323,9 +323,6 @@ export function EnhanceSuggestionsPanel({
           const range = findTextRange(doc, suggestion.find);
 
           if (range) {
-            const resolvedText = doc.textBetween(range.from, range.to, '');
-            console.log(`[EnhanceSuggestionsPanel] Replace range: ${range.from}-${range.to}, resolved: "${resolvedText.substring(0, 80)}", expected: "${suggestion.find.substring(0, 80)}"`);
-
             const replaceText = suggestion.replace!;
             // Route through TipTap's command pipeline (Y.js collaboration aware)
             const cmdResult = editor.chain().command(({ tr, dispatch }) => {
@@ -812,7 +809,6 @@ export function EnhanceSuggestionsPanel({
                                   className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors"
                                   title="Click to scroll to this location in the document"
                                 >
-                                  <Target className="w-2.5 h-2.5" />
                                   Line {line}
                                 </button>
                               ) : null;
