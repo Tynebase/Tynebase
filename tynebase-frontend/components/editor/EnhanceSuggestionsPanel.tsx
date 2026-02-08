@@ -170,66 +170,83 @@ export function EnhanceSuggestionsPanel({
     setCustomPrompt("");
   };
 
-  // Build a mapping from plain-text index to ProseMirror position
-  const buildTextIndexToPosMap = (doc: any) => {
-    const text = doc.textContent;
-    const map: number[] = new Array(text.length + 1);
-    let idx = 0;
-    map[0] = 1;
+  // Find the ProseMirror range for a needle string in the document.
+  // Builds a character-level mapping from concatenated plain text to ProseMirror positions
+  // by walking every text node. Block boundaries emit a newline separator to match editor.getText().
+  const findTextRange = (doc: any, needle: string): { from: number; to: number } | null => {
+    // Build plain text and a parallel array mapping each char index to its ProseMirror pos.
+    // charToPos[i] = the ProseMirror position of the i-th character in `plain`.
+    const charToPos: number[] = [];
+    let plain = '';
+    let lastBlockEnd = -1;
 
     doc.descendants((node: any, pos: number) => {
-      if (!node.isText) return;
-
-      const t = node.text || '';
-      for (let i = 0; i < t.length; i++) {
-        if (idx + i < map.length) map[idx + i] = pos + 1 + i;
-        if (idx + i + 1 < map.length) map[idx + i + 1] = pos + 1 + i + 1;
+      if (node.isBlock && node.isTextblock && plain.length > 0 && pos !== lastBlockEnd) {
+        // Insert a newline separator between text blocks (matches editor.getText() output)
+        charToPos.push(-1); // newline has no single ProseMirror pos
+        plain += '\n';
       }
-      idx += t.length;
+      if (node.isText) {
+        const t = node.text || '';
+        for (let i = 0; i < t.length; i++) {
+          charToPos.push(pos + 1 + i); // +1 because pos is before the text node
+          plain += t[i];
+        }
+      }
+      if (node.isBlock) {
+        lastBlockEnd = pos + node.nodeSize;
+      }
     });
 
-    return { text, map };
-  };
-
-  // Find the ProseMirror range for a needle string in the document
-  const findTextRange = (doc: any, needle: string): { from: number; to: number } | null => {
-    const { text, map } = buildTextIndexToPosMap(doc);
-
-    // First try exact match
-    const exactIndex = text.indexOf(needle);
-    if (exactIndex !== -1) {
-      const from = map[exactIndex];
-      const to = map[exactIndex + needle.length];
-      if (typeof from === 'number' && typeof to === 'number') return { from, to };
-    }
-
-    // Fuzzy matching: ignore whitespace differences
-    const removeWs = (s: string) => s.replace(/\s+/g, '');
-    const hayNoWs = removeWs(text);
-    const needleNoWs = removeWs(needle);
-    if (!needleNoWs) return null;
-
-    const idxNoWs = hayNoWs.indexOf(needleNoWs);
-    if (idxNoWs === -1) return null;
-
-    const noWsToOrig: number[] = [];
-    for (let i = 0, j = 0; i < text.length; i++) {
-      if (!/\s/.test(text[i])) {
-        noWsToOrig[j] = i;
-        j++;
+    // Helper: given a match at [startIdx, endIdx) in `plain`, return ProseMirror {from, to}
+    const rangeFromMatch = (startIdx: number, endIdx: number): { from: number; to: number } | null => {
+      // Find the first valid ProseMirror pos at or after startIdx
+      let from = -1;
+      for (let i = startIdx; i < endIdx; i++) {
+        if (charToPos[i] !== -1) { from = charToPos[i]; break; }
       }
+      // Find the ProseMirror pos just after the last character
+      let to = -1;
+      for (let i = endIdx - 1; i >= startIdx; i--) {
+        if (charToPos[i] !== -1) { to = charToPos[i] + 1; break; }
+      }
+      if (from !== -1 && to !== -1 && from < to) return { from, to };
+      return null;
+    };
+
+    // Exact match
+    const exactIdx = plain.indexOf(needle);
+    if (exactIdx !== -1) {
+      const result = rangeFromMatch(exactIdx, exactIdx + needle.length);
+      if (result) return result;
     }
 
-    const startOrig = noWsToOrig[idxNoWs];
-    const lastMatchedIdx = idxNoWs + needleNoWs.length - 1;
-    let endOrigExclusive = noWsToOrig[lastMatchedIdx] + 1;
-    while (endOrigExclusive < text.length && /\s/.test(text[endOrigExclusive])) {
-      endOrigExclusive++;
+    // Fuzzy match: collapse whitespace
+    const collapseWs = (s: string) => s.replace(/\s+/g, ' ').trim();
+    const plainCollapsed = collapseWs(plain);
+    const needleCollapsed = collapseWs(needle);
+    if (!needleCollapsed) return null;
+
+    const fuzzyIdx = plainCollapsed.indexOf(needleCollapsed);
+    if (fuzzyIdx === -1) return null;
+
+    // Map collapsed index back to original plain index
+    let ci = 0; // collapsed index
+    let origStart = -1;
+    let origEnd = -1;
+    for (let i = 0; i < plain.length && ci <= fuzzyIdx + needleCollapsed.length; i++) {
+      const ch = plain[i];
+      const isWs = /\s/.test(ch);
+      // In collapsed string, consecutive whitespace maps to a single space
+      if (isWs && i > 0 && /\s/.test(plain[i - 1])) continue; // skip extra ws
+      if (ci === fuzzyIdx) origStart = i;
+      ci++;
+      if (ci === fuzzyIdx + needleCollapsed.length) { origEnd = i + 1; break; }
     }
 
-    const from = map[startOrig];
-    const to = map[endOrigExclusive];
-    if (typeof from === 'number' && typeof to === 'number') return { from, to };
+    if (origStart !== -1 && origEnd !== -1) {
+      return rangeFromMatch(origStart, origEnd);
+    }
 
     return null;
   };
@@ -304,7 +321,11 @@ export function EnhanceSuggestionsPanel({
           const range = findTextRange(doc, suggestion.find);
 
           if (range) {
-            // Use ProseMirror transaction for atomic delete+insert (avoids duplication bugs)
+            // Debug: verify the range maps to the expected text
+            const resolvedText = doc.textBetween(range.from, range.to, '');
+            console.log(`[EnhanceSuggestionsPanel] Replace range: ${range.from}-${range.to}, resolved text: "${resolvedText.substring(0, 80)}", expected: "${suggestion.find.substring(0, 80)}"`);
+
+            // Use ProseMirror transaction for atomic delete+insert
             const tr = editor.state.tr;
             tr.insertText(suggestion.replace!, range.from, range.to);
             editor.view.dispatch(tr);
