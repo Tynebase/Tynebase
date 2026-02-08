@@ -25,7 +25,6 @@ import {
   RotateCcw,
   Coins,
   Info,
-  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { enhance, applyEnhancement, reindexDocument, type EnhanceSuggestion } from "@/lib/api/ai";
@@ -235,13 +234,27 @@ export function EnhanceSuggestionsPanel({
     return null;
   };
 
+  // Get the best needle to locate a suggestion in the document based on its current status
+  const getSuggestionNeedle = (suggestion: SuggestionWithStatus): string | null => {
+    if (suggestion.status === 'accepted') {
+      // After accept: search for the replacement/added text
+      if (suggestion.action === 'replace' && suggestion.replace) return suggestion.replace;
+      if (suggestion.action === 'add' && suggestion.content) return suggestion.content;
+      // delete: text is gone, no needle
+      return null;
+    }
+    // Pending/rejected: search for the original find text
+    return suggestion.find || suggestion.content || null;
+  };
+
   // Calculate the line number for a given text in the document
-  const getLineNumber = (needle: string): number | null => {
+  const getLineNumber = (suggestion: SuggestionWithStatus): number | null => {
     if (!editor) return null;
+    const needle = getSuggestionNeedle(suggestion);
+    if (!needle) return null;
     const text = editor.getText();
     const index = text.indexOf(needle);
     if (index === -1) return null;
-    // Count newlines before the match to determine line number
     const beforeMatch = text.substring(0, index);
     return beforeMatch.split('\n').length;
   };
@@ -250,7 +263,7 @@ export function EnhanceSuggestionsPanel({
   const scrollToSuggestion = (suggestion: SuggestionWithStatus) => {
     if (!editor) return;
     const { doc } = editor.state;
-    const needle = suggestion.find || suggestion.content;
+    const needle = getSuggestionNeedle(suggestion);
     if (!needle) return;
 
     const range = findTextRange(doc, needle);
@@ -291,17 +304,13 @@ export function EnhanceSuggestionsPanel({
           const range = findTextRange(doc, suggestion.find);
 
           if (range) {
-            const result = editor
-              .chain()
-              .focus()
-              .insertContentAt({ from: range.from, to: range.to }, suggestion.replace!)
-              .run();
-
-            if (result) {
-              appliedPosition = { from: range.from, to: range.from + suggestion.replace!.length };
-              applied = true;
-              editor.commands.focus();
-            }
+            // Use ProseMirror transaction for atomic delete+insert (avoids duplication bugs)
+            const tr = editor.state.tr;
+            tr.insertText(suggestion.replace!, range.from, range.to);
+            editor.view.dispatch(tr);
+            appliedPosition = { from: range.from, to: range.from + suggestion.replace!.length };
+            applied = true;
+            editor.commands.focus();
           }
 
           if (!applied) {
@@ -315,17 +324,12 @@ export function EnhanceSuggestionsPanel({
           const range = findTextRange(doc, suggestion.find);
 
           if (range) {
-            const result = editor
-              .chain()
-              .focus()
-              .deleteRange({ from: range.from, to: range.to })
-              .run();
-
-            if (result) {
-              appliedPosition = { from: range.from, to: range.from };
-              applied = true;
-              editor.commands.focus();
-            }
+            const tr = editor.state.tr;
+            tr.delete(range.from, range.to);
+            editor.view.dispatch(tr);
+            appliedPosition = { from: range.from, to: range.from };
+            applied = true;
+            editor.commands.focus();
           }
 
           if (!applied) {
@@ -401,9 +405,9 @@ export function EnhanceSuggestionsPanel({
           if (suggestion.replace && suggestion.find) {
             const range = findTextRange(doc, suggestion.replace);
             if (range) {
-              editor.chain().focus()
-                .insertContentAt({ from: range.from, to: range.to }, suggestion.find)
-                .run();
+              const tr = editor.state.tr;
+              tr.insertText(suggestion.find, range.from, range.to);
+              editor.view.dispatch(tr);
               reverted = true;
             }
           }
@@ -412,9 +416,9 @@ export function EnhanceSuggestionsPanel({
         case 'delete':
           // Reverse: re-insert the deleted text at stored position
           if (suggestion.find && suggestion.appliedPosition) {
-            editor.chain().focus()
-              .insertContentAt(suggestion.appliedPosition.from, suggestion.find)
-              .run();
+            const tr = editor.state.tr;
+            tr.insertText(suggestion.find, suggestion.appliedPosition.from, suggestion.appliedPosition.from);
+            editor.view.dispatch(tr);
             reverted = true;
           }
           break;
@@ -424,9 +428,9 @@ export function EnhanceSuggestionsPanel({
           if (suggestion.content) {
             const range = findTextRange(doc, suggestion.content);
             if (range) {
-              editor.chain().focus()
-                .deleteRange({ from: range.from, to: range.to })
-                .run();
+              const tr = editor.state.tr;
+              tr.delete(range.from, range.to);
+              editor.view.dispatch(tr);
               reverted = true;
             }
           }
@@ -759,8 +763,7 @@ export function EnhanceSuggestionsPanel({
                               {suggestion.type}
                             </span>
                             {(() => {
-                              const needle = suggestion.find || suggestion.content;
-                              const line = needle ? getLineNumber(needle) : null;
+                              const line = getLineNumber(suggestion);
                               return line !== null ? (
                                 <button
                                   onClick={(e) => {
@@ -770,7 +773,7 @@ export function EnhanceSuggestionsPanel({
                                   className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors"
                                   title="Click to scroll to this location in the document"
                                 >
-                                  <MapPin className="w-2.5 h-2.5" />
+                                  <Target className="w-2.5 h-2.5" />
                                   Line {line}
                                 </button>
                               ) : null;
