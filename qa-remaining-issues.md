@@ -54,71 +54,51 @@
 
 ---
 
-## 4. Text Rendering Vertical Splits
+## 4. Text Rendering Vertical Splits ✅ FIXED
 **Screen:** Document Editor  
 **URL:** `/dashboard/knowledge/[ID]`  
 **Symptom:** Some text renders with one letter per line (vertical splitting), seen in "Inspiration" and "Usage" sections.  
-**Files to investigate:**
-- `tynebase-frontend/components/editor/RichTextEditor.tsx` — CSS styles applied to the editor content
-- Check if specific content has inline styles with `width: 0` or `word-break` issues
-- Could be a TipTap extension conflict or CSS specificity issue
 
-**Steps:**
-1. Find/create a document that reproduces the vertical text
-2. Inspect the DOM element in browser DevTools to see what CSS is causing it
-3. Check for conflicting styles in the editor's `ProseMirror` container
+**Root cause:** Non-standard `word-break: break-word` on `.ProseMirror` caused vertical splitting. Additionally, the editor flex child lacked `min-width: 0`, allowing it to collapse when the AI panel was open.
+
+**Fixes applied:**
+- `editor-styles.css` — Changed `word-break: break-word` to `word-break: normal`, added `overflow-wrap: break-word` and `min-width: 0` on `.ProseMirror`
+- `RichTextEditor.tsx` — Added `min-w-0` to the editor content flex child
+
+**Status:** ✅ Completed
 
 ---
 
-## 5. AI Panel Scroll Issue
+## 5. AI Panel Scroll Issue ✅ FIXED
 **Screen:** Document Editor → AI Enhance panel  
 **URL:** `/dashboard/knowledge/[ID]`  
 **Symptom:** The AI suggestions panel scrolls with the whole page instead of independently. User can't read the article while reviewing AI suggestions.  
-**Files to investigate:**
-- `tynebase-frontend/components/editor/RichTextEditor.tsx` — look for where `EnhanceSuggestionsPanel` is rendered (search for `showEnhance` or `EnhanceSuggestionsPanel`)
-- The panel likely needs `position: sticky` or `overflow-y: auto` with a fixed height
-- The parent flex container may need `overflow: hidden` so each child scrolls independently
 
-**Suggested fix pattern:**
-```css
-/* Panel container */
-.enhance-panel {
-  position: sticky;
-  top: 0;
-  max-height: 100vh;
-  overflow-y: auto;
-}
-```
+**Root cause:** Flex containers lacked `min-height: 0`, so flex items defaulted to `min-height: auto` which prevented `overflow-y: auto` from creating independent scroll regions.
+
+**Fixes applied:**
+- `RichTextEditor.tsx` — Added `min-h-0` to the editor+panel flex container
+- `EnhanceSuggestionsPanel.tsx` — Added `min-h-0` and `overflow-hidden` to the panel wrapper
+
+**Status:** ✅ Completed
 
 ---
 
-## 6. Category Delete Server Error
+## 6. Category Delete Server Error ✅ FIXED
 **Screen:** Category Management → Delete modal  
 **URL:** `/dashboard/knowledge/categories`  
-**Symptom:** Clicking delete (after choosing migration target) returns a server error.  : 
-Category not found
+**Symptom:** Clicking delete (after choosing migration target) returns a server error — "Category not found"
 
-logs :
+**Root causes:**
+1. Frontend `deleteCategory()` sent literal string `"null"` as `migrate_to_category_id` query param when selecting Uncategorised, which failed Zod UUID validation on the backend
+2. Backend DELETE endpoint restricted category deletion to the original author only — other tenant members got a 403
+3. `is_system` field was missing from the categories list API response, so frontend couldn't properly guard system category delete buttons
 
-Error fetching notifications: TypeError: can't access property "notifications", e is undefined
-    C NextJS
-292f2492e8c16394.js:1:5062
-Failed to load category documents: ApiClientError: Category not found
-    NextJS 2
-2aaafa899e2f166a.js:1:12337
-Failed to delete category: ApiClientError: Category not found
+**Fixes applied:**
+- `lib/api/folders.ts` — Only include `migrate_to_category_id` query param when it's an actual UUID string (not null)
+- `backend/src/routes/categories.ts` — Removed author-only restriction on delete (any tenant member can delete); added `is_system` to SELECT query and enriched response
 
-**Files to investigate:**
-- `tynebase-frontend/app/dashboard/knowledge/categories/page.tsx` — `executeDelete` function (~line 318)
-- `tynebase-frontend/lib/api/folders.ts` — `deleteCategory` function
-- `backend/src/routes/folders.ts` or `backend/src/routes/categories.ts` — the DELETE endpoint
-- Check if the migration logic (moving documents to target category) has a DB constraint issue
-
-**Steps:**
-1. Create a test category with a document in it
-2. Try to delete it, choosing "Uncategorised" as target
-3. Check Fly.io logs for the exact error
-4. Common issues: foreign key constraints, missing RPC function, null handling
+**Status:** ✅ Completed
 
 ---
 
