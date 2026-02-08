@@ -43,6 +43,7 @@ export interface GenerateResponse {
 export interface EnhanceRequest {
   document_id: string;
   custom_prompt?: string;
+  editor_content?: string;
 }
 
 export interface EnhanceSuggestion {

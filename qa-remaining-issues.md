@@ -17,35 +17,40 @@
 
 ---
 
-## 2. "Query Workspace" 404
+## 2. "Query Workspace" 404 ✅ FIXED
 **Screen:** Knowledge Base header / Sources page  
 **URL:** `/dashboard/knowledge` and `/dashboard/sources`  
-**Symptom:** Clicking "Query Workspace" button navigates to `/dashboard/ai-assistant/ask` which returns 404.  
-**Files to investigate:**
-- `tynebase-frontend/app/dashboard/knowledge/page.tsx` — search for `Query Workspace` link
-- `tynebase-frontend/app/dashboard/sources/page.tsx` — line ~230, same link
-- `tynebase-frontend/app/dashboard/` — check if `ai-assistant/ask` route exists, or if it should be `/dashboard/ai-chat`
+**Symptom:** Clicking "Query Workspace" button on `/dashboard/knowledge` navigated to `/dashboard/sources/query` which returned 404. The same button on `/dashboard/sources` correctly went to `/dashboard/ai-assistant/ask`.
 
-**Fix options:**
-- Update the href to point to an existing route (e.g., `/dashboard/ai-chat`)
-- Or create the missing `app/dashboard/ai-assistant/ask/page.tsx` route
+**Root cause:** The href on `/dashboard/knowledge` was incorrectly set to `/dashboard/sources/query` instead of `/dashboard/ai-assistant/ask`.
+
+**Fix applied:**
+- `tynebase-frontend/app/dashboard/knowledge/page.tsx:626` — Changed href from `/dashboard/sources/query` to `/dashboard/ai-assistant/ask`
+
+**Status:** ✅ Completed
 
 ---
 
-## 3. AI Enhancement — Execution Errors & Artifacts
+## 3. AI Enhancement — Execution Errors & Artifacts ✅ FIXED
 **Screen:** Document Editor → AI Enhance panel  
 **URL:** `/dashboard/knowledge/[ID]`  
-**Symptom:** AI suggestions apply incorrectly — random letters inserted, spaces removed, content garbled.  
-**Files to investigate:**
-- `tynebase-frontend/components/editor/EnhanceSuggestionsPanel.tsx` — the `handleAcceptSuggestion` / apply logic
-- `backend/src/routes/ai.ts` — the `/api/ai/enhance` endpoint that generates suggestions
-- The apply logic likely uses string replacement or editor commands that don't match the actual document positions
+**Symptom:** AI suggestions apply incorrectly — random letters inserted, spaces removed, double-apply on revert, content garbled. Also, no indication of where changes occur in the document.
 
-**Steps:**
-1. Open a document, click "Enhance with AI"
-2. Accept a suggestion and observe what changes in the editor
-3. Check if the `from`/`to` positions in the suggestion match the actual content
-4. Check backend logs for the AI response format
+**Root causes:**
+1. AI generated `find` strings based on `document.content` (Markdown from DB) but editor works with plain text (`doc.textContent`) — mismatch caused replacements to fail
+2. Revert used `undo()` which is unreliable in Y.js collaborative context, causing double-apply bugs
+3. No visual indicator showing which line each suggestion targets
+
+**Fixes applied:**
+- `backend/src/routes/ai-enhance.ts` — Added optional `editor_content` field to request schema; when provided, AI analyzes editor plain text instead of DB Markdown. Updated AI prompt to emphasize verbatim matching.
+- `tynebase-frontend/lib/api/ai.ts` — Added `editor_content` to `EnhanceRequest` interface
+- `tynebase-frontend/components/editor/EnhanceSuggestionsPanel.tsx` — 
+  - Sends `editor.getText()` to backend so find strings match editor content
+  - Replaced `undo()`-based revert with proper reverse find-and-replace (avoids Y.js issues)
+  - Added line number indicator badge with MapPin icon to each suggestion card
+  - Added `scrollToSuggestion()` function that scrolls editor to the change location
+
+**Status:** ✅ Completed
 
 ---
 

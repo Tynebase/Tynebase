@@ -623,7 +623,7 @@ export default function KnowledgePage() {
           </Link>
 
           <Link
-            href="/dashboard/sources/query"
+            href="/dashboard/ai-assistant/ask"
             className="rounded-xl border border-[var(--dash-border-subtle)] bg-[var(--surface-card)] hover:border-[var(--brand)] transition-colors p-4"
           >
             <div className="flex items-center gap-3">

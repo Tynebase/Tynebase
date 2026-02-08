@@ -25,6 +25,7 @@ import {
   RotateCcw,
   Coins,
   Info,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { enhance, applyEnhancement, reindexDocument, type EnhanceSuggestion } from "@/lib/api/ai";
@@ -134,7 +135,9 @@ export function EnhanceSuggestionsPanel({
         setDocumentContent(editor.getText());
       }
 
-      const response = await enhance({ document_id: documentId, custom_prompt: customPrompt || undefined });
+      // Send editor plain text so AI find strings match editor content exactly
+      const editorText = editor ? editor.getText() : undefined;
+      const response = await enhance({ document_id: documentId, custom_prompt: customPrompt || undefined, editor_content: editorText || undefined });
       
       // Decrement credits after successful enhancement
       decrementCredits(ENHANCE_CREDIT_COST);
@@ -168,6 +171,94 @@ export function EnhanceSuggestionsPanel({
     setCustomPrompt("");
   };
 
+  // Build a mapping from plain-text index to ProseMirror position
+  const buildTextIndexToPosMap = (doc: any) => {
+    const text = doc.textContent;
+    const map: number[] = new Array(text.length + 1);
+    let idx = 0;
+    map[0] = 1;
+
+    doc.descendants((node: any, pos: number) => {
+      if (!node.isText) return;
+
+      const t = node.text || '';
+      for (let i = 0; i < t.length; i++) {
+        if (idx + i < map.length) map[idx + i] = pos + 1 + i;
+        if (idx + i + 1 < map.length) map[idx + i + 1] = pos + 1 + i + 1;
+      }
+      idx += t.length;
+    });
+
+    return { text, map };
+  };
+
+  // Find the ProseMirror range for a needle string in the document
+  const findTextRange = (doc: any, needle: string): { from: number; to: number } | null => {
+    const { text, map } = buildTextIndexToPosMap(doc);
+
+    // First try exact match
+    const exactIndex = text.indexOf(needle);
+    if (exactIndex !== -1) {
+      const from = map[exactIndex];
+      const to = map[exactIndex + needle.length];
+      if (typeof from === 'number' && typeof to === 'number') return { from, to };
+    }
+
+    // Fuzzy matching: ignore whitespace differences
+    const removeWs = (s: string) => s.replace(/\s+/g, '');
+    const hayNoWs = removeWs(text);
+    const needleNoWs = removeWs(needle);
+    if (!needleNoWs) return null;
+
+    const idxNoWs = hayNoWs.indexOf(needleNoWs);
+    if (idxNoWs === -1) return null;
+
+    const noWsToOrig: number[] = [];
+    for (let i = 0, j = 0; i < text.length; i++) {
+      if (!/\s/.test(text[i])) {
+        noWsToOrig[j] = i;
+        j++;
+      }
+    }
+
+    const startOrig = noWsToOrig[idxNoWs];
+    const lastMatchedIdx = idxNoWs + needleNoWs.length - 1;
+    let endOrigExclusive = noWsToOrig[lastMatchedIdx] + 1;
+    while (endOrigExclusive < text.length && /\s/.test(text[endOrigExclusive])) {
+      endOrigExclusive++;
+    }
+
+    const from = map[startOrig];
+    const to = map[endOrigExclusive];
+    if (typeof from === 'number' && typeof to === 'number') return { from, to };
+
+    return null;
+  };
+
+  // Calculate the line number for a given text in the document
+  const getLineNumber = (needle: string): number | null => {
+    if (!editor) return null;
+    const text = editor.getText();
+    const index = text.indexOf(needle);
+    if (index === -1) return null;
+    // Count newlines before the match to determine line number
+    const beforeMatch = text.substring(0, index);
+    return beforeMatch.split('\n').length;
+  };
+
+  // Scroll the editor to a suggestion's location and briefly highlight it
+  const scrollToSuggestion = (suggestion: SuggestionWithStatus) => {
+    if (!editor) return;
+    const { doc } = editor.state;
+    const needle = suggestion.find || suggestion.content;
+    if (!needle) return;
+
+    const range = findTextRange(doc, needle);
+    if (range) {
+      editor.chain().focus().setTextSelection(range).scrollIntoView().run();
+    }
+  };
+
   // Accept a suggestion - apply based on action type
   const handleAccept = async (suggestionId: string) => {
     const suggestion = suggestions.find(s => s.id === suggestionId);
@@ -177,90 +268,8 @@ export function EnhanceSuggestionsPanel({
     let applied = false;
     let appliedPosition: { from: number; to: number } | undefined;
 
-    const stripMarkdown = (text: string) => {
-      return text
-        .replace(/^#{1,6}\s+/gm, '')
-        .replace(/\*\*(.+?)\*\*/g, '$1')
-        .replace(/\*(.+?)\*/g, '$1')
-        .replace(/`(.+?)`/g, '$1')
-        .replace(/\[(.+?)\]\(.+?\)/g, '$1')
-        .replace(/^[-*+]\s+/gm, '')
-        .replace(/^\d+\.\s+/gm, '')
-        .trim();
-    };
-
-    const buildTextIndexToPosMap = () => {
-      const text = doc.textContent;
-      const map: number[] = new Array(text.length + 1);
-      let idx = 0;
-      map[0] = 1;
-
-      doc.descendants((node, pos) => {
-        if (!node.isText) return;
-
-        const t = node.text || '';
-        // For text nodes, `pos` is the position before the node.
-        // The first character is at `pos + 1`.
-        for (let i = 0; i < t.length; i++) {
-          if (idx + i < map.length) map[idx + i] = pos + 1 + i;
-          if (idx + i + 1 < map.length) map[idx + i + 1] = pos + 1 + i + 1;
-        }
-        idx += t.length;
-      });
-
-      return { text, map };
-    };
-
-    const findTextRange = (needle: string): { from: number; to: number } | null => {
-      const { text, map } = buildTextIndexToPosMap();
-
-      // First try exact match
-      const exactIndex = text.indexOf(needle);
-      if (exactIndex !== -1) {
-        const from = map[exactIndex];
-        const to = map[exactIndex + needle.length];
-        if (typeof from === 'number' && typeof to === 'number') return { from, to };
-      }
-
-      // Fuzzy matching: ignore whitespace differences but capture full original range
-      const removeWs = (s: string) => s.replace(/\s+/g, '');
-      const hayNoWs = removeWs(text);
-      const needleNoWs = removeWs(needle);
-      if (!needleNoWs) return null;
-
-      const idxNoWs = hayNoWs.indexOf(needleNoWs);
-      if (idxNoWs === -1) return null;
-
-      // Build a mapping from non-whitespace index to original text index
-      const noWsToOrig: number[] = [];
-      for (let i = 0, j = 0; i < text.length; i++) {
-        if (!/\s/.test(text[i])) {
-          noWsToOrig[j] = i;
-          j++;
-        }
-      }
-
-      // Calculate the full range in the original text including whitespace
-      const startOrig = noWsToOrig[idxNoWs];
-      // Find the end position: last matched non-ws char + any trailing whitespace until next non-ws
-      const lastMatchedIdx = idxNoWs + needleNoWs.length - 1;
-      let endOrigExclusive = noWsToOrig[lastMatchedIdx] + 1;
-      
-      // Include trailing whitespace in the range (up to the next non-whitespace char or end)
-      while (endOrigExclusive < text.length && /\s/.test(text[endOrigExclusive])) {
-        endOrigExclusive++;
-      }
-
-      const from = map[startOrig];
-      const to = map[endOrigExclusive];
-      if (typeof from === 'number' && typeof to === 'number') return { from, to };
-
-      return null;
-    };
-
     switch (suggestion.action) {
       case 'add':
-        // Add new content at the end of the document
         if (suggestion.content) {
           const endPos = doc.content.size - 1;
           const result = editor
@@ -272,17 +281,14 @@ export function EnhanceSuggestionsPanel({
           if (result) {
             appliedPosition = { from: endPos, to: endPos + suggestion.content.length + 2 };
             applied = true;
-            // Force editor to update view
             editor.commands.focus();
           }
         }
         break;
 
       case 'replace':
-        // Find and replace text - convert markdown to plain text for matching
         if (suggestion.find && suggestion.replace !== undefined) {
-          const plainFind = stripMarkdown(suggestion.find);
-          const range = findTextRange(plainFind);
+          const range = findTextRange(doc, suggestion.find);
 
           if (range) {
             const result = editor
@@ -299,16 +305,14 @@ export function EnhanceSuggestionsPanel({
           }
 
           if (!applied) {
-            console.warn(`[EnhanceSuggestionsPanel] Could not find text to replace: "${plainFind.substring(0, 50)}..."`);
+            console.warn(`[EnhanceSuggestionsPanel] Could not find text to replace: "${suggestion.find.substring(0, 80)}..."`);
           }
         }
         break;
 
       case 'delete':
-        // Find and delete text - convert markdown to plain text for matching
         if (suggestion.find) {
-          const plainFind = stripMarkdown(suggestion.find);
-          const range = findTextRange(plainFind);
+          const range = findTextRange(doc, suggestion.find);
 
           if (range) {
             const result = editor
@@ -325,7 +329,7 @@ export function EnhanceSuggestionsPanel({
           }
 
           if (!applied) {
-            console.warn(`[EnhanceSuggestionsPanel] Could not find text to delete: "${plainFind.substring(0, 50)}..."`);
+            console.warn(`[EnhanceSuggestionsPanel] Could not find text to delete: "${suggestion.find.substring(0, 80)}..."`);
           }
         }
         break;
@@ -381,27 +385,67 @@ export function EnhanceSuggestionsPanel({
     ));
   };
 
-  // Revert an accepted suggestion using editor undo
+  // Revert an accepted suggestion using reverse find-and-replace
+  // (avoids Y.js undo stack issues that cause double-apply bugs)
   const handleRevert = (suggestionId: string) => {
     const suggestion = suggestions.find(s => s.id === suggestionId);
     if (!suggestion || !editor || suggestion.status !== 'accepted') return;
 
-    // Use editor's undo functionality for reliable revert
-    // This works because each suggestion application is a single transaction
     try {
-      editor.commands.undo();
-      
-      // Mark as pending again after revert
-      setSuggestions(prev => prev.map(s => 
-        s.id === suggestionId ? { 
-          ...s, 
-          status: "pending" as SuggestionStatus, 
-          originalContent: undefined,
-          appliedPosition: undefined
-        } : s
-      ));
-      
-      console.log(`[EnhanceSuggestionsPanel] Successfully reverted suggestion: ${suggestion.title}`);
+      const { doc } = editor.state;
+      let reverted = false;
+
+      switch (suggestion.action) {
+        case 'replace':
+          // Reverse: find the replacement text, put back the original
+          if (suggestion.replace && suggestion.find) {
+            const range = findTextRange(doc, suggestion.replace);
+            if (range) {
+              editor.chain().focus()
+                .insertContentAt({ from: range.from, to: range.to }, suggestion.find)
+                .run();
+              reverted = true;
+            }
+          }
+          break;
+
+        case 'delete':
+          // Reverse: re-insert the deleted text at stored position
+          if (suggestion.find && suggestion.appliedPosition) {
+            editor.chain().focus()
+              .insertContentAt(suggestion.appliedPosition.from, suggestion.find)
+              .run();
+            reverted = true;
+          }
+          break;
+
+        case 'add':
+          // Reverse: find and remove the added content
+          if (suggestion.content) {
+            const range = findTextRange(doc, suggestion.content);
+            if (range) {
+              editor.chain().focus()
+                .deleteRange({ from: range.from, to: range.to })
+                .run();
+              reverted = true;
+            }
+          }
+          break;
+      }
+
+      if (reverted) {
+        setSuggestions(prev => prev.map(s => 
+          s.id === suggestionId ? { 
+            ...s, 
+            status: "pending" as SuggestionStatus, 
+            originalContent: undefined,
+            appliedPosition: undefined
+          } : s
+        ));
+        console.log(`[EnhanceSuggestionsPanel] Successfully reverted suggestion: ${suggestion.title}`);
+      } else {
+        console.warn(`[EnhanceSuggestionsPanel] Could not find text to revert for: ${suggestion.title}`);
+      }
     } catch (err) {
       console.error(`[EnhanceSuggestionsPanel] Failed to revert suggestion: ${suggestion.title}`, err);
     }
@@ -714,6 +758,23 @@ export function EnhanceSuggestionsPanel({
                             <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${styles.bg} ${styles.text}`}>
                               {suggestion.type}
                             </span>
+                            {(() => {
+                              const needle = suggestion.find || suggestion.content;
+                              const line = needle ? getLineNumber(needle) : null;
+                              return line !== null ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    scrollToSuggestion(suggestion);
+                                  }}
+                                  className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors"
+                                  title="Click to scroll to this location in the document"
+                                >
+                                  <MapPin className="w-2.5 h-2.5" />
+                                  Line {line}
+                                </button>
+                              ) : null;
+                            })()}
                           </div>
                         </div>
                         {isAccepted && (

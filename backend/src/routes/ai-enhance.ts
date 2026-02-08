@@ -10,6 +10,7 @@ import { getModelCreditCost } from '../utils/creditCalculator';
 const EnhanceRequestSchema = z.object({
   document_id: z.string().uuid('Invalid document ID format'),
   custom_prompt: z.string().optional(),
+  editor_content: z.string().optional(),
 });
 
 type EnhanceRequest = z.infer<typeof EnhanceRequestSchema>;
@@ -200,6 +201,11 @@ export default async function aiEnhanceRoutes(fastify: FastifyInstance) {
           });
         }
 
+        // Use editor_content if provided (plain text from TipTap editor),
+        // otherwise fall back to document.content from DB.
+        // editor_content ensures AI find strings match the editor's actual text.
+        const contentForAnalysis = validated.editor_content || document.content;
+
         const customInstructions = validated.custom_prompt
           ? `\n\nADDITIONAL USER INSTRUCTIONS:\n${validated.custom_prompt}\n\nIncorporate these instructions into your analysis and suggestions where appropriate.`
           : '';
@@ -211,16 +217,18 @@ CRITICAL FORMATTING RULES:
 - NEVER add random letters, characters, or gibberish
 - NEVER remove spaces between words or sentences
 - NEVER invent content that doesn't improve the existing text
-- When suggesting replacements, the "find" text MUST match the document exactly character-for-character
+- When suggesting replacements, the "find" text MUST be copied EXACTLY character-for-character from the document content below
+- The "find" text must appear VERBATIM in the document — do NOT paraphrase, reformat, or add/remove any characters
 
 IMPORTANT:
 - You MUST NOT suggest changing the document title, metadata, or filenames.
 - You MUST NOT add random characters, hallucinate content, or invent information.
 - You MUST preserve exact spacing and formatting from the original document.
+- The document content below is PLAIN TEXT — do NOT use markdown formatting in your find/replace strings.
 
 Document Title: ${document.title}
 Document Content:
-${document.content}${customInstructions}
+${contentForAnalysis}${customInstructions}
 
 Provide:
 1. A DOCUMENT QUALITY SCORE from 0-100 based on these criteria:
@@ -479,7 +487,7 @@ CRITICAL RULES:
           }
 
           enhanceResult = normalizeEnhanceResult(parsed);
-          enhanceResult = validateSuggestionsAgainstContent(enhanceResult, document.content);
+          enhanceResult = validateSuggestionsAgainstContent(enhanceResult, contentForAnalysis);
 
           if (enhanceResult.score < 0 || enhanceResult.score > 100) {
             throw new Error('Invalid score in AI response');
