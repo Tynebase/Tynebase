@@ -265,7 +265,7 @@ export default function SourcesPage() {
           onClick={() => document.getElementById('documents-needing-reindex')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
         >
           <CardContent className="p-6">
-            <p className="text-xs text-[var(--dash-text-muted)]">Needs Re-Index</p>
+            <p className="text-xs text-[var(--dash-text-muted)]">Needs Re-indexed</p>
             <p className="text-2xl font-bold text-[var(--status-warning)] mt-1">
               {loading ? '...' : stats.needingReindex}
             </p>
@@ -336,7 +336,7 @@ export default function SourcesPage() {
       <div id="documents-needing-reindex" className="flex-1 min-h-0 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-2xl overflow-hidden flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 bg-[var(--surface-ground)] border-b border-[var(--dash-border-subtle)]">
           <h2 className="text-sm font-semibold text-[var(--dash-text-primary)]">
-            Documents Needing Re-Index
+            Documents needing Re-indexing
           </h2>
           <button
             onClick={fetchHealthData}

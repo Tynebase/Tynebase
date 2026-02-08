@@ -314,7 +314,7 @@ export default function AuditPage() {
           </div>
           <div className="p-6 space-y-4">
             {topPerformers.length === 0 ? (
-              <p className="text-sm text-[var(--dash-text-muted)] text-center py-4">No documents with views yet</p>
+              <p className="text-sm text-[var(--dash-text-muted)] text-center py-4">No documents found. Create your first document to see performance data here.</p>
             ) : (
               topPerformers.map((doc, index) => (
                 <div 

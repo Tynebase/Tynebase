@@ -16,7 +16,7 @@ export interface Discussion {
   tenant_id: string | null;
   title: string;
   content: string;
-  category: 'announcements' | 'questions' | 'ideas' | 'general';
+  category: string;
   author_id: string;
   created_at: string;
   updated_at: string;
@@ -61,7 +61,7 @@ export interface DiscussionListParams {
 export interface CreateDiscussionData {
   title: string;
   content: string;
-  category: 'announcements' | 'questions' | 'ideas' | 'general';
+  category: string;
   tags?: string[];
   poll?: {
     question: string;

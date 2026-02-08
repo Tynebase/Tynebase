@@ -1,7 +1,7 @@
 "use client";
 
 import { useTenant } from "@/contexts/TenantContext";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { updateTenant } from "@/lib/api/settings";
 import Link from "next/link";
@@ -19,6 +19,10 @@ export default function BrandingPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
   
+  const logoLightRef = useRef<HTMLInputElement>(null);
+  const logoDarkRef = useRef<HTMLInputElement>(null);
+  const faviconRef = useRef<HTMLInputElement>(null);
+
   const [brandSettings, setBrandSettings] = useState({
     companyName: tenant?.name || "Your Company",
     primaryColor: branding?.primary_color || "#E85002",
@@ -113,7 +117,7 @@ export default function BrandingPage() {
         <div>
           <h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">White-Label Branding</h1>
           <p className="text-[var(--dash-text-tertiary)] mt-1">
-            Customize your workspace appearance and make it your own
+            Customise your workspace appearance and make it your own
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -232,33 +236,55 @@ export default function BrandingPage() {
             </div>
             <div className="p-7 space-y-6">
               <div className="grid grid-cols-2 gap-4">
-                {[
-                  { key: "logoLight", label: "Light Mode Logo", icon: Sun },
-                  { key: "logoDark", label: "Dark Mode Logo", icon: Moon },
-                ].map((logo) => (
-                  <div key={logo.key}>
-                    <label className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-2 flex items-center gap-2">
-                      <logo.icon className="w-4 h-4" />
-                      {logo.label}
-                    </label>
-                    <div className="border-2 border-dashed border-[var(--dash-border-subtle)] rounded-xl p-6 text-center hover:border-[var(--brand)] transition-colors cursor-pointer group">
-                      <Upload className="w-8 h-8 mx-auto mb-2 text-[var(--dash-text-muted)] group-hover:text-[var(--brand)]" />
-                      <p className="text-xs text-[var(--dash-text-muted)]">
-                        PNG, SVG (max 2MB)
-                      </p>
-                    </div>
+                <div>
+                  <label className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-2 flex items-center gap-2">
+                    <Sun className="w-4 h-4" />
+                    Light Mode Logo
+                  </label>
+                  <input type="file" ref={logoLightRef} accept=".png,.svg" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setBrandSettings({ ...brandSettings, logoLight: f }); }} />
+                  <div onClick={() => logoLightRef.current?.click()} className="border-2 border-dashed border-[var(--dash-border-subtle)] rounded-xl p-6 text-center hover:border-[var(--brand)] transition-colors cursor-pointer group">
+                    {brandSettings.logoLight ? (
+                      <p className="text-sm text-[var(--brand)] font-medium">{brandSettings.logoLight.name}</p>
+                    ) : (
+                      <>
+                        <Upload className="w-8 h-8 mx-auto mb-2 text-[var(--dash-text-muted)] group-hover:text-[var(--brand)]" />
+                        <p className="text-xs text-[var(--dash-text-muted)]">PNG, SVG (max 2MB)</p>
+                      </>
+                    )}
                   </div>
-                ))}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-2 flex items-center gap-2">
+                    <Moon className="w-4 h-4" />
+                    Dark Mode Logo
+                  </label>
+                  <input type="file" ref={logoDarkRef} accept=".png,.svg" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setBrandSettings({ ...brandSettings, logoDark: f }); }} />
+                  <div onClick={() => logoDarkRef.current?.click()} className="border-2 border-dashed border-[var(--dash-border-subtle)] rounded-xl p-6 text-center hover:border-[var(--brand)] transition-colors cursor-pointer group">
+                    {brandSettings.logoDark ? (
+                      <p className="text-sm text-[var(--brand)] font-medium">{brandSettings.logoDark.name}</p>
+                    ) : (
+                      <>
+                        <Upload className="w-8 h-8 mx-auto mb-2 text-[var(--dash-text-muted)] group-hover:text-[var(--brand)]" />
+                        <p className="text-xs text-[var(--dash-text-muted)]">PNG, SVG (max 2MB)</p>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-2">
                   Favicon
                 </label>
-                <div className="border-2 border-dashed border-[var(--dash-border-subtle)] rounded-xl p-6 text-center hover:border-[var(--brand)] transition-colors cursor-pointer group">
-                  <Upload className="w-8 h-8 mx-auto mb-2 text-[var(--dash-text-muted)] group-hover:text-[var(--brand)]" />
-                  <p className="text-xs text-[var(--dash-text-muted)]">
-                    ICO or PNG (32x32 or 64x64)
-                  </p>
+                <input type="file" ref={faviconRef} accept=".ico,.png" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setBrandSettings({ ...brandSettings, favicon: f }); }} />
+                <div onClick={() => faviconRef.current?.click()} className="border-2 border-dashed border-[var(--dash-border-subtle)] rounded-xl p-6 text-center hover:border-[var(--brand)] transition-colors cursor-pointer group">
+                  {brandSettings.favicon ? (
+                    <p className="text-sm text-[var(--brand)] font-medium">{brandSettings.favicon.name}</p>
+                  ) : (
+                    <>
+                      <Upload className="w-8 h-8 mx-auto mb-2 text-[var(--dash-text-muted)] group-hover:text-[var(--brand)]" />
+                      <p className="text-xs text-[var(--dash-text-muted)]">ICO or PNG (32x32 or 64x64)</p>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

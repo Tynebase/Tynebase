@@ -104,7 +104,7 @@ export default function TemplatesPage() {
       <DashboardPageHeader
         title={<h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">Templates</h1>}
         description={
-          <p className="text-[var(--dash-text-tertiary)] mt-1">Start with our pre-built templates to quickly create the article you need or create your own</p>
+          <p className="text-[var(--dash-text-tertiary)] mt-1">Start with our pre-built templates to quickly create the article you need, or create your own</p>
         }
         right={
           <Button className="gap-2" size="md" onClick={() => router.push('/dashboard/templates/new')}>

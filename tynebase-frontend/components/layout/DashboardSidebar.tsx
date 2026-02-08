@@ -228,7 +228,7 @@ const adminNavigation: NavItem[] = [
   },
   {
     id: "audit-logs",
-    label: "Activity Log",
+    label: "Audit Log",
     icon: Activity,
     href: "/dashboard/settings/audit-logs",
     color: "#06b6d4",

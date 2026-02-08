@@ -343,7 +343,7 @@ export default function NewTemplatePage() {
             {/* Title */}
             <div>
               <label htmlFor="title" className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-2">
-                Template Title *
+                Template Title*
               </label>
               <input
                 id="title"
@@ -375,7 +375,7 @@ export default function NewTemplatePage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-medium text-[var(--dash-text-secondary)]">
-                  Category *
+                  Category*
                 </label>
                 <button
                   type="button"
@@ -525,7 +525,7 @@ export default function NewTemplatePage() {
             {/* Visibility */}
             <div>
               <label className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-2">
-                Visibility *
+                Visibility*
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
@@ -620,10 +620,10 @@ export default function NewTemplatePage() {
                       id="aiPrompt"
                       value={aiPrompt}
                       onChange={(e) => setAiPrompt(e.target.value)}
-                      placeholder="e.g., A technical RFC document for proposing new features, with sections for problem statement, proposed solution, alternatives considered, and implementation plan..."
+                      placeholder="e.g. A technical RFC document for proposing new features, with sections for problem statement, proposed solution, alternatives considered and implementation plan..."
                       rows={3}
                       disabled={isGenerating}
-                      className="w-full px-4 py-3 bg-white border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 resize-none disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full px-4 py-3 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 resize-none disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
 
@@ -687,7 +687,7 @@ export default function NewTemplatePage() {
             {/* Content */}
             <div className="flex-1 flex flex-col min-h-0">
               <label htmlFor="content" className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-2">
-                Template Content *
+                Template Content*
               </label>
               <textarea
                 id="content"
@@ -698,7 +698,7 @@ export default function NewTemplatePage() {
                 required
               />
               <p className="text-xs text-[var(--dash-text-muted)] mt-2">
-                {content ? "Edit the generated content or write your own" : "Use markdown formatting for rich content"}
+                {content ? "Edit the generated content or write your own" : <span>Use <span title="Markdown is a lightweight text formatting syntax using symbols like # for headings, ** for bold, and - for lists" className="underline decoration-dotted cursor-help">markdown formatting</span> for <span title="Rich content includes headings, bold text, lists, links, code blocks and other formatted elements" className="underline decoration-dotted cursor-help">rich content</span></span>}
               </p>
             </div>
           </CardContent>

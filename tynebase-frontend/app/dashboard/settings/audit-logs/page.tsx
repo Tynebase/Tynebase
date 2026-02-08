@@ -183,7 +183,7 @@ export default function AuditLogsPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
               <input
                 type="text"
-                placeholder="Search by user, action, or target..."
+                placeholder="Search by user, action or target..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -426,8 +426,8 @@ export default function AuditLogsPage() {
               Audit logs are retained for <span className="font-medium">90 days</span> on your current plan.
             </p>
           </div>
-          <Button variant="ghost" size="sm" className="text-sm text-[var(--brand-primary)] w-full sm:w-auto justify-start sm:justify-center pl-10 sm:pl-4">
-            Upgrade for longer retention
+          <Button variant="ghost" size="sm" className="text-sm text-[var(--brand-primary)] w-full sm:w-auto justify-start sm:justify-center pl-10 sm:pl-4" onClick={() => window.location.href = '/dashboard/settings/billing'}>
+            Upgrade for longer retention →
           </Button>
         </CardContent>
       </Card>

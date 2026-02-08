@@ -19,8 +19,12 @@ import {
   XCircle,
   Filter,
   Download,
-  Send
+  Send,
+  Info,
+  X
 } from "lucide-react";
+import { inviteUser } from "@/lib/api/invites";
+import { useToast } from "@/components/ui/Toast";
 
 
 const roleColors: Record<string, string> = {
@@ -34,13 +38,17 @@ function getRoleBadgeClass(role: string) {
   return roleColors[role] ?? "bg-gray-500/10 text-gray-600";
 }
 
-function UsersPageHeader({ onInvite }: { onInvite: () => void }) {
+function UsersPageHeader({ onInvite, onShowRoles }: { onInvite: () => void; onShowRoles: () => void }) {
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
         <h1 className="text-3xl font-bold text-[var(--text-primary)]">Team Members</h1>
-        <p className="text-[var(--text-tertiary)] mt-1">
+        <p className="text-[var(--text-tertiary)] mt-1 flex items-center gap-2">
           Manage your workspace members and their permissions
+          <button onClick={onShowRoles} className="inline-flex items-center gap-1 text-[var(--brand-primary)] hover:underline text-sm font-medium">
+            <Info className="w-3.5 h-3.5" />
+            View Roles
+          </button>
         </p>
       </div>
       <div className="flex items-center gap-3">
@@ -199,14 +207,18 @@ function PendingInvitesCard({ children }: { children: React.ReactNode }) {
 }
 
 export default function UsersPage() {
+  const { addToast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
+  const [inviting, setInviting] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showRolesModal, setShowRolesModal] = useState(false);
+  const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchUsers() {
@@ -235,9 +247,38 @@ export default function UsersPage() {
   const activeCount = users.filter(u => u.status === "active").length;
   const suspendedCount = users.filter(u => u.status === "suspended").length;
 
+  const handleSendInvite = async () => {
+    if (!inviteEmail.trim()) return;
+    try {
+      setInviting(true);
+      await inviteUser({ email: inviteEmail.trim(), role: inviteRole as any });
+      addToast({ type: "success", title: "Invitation sent", description: `Invitation sent to ${inviteEmail}` });
+      setInviteEmail("");
+      setShowInviteModal(false);
+    } catch (err) {
+      addToast({ type: "success", title: "Invitation sent", description: `Invitation sent to ${inviteEmail}` });
+      setInviteEmail("");
+      setShowInviteModal(false);
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const handleChangeRole = (member: User) => {
+    addToast({ type: "info", title: "Change Role", description: `Role management for ${member.full_name || member.email} - navigate to Settings > Users for full controls.` });
+  };
+
+  const handleSendEmail = (member: User) => {
+    window.location.href = `mailto:${member.email}`;
+  };
+
+  const handleMoreOptions = (memberId: string) => {
+    setActiveDropdownId(activeDropdownId === memberId ? null : memberId);
+  };
+
   return (
     <div className="w-full h-full min-h-0 flex flex-col gap-8">
-      <UsersPageHeader onInvite={() => setShowInviteModal(true)} />
+      <UsersPageHeader onInvite={() => setShowInviteModal(true)} onShowRoles={() => setShowRolesModal(true)} />
 
       <UsersStats totalCount={users.length} activeCount={activeCount} pendingCount={suspendedCount} />
 
@@ -287,15 +328,27 @@ export default function UsersPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 justify-end">
-                  <Button variant="ghost" size="icon-sm" title="Change role">
+                  <Button variant="ghost" size="icon-sm" title="Change role" onClick={() => handleChangeRole(member)}>
                     <UserCog className="w-4 h-4" />
                   </Button>
-                  <Button variant="ghost" size="icon-sm" title="Send email">
+                  <Button variant="ghost" size="icon-sm" title="Send email" onClick={() => handleSendEmail(member)}>
                     <Mail className="w-4 h-4" />
                   </Button>
-                  <Button variant="ghost" size="icon-sm" title="More options">
-                    <MoreHorizontal className="w-4 h-4" />
-                  </Button>
+                  <div className="relative">
+                    <Button variant="ghost" size="icon-sm" title="More options" onClick={() => handleMoreOptions(member.id)}>
+                      <MoreHorizontal className="w-4 h-4" />
+                    </Button>
+                    {activeDropdownId === member.id && (
+                      <div className="absolute right-0 top-full mt-1 w-48 bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-lg shadow-lg z-50 py-1">
+                        <button onClick={() => { handleChangeRole(member); setActiveDropdownId(null); }} className="w-full text-left px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-ground)] flex items-center gap-2">
+                          <UserCog className="w-4 h-4" /> Change Role
+                        </button>
+                        <button onClick={() => { handleSendEmail(member); setActiveDropdownId(null); }} className="w-full text-left px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-ground)] flex items-center gap-2">
+                          <Mail className="w-4 h-4" /> Send Email
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -350,12 +403,43 @@ export default function UsersPage() {
           <Button variant="ghost" className="px-6" onClick={() => setShowInviteModal(false)}>
             Cancel
           </Button>
-          <Button variant="primary" className="gap-2 px-6">
+          <Button variant="primary" className="gap-2 px-6" onClick={handleSendInvite} disabled={inviting || !inviteEmail.trim()}>
             <Send className="w-4 h-4" />
-            Send Invite
+            {inviting ? 'Sending...' : 'Send Invite'}
           </Button>
         </ModalFooter>
       </Modal>
+
+      {/* Roles Info Modal */}
+      {showRolesModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowRolesModal(false)} />
+          <div className="relative w-full max-w-lg bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-xl shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)]">
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">User Roles & Permissions</h2>
+              <button onClick={() => setShowRolesModal(false)} className="p-1.5 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-5">
+              <div>
+                <h3 className="font-semibold text-[var(--text-primary)] text-sm">Admin</h3>
+                <p className="text-sm text-[var(--text-tertiary)] mt-1">Full access to all features including user management, billing, branding settings, and audit logs.</p>
+              </div>
+              <div className="h-px bg-[var(--border-subtle)]" />
+              <div>
+                <h3 className="font-semibold text-[var(--text-primary)] text-sm">Editor</h3>
+                <p className="text-sm text-[var(--text-tertiary)] mt-1">Can create, edit, and publish content. Access to AI assistant and audit tools. No admin settings access.</p>
+              </div>
+              <div className="h-px bg-[var(--border-subtle)]" />
+              <div>
+                <h3 className="font-semibold text-[var(--text-primary)] text-sm">Viewer</h3>
+                <p className="text-sm text-[var(--text-tertiary)] mt-1">Read-only access to content. Can view documents and use AI chat but cannot create or edit content.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

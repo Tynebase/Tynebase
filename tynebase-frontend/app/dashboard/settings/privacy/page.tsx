@@ -303,7 +303,7 @@ export default function PrivacySettingsPage() {
         </div>
         <div className="p-6">
           <p className="text-sm text-[var(--dash-text-secondary)] mb-4">
-            Export all your data including documents, templates, usage history, and profile information
+            Export all your data including documents, templates, usage history and profile information
             in JSON format. This export complies with GDPR Article 20 (Right to Data Portability).
           </p>
           <Button
@@ -333,8 +333,8 @@ export default function PrivacySettingsPage() {
               <div className="flex items-start gap-3 p-4 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded-lg mb-4">
                 <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
                 <div className="text-sm text-red-900 dark:text-red-200">
-                  <p className="font-medium mb-1">This action cannot be undone</p>
-                  <p>Deleting your account will permanently remove all your data including documents, templates, and usage history within 24 hours.</p>
+                  <p className="font-bold mb-1">This action cannot be undone</p>
+                  <p>Deleting your account will permanently remove all your data including documents, templates and usage history within 24 hours.</p>
                 </div>
               </div>
               <Button

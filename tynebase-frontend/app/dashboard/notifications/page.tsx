@@ -100,6 +100,12 @@ export default function NotificationsPage() {
 
     if (notification.action_url) {
       router.push(notification.action_url);
+    } else if (notification.type === 'document') {
+      router.push('/dashboard/knowledge');
+    } else if (notification.type === 'comment') {
+      router.push('/dashboard/community');
+    } else if (notification.type === 'ai') {
+      router.push('/dashboard/ai-chat');
     }
   };
 

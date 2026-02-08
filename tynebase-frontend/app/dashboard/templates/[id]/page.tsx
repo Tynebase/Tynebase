@@ -119,8 +119,7 @@ export default function TemplateDetailPage() {
             <div className="bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl p-6">
               <div className="prose prose-sm max-w-none">
                 <p className="text-[var(--dash-text-secondary)]">
-                  This template will be used to create a new document in your knowledge base.
-                  You'll be able to edit the content after creation.
+                  A new document will be created as a draft. The template content will be copied to the new document.
                 </p>
                 <div className="mt-6 space-y-3">
                   <div className="flex items-center gap-3 text-sm">
@@ -145,11 +144,6 @@ export default function TemplateDetailPage() {
               </div>
             </div>
 
-            <div className="mt-6 text-center">
-              <p className="text-xs text-[var(--dash-text-muted)]">
-                Template ID: {templateId}
-              </p>
-            </div>
           </div>
         </CardContent>
       </Card>

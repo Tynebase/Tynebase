@@ -325,7 +325,7 @@ export default function CategoriesPage() {
       // Determine target category ID
       let targetId: string | null = null;
       if (selectedTargetCategory === 'uncategorized') {
-        targetId = null; // Will use Uncategorized
+        targetId = null; // Will use Uncategorised
       } else if (selectedTargetCategory.startsWith('category:')) {
         targetId = selectedTargetCategory.replace('category:', '');
       }
@@ -741,7 +741,7 @@ export default function CategoriesPage() {
                 {deleteResult.migrated.documents > 0 && (
                   <p className="text-sm text-[var(--dash-text-tertiary)] mb-6">
                     {deleteResult.migrated.documents} document(s) moved to{' '}
-                    <strong>{deleteResult.migrated.toCategory?.name || 'Uncategorized'}</strong>
+                    <strong>{deleteResult.migrated.toCategory?.name || 'Uncategorised'}</strong>
                   </p>
                 )}
                 <button
@@ -777,7 +777,7 @@ export default function CategoriesPage() {
                   <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 flex items-start gap-3">
                     <FolderOpen className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
                     <p className="text-sm text-blue-600">
-                      Documents and subcategories will be moved to the <strong>Uncategorized (Default)</strong> category.
+                      Documents and subcategories can be allocated to a new category.
                     </p>
                   </div>
 
@@ -839,7 +839,7 @@ export default function CategoriesPage() {
                         Deleting...
                       </>
                     ) : (
-                      'Delete Category'
+                      'Next'
                     )}
                   </button>
                 </div>
@@ -871,7 +871,7 @@ export default function CategoriesPage() {
 
                   {/* Migration Options */}
                   <div className="space-y-2">
-                    {/* Uncategorized Option */}
+                    {/* Uncategorised Option */}
                     <label className="flex items-start gap-3 p-4 bg-[var(--surface-ground)] rounded-xl cursor-pointer hover:bg-[var(--surface-hover)] transition-colors">
                       <input
                         type="radio"
@@ -885,11 +885,11 @@ export default function CategoriesPage() {
                         <div className="flex items-center gap-2">
                           <Folder className="w-5 h-5 text-gray-400" />
                           <span className="font-medium text-[var(--dash-text-primary)]">
-                            Uncategorized (Default)
+                            Uncategorised (Default)
                           </span>
                         </div>
                         <p className="text-sm text-[var(--dash-text-tertiary)] mt-1">
-                          Move all documents to the default Uncategorized category
+                          Move all documents to the default Uncategorised category
                         </p>
                       </div>
                     </label>

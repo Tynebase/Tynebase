@@ -12,17 +12,17 @@ import { createDiscussion } from "@/lib/api/discussions";
 import { ArrowLeft, Plus, Send, Tag, Loader2, AlertCircle, BarChart3, X } from "lucide-react";
 
 const categories = [
-  { id: "announcements", label: "Announcements", color: "#ef4444" },
-  { id: "questions", label: "Questions", color: "#3b82f6" },
-  { id: "ideas", label: "Ideas & Feedback", color: "#8b5cf6" },
-  { id: "general", label: "General Discussion", color: "#10b981" },
+  { id: "Announcements", label: "Announcements", color: "#ef4444" },
+  { id: "Questions", label: "Questions", color: "#3b82f6" },
+  { id: "Ideas", label: "Ideas & Feedback", color: "#8b5cf6" },
+  { id: "General", label: "General Discussion", color: "#10b981" },
 ] as const;
 
 type CategoryId = (typeof categories)[number]["id"];
 
 export default function NewDiscussionPage() {
   const router = useRouter();
-  const [category, setCategory] = useState<CategoryId>("general");
+  const [category, setCategory] = useState<CategoryId>("General");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [tags, setTags] = useState("");
@@ -107,7 +107,7 @@ export default function NewDiscussionPage() {
         title={<h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">New Discussion</h1>}
         description={
           <p className="text-[var(--dash-text-tertiary)]">
-            Start a thread for your team. Ask a question, share an update, or collect feedback.
+            Start a thread for your team. Ask a question, share an update or collect feedback.
           </p>
         }
         right={
@@ -274,7 +274,7 @@ export default function NewDiscussionPage() {
               <div className="font-semibold text-[var(--dash-text-primary)] mb-2">Posting tips</div>
               <div className="text-sm text-[var(--dash-text-tertiary)] space-y-2">
                 <div>Use a descriptive title so others can find it later.</div>
-                <div>Include steps, expected behavior and what you already tried.</div>
+                <div>Include steps, expected behaviour and what you already tried.</div>
                 <div>Add tags to help with search and filtering.</div>
               </div>
             </CardContent>

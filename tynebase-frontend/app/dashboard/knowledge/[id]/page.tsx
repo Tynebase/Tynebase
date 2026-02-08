@@ -35,6 +35,7 @@ import {
   publishDocument, 
   deleteDocument,
   discardDraft,
+  createDocument,
   type Document 
 } from "@/lib/api/documents";
 import { listCategories, type Category as APICategory } from "@/lib/api/folders";
@@ -679,11 +680,30 @@ export default function EditDocumentPage() {
                         Discard Draft Changes
                       </Button>
                     )}
-                    <Button variant="ghost" className="w-full justify-start gap-2">
+                    <Button variant="ghost" className="w-full justify-start gap-2" onClick={async () => {
+                      try {
+                        const response = await createDocument({
+                          title: `${title} (Copy)`,
+                          content,
+                          category_id: selectedCategoryId || undefined,
+                        });
+                        router.push(`/dashboard/knowledge/${response.document.id}`);
+                      } catch (err) {
+                        console.error('Failed to duplicate document:', err);
+                        alert('Failed to duplicate document. Please try again.');
+                      }
+                    }}>
                       <Copy className="w-4 h-4" />
                       Duplicate Document
                     </Button>
-                    <Button variant="ghost" className="w-full justify-start gap-2">
+                    <Button variant="ghost" className="w-full justify-start gap-2" onClick={() => {
+                      const url = `${window.location.origin}/dashboard/knowledge/${documentId}`;
+                      navigator.clipboard.writeText(url).then(() => {
+                        alert('Link copied to clipboard!');
+                      }).catch(() => {
+                        alert('Failed to copy link.');
+                      });
+                    }}>
                       <ExternalLink className="w-4 h-4" />
                       Copy Public Link
                     </Button>

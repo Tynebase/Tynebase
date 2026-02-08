@@ -184,7 +184,7 @@ export default function BillingPage() {
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">Billing & Subscription</h1>
         <p className="text-[var(--dash-text-tertiary)]">
-          Manage your subscription, view usage, and update payment methods
+          Manage your subscription, view usage and update payment methods
         </p>
       </div>
 

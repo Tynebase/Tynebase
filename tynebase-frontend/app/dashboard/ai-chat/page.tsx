@@ -86,6 +86,7 @@ export default function AIChatPage() {
     const [editingContent, setEditingContent] = useState("");
     const [isMobile, setIsMobile] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const modelSelectRef = useRef<HTMLDivElement>(null);
@@ -171,14 +172,16 @@ export default function AIChatPage() {
     };
 
     const handleDeleteConversation = (id: string) => {
-        if (!confirm('Are you sure you want to delete this conversation?')) {
-            return;
-        }
-        deleteConversation(id);
-        const updated = conversations.filter(c => c.id !== id);
+        setDeleteConfirmId(id);
+    };
+
+    const confirmDeleteConversation = () => {
+        if (!deleteConfirmId) return;
+        deleteConversation(deleteConfirmId);
+        const updated = conversations.filter(c => c.id !== deleteConfirmId);
         setConversations(updated);
         
-        if (activeConversationId === id) {
+        if (activeConversationId === deleteConfirmId) {
             if (updated.length > 0) {
                 loadConversation(updated[0].id, updated);
             } else {
@@ -187,6 +190,7 @@ export default function AIChatPage() {
                 setMessages([]);
             }
         }
+        setDeleteConfirmId(null);
     };
 
     const handleModelChange = (model: AIModelOption) => {
@@ -726,8 +730,8 @@ export default function AIChatPage() {
                                     <ExamplePrompt onClick={() => setInput("What are the key points in my documents?")}>
                                         What are the key points in my documents?
                                     </ExamplePrompt>
-                                    <ExamplePrompt onClick={() => setInput("Summarize the main findings")}>
-                                        Summarize the main findings
+                                    <ExamplePrompt onClick={() => setInput("Summarise the main findings")}>
+                                        Summarise the main findings
                                     </ExamplePrompt>
                                     <ExamplePrompt onClick={() => setInput("What information do I have about...")}>
                                         What information do I have about...
@@ -946,6 +950,40 @@ export default function AIChatPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Delete Conversation Modal */}
+            {deleteConfirmId && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-[var(--surface-card)] rounded-2xl shadow-2xl max-w-sm w-full p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
+                                <Trash2 className="w-5 h-5 text-red-500" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-[var(--dash-text-primary)]">Delete Conversation</h3>
+                                <p className="text-sm text-[var(--dash-text-tertiary)]">This action cannot be undone</p>
+                            </div>
+                        </div>
+                        <p className="text-sm text-[var(--dash-text-secondary)] mb-6">
+                            Are you sure you want to delete this conversation? All messages will be permanently removed.
+                        </p>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => setDeleteConfirmId(null)}
+                                className="flex-1 h-10 px-4 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl text-sm font-medium text-[var(--dash-text-secondary)] hover:border-[var(--dash-border-default)] transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmDeleteConversation}
+                                className="flex-1 h-10 px-4 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-semibold transition-all"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

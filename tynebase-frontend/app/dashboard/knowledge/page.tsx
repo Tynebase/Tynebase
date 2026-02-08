@@ -952,7 +952,7 @@ export default function KnowledgePage() {
               className="flex items-center gap-2 px-4 py-2 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-sm text-[var(--dash-text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)] transition-all"
             >
               <FolderInput className="w-4 h-4" />
-              Move to Category
+              Assign a Category
             </button>
             <button
               onClick={() => setAssignTagsModalOpen(true)}
@@ -1003,7 +1003,7 @@ export default function KnowledgePage() {
                 Document
               </div>
               <div className="col-span-1">Category</div>
-              <div className="col-span-2">Categories</div>
+              <div className="col-span-2">Tags</div>
               <div className="col-span-1 text-center">Status</div>
               <div className="col-span-1 text-center">AI Score</div>
               <div className="col-span-2">Updated</div>
@@ -1285,7 +1285,7 @@ export default function KnowledgePage() {
             ) : (
               <>
                 <Trash2 className="w-4 h-4" />
-                Delete documents
+                Delete Document
               </>
             )}
           </button>
@@ -1306,10 +1306,10 @@ export default function KnowledgePage() {
       <Modal
         isOpen={moveCategoryModalOpen}
         onClose={closeMoveCategoryModal}
-        title={moveCategorySuccess ? 'Category Assigned' : 'Move to Category'}
+        title={moveCategorySuccess ? 'Category Assigned' : 'Assign a Category'}
         description={moveCategorySuccess 
-          ? `Successfully moved documents to ${moveCategoryTargetName}`
-          : `Move ${selectedIds.size} document${selectedIds.size !== 1 ? 's' : ''} to a category`
+          ? `Successfully assigned documents to ${moveCategoryTargetName}`
+          : `Assign ${selectedIds.size} document${selectedIds.size !== 1 ? 's' : ''} a category`
         }
         size="sm"
       >
@@ -1377,7 +1377,7 @@ export default function KnowledgePage() {
                 ) : (
                   <>
                     <FolderInput className="w-4 h-4" />
-                    Move Documents
+                    Assign Category
                   </>
                 )}
               </button>
@@ -1393,7 +1393,7 @@ export default function KnowledgePage() {
           setAssignTagsModalOpen(false);
           setSelectedTagId(null);
         }}
-        title="Assign Tag"
+        title="Assign a Tag"
         description={`Add a tag to ${selectedIds.size} document${selectedIds.size !== 1 ? 's' : ''}`}
         size="sm"
       >
@@ -1425,6 +1425,7 @@ export default function KnowledgePage() {
                   onChange={(e) => setSelectedTagId(e.target.value || null)}
                   className="w-full px-3 py-2 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
                 >
+                  <option value="">Select a tag...</option>
                   {availableTags.map((tag) => (
                     <option key={tag.id} value={tag.id}>{tag.name}</option>
                   ))}

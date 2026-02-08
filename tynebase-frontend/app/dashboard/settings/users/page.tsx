@@ -224,8 +224,8 @@ export default function UsersPage() {
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="text-xs text-[var(--dash-text-muted)]">{member.last_active_at ? new Date(member.last_active_at).toLocaleDateString() : 'Never'}</span>
-                  <span className="px-2.5 py-1 text-xs font-medium rounded-full capitalize" style={{ backgroundColor: `${getRoleColor(member.role)}15`, color: getRoleColor(member.role) }}>
-                    {member.role}
+                  <span className="px-2.5 py-1 text-xs font-medium rounded-full" style={{ backgroundColor: `${getRoleColor(member.role)}15`, color: getRoleColor(member.role) }}>
+                    {roles.find(r => r.id === member.role)?.label || member.role.charAt(0).toUpperCase() + member.role.slice(1)}
                   </span>
                   <DropdownMenu
                     align="right"
@@ -291,7 +291,7 @@ export default function UsersPage() {
             className="px-4 py-2 bg-white text-[var(--brand)] rounded-lg font-medium hover:bg-white/90 transition-colors flex items-center gap-2"
           >
             <Mail className="w-4 h-4" />
-            Send Invites
+            Invite users
           </button>
         </div>
       </div>
