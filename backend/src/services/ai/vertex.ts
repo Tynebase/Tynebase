@@ -23,20 +23,14 @@ import { countTokens } from '../../utils/tokenCounter';
 let vertexClient: VertexAI | null = null;
 
 /**
- * Vertex AI client configured for global endpoint (video/media processing)
- * Uses global for higher token limits and better multimodal support
- */
-let vertexClientGlobal: VertexAI | null = null;
-
-/**
  * Model ID for Gemini Flash (text generation)
  */
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
 /**
- * Model ID for Gemini 2.5 Pro (video/media - higher token limit)
+ * Model ID for Gemini video processing (same as text - only flash available on EU endpoint)
  */
-const GEMINI_VIDEO_MODEL = 'gemini-2.5-pro';
+const GEMINI_VIDEO_MODEL = 'gemini-2.5-flash';
 
 /**
  * Vertex AI configuration
@@ -44,7 +38,7 @@ const GEMINI_VIDEO_MODEL = 'gemini-2.5-pro';
 const VERTEX_CONFIG = {
   project: process.env.GOOGLE_CLOUD_PROJECT || '',
   location: 'europe-west2', // London region for EU data residency
-  videoLocation: 'global', // Global endpoint for gemini-2.5-pro video processing
+  videoLocation: 'europe-west2', // EU endpoint - gemini-2.5-flash is the only model available
 };
 
 /**
@@ -116,44 +110,6 @@ function getVertexClient(): VertexAI {
     }
   }
   return vertexClient;
-}
-
-/**
- * Initializes the Vertex AI client with global endpoint for video/media processing
- * Uses gemini-3-pro on global endpoint for higher token limits
- * @throws Error if credentials are not properly configured
- */
-function getVertexClientGlobal(): VertexAI {
-  if (!vertexClientGlobal) {
-    const credentials = getServiceAccountCredentials();
-    let projectId = process.env.GOOGLE_CLOUD_PROJECT;
-
-    if (credentials) {
-      projectId = projectId || credentials.project_id;
-      
-      if (!projectId) {
-        throw new Error('Project ID not found in service account credentials or GOOGLE_CLOUD_PROJECT');
-      }
-
-      vertexClientGlobal = new VertexAI({
-        project: projectId,
-        location: VERTEX_CONFIG.videoLocation,
-        googleAuthOptions: {
-          credentials: credentials,
-        },
-      });
-    } else {
-      if (!projectId) {
-        throw new Error('GOOGLE_CLOUD_PROJECT environment variable is not set and no service account JSON provided');
-      }
-
-      vertexClientGlobal = new VertexAI({
-        project: projectId,
-        location: VERTEX_CONFIG.videoLocation,
-      });
-    }
-  }
-  return vertexClientGlobal;
 }
 
 /**
@@ -269,8 +225,8 @@ export async function transcribeVideo(
   videoUrl: string,
   prompt: string = 'Transcribe this video content with timestamps. Include all spoken words and important visual context.'
 ): Promise<AIGenerationResponse> {
-  // Use global endpoint with gemini-3-pro for video processing
-  const client = getVertexClientGlobal();
+  // Use EU endpoint with gemini-2.5-flash for video processing
+  const client = getVertexClient();
   const model = client.getGenerativeModel({
     model: GEMINI_VIDEO_MODEL,
   });
