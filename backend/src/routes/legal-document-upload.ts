@@ -99,6 +99,33 @@ const MAX_FILE_SIZES: Record<string, number> = {
 
 const MAX_GLOBAL_FILE_SIZE = 500 * 1024 * 1024; // 500MB hard limit
 
+const EXTENSION_TO_MIME: Record<string, string> = {
+  '.pdf': 'application/pdf',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.doc': 'application/msword',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  '.xls': 'application/vnd.ms-excel',
+  '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  '.ppt': 'application/vnd.ms-powerpoint',
+  '.msg': 'application/vnd.ms-outlook',
+  '.eml': 'message/rfc822',
+  '.tiff': 'image/tiff',
+  '.tif': 'image/tiff',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.txt': 'text/plain',
+  '.md': 'text/markdown',
+};
+
+function resolveMimeType(mimetype: string, extension: string): string {
+  if (mimetype === 'application/octet-stream') {
+    return EXTENSION_TO_MIME[extension.toLowerCase()] || mimetype;
+  }
+  return mimetype;
+}
+
 function getAllAllowedMimeTypes(): string[] {
   return Object.values(ALLOWED_MIME_TYPES).flat();
 }
@@ -235,9 +262,9 @@ export default async function legalDocumentUploadRoutes(fastify: FastifyInstance
         }
 
         const filename = data.filename;
-        const mimetype = data.mimetype;
-
         const fileExtension = filename.substring(filename.lastIndexOf('.')).toLowerCase();
+        const mimetype = resolveMimeType(data.mimetype, fileExtension);
+
         const fileCategory = getFileCategory(mimetype, fileExtension);
 
         if (!fileCategory) {
