@@ -171,83 +171,86 @@ export function EnhanceSuggestionsPanel({
   };
 
   // Find the ProseMirror range for a needle string in the document.
-  // Builds a character-level mapping from concatenated plain text to ProseMirror positions
-  // by walking every text node. Block boundaries emit a newline separator to match editor.getText().
+  // Uses a brute-force scan with doc.textBetween to guarantee correct positions.
   const findTextRange = (doc: any, needle: string): { from: number; to: number } | null => {
-    // Build plain text and a parallel array mapping each char index to its ProseMirror pos.
-    // charToPos[i] = the ProseMirror position of the i-th character in `plain`.
-    const charToPos: number[] = [];
-    let plain = '';
-    let lastBlockEnd = -1;
+    const docSize = doc.content.size;
+    if (!needle || docSize === 0) return null;
 
-    doc.descendants((node: any, pos: number) => {
-      if (node.isBlock && node.isTextblock && plain.length > 0 && pos !== lastBlockEnd) {
-        // Insert a newline separator between text blocks (matches editor.getText() output)
-        charToPos.push(-1); // newline has no single ProseMirror pos
-        plain += '\n';
+    // Strategy: scan through the document using textBetween which gives us
+    // the exact text ProseMirror sees. We slide a window to find the needle.
+    // First, get the full text with block separators as newlines.
+    const fullText = doc.textBetween(0, docSize, '\n');
+
+    // Find the needle in the full text
+    const idx = fullText.indexOf(needle);
+    if (idx === -1) {
+      // Fuzzy: try collapsing whitespace
+      const collapseWs = (s: string) => s.replace(/\s+/g, ' ').trim();
+      const collapsed = collapseWs(fullText);
+      const needleCollapsed = collapseWs(needle);
+      if (!needleCollapsed) return null;
+      const fuzzyIdx = collapsed.indexOf(needleCollapsed);
+      if (fuzzyIdx === -1) return null;
+
+      // Map collapsed index back to original fullText index
+      let ci = 0;
+      let origStart = -1;
+      let origEnd = -1;
+      for (let i = 0; i < fullText.length && ci <= fuzzyIdx + needleCollapsed.length; i++) {
+        if (/\s/.test(fullText[i]) && i > 0 && /\s/.test(fullText[i - 1])) continue;
+        if (ci === fuzzyIdx) origStart = i;
+        ci++;
+        if (ci === fuzzyIdx + needleCollapsed.length) { origEnd = i + 1; break; }
       }
-      if (node.isText) {
-        const t = node.text || '';
-        for (let i = 0; i < t.length; i++) {
-          charToPos.push(pos + 1 + i); // +1 because pos is before the text node
-          plain += t[i];
+      if (origStart === -1 || origEnd === -1) return null;
+
+      // Now convert fullText positions to ProseMirror positions
+      return textOffsetToPmRange(doc, docSize, origStart, origEnd);
+    }
+
+    return textOffsetToPmRange(doc, docSize, idx, idx + needle.length);
+  };
+
+  // Convert a character offset range in doc.textBetween(0, size, '\n') to ProseMirror positions.
+  // Walks through the document node by node, counting text characters and block separators.
+  const textOffsetToPmRange = (doc: any, docSize: number, startOffset: number, endOffset: number): { from: number; to: number } | null => {
+    let charCount = 0;
+    let from = -1;
+    let to = -1;
+    let prevWasBlock = false;
+
+    // Walk through all nodes in document order
+    doc.nodesBetween(0, docSize, (node: any, pos: number) => {
+      if (to !== -1) return false; // already found both, stop
+
+      if (node.isTextblock) {
+        // Add newline separator between blocks (matching textBetween behavior)
+        if (prevWasBlock && charCount > 0) {
+          if (charCount === startOffset) from = pos + 1; // start of this block's content
+          charCount++;
+          if (charCount === endOffset) to = pos + 1;
         }
+        prevWasBlock = true;
+        return true; // descend into children
       }
-      if (node.isBlock) {
-        lastBlockEnd = pos + node.nodeSize;
+
+      if (node.isText) {
+        const text = node.text || '';
+        for (let i = 0; i < text.length; i++) {
+          if (charCount === startOffset) from = pos + i;
+          charCount++;
+          if (charCount === endOffset) to = pos + i + 1;
+          if (to !== -1) return false;
+        }
+        return false; // text nodes have no children
       }
+
+      return true; // descend into other nodes
     });
 
-    // Helper: given a match at [startIdx, endIdx) in `plain`, return ProseMirror {from, to}
-    const rangeFromMatch = (startIdx: number, endIdx: number): { from: number; to: number } | null => {
-      // Find the first valid ProseMirror pos at or after startIdx
-      let from = -1;
-      for (let i = startIdx; i < endIdx; i++) {
-        if (charToPos[i] !== -1) { from = charToPos[i]; break; }
-      }
-      // Find the ProseMirror pos just after the last character
-      let to = -1;
-      for (let i = endIdx - 1; i >= startIdx; i--) {
-        if (charToPos[i] !== -1) { to = charToPos[i] + 1; break; }
-      }
-      if (from !== -1 && to !== -1 && from < to) return { from, to };
-      return null;
-    };
-
-    // Exact match
-    const exactIdx = plain.indexOf(needle);
-    if (exactIdx !== -1) {
-      const result = rangeFromMatch(exactIdx, exactIdx + needle.length);
-      if (result) return result;
+    if (from !== -1 && to !== -1 && from < to) {
+      return { from, to };
     }
-
-    // Fuzzy match: collapse whitespace
-    const collapseWs = (s: string) => s.replace(/\s+/g, ' ').trim();
-    const plainCollapsed = collapseWs(plain);
-    const needleCollapsed = collapseWs(needle);
-    if (!needleCollapsed) return null;
-
-    const fuzzyIdx = plainCollapsed.indexOf(needleCollapsed);
-    if (fuzzyIdx === -1) return null;
-
-    // Map collapsed index back to original plain index
-    let ci = 0; // collapsed index
-    let origStart = -1;
-    let origEnd = -1;
-    for (let i = 0; i < plain.length && ci <= fuzzyIdx + needleCollapsed.length; i++) {
-      const ch = plain[i];
-      const isWs = /\s/.test(ch);
-      // In collapsed string, consecutive whitespace maps to a single space
-      if (isWs && i > 0 && /\s/.test(plain[i - 1])) continue; // skip extra ws
-      if (ci === fuzzyIdx) origStart = i;
-      ci++;
-      if (ci === fuzzyIdx + needleCollapsed.length) { origEnd = i + 1; break; }
-    }
-
-    if (origStart !== -1 && origEnd !== -1) {
-      return rangeFromMatch(origStart, origEnd);
-    }
-
     return null;
   };
 
