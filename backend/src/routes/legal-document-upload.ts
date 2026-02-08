@@ -239,20 +239,25 @@ export default async function legalDocumentUploadRoutes(fastify: FastifyInstance
 
       try {
         // Use parts() to read all multipart fields (file + form data)
+        // IMPORTANT: File streams must be consumed (toBuffer) inside the loop
+        // before iterating to the next part, otherwise the stream hangs.
         const parts = request.parts();
-        let data: any = null;
+        let filename: string = '';
+        let rawMimetype: string = '';
+        let fileBuffer: Buffer | null = null;
         const formFields: Record<string, string> = {};
         
         for await (const part of parts) {
           if (part.type === 'file') {
-            data = part;
+            filename = part.filename;
+            rawMimetype = part.mimetype;
+            fileBuffer = await part.toBuffer();
           } else {
-            // Regular field
             formFields[part.fieldname] = part.value as string;
           }
         }
 
-        if (!data) {
+        if (!fileBuffer || !filename) {
           return reply.status(400).send({
             error: {
               code: 'NO_FILE_UPLOADED',
@@ -261,9 +266,8 @@ export default async function legalDocumentUploadRoutes(fastify: FastifyInstance
           });
         }
 
-        const filename = data.filename;
         const fileExtension = filename.substring(filename.lastIndexOf('.')).toLowerCase();
-        const mimetype = resolveMimeType(data.mimetype, fileExtension);
+        const mimetype = resolveMimeType(rawMimetype, fileExtension);
 
         const fileCategory = getFileCategory(mimetype, fileExtension);
 
@@ -286,7 +290,6 @@ export default async function legalDocumentUploadRoutes(fastify: FastifyInstance
           });
         }
 
-        const fileBuffer = await data.toBuffer();
         const fileSize = fileBuffer.length;
 
         // Check global max file size (500MB hard limit)

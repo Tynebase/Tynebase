@@ -48,20 +48,25 @@ export default async function videoUploadRoutes(fastify: FastifyInstance) {
 
       try {
         // Use parts() to read all multipart fields
+        // IMPORTANT: File streams must be consumed (toBuffer) inside the loop
+        // before iterating to the next part, otherwise the stream hangs.
         const parts = request.parts();
-        let fileData: any = null;
+        let filename: string = '';
+        let mimetype: string = '';
+        let fileBuffer: Buffer | null = null;
         const formFields: Record<string, string> = {};
         
         for await (const part of parts) {
           if (part.type === 'file') {
-            fileData = part;
+            filename = part.filename;
+            mimetype = part.mimetype;
+            fileBuffer = await part.toBuffer();
           } else {
-            // Regular field
             formFields[part.fieldname] = part.value as string;
           }
         }
 
-        if (!fileData) {
+        if (!fileBuffer || !filename) {
           return reply.status(400).send({
             error: {
               code: 'NO_FILE_UPLOADED',
@@ -69,9 +74,6 @@ export default async function videoUploadRoutes(fastify: FastifyInstance) {
             },
           });
         }
-
-        const filename = fileData.filename;
-        const mimetype = fileData.mimetype;
         
         // Parse form fields
         const formData = {
@@ -120,7 +122,6 @@ export default async function videoUploadRoutes(fastify: FastifyInstance) {
           });
         }
 
-        const fileBuffer = await fileData.toBuffer();
         const fileSize = fileBuffer.length;
 
         if (fileSize > MAX_FILE_SIZE) {
