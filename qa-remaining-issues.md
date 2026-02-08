@@ -4,21 +4,16 @@
 
 ---
 
-## 1. Category Reorder — "Failed to save new order" error
+## 1. Category Reorder — "Failed to save new order" error ✅ FIXED
 **Screen:** Knowledge Base → Category filter pills  
 **URL:** `/dashboard/knowledge`  
 **Symptom:** Dragging/reordering category pills triggers a "Failed to save new order" error toast.  
-**Root cause (likely):** The frontend calls a backend endpoint to persist the new order, and that endpoint is either missing or returning an error.  
-**Files to investigate:**
-- `tynebase-frontend/app/dashboard/knowledge/page.tsx` — look for the reorder handler / API call (search for `order` or `reorder` or `drag`)
-- `backend/src/routes/` — look for a categories/folders reorder endpoint
-- `tynebase-frontend/lib/api/folders.ts` — check if `reorderCategories` or similar function exists
-
-**Steps:**
-1. Reproduce by dragging category pills on the Knowledge Base page
-2. Check browser Network tab for the failing request URL and response
-3. Check Fly.io worker logs for the corresponding error
-4. Fix the backend endpoint or create it if missing
+**Root cause:** The frontend passed the "all" pseudo-category (non-UUID ID) to SortableCategories, causing "Invalid category ID format" error when calling updateCategory. Also: backend was missing sort_order in response, and permission check was too strict (required author for reorder).  
+**Fixes applied:**
+- `tynebase-frontend/app/dashboard/knowledge/page.tsx` — Render "All" button separately, only pass real API categories to SortableCategories
+- `backend/src/routes/categories.ts` — Add sort_order to enriched response; relax permission check to allow any tenant member to reorder (sort_order-only updates)
+- `tynebase-frontend/app/dashboard/knowledge/categories/page.tsx` — Fixed column alignment with CSS grid layout + table header
+**Status:** ✅ Completed and tested — drag-drop and arrow buttons now work correctly
 
 ---
 

@@ -160,6 +160,7 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
           color: category.color || '#3b82f6',
           icon: category.icon || 'folder',
           parent_id: category.parent_id,
+          sort_order: category.sort_order ?? 0,
           document_count: documentCounts[category.id] || 0,
           subcategory_count: subcategoryCounts[category.id] || 0,
           author_id: category.author_id,
@@ -440,12 +441,6 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
           });
         }
 
-        if (existing.author_id !== user.id) {
-          return reply.code(403).send({
-            error: { code: 'FORBIDDEN', message: 'Only the category author can update this category', details: {} },
-          });
-        }
-
         // Build update object
         const updateData: any = {};
         if (body.name !== undefined) updateData.name = body.name;
@@ -454,6 +449,14 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
         if (body.icon !== undefined) updateData.icon = body.icon;
         if (body.parent_id !== undefined) updateData.parent_id = body.parent_id;
         if (body.sort_order !== undefined) updateData.sort_order = body.sort_order;
+
+        // Allow any tenant member to reorder (sort_order only), but require author for other fields
+        const isSortOrderOnly = Object.keys(updateData).length === 1 && updateData.sort_order !== undefined;
+        if (!isSortOrderOnly && existing.author_id !== user.id) {
+          return reply.code(403).send({
+            error: { code: 'FORBIDDEN', message: 'Only the category author can update this category', details: {} },
+          });
+        }
 
         // Update category
         const { data: category, error: updateError } = await supabaseAdmin

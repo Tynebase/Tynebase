@@ -558,6 +558,16 @@ export default function CategoriesPage() {
       {/* Categories List */}
       {!loading && !error && filteredCategories.length > 0 && (
         <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl overflow-hidden flex-1 min-h-0">
+          {/* Table Header — desktop only */}
+          <div className="hidden sm:grid sm:grid-cols-[2rem_2.5rem_1fr_8rem_3rem_7rem] items-center gap-3 px-4 py-2.5 border-b border-[var(--dash-border-subtle)] bg-[var(--surface-ground)]">
+            <span />
+            <span />
+            <span className="text-xs font-medium text-[var(--dash-text-tertiary)] uppercase tracking-wider">Category</span>
+            <span className="text-xs font-medium text-[var(--dash-text-tertiary)] uppercase tracking-wider">Updated</span>
+            <span className="text-xs font-medium text-[var(--dash-text-tertiary)] uppercase tracking-wider text-center">Docs</span>
+            <span className="text-xs font-medium text-[var(--dash-text-tertiary)] uppercase tracking-wider text-right">Actions</span>
+          </div>
+
           <div className="divide-y divide-[var(--dash-border-subtle)]">
             {filteredCategories.map((category) => {
               const isExpanded = expandedCategories.includes(category.id);
@@ -566,80 +576,78 @@ export default function CategoriesPage() {
               return (
                 <div key={category.id}>
                   <div className="p-4 hover:bg-[var(--surface-hover)] transition-colors group">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full">
-                      <div className="flex items-center gap-4 w-full sm:w-auto">
+                    {/* Desktop grid layout */}
+                    <div className="hidden sm:grid sm:grid-cols-[2rem_2.5rem_1fr_8rem_3rem_7rem] items-center gap-3">
+                      {/* Expand chevron column */}
+                      <div className="flex items-center justify-center">
                         {hasSubcategories ? (
                           <button
                             onClick={() => toggleExpand(category.id)}
-                            className="p-2 -m-1 rounded-lg hover:bg-[var(--surface-ground)]"
+                            className="p-1 rounded-lg hover:bg-[var(--surface-ground)]"
                           >
                             <ChevronRight className={`w-4 h-4 text-[var(--dash-text-muted)] transition-transform ${isExpanded ? "rotate-90" : ""}`} />
                           </button>
                         ) : (
-                          <div className="w-6 hidden sm:block" />
+                          <span />
                         )}
-
-                        {(() => {
-                          const IconComponent = getIconComponent(category.icon || 'folder');
-                          return (
-                            <div
-                              className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                              style={{ backgroundColor: `${category.color}15` }}
-                            >
-                              <IconComponent className="w-5 h-5" style={{ color: category.color }} />
-                            </div>
-                          );
-                        })()}
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-3">
-                            <h3 className="font-medium text-[var(--dash-text-primary)]">{category.name}</h3>
-                            <span className="px-2 py-0.5 text-xs bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] rounded-full">
-                              {category.document_count || 0} docs
-                            </span>
-                          </div>
-                          {category.description && (
-                            <p className="text-sm text-[var(--dash-text-tertiary)] mt-0.5 truncate sm:hidden lg:block">
-                              {category.description}
-                            </p>
-                          )}
-                        </div>
-
-                        <button
-                          onClick={() => setMobileMenuOpen(mobileMenuOpen === category.id ? null : category.id)}
-                          className="sm:hidden p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] ml-auto"
-                        >
-                          <MoreHorizontal className="w-4 h-4" />
-                        </button>
                       </div>
 
-                      <p className="text-sm text-[var(--dash-text-muted)] flex-shrink-0 hidden sm:block w-28">
-                        Updated {formatRelativeTime(category.updated_at)}
+                      {/* Icon column */}
+                      {(() => {
+                        const IconComponent = getIconComponent(category.icon || 'folder');
+                        return (
+                          <div
+                            className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                            style={{ backgroundColor: `${category.color}15` }}
+                          >
+                            <IconComponent className="w-5 h-5" style={{ color: category.color }} />
+                          </div>
+                        );
+                      })()}
+
+                      {/* Name + description column */}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-3">
+                          <h3 className="font-medium text-[var(--dash-text-primary)] truncate">{category.name}</h3>
+                          <span className="px-2 py-0.5 text-xs bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] rounded-full flex-shrink-0">
+                            {category.document_count || 0} docs
+                          </span>
+                        </div>
+                        {category.description && (
+                          <p className="text-sm text-[var(--dash-text-tertiary)] mt-0.5 truncate">
+                            {category.description}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Updated column */}
+                      <p className="text-sm text-[var(--dash-text-muted)] truncate">
+                        {formatRelativeTime(category.updated_at)}
                       </p>
 
-                      {/* Views Column */}
-                      <div className="hidden sm:flex items-center justify-center w-16">
+                      {/* View docs column */}
+                      <div className="flex items-center justify-center">
                         <Link
                           href={`/dashboard/knowledge?category=${category.id}`}
-                          className="p-2.5 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--brand)]"
+                          className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--brand)]"
                           title="View documents"
                         >
                           <FileText className="w-4 h-4" />
                         </Link>
                       </div>
 
-                      {/* Actions Column */}
-                      <div className="flex items-center gap-1 w-28 justify-end">
+                      {/* Actions column */}
+                      <div className="flex items-center gap-0.5 justify-end">
                         <Link
                           href={`/dashboard/ai-assistant?category=${category.id}&categoryName=${encodeURIComponent(category.name)}`}
-                          className="p-2.5 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--brand)]"
+                          className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--brand)]"
                           title="Generate content for this category"
                         >
                           <Sparkles className="w-4 h-4" />
                         </Link>
                         <button
                           onClick={() => openEditModal(category)}
-                          className="p-2.5 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)]"
+                          className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)]"
                           title="Edit category"
                         >
                           <Edit3 className="w-4 h-4" />
@@ -647,7 +655,7 @@ export default function CategoriesPage() {
                         <button 
                           onClick={() => openDeleteModal(category)}
                           disabled={deleting === category.id || category.is_system}
-                          className="p-2.5 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--status-error)] disabled:opacity-50"
+                          className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--status-error)] disabled:opacity-50"
                           title={category.is_system ? 'System categories cannot be deleted' : 'Delete category'}
                         >
                           {deleting === category.id ? (
@@ -657,6 +665,33 @@ export default function CategoriesPage() {
                           )}
                         </button>
                       </div>
+                    </div>
+
+                    {/* Mobile layout */}
+                    <div className="flex items-center gap-3 sm:hidden">
+                      {(() => {
+                        const IconComponent = getIconComponent(category.icon || 'folder');
+                        return (
+                          <div
+                            className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                            style={{ backgroundColor: `${category.color}15` }}
+                          >
+                            <IconComponent className="w-5 h-5" style={{ color: category.color }} />
+                          </div>
+                        );
+                      })()}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-[var(--dash-text-primary)] truncate">{category.name}</h3>
+                        <p className="text-xs text-[var(--dash-text-muted)] mt-0.5">
+                          {category.document_count || 0} docs &middot; {formatRelativeTime(category.updated_at)}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setMobileMenuOpen(mobileMenuOpen === category.id ? null : category.id)}
+                        className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)]"
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
                     </div>
 
                     {/* Mobile Action Menu */}

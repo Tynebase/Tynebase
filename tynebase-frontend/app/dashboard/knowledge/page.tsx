@@ -687,22 +687,47 @@ export default function KnowledgePage() {
 
       {/* Categories with Drag and Drop */}
       <div className="flex flex-wrap gap-2">
+        {/* Static "All" button — not draggable/reorderable */}
+        <button
+          onClick={() => setSelectedCategory("all")}
+          className={`px-5 py-3 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${
+            selectedCategory === "all"
+              ? "bg-[var(--brand)] text-white shadow-sm"
+              : "bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] text-[var(--dash-text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)]"
+          }`}
+        >
+          <span
+            className="w-3 h-3 rounded-sm"
+            style={{ backgroundColor: selectedCategory === "all" ? "white" : "#6b7280" }}
+          />
+          All
+          <span
+            className={`px-1.5 py-0.5 text-xs rounded-md ${
+              selectedCategory === "all"
+                ? "bg-white/20 text-white"
+                : "bg-[var(--surface-ground)] text-[var(--dash-text-muted)]"
+            }`}
+          >
+            {documents.length}
+          </span>
+        </button>
+
+        {/* Only real API categories (with UUID IDs) go into SortableCategories */}
         <SortableCategories
-          categories={categories.map((cat) => ({
-            ...cat,
+          categories={apiCategories.map((cat) => ({
             id: cat.id,
             name: cat.name,
-            color: cat.color,
-            count: cat.count,
-            sort_order: (cat as any).sort_order ?? 0,
-            description: null,
-            icon: 'folder',
-            parent_id: null,
-            document_count: cat.count,
-            subcategory_count: 0,
-            author_id: '',
-            created_at: '',
-            updated_at: '',
+            color: cat.color || '#3b82f6',
+            count: cat.document_count || 0,
+            sort_order: cat.sort_order ?? 0,
+            description: cat.description || null,
+            icon: cat.icon || 'folder',
+            parent_id: cat.parent_id || null,
+            document_count: cat.document_count || 0,
+            subcategory_count: cat.subcategory_count || 0,
+            author_id: cat.author_id || '',
+            created_at: cat.created_at || '',
+            updated_at: cat.updated_at || '',
           }))}
           selectedCategoryId={selectedCategory}
           onSelectCategory={setSelectedCategory}
