@@ -354,7 +354,7 @@ export default function EditDocumentPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-64px)] flex flex-col">
+    <div className="h-[calc(100vh-64px)] flex flex-col -m-6">
       <RainbowProgressBar isLoading={isLoading} />
       {/* Header */}
       <div className="flex flex-col gap-3 px-4 sm:px-6 py-3 sm:py-4 border border-[var(--dash-border-subtle)] bg-[var(--surface-card)] rounded-2xl">
@@ -491,9 +491,9 @@ export default function EditDocumentPage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 mt-6">
+      <div className="flex-1 min-h-0 overflow-hidden">
         {/* Editor - Always mounted to preserve Y.js state */}
-        <div className={mode === "edit" ? "flex overflow-hidden" : "hidden"}>
+        <div className={mode === "edit" ? "flex overflow-hidden h-full" : "hidden"}>
           <div className="flex-1 overflow-hidden">
             <RichTextEditor
               documentId={documentId}

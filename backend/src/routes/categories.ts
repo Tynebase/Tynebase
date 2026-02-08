@@ -80,7 +80,6 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
             icon,
             parent_id,
             author_id,
-            is_system,
             sort_order,
             created_at,
             updated_at,
@@ -165,7 +164,6 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
           document_count: documentCounts[category.id] || 0,
           subcategory_count: subcategoryCounts[category.id] || 0,
           author_id: category.author_id,
-          is_system: category.is_system || false,
           created_at: category.created_at,
           updated_at: category.updated_at,
           users: category.users,
@@ -539,7 +537,7 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
         // Verify category exists in tenant
         const { data: category, error: categoryError } = await supabaseAdmin
           .from('categories')
-          .select('id, name, is_system')
+          .select('id, name')
           .eq('id', id)
           .eq('tenant_id', tenant.id)
           .single();
@@ -584,7 +582,6 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
             category: {
               id: category.id,
               name: category.name,
-              is_system: category.is_system,
             },
             documents: documents || [],
             count: documents?.length || 0,
@@ -636,7 +633,6 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
             description,
             color,
             icon,
-            is_system,
             author_id,
             created_at,
             updated_at
@@ -689,7 +685,7 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
         // Verify category exists and user owns it
         const { data: existing, error: fetchError } = await supabaseAdmin
           .from('categories')
-          .select('id, author_id, is_system, name')
+          .select('id, author_id, name')
           .eq('id', id)
           .eq('tenant_id', tenant.id)
           .single();
@@ -697,13 +693,6 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
         if (fetchError || !existing) {
           return reply.code(404).send({
             error: { code: 'CATEGORY_NOT_FOUND', message: 'Category not found', details: {} },
-          });
-        }
-
-        // Prevent deletion of system categories
-        if (existing.is_system) {
-          return reply.code(403).send({
-            error: { code: 'CANNOT_DELETE_SYSTEM', message: 'System categories cannot be deleted', details: {} },
           });
         }
 
@@ -784,7 +773,7 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
         if (migratedToId) {
           const { data: targetCat } = await supabaseAdmin
             .from('categories')
-            .select('id, name, is_system')
+            .select('id, name')
             .eq('id', migratedToId)
             .single();
           migratedToCategory = targetCat;
