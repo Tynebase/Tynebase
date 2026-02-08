@@ -147,9 +147,18 @@ export default function KnowledgePage() {
   const getVisibilityIcon = (visibility: string) => {
     switch (visibility) {
       case "public": return <Globe className="w-3.5 h-3.5 text-[var(--status-success)]" />;
-      case "team": return <Users className="w-3.5 h-3.5 text-[var(--status-info)]" />;
+      case "team": return <Users className="w-3.5 h-3.5 text-[var(--brand)]" />;
       case "private": return <Lock className="w-3.5 h-3.5 text-[var(--dash-text-muted)]" />;
-      default: return <Globe className="w-3.5 h-3.5" />;
+      default: return <Users className="w-3.5 h-3.5 text-[var(--brand)]" />;
+    }
+  };
+
+  const getVisibilityLabel = (visibility: string) => {
+    switch (visibility) {
+      case "public": return "Public — visible to everyone";
+      case "team": return "Team — visible to workspace members";
+      case "private": return "Private — only visible to you";
+      default: return "Team — visible to workspace members";
     }
   };
 
@@ -201,7 +210,7 @@ export default function KnowledgePage() {
       comments: 0,
       version: '1.0',
       lastEditor: authorName,
-      visibility: doc.is_public ? 'public' : 'private',
+      visibility: doc.visibility || (doc.is_public ? 'public' : 'team'),
       aiScore: (doc as any).ai_score || null,
       collections: doc.collections || [],
       tags: doc.tags || [],
@@ -1010,8 +1019,8 @@ export default function KnowledgePage() {
         {viewMode === 'list' ? (
           <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl overflow-hidden flex flex-col flex-1 min-h-0">
             {/* Table Header */}
-            <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 bg-[var(--surface-ground)] border-b border-[var(--dash-border-subtle)] text-xs font-medium text-[var(--dash-text-muted)] uppercase tracking-wider">
-              <div className="col-span-4 flex items-center gap-3">
+            <div className="hidden md:grid grid-cols-[minmax(0,3.5fr)_1fr_1.5fr_0.8fr_0.8fr_0.8fr_1.5fr_0.8fr] gap-4 px-6 py-3 bg-[var(--surface-ground)] border-b border-[var(--dash-border-subtle)] text-xs font-medium text-[var(--dash-text-muted)] uppercase tracking-wider">
+              <div className="flex items-center gap-3">
                 <button
                   onClick={() => handleSelectAll(filteredDocIds)}
                   className="flex-shrink-0 p-0.5 rounded hover:bg-[var(--surface-hover)] transition-colors"
@@ -1027,21 +1036,22 @@ export default function KnowledgePage() {
                 </button>
                 Document
               </div>
-              <div className="col-span-1">Category</div>
-              <div className="col-span-2">Tags</div>
-              <div className="col-span-1 text-center">Status</div>
-              <div className="col-span-1 text-center">AI Score</div>
-              <div className="col-span-2">Updated</div>
-              <div className="col-span-1 text-right">Actions</div>
+              <div>Category</div>
+              <div>Tags</div>
+              <div className="text-center">Visibility</div>
+              <div className="text-center">Status</div>
+              <div className="text-center">AI Score</div>
+              <div>Updated</div>
+              <div className="text-right">Actions</div>
             </div>
             <div className="divide-y divide-[var(--dash-border-subtle)] flex-1 min-h-0 overflow-auto">
               {filteredDocs.map((doc) => (
                 <Link key={doc.id} href={`/dashboard/knowledge/${doc.id}`}>
                   <div className="block hover:bg-[var(--surface-hover)] transition-colors cursor-pointer group">
                     {/* Desktop Table View */}
-                    <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-4 items-center">
+                    <div className="hidden md:grid grid-cols-[minmax(0,3.5fr)_1fr_1.5fr_0.8fr_0.8fr_0.8fr_1.5fr_0.8fr] gap-4 px-6 py-4 items-center">
                       {/* Document Info */}
-                      <div className="col-span-4 flex items-center gap-3 min-w-0">
+                      <div className="flex items-center gap-3 min-w-0">
                         <button
                           onClick={(e) => handleSelectDocument(doc.id, e)}
                           className="flex-shrink-0 p-0.5 rounded hover:bg-[var(--surface-hover)] transition-colors"
@@ -1061,7 +1071,6 @@ export default function KnowledgePage() {
                               {doc.title}
                             </h3>
                             {doc.starred && <Star className="w-4 h-4 text-amber-500 fill-amber-500 flex-shrink-0" />}
-                            {getVisibilityIcon(doc.visibility)}
                           </div>
                           <div className="flex items-center gap-2 mt-0.5">
                             <p className="text-sm text-[var(--dash-text-tertiary)] truncate flex-1">{doc.description}</p>
@@ -1069,11 +1078,11 @@ export default function KnowledgePage() {
                         </div>
                       </div>
                       {/* Category */}
-                      <div className="col-span-1">
+                      <div>
                         <span className="text-sm text-[var(--dash-text-secondary)]">{categories.find(c => c.id === doc.categoryId)?.name || 'Uncategorized'}</span>
                       </div>
-                      {/* Categories (Tags) */}
-                      <div className="col-span-2">
+                      {/* Tags */}
+                      <div>
                         {doc.tags?.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
                             {doc.tags.slice(0, 2).map((tag) => (
@@ -1091,26 +1100,35 @@ export default function KnowledgePage() {
                           <span className="text-xs text-[var(--dash-text-tertiary)]">-</span>
                         )}
                       </div>
+                      {/* Visibility */}
+                      <div className="text-center">
+                        <span
+                          className="inline-flex items-center justify-center"
+                          title={getVisibilityLabel(doc.visibility)}
+                        >
+                          {getVisibilityIcon(doc.visibility)}
+                        </span>
+                      </div>
                       {/* Status */}
-                      <div className="col-span-1 text-center">
+                      <div className="text-center">
                         <span className={`inline-flex px-3 py-1.5 text-xs font-medium rounded-full ${getStateColor(doc.state)}`}>
                           {doc.state.replace("_", " ")}
                         </span>
                       </div>
                       {/* AI Score */}
-                      <div className="col-span-1 text-center">
+                      <div className="text-center">
                         <span className={`inline-flex items-center gap-1 text-sm font-medium ${getAiScoreColor(doc.aiScore)}`}>
                           <Sparkles className="w-3.5 h-3.5" />
                           {getAiScoreLabel(doc.aiScore)}
                         </span>
                       </div>
                       {/* Updated */}
-                      <div className="col-span-2">
+                      <div>
                         <p className="text-sm text-[var(--dash-text-secondary)]">{doc.updatedAt}</p>
                         <p className="text-xs text-[var(--dash-text-muted)]">by {doc.lastEditor}</p>
                       </div>
                       {/* Actions */}
-                      <div className="col-span-1 flex items-center justify-end gap-1">
+                      <div className="flex items-center justify-end gap-1">
                         <div className="flex items-center gap-1 text-xs text-[var(--dash-text-muted)]">
                           <Eye className="w-3.5 h-3.5" />
                           {doc.views.toLocaleString()}
@@ -1215,9 +1233,9 @@ export default function KnowledgePage() {
 
                     {/* Meta row */}
                     <div className="flex items-center justify-between text-xs text-[var(--dash-text-muted)] mb-3">
-                      <span className="flex items-center gap-1">
+                      <span className="flex items-center gap-1" title={getVisibilityLabel(doc.visibility)}>
                         {getVisibilityIcon(doc.visibility)}
-                        {doc.visibility}
+                        {doc.visibility.charAt(0).toUpperCase() + doc.visibility.slice(1)}
                       </span>
                       <span className={`flex items-center gap-1 font-medium ${getAiScoreColor(doc.aiScore)}`}>
                         <Sparkles className="w-3 h-3" />

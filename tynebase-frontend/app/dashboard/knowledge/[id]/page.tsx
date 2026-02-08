@@ -24,6 +24,7 @@ import {
   ExternalLink,
   Loader2,
   AlertTriangle,
+  CheckCircle,
   X
 } from "lucide-react";
 import Link from "next/link";
@@ -469,15 +470,26 @@ export default function EditDocumentPage() {
             variant="primary"
             onClick={handleSaveAndPublish}
             disabled={isSaving}
-            className="px-2 sm:px-3"
+            className="px-2 sm:px-3 group/publish"
+            title={status === 'published' ? 'Save & Publish to overwrite' : 'Save & Publish'}
           >
             {isSaving ? (
               <Loader2 className="w-4 h-4 sm:mr-2 animate-spin" />
+            ) : status === 'published' && !document?.hasDraft ? (
+              <>
+                <CheckCircle className="w-4 h-4 sm:mr-2 group-hover/publish:hidden" />
+                <Globe className="w-4 h-4 sm:mr-2 hidden group-hover/publish:block" />
+              </>
             ) : (
               <Globe className="w-4 h-4 sm:mr-2" />
             )}
             <span className="hidden sm:inline">
-              {isSaving ? 'Publishing...' : (status === 'published' ? 'Save & Publish' : 'Save & Publish')}
+              {isSaving ? 'Publishing...' : status === 'published' && !document?.hasDraft ? (
+                <>
+                  <span className="group-hover/publish:hidden">Published</span>
+                  <span className="hidden group-hover/publish:inline">Save &amp; Publish</span>
+                </>
+              ) : 'Save & Publish'}
             </span>
           </Button>
 
