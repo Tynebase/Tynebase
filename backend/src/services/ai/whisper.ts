@@ -78,7 +78,7 @@ export async function transcribeAudioWithWhisper(
 
     // Prepare request payload for Whisper SageMaker endpoint
     const payload = {
-      audio: audioBase64,
+      audio_input: audioBase64,
       task: 'transcribe',
       language: 'en', // Auto-detect or specify language
       return_timestamps: true,

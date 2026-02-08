@@ -34,9 +34,9 @@ let vertexClientGlobal: VertexAI | null = null;
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
 /**
- * Model ID for Gemini 3 Pro (video/media - higher token limit)
+ * Model ID for Gemini 2.5 Pro (video/media - higher token limit)
  */
-const GEMINI_VIDEO_MODEL = 'gemini-3-pro';
+const GEMINI_VIDEO_MODEL = 'gemini-2.5-pro';
 
 /**
  * Vertex AI configuration
@@ -44,7 +44,7 @@ const GEMINI_VIDEO_MODEL = 'gemini-3-pro';
 const VERTEX_CONFIG = {
   project: process.env.GOOGLE_CLOUD_PROJECT || '',
   location: 'europe-west2', // London region for EU data residency
-  videoLocation: 'global', // Global endpoint for gemini-3-pro video processing
+  videoLocation: 'global', // Global endpoint for gemini-2.5-pro video processing
 };
 
 /**
