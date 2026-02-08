@@ -302,7 +302,7 @@ export default function PermissionsPage() {
           <div>
             <h3 className="font-semibold text-[var(--text-primary)]">Enterprise SSO & Custom Roles</h3>
             <p className="text-sm text-[var(--text-secondary)] mt-1">
-              Need more granular control? Enterprise plans include SAML SSO, custom roles, and attribute-based access control.
+              Need more granular control? Enterprise plans include SAML SSO, custom roles and attribute-based access control.
             </p>
             <Button variant="outline" className="mt-3 text-sm h-8">
               Upgrade to Enterprise

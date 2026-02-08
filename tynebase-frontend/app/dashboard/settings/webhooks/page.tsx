@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Modal, ModalFooter } from "@/components/ui/Modal";
 import {
   Webhook,
   Plus,
@@ -16,7 +17,8 @@ import {
   Eye,
   EyeOff,
   Play,
-  Pause
+  Pause,
+  X
 } from "lucide-react";
 
 const webhooks = [
@@ -87,8 +89,38 @@ const recentDeliveries = [
 ];
 
 export default function WebhooksPage() {
-  const [, setShowCreateModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
+  const [webhookList, setWebhookList] = useState(webhooks);
+  const [newName, setNewName] = useState("");
+  const [newUrl, setNewUrl] = useState("");
+  const [newEvents, setNewEvents] = useState<string[]>([]);
+  const [creating, setCreating] = useState(false);
+
+  const handleCreateWebhook = () => {
+    if (!newName.trim() || !newUrl.trim()) return;
+    setCreating(true);
+    const newWebhook = {
+      id: String(Date.now()),
+      name: newName.trim(),
+      url: newUrl.trim(),
+      events: newEvents,
+      status: "active" as const,
+      lastTriggered: new Date().toISOString(),
+      successRate: 100,
+      totalCalls: 0,
+    };
+    setWebhookList(prev => [...prev, newWebhook]);
+    setNewName("");
+    setNewUrl("");
+    setNewEvents([]);
+    setShowCreateModal(false);
+    setCreating(false);
+  };
+
+  const toggleEvent = (eventId: string) => {
+    setNewEvents(prev => prev.includes(eventId) ? prev.filter(e => e !== eventId) : [...prev, eventId]);
+  };
 
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -125,7 +157,7 @@ export default function WebhooksPage() {
 
       {/* Webhooks List */}
       <div className="space-y-4">
-        {webhooks.map((webhook) => (
+        {webhookList.map((webhook) => (
           <Card key={webhook.id}>
             <CardContent className="p-6">
               <div className="flex items-start justify-between">
@@ -275,6 +307,66 @@ export default function WebhooksPage() {
           </div>
         </CardContent>
       </Card>
+      {/* Create Webhook Modal */}
+      <Modal
+        isOpen={showCreateModal}
+        onClose={() => { setShowCreateModal(false); setNewName(""); setNewUrl(""); setNewEvents([]); }}
+        title="Create Webhook"
+        description="Add a new webhook endpoint to receive real-time notifications"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-1">Name</label>
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="e.g., Slack Notifications"
+              className="w-full px-4 py-2.5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-1">Endpoint URL</label>
+            <input
+              type="url"
+              value={newUrl}
+              onChange={(e) => setNewUrl(e.target.value)}
+              placeholder="https://example.com/webhook"
+              className="w-full px-4 py-2.5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-2">Events</label>
+            <div className="space-y-3 max-h-48 overflow-y-auto">
+              {availableEvents.map((category) => (
+                <div key={category.category}>
+                  <p className="text-xs font-semibold text-[var(--dash-text-tertiary)] uppercase mb-1">{category.category}</p>
+                  <div className="space-y-1">
+                    {category.events.map((event) => (
+                      <label key={event.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={newEvents.includes(event.id)}
+                          onChange={() => toggleEvent(event.id)}
+                          className="accent-[var(--brand)]"
+                        />
+                        <span className="text-[var(--dash-text-secondary)]">{event.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <ModalFooter>
+          <Button variant="ghost" onClick={() => setShowCreateModal(false)}>Cancel</Button>
+          <Button variant="primary" onClick={handleCreateWebhook} disabled={creating || !newName.trim() || !newUrl.trim()}>
+            {creating ? "Creating..." : "Create Webhook"}
+          </Button>
+        </ModalFooter>
+      </Modal>
     </div>
   );
 }

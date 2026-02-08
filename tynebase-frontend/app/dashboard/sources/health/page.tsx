@@ -20,12 +20,6 @@ export default function SourcesHealthPage() {
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-sm text-[var(--dash-text-tertiary)] mb-1">
-            <Link href="/dashboard/sources" className="hover:text-[var(--brand)] inline-flex items-center gap-2">
-              <ArrowLeft className="w-4 h-4" />
-              Sources
-            </Link>
-            <span>/</span>
-            <span>Index Health</span>
           </div>
           <h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">Index Health</h1>
           <p className="text-[var(--dash-text-tertiary)] mt-1">

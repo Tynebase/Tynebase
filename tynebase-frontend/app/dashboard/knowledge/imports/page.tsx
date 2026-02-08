@@ -127,6 +127,8 @@ export default function ImportsPage() {
   const [jobs, setJobs] = useState<ImportJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<ImportStatus | "all">("all");
+  const [showFilters, setShowFilters] = useState(false);
   
   // Delete modal state
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -141,10 +143,16 @@ export default function ImportsPage() {
   }, []);
 
   const filtered = useMemo(() => {
+    let result = jobs;
+    if (statusFilter !== "all") {
+      result = result.filter((j) => j.status === statusFilter);
+    }
     const q = query.trim().toLowerCase();
-    if (!q) return jobs;
-    return jobs.filter((j) => `${j.source} ${j.status} ${j.notes ?? ""}`.toLowerCase().includes(q));
-  }, [query, jobs]);
+    if (q) {
+      result = result.filter((j) => `${j.source} ${j.status} ${j.notes ?? ""}`.toLowerCase().includes(q));
+    }
+    return result;
+  }, [query, jobs, statusFilter]);
 
   const handleDeleteClick = (job: ImportJob) => {
     setJobToDelete(job);
@@ -214,10 +222,32 @@ export default function ImportsPage() {
             className="w-full pl-11 pr-4 py-3 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 transition-all"
           />
         </div>
-        <button className="inline-flex items-center justify-center gap-2 px-4 py-3 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-sm font-medium text-[var(--dash-text-secondary)] hover:border-[var(--dash-border-default)] transition-all">
-          <Filter className="w-4 h-4" />
-          Filters
-        </button>
+        <div className="relative">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`inline-flex items-center justify-center gap-2 px-4 py-3 bg-[var(--surface-card)] border rounded-xl text-sm font-medium transition-all ${
+              statusFilter !== "all" ? "border-[var(--brand)] text-[var(--brand)]" : "border-[var(--dash-border-subtle)] text-[var(--dash-text-secondary)] hover:border-[var(--dash-border-default)]"
+            }`}
+          >
+            <Filter className="w-4 h-4" />
+            Filters{statusFilter !== "all" ? " (1)" : ""}
+          </button>
+          {showFilters && (
+            <div className="absolute right-0 top-full mt-2 w-48 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl shadow-lg z-20 py-1">
+              {(["all", "queued", "running", "completed", "failed"] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => { setStatusFilter(s); setShowFilters(false); }}
+                  className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                    statusFilter === s ? "bg-[var(--brand-primary-muted)] text-[var(--brand)] font-medium" : "text-[var(--dash-text-secondary)] hover:bg-[var(--surface-hover)]"
+                  }`}
+                >
+                  {s === "all" ? "All Statuses" : s.charAt(0).toUpperCase() + s.slice(1)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-5">

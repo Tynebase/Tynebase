@@ -270,7 +270,7 @@ export default function VideoPage() {
         <div>
           <h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">Generate from Video</h1>
           <p className="text-[var(--dash-text-tertiary)] mt-1">
-            Transform videos into comprehensive documentation automatically
+            Automatically transform videos into comprehensive documentation
           </p>
         </div>
       </div>

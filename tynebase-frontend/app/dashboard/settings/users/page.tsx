@@ -300,7 +300,7 @@ export default function UsersPage() {
       <Modal
         isOpen={showInviteModal}
         onClose={() => { setShowInviteModal(false); setInviteError(null); setInviteSuccess(false); }}
-        title="Invite Team Member"
+        title="Invite Users"
         description="Send an invitation email to join your workspace"
         size="md"
       >

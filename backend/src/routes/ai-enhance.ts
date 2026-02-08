@@ -438,6 +438,23 @@ CRITICAL RULES:
             };
           };
 
+          // Validate that 'find' text in suggestions actually exists in the document
+          const validateSuggestionsAgainstContent = (result: EnhanceResponse, content: string): EnhanceResponse => {
+            const validated = result.suggestions.filter((s: any) => {
+              if ((s.action === 'replace' || s.action === 'delete') && s.find) {
+                if (!content.includes(s.find)) {
+                  request.log.warn(
+                    { title: s.title, findLength: s.find.length },
+                    'Dropping suggestion: find text not found in document'
+                  );
+                  return false;
+                }
+              }
+              return true;
+            });
+            return { score: result.score, suggestions: validated };
+          };
+
           const candidates = extractJsonCandidates(text);
           if (candidates.length === 0) {
             throw new Error('No JSON found in AI response');
@@ -462,6 +479,7 @@ CRITICAL RULES:
           }
 
           enhanceResult = normalizeEnhanceResult(parsed);
+          enhanceResult = validateSuggestionsAgainstContent(enhanceResult, document.content);
 
           if (enhanceResult.score < 0 || enhanceResult.score > 100) {
             throw new Error('Invalid score in AI response');

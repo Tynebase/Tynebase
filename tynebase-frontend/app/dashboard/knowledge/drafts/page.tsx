@@ -235,11 +235,6 @@ export default function DraftsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-2 text-sm text-[var(--dash-text-tertiary)] mb-1">
-            <Link href="/dashboard/knowledge" className="hover:text-[var(--brand)]">Knowledge Base</Link>
-            <span>/</span>
-            <span>My Drafts</span>
-          </div>
           <h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">My Drafts</h1>
           <p className="text-[var(--dash-text-tertiary)] mt-1">
             Continue working on your unpublished documents

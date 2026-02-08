@@ -232,7 +232,7 @@ export default function AudioPage() {
         <div>
           <h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">Generate from Audio</h1>
           <p className="text-[var(--dash-text-tertiary)] mt-1">
-            Transform audio recordings into comprehensive documentation automatically
+            Automatically transform audio recordings into comprehensive documentation
           </p>
         </div>
       </div>

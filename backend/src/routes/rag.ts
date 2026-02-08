@@ -515,10 +515,13 @@ export default async function ragRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Filter outdated documents where updated_at > last_indexed_at
-        const outdatedDocs = (allIndexedDocs || []).filter(doc => 
-          new Date(doc.updated_at) > new Date(doc.last_indexed_at)
-        );
+        // Filter outdated documents where updated_at is meaningfully newer than last_indexed_at
+        // Use a 2-second buffer to account for DB triggers that auto-update updated_at
+        const outdatedDocs = (allIndexedDocs || []).filter(doc => {
+          const updatedAt = new Date(doc.updated_at).getTime();
+          const lastIndexedAt = new Date(doc.last_indexed_at).getTime();
+          return updatedAt - lastIndexedAt > 2000; // 2 second buffer
+        });
 
         // Count failed rag_index jobs
         const { count: failedJobs, error: failedJobsError } = await supabaseAdmin
@@ -1218,7 +1221,7 @@ export default async function ragRoutes(fastify: FastifyInstance) {
           if (failedDocIds.has(doc.id)) {
             indexingStatus = 'failed';
           } else if (doc.last_indexed_at) {
-            if (new Date(doc.updated_at) > new Date(doc.last_indexed_at)) {
+            if (new Date(doc.updated_at).getTime() - new Date(doc.last_indexed_at).getTime() > 2000) {
               indexingStatus = 'outdated';
             } else {
               indexingStatus = 'indexed';

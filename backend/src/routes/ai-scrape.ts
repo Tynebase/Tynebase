@@ -273,15 +273,18 @@ export default async function aiScrapeRoutes(fastify: FastifyInstance) {
         });
 
         return reply.status(200).send({
-          url: scrapeResult.url,
-          title: scrapeResult.title,
-          markdown: finalContent,
-          raw_markdown: validated.output_type !== 'raw' ? scrapeResult.markdown : undefined,
-          output_type: validated.output_type,
-          ai_model: validated.ai_model,
-          content_length: finalContent.length,
-          credits_charged: totalCredits,
-          tokens_used: tokensUsed,
+          success: true,
+          data: {
+            url: scrapeResult.url,
+            title: scrapeResult.title,
+            markdown: finalContent,
+            raw_markdown: validated.output_type !== 'raw' ? scrapeResult.markdown : undefined,
+            output_type: validated.output_type,
+            ai_model: validated.ai_model,
+            content_length: finalContent.length,
+            credits_charged: totalCredits,
+            tokens_used: tokensUsed,
+          },
         });
       } catch (error) {
         if (error instanceof z.ZodError) {

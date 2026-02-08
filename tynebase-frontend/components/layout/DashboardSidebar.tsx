@@ -118,7 +118,7 @@ const sourcesNavigation: NavItem[] = [
   },
   {
     id: "sources-normalized",
-    label: "Normalized Markdown",
+    label: "Normalised Markdown",
     icon: FileSearch,
     href: "/dashboard/sources/normalized",
     color: "#8b5cf6",
@@ -268,6 +268,9 @@ export function DashboardSidebar({ mobile }: { mobile?: boolean }) {
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === href;
+    // Exact match for section parent routes to prevent double-highlighting
+    const exactMatchRoutes = ["/dashboard/knowledge", "/dashboard/sources"];
+    if (exactMatchRoutes.includes(href)) return pathname === href;
     return pathname.startsWith(href) && href !== "/dashboard";
   };
 

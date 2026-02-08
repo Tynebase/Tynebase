@@ -1125,8 +1125,7 @@ export default function AIAssistantPage() {
                   <button 
                     onClick={() => {
                       setOutputType('template');
-                      setIsGenerating(true);
-                      setTimeout(() => setIsGenerating(false), 2000);
+                      handleGenerate();
                     }}
                     disabled={!prompt.trim() || isGenerating}
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[var(--brand)] hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-all"

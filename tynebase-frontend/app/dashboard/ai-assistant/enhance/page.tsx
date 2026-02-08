@@ -146,6 +146,9 @@ export default function EnhancePage() {
     setAppliedSuggestions([]);
     setLoadingContent(true);
     
+    // Clear persisted data so old suggestions don't interfere
+    try { sessionStorage.removeItem(getStorageKey(pendingDoc.id)); } catch {};
+    
     try {
       const response = await enhance({ document_id: pendingDoc.id, custom_prompt: customPrompt || undefined });
       
@@ -279,11 +282,6 @@ export default function EnhancePage() {
     <div className="h-full w-full min-h-0 flex flex-col gap-6">
       {/* Header */}
       <div>
-        <div className="flex items-center gap-2 text-sm text-[var(--dash-text-tertiary)] mb-1">
-          <Link href="/dashboard/ai-assistant" className="hover:text-[var(--brand)]">AI Assistant</Link>
-          <span>/</span>
-          <span>Enhance Content</span>
-        </div>
         <h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">Enhance Content</h1>
         <p className="text-[var(--dash-text-tertiary)] mt-1">
           Improve your published documentation with AI-powered suggestions (Claude Sonnet)
@@ -384,7 +382,16 @@ export default function EnhancePage() {
                         View Article
                       </Link>
                     )}
-                    <button className="h-10 px-5 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-xl font-medium flex items-center gap-2">
+                    <button
+                      onClick={async () => {
+                        const unapplied = suggestions.filter(s => !appliedSuggestions.includes(s.title));
+                        for (const suggestion of unapplied) {
+                          await applySuggestion(suggestion);
+                        }
+                      }}
+                      disabled={applyingId !== null || suggestions.every(s => appliedSuggestions.includes(s.title))}
+                      className="h-10 px-5 bg-[var(--brand)] hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-medium flex items-center gap-2"
+                    >
                       <Zap className="w-4 h-4" />
                       Apply All
                     </button>

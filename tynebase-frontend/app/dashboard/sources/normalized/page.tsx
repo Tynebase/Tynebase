@@ -81,6 +81,8 @@ export default function NormalizedMarkdownPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [showFilters, setShowFilters] = useState(false);
 
   const loadDocs = useCallback(async () => {
     setIsLoading(true);
@@ -117,10 +119,16 @@ export default function NormalizedMarkdownPage() {
   }, [loadDocs]);
 
   const filtered = useMemo(() => {
+    let result = docs;
+    if (statusFilter !== "all") {
+      result = result.filter((d) => d.status === statusFilter);
+    }
     const q = query.trim().toLowerCase();
-    if (!q) return docs;
-    return docs.filter((d) => `${d.title} ${d.status ?? ""}`.toLowerCase().includes(q));
-  }, [docs, query]);
+    if (q) {
+      result = result.filter((d) => `${d.title} ${d.status ?? ""}`.toLowerCase().includes(q));
+    }
+    return result;
+  }, [docs, query, statusFilter]);
 
   const selected = useMemo(() => {
     if (!selectedId) return null;
@@ -164,12 +172,6 @@ export default function NormalizedMarkdownPage() {
       <div className="grid grid-cols-12 gap-4 items-start">
         <div className="col-span-12 lg:col-span-3">
           <div className="flex items-center gap-2 text-sm text-[var(--dash-text-tertiary)] mb-1">
-            <Link href="/dashboard/sources" className="hover:text-[var(--brand)] inline-flex items-center gap-2">
-              <ArrowLeft className="w-4 h-4" />
-              Sources
-            </Link>
-            <span>/</span>
-            <span>Normalised Markdown</span>
           </div>
         </div>
 
@@ -221,9 +223,31 @@ export default function NormalizedMarkdownPage() {
                 className="w-full pl-11 pr-4 py-3 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 transition-all"
               />
             </div>
-            <button className="inline-flex items-center justify-center gap-2 px-4 py-3 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-sm font-semibold text-[var(--dash-text-secondary)] hover:border-[var(--dash-border-default)] transition-all">
-              <Filter className="w-4 h-4" />
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`inline-flex items-center justify-center gap-2 px-4 py-3 bg-[var(--surface-card)] border rounded-xl text-sm font-semibold transition-all ${
+                  statusFilter !== "all" ? "border-[var(--brand)] text-[var(--brand)]" : "border-[var(--dash-border-subtle)] text-[var(--dash-text-secondary)] hover:border-[var(--dash-border-default)]"
+                }`}
+              >
+                <Filter className="w-4 h-4" />
+              </button>
+              {showFilters && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl shadow-lg z-20 py-1">
+                  {(["all", "published", "draft"] as const).map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => { setStatusFilter(s); setShowFilters(false); }}
+                      className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                        statusFilter === s ? "bg-[var(--brand-primary-muted)] text-[var(--brand)] font-medium" : "text-[var(--dash-text-secondary)] hover:bg-[var(--surface-hover)]"
+                      }`}
+                    >
+                      {s === "all" ? "All Statuses" : s.charAt(0).toUpperCase() + s.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <Card className="overflow-hidden">

@@ -85,6 +85,8 @@ export default function CollectionsPage() {
   const [newDescription, setNewDescription] = useState("");
   const [newColor, setNewColor] = useState(COLLECTION_COLORS[0]);
   const [newVisibility, setNewVisibility] = useState<Visibility>("private");
+  const [visibilityFilter, setVisibilityFilter] = useState<"all" | Visibility>("all");
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     fetchCollections();
@@ -105,6 +107,7 @@ export default function CollectionsPage() {
   };
 
   const filtered = collections.filter((c) => {
+    if (visibilityFilter !== "all" && c.visibility !== visibilityFilter) return false;
     const q = query.trim().toLowerCase();
     if (!q) return true;
     return `${c.name} ${c.description || ''}`.toLowerCase().includes(q);
@@ -203,10 +206,32 @@ export default function CollectionsPage() {
               className="w-full pl-11 pr-4 py-3 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 transition-all"
             />
           </div>
-          <button className="inline-flex items-center justify-center gap-2 h-11 px-5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-sm font-medium text-[var(--dash-text-secondary)] hover:border-[var(--dash-border-default)] transition-all">
-            <FolderOpen className="w-4 h-4" />
-            Filters
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`inline-flex items-center justify-center gap-2 h-11 px-5 bg-[var(--surface-card)] border rounded-xl text-sm font-medium transition-all ${
+                visibilityFilter !== "all" ? "border-[var(--brand)] text-[var(--brand)]" : "border-[var(--dash-border-subtle)] text-[var(--dash-text-secondary)] hover:border-[var(--dash-border-default)]"
+              }`}
+            >
+              <FolderOpen className="w-4 h-4" />
+              Filters{visibilityFilter !== "all" ? " (1)" : ""}
+            </button>
+            {showFilters && (
+              <div className="absolute right-0 top-full mt-2 w-48 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl shadow-lg z-20 py-1">
+                {(["all", "public", "private", "team"] as const).map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => { setVisibilityFilter(v); setShowFilters(false); }}
+                    className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                      visibilityFilter === v ? "bg-[var(--brand-primary-muted)] text-[var(--brand)] font-medium" : "text-[var(--dash-text-secondary)] hover:bg-[var(--surface-hover)]"
+                    }`}
+                  >
+                    {v === "all" ? "All Visibility" : v.charAt(0).toUpperCase() + v.slice(1)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

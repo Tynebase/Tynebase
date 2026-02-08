@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/contexts/TenantContext";
+import { useCredits } from "@/contexts/CreditsContext";
 import Link from "next/link";
 import { DashboardPageHeader } from "@/components/layout/DashboardPageHeader";
 import {
@@ -35,6 +36,7 @@ import { capitalize } from "@/lib/utils";
 export default function DashboardPage() {
   const { user } = useAuth();
   const { branding, subdomain, tenant } = useTenant();
+  const { creditsRemaining } = useCredits();
   const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentDocs, setRecentDocs] = useState<RecentDocument[]>([]);
@@ -106,13 +108,13 @@ export default function DashboardPage() {
   // Customize stats based on user type
   const quickStats = isIndividualUser ? [
     { label: "Total documents", value: stats?.documents.total.toString() || "0", change: `${stats?.documents.published || 0} published`, icon: BookOpen, color: "var(--brand)" },
-    { label: "AI generations", value: stats?.ai.generations.toString() || "0", change: `${stats?.ai.credits_remaining || 0} credits left`, icon: Sparkles, color: "var(--accent-purple)" },
+    { label: "AI generations", value: stats?.ai.generations.toString() || "0", change: `${creditsRemaining} credits left`, icon: Sparkles, color: "var(--accent-purple)" },
     { label: "Storage Used", value: stats?.storage.used_mb && stats.storage.used_mb < 1024 ? `${stats.storage.used_mb}MB` : `${stats?.storage.used_gb || 0}GB`, change: stats?.storage.limit_mb && stats.storage.limit_mb < 1024 ? `${stats.storage.limit_mb}MB total` : `${stats?.storage.limit_gb || 5}GB total`, icon: TrendingUp, color: "var(--accent-blue)" },
     { label: "Content health", value: `${100 - (stats?.storage.percentage || 0)}%`, change: "Good", icon: BarChart3, color: "var(--status-success)" },
   ] : [
     { label: "Total documents", value: stats?.documents.total.toString() || "0", change: `${stats?.documents.published || 0} published`, icon: BookOpen, color: "var(--brand)" },
     { label: "Team members", value: stats?.team.members.toString() || "0", change: "Active users", icon: Users, color: "var(--accent-blue)" },
-    { label: "AI generations", value: stats?.ai.generations.toString() || "0", change: `${stats?.ai.credits_remaining || 0} credits left`, icon: Sparkles, color: "var(--accent-purple)" },
+    { label: "AI generations", value: stats?.ai.generations.toString() || "0", change: `${creditsRemaining} credits left`, icon: Sparkles, color: "var(--accent-purple)" },
     { label: "Content health", value: `${100 - (stats?.storage.percentage || 0)}%`, change: "Good", icon: BarChart3, color: "var(--status-success)" },
   ];
 

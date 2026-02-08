@@ -121,6 +121,8 @@ export default function SourcesPage() {
   const [error, setError] = useState<string | null>(null);
   const [reindexingDocs, setReindexingDocs] = useState<Record<string, { jobId: string; progress: number; status: string }>>({});
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [reasonFilter, setReasonFilter] = useState<'all' | 'never_indexed' | 'outdated'>('all');
+  const [showFilters, setShowFilters] = useState(false);
 
   const fetchHealthData = async () => {
     try {
@@ -191,12 +193,16 @@ export default function SourcesPage() {
 
   const filtered = useMemo(() => {
     if (!healthData) return [];
+    let result = healthData.documents_needing_reindex;
+    if (reasonFilter !== 'all') {
+      result = result.filter((doc) => doc.reason === reasonFilter);
+    }
     const q = query.trim().toLowerCase();
-    if (!q) return healthData.documents_needing_reindex;
-    return healthData.documents_needing_reindex.filter((doc) => 
-      doc.title.toLowerCase().includes(q)
-    );
-  }, [query, healthData]);
+    if (q) {
+      result = result.filter((doc) => doc.title.toLowerCase().includes(q));
+    }
+    return result;
+  }, [query, healthData, reasonFilter]);
 
   const stats = useMemo(() => {
     if (!healthData) {
@@ -285,10 +291,32 @@ export default function SourcesPage() {
             className="w-full pl-11 pr-4 py-3 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 transition-all"
           />
         </div>
-        <button className="inline-flex items-center justify-center gap-2 h-12 px-7 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-sm font-semibold text-[var(--dash-text-secondary)] hover:border-[var(--dash-border-default)] transition-all">
-          <Filter className="w-4 h-4" />
-          Filters
-        </button>
+        <div className="relative">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`inline-flex items-center justify-center gap-2 h-12 px-7 bg-[var(--surface-card)] border rounded-xl text-sm font-semibold transition-all ${
+              reasonFilter !== 'all' ? 'border-[var(--brand)] text-[var(--brand)]' : 'border-[var(--dash-border-subtle)] text-[var(--dash-text-secondary)] hover:border-[var(--dash-border-default)]'
+            }`}
+          >
+            <Filter className="w-4 h-4" />
+            Filters{reasonFilter !== 'all' ? ' (1)' : ''}
+          </button>
+          {showFilters && (
+            <div className="absolute right-0 top-full mt-2 w-56 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl shadow-lg z-20 py-1">
+              {([['all', 'All Documents'], ['never_indexed', 'Never Indexed'], ['outdated', 'Needs Re-indexing']] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => { setReasonFilter(value); setShowFilters(false); }}
+                  className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                    reasonFilter === value ? 'bg-[var(--brand-primary-muted)] text-[var(--brand)] font-medium' : 'text-[var(--dash-text-secondary)] hover:bg-[var(--surface-hover)]'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {error && (
