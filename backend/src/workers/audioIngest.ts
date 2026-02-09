@@ -117,7 +117,8 @@ export async function processAudioIngestJob(job: Job): Promise<Record<string, an
     const creditBreakdown: Record<string, number> = { base: baseCredits };
     
     if (outputOptions.generate_transcript) {
-      creditBreakdown.transcript = 0; // Transcript is included in base
+      totalCredits += modelCreditCost;
+      creditBreakdown.transcript = modelCreditCost;
     }
     if (outputOptions.generate_summary) {
       totalCredits += modelCreditCost;
