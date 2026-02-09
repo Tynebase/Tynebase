@@ -165,14 +165,14 @@ export default function KnowledgeActivityPage() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Link
-            href="/dashboard/community"
+            href="/dashboard/knowledge"
             className="inline-flex items-center gap-2 h-10 px-6 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-sm font-medium text-[var(--dash-text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)] transition-all"
           >
             <ArrowRight className="w-4 h-4" />
-            Community
+            Knowledge Base
           </Link>
           <Link
-            href="/dashboard/knowledge/documents/new"
+            href="/dashboard/knowledge/new"
             className="inline-flex items-center gap-2 h-10 px-6 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-xl font-semibold transition-all shadow-sm hover:shadow-md"
           >
             <Plus className="w-4 h-4" />

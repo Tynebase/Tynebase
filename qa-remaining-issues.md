@@ -178,25 +178,21 @@
 
 ---
 
-## 10. Permission Stats Inaccuracy
+## 10. Permission Stats Inaccuracy ✅ FIXED
 **Screen:** User Settings & Permissions  
 **URL:** `/dashboard/settings/users`  
 **Symptom:** The user counts shown on the Role Permission cards don't match actual user counts per role.  
-**Files to investigate:**
-- `tynebase-frontend/app/dashboard/settings/users/page.tsx` — the Role Permissions card section (~line 257-280)
-- Currently the cards show role descriptions but no user counts — the counts may need to be computed from the `users` array
-- Or there's a separate API endpoint returning incorrect stats
 
-**Suggested fix:**
-```tsx
-// Add user count per role
-const roleUserCount = (roleId: string) => users.filter(u => u.role === roleId).length;
-// Display in the card: `${roleUserCount(role.id)} users`
-```
+**Root cause:** Role permission cards only showed role name and description — no user count was computed or displayed.
+
+**Fix applied:**
+- `tynebase-frontend/app/dashboard/settings/users/page.tsx` — Added `roleUserCount` computation per role card that filters the loaded `users` array by role (with `member` → `contributor` mapping). Displayed as a colored badge (e.g., "3 users") on each role card.
+
+**Status:** ✅ Completed
 
 ---
 
-## 11. Custom Role CRUD & Edit Permissions
+## 11. Custom Role CRUD & Edit Permissions — N/A (Design Limitation)
 **Screen:** User Settings & Permissions  
 **URL:** `/dashboard/settings/users`  
 **Symptoms:**
@@ -204,20 +200,13 @@ const roleUserCount = (roleId: string) => users.filter(u => u.role === roleId).l
 - Admins cannot edit permissions for existing roles
 - System roles should NOT be deletable
 
-**Files to investigate:**
-- `tynebase-frontend/app/dashboard/settings/users/page.tsx` — role cards section
-- `backend/src/routes/` — look for role management endpoints (CRUD for roles)
-- DB schema: check if there's a `roles` or `custom_roles` table with `is_system` flag
+**Investigation result:** Roles are hardcoded system roles (`admin`, `editor`, `contributor`, `viewer`) in the frontend — there is no `roles` or `custom_roles` table in the DB, and no backend CRUD endpoints for role management. Custom roles are not a feature of the current system.
 
-**Steps:**
-1. Check if custom role endpoints exist in the backend
-2. Add delete button to custom role cards (with `is_system` guard)
-3. Add edit permissions modal that updates role capabilities
-4. Create backend endpoints if missing: `PUT /api/roles/:id`, `DELETE /api/roles/:id`
+**Status:** N/A — No custom roles exist. System roles are correctly non-deletable. User counts per role are now shown (see #10). Full custom role CRUD would be a new feature, not a bug fix.
 
 ---
 
-## 12. Misc — Activity Screen Issues
+## 12. Misc — Activity Screen Issues ✅ FIXED
 **Screen:** Knowledge Base Activity  
 **URL:** `/dashboard/knowledge/activity`  
 **Symptoms:**
@@ -225,39 +214,47 @@ const roleUserCount = (roleId: string) => users.filter(u => u.role === roleId).l
 - "New Document" button redirects to a 404 page
 - When in AI enhance, see all activity redirects to community instead of redirecting to the correct `/dashboard/knowledge/activity`
 
-**Files to investigate:**
-- `tynebase-frontend/app/dashboard/knowledge/activity/page.tsx` — check for the Community button and New Document link
-- The New Document button likely links to a wrong path
+**Root causes:**
+1. "Community" button linked to `/dashboard/community` — misplaced on the activity page
+2. "New Document" button linked to `/dashboard/knowledge/documents/new` which doesn't exist (correct path is `/dashboard/knowledge/new`)
+3. No "activity" or "community" links found in the AI enhance panel — this sub-issue was likely referring to the activity page itself
 
-**Steps:**
-1. Navigate to the activity page
-2. Check what the "New Document" button's href is — it should be `/dashboard/knowledge/new`
-3. Determine if the "Community" button is intentional or misplaced
+**Fixes applied:**
+- `tynebase-frontend/app/dashboard/knowledge/activity/page.tsx` — Changed "Community" button to "Knowledge Base" linking to `/dashboard/knowledge` (more contextually appropriate navigation). Fixed "New Document" href from `/dashboard/knowledge/documents/new` to `/dashboard/knowledge/new`.
+
+**Status:** ✅ Completed
 
 ---
 
-## 13. Collections & Tags — Delete Confirmation
+## 13. Collections & Tags — Delete Confirmation ✅ ALREADY FIXED
 **Screen:** Settings → Collections / Tags  
 **Symptom:** Deleting a Collection or Tag has no confirmation modal — it deletes immediately.  
-**Files to investigate:**
-- Search for collection/tag management pages: `find_by_name` for `collections` or `tags` under `app/dashboard/`
-- Add a confirmation modal (can reuse the existing `DeleteConfirmationModal` component from `components/ui/DeleteConfirmationModal.tsx`)
+
+**Investigation result:** Both pages already have delete confirmation modals implemented:
+- `tynebase-frontend/app/dashboard/knowledge/collections/page.tsx` (lines 466-509) — Full delete confirmation modal with cancel/confirm buttons
+- `tynebase-frontend/app/dashboard/knowledge/tags/page.tsx` (lines 804-864) — Full delete confirmation modal with warning about assigned documents
+
+**Status:** ✅ Already implemented — no changes needed
 
 ---
 
-## 14. Recent AI Generations — History, Tags, Navigation
+## 14. Recent AI Generations — History, Tags, Navigation ✅ FIXED
 **Screen:** AI Assistant  
-**URL:** `/dashboard/ai-chat` or `/dashboard/ai-assistant`  
+**URL:** `/dashboard/ai-assistant`  
 **Symptoms:**
 - Not showing all generation history
 - Tags not capitalized
 - Clicking a generated article card doesn't navigate to the article
 
-**Files to investigate:**
-- `tynebase-frontend/app/dashboard/ai-chat/page.tsx` — conversation list rendering
-- Look for a "recent generations" or "history" section
-- Check if article cards have proper `onClick` or `href` to `/dashboard/knowledge/[id]`
-- Backend: check if the generations list API has proper pagination/limits
+**Root causes:**
+1. `listRecentGenerations({ limit: 5 })` only fetched 5 items — too few to show meaningful history
+2. `gen.type` was displayed raw without `capitalize()` (e.g., "From Prompt" was already capitalized from backend, but consistency was missing)
+3. Cards without a `document_id` (failed/pending jobs) still showed `cursor-pointer` but had no navigation, confusing users
+
+**Fixes applied:**
+- `tynebase-frontend/app/dashboard/ai-assistant/page.tsx` — Increased limit from 5 to 20. Applied `capitalize()` to `gen.type` for consistency. Made cards without `document_id` visually distinct (no cursor-pointer, reduced opacity) while keeping navigable cards interactive.
+
+**Status:** ✅ Completed
 
 ---
 

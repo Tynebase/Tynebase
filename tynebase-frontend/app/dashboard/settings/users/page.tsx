@@ -262,19 +262,30 @@ export default function UsersPage() {
         </CardHeader>
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {roles.map((role) => (
-              <Card key={role.id} className="hover:border-[var(--brand)] transition-colors">
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${role.color}15` }}>
-                      <Shield className="w-4 h-4" style={{ color: role.color }} />
+            {roles.map((role) => {
+              const roleUserCount = users.filter(u => {
+                const userRole = u.role === "member" ? "contributor" : u.role;
+                return userRole === role.id;
+              }).length;
+              return (
+                <Card key={role.id} className="hover:border-[var(--brand)] transition-colors">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${role.color}15` }}>
+                          <Shield className="w-4 h-4" style={{ color: role.color }} />
+                        </div>
+                        <span className="font-medium text-[var(--dash-text-primary)]">{role.label}</span>
+                      </div>
+                      <span className="text-xs font-medium px-2.5 py-1 rounded-full" style={{ backgroundColor: `${role.color}15`, color: role.color }}>
+                        {roleUserCount} {roleUserCount === 1 ? 'user' : 'users'}
+                      </span>
                     </div>
-                    <span className="font-medium text-[var(--dash-text-primary)]">{role.label}</span>
-                  </div>
-                  <p className="text-sm text-[var(--dash-text-muted)]">{role.description}</p>
-                </CardContent>
-              </Card>
-            ))}
+                    <p className="text-sm text-[var(--dash-text-muted)]">{role.description}</p>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </CardContent>
       </Card>

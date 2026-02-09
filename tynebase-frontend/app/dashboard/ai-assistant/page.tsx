@@ -133,7 +133,7 @@ export default function AIAssistantPage() {
     async function fetchRecentGenerations() {
       try {
         setRecentGenerationsLoading(true);
-        const response = await listRecentGenerations({ limit: 5 });
+        const response = await listRecentGenerations({ limit: 20 });
         setRecentGenerations(response.generations);
       } catch (err) {
         console.error('Failed to fetch recent generations:', err);
@@ -1178,14 +1178,22 @@ export default function AIAssistantPage() {
                 </div>
               ) : (
                 recentGenerations.map((gen: GenerationJob) => (
-                  <div key={gen.id} className="px-6 py-4 flex items-center justify-between hover:bg-[var(--surface-hover)] transition-colors cursor-pointer" onClick={() => gen.document_id && router.push(`/dashboard/knowledge/${gen.document_id}`)}>
+                  <div 
+                    key={gen.id} 
+                    className={`px-6 py-4 flex items-center justify-between transition-colors ${
+                      gen.document_id 
+                        ? 'hover:bg-[var(--surface-hover)] cursor-pointer' 
+                        : 'opacity-80'
+                    }`}
+                    onClick={() => gen.document_id && router.push(`/dashboard/knowledge/${gen.document_id}`)}
+                  >
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-lg bg-[var(--brand-primary-muted)] flex items-center justify-center">
                         <Sparkles className="w-5 h-5 text-[var(--brand)]" />
                       </div>
                       <div>
                         <p className="font-medium text-[var(--dash-text-primary)]">{gen.title}</p>
-                        <p className="text-sm text-[var(--dash-text-tertiary)]">{gen.type} • {formatTimeAgo(gen.created_at)}</p>
+                        <p className="text-sm text-[var(--dash-text-tertiary)]">{capitalize(gen.type)} • {formatTimeAgo(gen.created_at)}</p>
                       </div>
                     </div>
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${
