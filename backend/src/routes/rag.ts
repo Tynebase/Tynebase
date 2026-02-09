@@ -546,6 +546,41 @@ export default async function ragRoutes(fastify: FastifyInstance) {
           });
         }
 
+        // Count pending rag_index jobs
+        const { count: pendingJobs } = await supabaseAdmin
+          .from('job_queue')
+          .select('*', { count: 'exact', head: true })
+          .eq('tenant_id', tenant.id)
+          .eq('type', 'rag_index')
+          .eq('status', 'pending');
+
+        // Count processing (running) rag_index jobs
+        const { count: processingJobs } = await supabaseAdmin
+          .from('job_queue')
+          .select('*', { count: 'exact', head: true })
+          .eq('tenant_id', tenant.id)
+          .eq('type', 'rag_index')
+          .eq('status', 'processing');
+
+        // Count total chunks
+        const { count: totalChunks } = await supabaseAdmin
+          .from('document_chunks')
+          .select('*', { count: 'exact', head: true })
+          .in('document_id', 
+            (allIndexedDocs || []).map(d => d.id).length > 0 
+              ? (allIndexedDocs || []).map(d => d.id)
+              : ['00000000-0000-0000-0000-000000000000']
+          );
+
+        // Get recent pipeline events (last 20 job queue entries for this tenant)
+        const { data: recentJobs } = await supabaseAdmin
+          .from('job_queue')
+          .select('id, type, status, progress, created_at, updated_at, payload')
+          .eq('tenant_id', tenant.id)
+          .eq('type', 'rag_index')
+          .order('created_at', { ascending: false })
+          .limit(20);
+
         // Get documents that have never been indexed
         const { data: neverIndexedDocs, error: neverIndexedError } = await supabaseAdmin
           .from('documents')
@@ -585,12 +620,65 @@ export default async function ragRoutes(fastify: FastifyInstance) {
           })),
         ];
 
+        // Format pipeline events from recent jobs
+        const pipelineEvents = (recentJobs || []).map((job: any) => {
+          const title = job.payload?.document_title || job.payload?.title || 'Unknown document';
+          let eventType: 'success' | 'warning' | 'error' | 'info' = 'info';
+          let label = '';
+          let detail = '';
+
+          if (job.status === 'completed') {
+            eventType = 'success';
+            label = 'Embeddings up to date';
+            detail = `${title} → indexed successfully`;
+          } else if (job.status === 'processing') {
+            eventType = 'warning';
+            label = 'Indexing in progress';
+            detail = `${title} → chunking + embedding`;
+          } else if (job.status === 'failed') {
+            eventType = 'error';
+            label = 'Indexing failed';
+            detail = `${title} → ${job.payload?.error || 'unknown error'}`;
+          } else if (job.status === 'pending') {
+            eventType = 'info';
+            label = 'Queued for indexing';
+            detail = `${title} → waiting in queue`;
+          }
+
+          // Calculate relative time
+          const updatedAt = new Date(job.updated_at || job.created_at);
+          const now = new Date();
+          const diffMs = now.getTime() - updatedAt.getTime();
+          const diffMins = Math.floor(diffMs / 60000);
+          const diffHours = Math.floor(diffMs / 3600000);
+          const diffDays = Math.floor(diffMs / 86400000);
+          let timeAgo = '';
+          if (diffMins < 1) timeAgo = 'Just now';
+          else if (diffMins < 60) timeAgo = `${diffMins} min ago`;
+          else if (diffHours < 24) timeAgo = `${diffHours}h ago`;
+          else if (diffDays === 1) timeAgo = 'Yesterday';
+          else timeAgo = `${diffDays} days ago`;
+
+          return {
+            id: job.id,
+            type: eventType,
+            label,
+            detail,
+            time_ago: timeAgo,
+            status: job.status,
+          };
+        });
+
         const stats = {
           total_documents: totalDocuments || 0,
           indexed_documents: indexedDocuments || 0,
           outdated_documents: (outdatedDocs || []).length,
           never_indexed_documents: (neverIndexedDocs || []).length,
           failed_jobs: failedJobs || 0,
+          pending_jobs: pendingJobs || 0,
+          processing_jobs: processingJobs || 0,
+          total_chunks: totalChunks || 0,
+          pipeline_events: pipelineEvents,
           documents_needing_reindex: documentsNeedingReindex,
         };
 
@@ -928,8 +1016,9 @@ export default async function ragRoutes(fastify: FastifyInstance) {
 
         // Step 3-7: Execute RAG pipeline with streaming
         if (stream) {
-          // Get origin from request for CORS
-          const origin = request.headers.origin || 'http://localhost:3000';
+          // Get origin from request for CORS (use first allowed origin as fallback)
+          const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean);
+          const origin = request.headers.origin || allowedOrigins[0] || '*';
           
           reply.raw.writeHead(200, {
             'Content-Type': 'text/event-stream',

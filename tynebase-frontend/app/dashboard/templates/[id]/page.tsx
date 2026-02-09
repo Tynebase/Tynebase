@@ -2,19 +2,39 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, FileText, Calendar, User, Globe, Lock, Loader2, AlertCircle, CheckCircle } from "lucide-react";
+import { ArrowLeft, FileText, User, Globe, Lock, Loader2, AlertCircle, CheckCircle, Tag } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Card, CardContent } from "@/components/ui/Card";
-import { useTemplate } from "@/lib/api/templates";
+import { getTemplate, useTemplate, type Template } from "@/lib/api/templates";
+import { MarkdownReader } from "@/components/ui/MarkdownReader";
 
 export default function TemplateDetailPage() {
   const router = useRouter();
   const params = useParams();
   const templateId = params.id as string;
   
+  const [template, setTemplate] = useState<Template | null>(null);
+  const [fetchLoading, setFetchLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    async function loadTemplate() {
+      try {
+        setFetchLoading(true);
+        setFetchError(null);
+        const response = await getTemplate(templateId);
+        setTemplate(response.template);
+      } catch (err: any) {
+        console.error('Failed to fetch template:', err);
+        setFetchError(err.message || 'Failed to load template');
+      } finally {
+        setFetchLoading(false);
+      }
+    }
+    loadTemplate();
+  }, [templateId]);
 
   async function handleUseTemplate() {
     try {
@@ -37,10 +57,33 @@ export default function TemplateDetailPage() {
     }
   }
 
+  if (fetchLoading) {
+    return (
+      <div className="min-h-full flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-[var(--brand)]" />
+          <p className="text-sm text-[var(--dash-text-tertiary)]">Loading template...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="min-h-full flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <AlertCircle className="w-8 h-8 text-[var(--status-error)]" />
+          <p className="text-sm text-[var(--dash-text-primary)] font-medium">{fetchError}</p>
+          <Button variant="ghost" onClick={() => router.push('/dashboard/templates')}>Back to Templates</Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full w-full min-h-0 flex flex-col gap-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <Button
           variant="ghost"
           size="sm"
@@ -50,103 +93,91 @@ export default function TemplateDetailPage() {
           <ArrowLeft className="w-4 h-4" />
           Back to Templates
         </Button>
+        <Button
+          size="sm"
+          onClick={handleUseTemplate}
+          disabled={loading || success}
+          className="gap-2 min-w-[180px]"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Creating...
+            </>
+          ) : success ? (
+            <>
+              <CheckCircle className="w-4 h-4" />
+              Created!
+            </>
+          ) : (
+            <>
+              <FileText className="w-4 h-4" />
+              Use Template
+            </>
+          )}
+        </Button>
       </div>
 
       {/* Error State */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+        <div className="bg-[var(--status-error-bg)] border border-[var(--status-error)]/20 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-[var(--status-error)] flex-shrink-0 mt-0.5" />
           <div>
-            <h3 className="text-sm font-semibold text-red-900">Failed to use template</h3>
-            <p className="text-sm text-red-700 mt-1">{error}</p>
+            <h3 className="text-sm font-semibold text-[var(--dash-text-primary)]">Failed to use template</h3>
+            <p className="text-sm text-[var(--dash-text-secondary)] mt-1">{error}</p>
           </div>
         </div>
       )}
 
       {/* Success State */}
       {success && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
-          <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+        <div className="bg-[var(--status-success-bg)] border border-[var(--status-success)]/20 rounded-lg p-4 flex items-start gap-3">
+          <CheckCircle className="w-5 h-5 text-[var(--status-success)] flex-shrink-0 mt-0.5" />
           <div>
-            <h3 className="text-sm font-semibold text-green-900">Document created successfully</h3>
-            <p className="text-sm text-green-700 mt-1">Redirecting to editor...</p>
+            <h3 className="text-sm font-semibold text-[var(--dash-text-primary)]">Document created successfully</h3>
+            <p className="text-sm text-[var(--dash-text-secondary)] mt-1">Redirecting to editor...</p>
           </div>
         </div>
       )}
 
-      {/* Template Preview Card */}
-      <Card className="flex-1">
-        <CardContent className="p-8">
-          <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-8">
-              <div className="w-16 h-16 rounded-2xl bg-[var(--brand)]/10 flex items-center justify-center mx-auto mb-4">
-                <FileText className="w-8 h-8 text-[var(--brand)]" />
-              </div>
-              <h1 className="text-3xl font-bold text-[var(--dash-text-primary)] mb-3">
-                Template Preview
-              </h1>
-              <p className="text-[var(--dash-text-tertiary)] text-lg">
-                Click Use Template to create a new document from this template
-              </p>
+      {/* Template Info Bar */}
+      {template && (
+        <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-xl font-bold text-[var(--dash-text-primary)]">{template.title}</h1>
+              {template.description && (
+                <p className="text-sm text-[var(--dash-text-tertiary)] mt-1">{template.description}</p>
+              )}
             </div>
-
-            <div className="flex justify-center mb-8">
-              <Button
-                size="lg"
-                onClick={handleUseTemplate}
-                disabled={loading || success}
-                className="gap-2 min-w-[200px]"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Creating Document...
-                  </>
-                ) : success ? (
-                  <>
-                    <CheckCircle className="w-5 h-5" />
-                    Document Created
-                  </>
-                ) : (
-                  <>
-                    <FileText className="w-5 h-5" />
-                    Use Template
-                  </>
-                )}
-              </Button>
+            <div className="flex items-center gap-3 flex-wrap">
+              {template.category && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[var(--surface-ground)] text-[var(--dash-text-secondary)]">
+                  <Tag className="w-3 h-3" />
+                  {template.category}
+                </span>
+              )}
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[var(--surface-ground)] text-[var(--dash-text-secondary)]">
+                {template.visibility === 'public' ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                {template.visibility === 'public' ? 'Public' : 'Internal'}
+              </span>
+              {template.users?.full_name && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[var(--surface-ground)] text-[var(--dash-text-secondary)]">
+                  <User className="w-3 h-3" />
+                  {template.users.full_name}
+                </span>
+              )}
             </div>
-
-            <div className="bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl p-6">
-              <div className="prose prose-sm max-w-none">
-                <p className="text-[var(--dash-text-secondary)]">
-                  A new document will be created as a draft. The template content will be copied to the new document.
-                </p>
-                <div className="mt-6 space-y-3">
-                  <div className="flex items-center gap-3 text-sm">
-                    <FileText className="w-4 h-4 text-[var(--dash-text-muted)]" />
-                    <span className="text-[var(--dash-text-secondary)]">
-                      New document will be created as a draft
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <User className="w-4 h-4 text-[var(--dash-text-muted)]" />
-                    <span className="text-[var(--dash-text-secondary)]">
-                      You'll be set as the document author
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <Calendar className="w-4 h-4 text-[var(--dash-text-muted)]" />
-                    <span className="text-[var(--dash-text-secondary)]">
-                      Template content will be copied to the new document
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      )}
+
+      {/* Template Content Preview */}
+      {template && (
+        <div className="flex-1 min-h-0 overflow-auto">
+          <MarkdownReader content={template.content} title={template.title} />
+        </div>
+      )}
     </div>
   );
 }

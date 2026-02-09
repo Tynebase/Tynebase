@@ -342,6 +342,98 @@ export default async function templateRoutes(fastify: FastifyInstance) {
   );
 
   /**
+   * GET /api/templates/:id
+   * Fetches a single template by ID for preview
+   */
+  fastify.get(
+    '/api/templates/:id',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+
+        const params = useTemplateParamsSchema.parse(request.params);
+        const { id: templateId } = params;
+
+        const { data: template, error: templateError } = await supabaseAdmin
+          .from('templates')
+          .select(`
+            id,
+            tenant_id,
+            title,
+            description,
+            content,
+            category,
+            visibility,
+            is_approved,
+            created_by,
+            created_at,
+            updated_at,
+            users:created_by (
+              id,
+              email,
+              full_name
+            )
+          `)
+          .eq('id', templateId)
+          .single();
+
+        if (templateError || !template) {
+          return reply.code(404).send({
+            error: {
+              code: 'TEMPLATE_NOT_FOUND',
+              message: 'Template not found',
+              details: {},
+            },
+          });
+        }
+
+        // Verify access: global approved template OR tenant's own template
+        const isGlobalApproved = template.tenant_id === null && template.is_approved === true;
+        const isTenantTemplate = template.tenant_id === tenant.id;
+
+        if (!isGlobalApproved && !isTenantTemplate) {
+          return reply.code(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'You do not have access to this template',
+              details: {},
+            },
+          });
+        }
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            template,
+          },
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid template ID',
+              details: error.errors,
+            },
+          });
+        }
+
+        fastify.log.error({ error }, 'Unexpected error in GET /api/templates/:id');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
    * POST /api/templates/:id/use
    * Duplicates a template as a new draft document
    * 

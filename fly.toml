@@ -68,7 +68,8 @@ primary_region = "lhr"
 # - SUPABASE_URL
 # - SUPABASE_ANON_KEY
 # - SUPABASE_SERVICE_ROLE_KEY
-# - ALLOWED_ORIGINS (comma-separated)
+# - ALLOWED_ORIGINS (comma-separated frontend URLs for CORS)
+# - FRONTEND_URL (primary frontend URL for redirects, e.g. https://tynebase.vercel.app)
 # - RATE_LIMIT_GLOBAL
 # - RATE_LIMIT_WINDOW_GLOBAL
 # - RATE_LIMIT_AI

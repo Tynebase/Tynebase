@@ -2,7 +2,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import multipart from '@fastify/multipart';
-import { env } from './config/env';
+import { env, isDev } from './config/env';
 import { getLoggerConfig } from './config/logger';
 import { requestLoggerMiddleware } from './middleware/requestLogger';
 import { errorHandler } from './middleware/errorHandler';
@@ -72,11 +72,15 @@ const start = async () => {
       };
     });
 
-    await fastify.register(import('./routes/test'), { prefix: '' });
-    await fastify.register(import('./routes/test-error'), { prefix: '' });
     await fastify.register(import('./routes/auth'), { prefix: '' });
-    await fastify.register(import('./routes/auth-test'), { prefix: '' });
-    await fastify.register(import('./routes/superadmin-test'), { prefix: '' });
+
+    // Test routes - only available in development
+    if (isDev) {
+      await fastify.register(import('./routes/test'), { prefix: '' });
+      await fastify.register(import('./routes/test-error'), { prefix: '' });
+      await fastify.register(import('./routes/auth-test'), { prefix: '' });
+      await fastify.register(import('./routes/superadmin-test'), { prefix: '' });
+    }
     await fastify.register(import('./routes/superadmin-overview'), { prefix: '' });
     await fastify.register(import('./routes/superadmin-tenants'), { prefix: '' });
     await fastify.register(import('./routes/superadmin-impersonate'), { prefix: '' });
@@ -90,7 +94,9 @@ const start = async () => {
     await fastify.register(import('./routes/collections'), { prefix: '' });
     await fastify.register(import('./routes/templates'), { prefix: '' });
     await fastify.register(import('./routes/tags'), { prefix: '' });
-    await fastify.register(import('./routes/ai-test'), { prefix: '' });
+    if (isDev) {
+      await fastify.register(import('./routes/ai-test'), { prefix: '' });
+    }
     await fastify.register(import('./routes/ai-generate'), { prefix: '' });
     await fastify.register(import('./routes/ai-enhance'), { prefix: '' });
     await fastify.register(import('./routes/ai-apply-suggestion'), { prefix: '' });

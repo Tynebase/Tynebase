@@ -126,6 +126,18 @@ export async function createTemplate(
 }
 
 /**
+ * Get a single template by ID
+ * 
+ * @param templateId - Template UUID
+ * @returns Template details including content
+ */
+export async function getTemplate(
+  templateId: string
+): Promise<TemplateResponse> {
+  return apiGet<TemplateResponse>(`/api/templates/${templateId}`);
+}
+
+/**
  * Use a template to create a new document
  * 
  * Creates a new draft document with the template's content.

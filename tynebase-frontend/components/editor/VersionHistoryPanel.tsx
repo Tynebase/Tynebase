@@ -59,15 +59,13 @@ export function VersionHistoryPanel({
       }
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-      // Get tenant subdomain from hostname
-      const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-      const subdomain = hostname.split('.')[0] || 'localhost';
+      const tenantSubdomain = localStorage.getItem('tenant_subdomain') || '';
       
       const response = await fetch(`${apiUrl}/api/documents/${documentId}/versions`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
-          'x-tenant-subdomain': subdomain === 'localhost' ? (localStorage.getItem('tenant_subdomain') || 'maiknd88') : subdomain,
+          'x-tenant-subdomain': tenantSubdomain,
         },
       });
 
@@ -99,8 +97,7 @@ export function VersionHistoryPanel({
       }
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-      const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-      const subdomain = hostname.split('.')[0] || 'localhost';
+      const tenantSubdomain = localStorage.getItem('tenant_subdomain') || '';
       
       const response = await fetch(
         `${apiUrl}/api/documents/${documentId}/versions/${version.id}/restore`,
@@ -109,7 +106,7 @@ export function VersionHistoryPanel({
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
-            'x-tenant-subdomain': subdomain === 'localhost' ? (localStorage.getItem('tenant_subdomain') || 'maiknd88') : subdomain,
+            'x-tenant-subdomain': tenantSubdomain,
           },
           body: JSON.stringify({}),
         }

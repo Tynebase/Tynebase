@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   Sparkles,
@@ -14,9 +14,21 @@ import {
   Search,
   Loader2,
   ExternalLink,
+  AlertCircle,
+  Check,
+  X,
+  XCircle,
+  ChevronDown,
+  ChevronUp,
+  FileText,
+  Plus,
+  Trash2,
+  ArrowRight,
+  RotateCcw,
+  Coins,
 } from "lucide-react";
 import { listDocuments, getDocument, updateDocument, type Document as APIDocument } from "@/lib/api/documents";
-import { enhance, applyEnhancement, type EnhanceSuggestion as APISuggestion } from "@/lib/api/ai";
+import { enhance, applyEnhancement, reindexDocument, type EnhanceSuggestion } from "@/lib/api/ai";
 import { useCredits } from "@/contexts/CreditsContext";
 
 interface Document {
@@ -28,15 +40,15 @@ interface Document {
   suggestions: number;
 }
 
-interface Suggestion {
-  type: "clarity" | "grammar" | "structure" | "completeness" | "style";
-  action: "add" | "replace" | "delete";
-  title: string;
-  reason: string;
-  content?: string;
-  find?: string;
-  replace?: string;
+type SuggestionStatus = "pending" | "accepted" | "rejected";
+
+interface SuggestionWithStatus extends EnhanceSuggestion {
+  id: string;
+  status: SuggestionStatus;
+  expanded: boolean;
 }
+
+const ENHANCE_CREDIT_COST = 5;
 
 const formatRelativeTime = (dateString: string): string => {
   const date = new Date(dateString);
@@ -58,15 +70,15 @@ export default function EnhancePage() {
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [appliedSuggestions, setAppliedSuggestions] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<SuggestionWithStatus[]>([]);
+  const [score, setScore] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [showCreditWarning, setShowCreditWarning] = useState(false);
   const [pendingDoc, setPendingDoc] = useState<Document | null>(null);
   const [documentContent, setDocumentContent] = useState<string>("");
-  const [loadingContent, setLoadingContent] = useState(false);
+  const [showDocument, setShowDocument] = useState(false);
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [customPrompt, setCustomPrompt] = useState<string>("");
-  const ENHANCE_CREDIT_COST = 5;
 
   // SessionStorage key for persistence
   const getStorageKey = (docId: string) => `enhance-page-${docId}`;
@@ -78,8 +90,8 @@ export default function EnhancePage() {
         const stored = sessionStorage.getItem(getStorageKey(selectedDoc.id));
         if (stored) {
           const data = JSON.parse(stored);
+          if (data.score !== undefined) setScore(data.score);
           if (data.suggestions) setSuggestions(data.suggestions);
-          if (data.appliedSuggestions) setAppliedSuggestions(data.appliedSuggestions);
           if (data.documentContent) setDocumentContent(data.documentContent);
         }
       } catch (err) {
@@ -88,13 +100,13 @@ export default function EnhancePage() {
     }
   }, [selectedDoc?.id]);
 
-  // Persist data when suggestions or applied status changes
+  // Persist data when suggestions change
   useEffect(() => {
-    if (selectedDoc && (suggestions.length > 0 || appliedSuggestions.length > 0)) {
+    if (selectedDoc && (suggestions.length > 0 || score !== null)) {
       try {
         sessionStorage.setItem(getStorageKey(selectedDoc.id), JSON.stringify({
           suggestions,
-          appliedSuggestions,
+          score,
           documentContent,
           timestamp: Date.now(),
         }));
@@ -102,7 +114,7 @@ export default function EnhancePage() {
         console.error('Failed to persist enhance data:', err);
       }
     }
-  }, [suggestions, appliedSuggestions, documentContent, selectedDoc?.id]);
+  }, [suggestions, score, documentContent, selectedDoc?.id]);
 
   useEffect(() => {
     const fetchDocuments = async () => {
@@ -143,8 +155,9 @@ export default function EnhancePage() {
     setSelectedDoc(pendingDoc);
     setIsAnalyzing(true);
     setSuggestions([]);
-    setAppliedSuggestions([]);
-    setLoadingContent(true);
+    setScore(null);
+    setError(null);
+    setDocumentContent("");
     
     // Clear persisted data so old suggestions don't interfere
     try { sessionStorage.removeItem(getStorageKey(pendingDoc.id)); } catch {};
@@ -160,7 +173,15 @@ export default function EnhancePage() {
       // Update selected doc with new score
       setSelectedDoc(prev => prev ? { ...prev, healthScore: response.score, suggestions: response.suggestions.length } : null);
       
-      setSuggestions(response.suggestions);
+      setScore(response.score);
+      
+      const suggestionsWithStatus: SuggestionWithStatus[] = response.suggestions.map((s, i) => ({
+        ...s,
+        id: `${s.type}-${i}-${Date.now()}`,
+        status: "pending" as SuggestionStatus,
+        expanded: true,
+      }));
+      setSuggestions(suggestionsWithStatus);
 
       // Decrement credits after successful enhancement
       decrementCredits(ENHANCE_CREDIT_COST);
@@ -174,10 +195,9 @@ export default function EnhancePage() {
       }
     } catch (err) {
       console.error('Failed to enhance document:', err);
-      // Show error but don't redirect
+      setError(err instanceof Error ? err.message : 'Failed to enhance document');
     } finally {
       setIsAnalyzing(false);
-      setLoadingContent(false);
       setPendingDoc(null);
     }
   };
@@ -188,63 +208,158 @@ export default function EnhancePage() {
     setCustomPrompt("");
   };
 
-  const applySuggestion = async (suggestion: Suggestion) => {
-    if (!selectedDoc) return;
+  // Accept a suggestion - apply content change to document
+  const handleAccept = async (suggestionId: string) => {
+    const suggestion = suggestions.find(s => s.id === suggestionId);
+    if (!suggestion || !selectedDoc) return;
     
-    setApplyingId(suggestion.title);
+    setApplyingId(suggestionId);
     
     try {
       // Fetch current document content
       const docResponse = await getDocument(selectedDoc.id);
       let content = docResponse.document.content || '';
+      let applied = false;
       
-      // Apply the suggestion based on action type
       switch (suggestion.action) {
         case 'add':
           if (suggestion.content) {
             content = content + '\n\n' + suggestion.content;
+            applied = true;
           }
           break;
           
         case 'replace':
           if (suggestion.find && suggestion.replace !== undefined) {
-            // Simple text replacement
-            content = content.replace(suggestion.find, suggestion.replace);
+            if (content.includes(suggestion.find)) {
+              content = content.replace(suggestion.find, suggestion.replace);
+              applied = true;
+            }
           }
           break;
           
         case 'delete':
           if (suggestion.find) {
-            content = content.replace(suggestion.find, '');
+            if (content.includes(suggestion.find)) {
+              content = content.replace(suggestion.find, '');
+              applied = true;
+            }
           }
           break;
       }
       
-      // Update the document with modified content
-      await updateDocument(selectedDoc.id, { content });
-      
-      // Update local state
-      setDocumentContent(content);
-      setAppliedSuggestions(prev => [...prev, suggestion.title]);
-      
-      // Create lineage entry
-      try {
-        await applyEnhancement({
-          document_id: selectedDoc.id,
-          suggestion_title: suggestion.title,
-          suggestion_action: suggestion.action,
-          suggestion_type: suggestion.type,
-        });
-      } catch (lineageErr) {
-        console.error('Failed to create lineage entry:', lineageErr);
+      if (applied) {
+        // Update the document with modified content
+        await updateDocument(selectedDoc.id, { content });
+        setDocumentContent(content);
+        
+        // Create lineage entry
+        try {
+          await applyEnhancement({
+            document_id: selectedDoc.id,
+            suggestion_title: suggestion.title,
+            suggestion_action: suggestion.action,
+            suggestion_type: suggestion.type,
+          });
+        } catch (lineageErr) {
+          console.error('Failed to create lineage entry:', lineageErr);
+        }
+      } else {
+        console.warn(`Could not find text to ${suggestion.action}: "${(suggestion.find || '').substring(0, 80)}..."`);
       }
+
+      // Mark as accepted
+      setSuggestions(prev => prev.map(s =>
+        s.id === suggestionId ? { ...s, status: "accepted" as SuggestionStatus } : s
+      ));
     } catch (err) {
       console.error('Failed to apply suggestion:', err);
-      alert('Failed to apply suggestion. Please try again.');
     } finally {
       setApplyingId(null);
     }
   };
+
+  // Reject a suggestion
+  const handleReject = (suggestionId: string) => {
+    setSuggestions(prev => prev.map(s => 
+      s.id === suggestionId ? { ...s, status: "rejected" as SuggestionStatus } : s
+    ));
+  };
+
+  // Revert an accepted suggestion
+  const handleRevert = async (suggestionId: string) => {
+    const suggestion = suggestions.find(s => s.id === suggestionId);
+    if (!suggestion || !selectedDoc || suggestion.status !== 'accepted') return;
+
+    setApplyingId(suggestionId);
+    
+    try {
+      const docResponse = await getDocument(selectedDoc.id);
+      let content = docResponse.document.content || '';
+      let reverted = false;
+
+      switch (suggestion.action) {
+        case 'replace':
+          if (suggestion.replace && suggestion.find && content.includes(suggestion.replace)) {
+            content = content.replace(suggestion.replace, suggestion.find);
+            reverted = true;
+          }
+          break;
+        case 'delete':
+          // Can't reliably revert a delete without position info
+          break;
+        case 'add':
+          if (suggestion.content && content.includes(suggestion.content)) {
+            content = content.replace('\n\n' + suggestion.content, '').replace(suggestion.content, '');
+            reverted = true;
+          }
+          break;
+      }
+
+      if (reverted) {
+        await updateDocument(selectedDoc.id, { content });
+        setDocumentContent(content);
+      }
+
+      setSuggestions(prev => prev.map(s => 
+        s.id === suggestionId ? { ...s, status: "pending" as SuggestionStatus } : s
+      ));
+    } catch (err) {
+      console.error('Failed to revert suggestion:', err);
+    } finally {
+      setApplyingId(null);
+    }
+  };
+
+  // Toggle suggestion expansion
+  const toggleExpand = (suggestionId: string) => {
+    setSuggestions(prev => prev.map(s => 
+      s.id === suggestionId ? { ...s, expanded: !s.expanded } : s
+    ));
+  };
+
+  // Accept all pending suggestions
+  const handleAcceptAll = async () => {
+    const pendingSuggestions = suggestions.filter(s => s.status === "pending");
+    for (const suggestion of pendingSuggestions) {
+      await handleAccept(suggestion.id);
+    }
+  };
+
+  // Reject all pending suggestions
+  const handleRejectAll = () => {
+    setSuggestions(prev => prev.map(s => 
+      s.status === "pending" ? { ...s, status: "rejected" as SuggestionStatus } : s
+    ));
+  };
+
+  // Stats
+  const stats = useMemo(() => {
+    const pending = suggestions.filter(s => s.status === "pending").length;
+    const accepted = suggestions.filter(s => s.status === "accepted").length;
+    const rejected = suggestions.filter(s => s.status === "rejected").length;
+    return { pending, accepted, rejected, total: suggestions.length };
+  }, [suggestions]);
 
   const getHealthColor = (score: number) => {
     if (score >= 80) return "text-[var(--status-success)]";
@@ -258,22 +373,36 @@ export default function EnhancePage() {
     return "bg-[var(--status-error)]";
   };
 
+  const getScoreColor = (s: number) => {
+    if (s >= 80) return "text-green-600";
+    if (s >= 60) return "text-amber-600";
+    return "text-red-600";
+  };
+
+  const getScoreLabel = (s: number) => {
+    if (s >= 90) return "Excellent";
+    if (s >= 70) return "Good";
+    if (s >= 50) return "Fair";
+    return "Needs Work";
+  };
+
   const getTypeStyles = (type: string) => {
     switch (type) {
-      case "grammar": return "bg-[var(--status-error-bg)] text-[var(--status-error)] border-[var(--status-error)]";
-      case "clarity": return "bg-[var(--status-warning-bg)] text-[var(--status-warning)] border-[var(--status-warning)]";
-      case "structure": return "bg-[var(--status-info-bg)] text-[var(--status-info)] border-[var(--status-info)]";
-      case "completeness": return "bg-purple-50 text-purple-600 border-purple-600";
-      default: return "bg-[var(--status-success-bg)] text-[var(--status-success)] border-[var(--status-success)]";
+      case "grammar": return { bg: "bg-red-500/10", text: "text-red-600", border: "border-red-500/20" };
+      case "clarity": return { bg: "bg-blue-500/10", text: "text-blue-600", border: "border-blue-500/20" };
+      case "structure": return { bg: "bg-purple-500/10", text: "text-purple-600", border: "border-purple-500/20" };
+      case "completeness": return { bg: "bg-amber-500/10", text: "text-amber-600", border: "border-amber-500/20" };
+      case "style": return { bg: "bg-green-500/10", text: "text-green-600", border: "border-green-500/20" };
+      default: return { bg: "bg-gray-500/10", text: "text-gray-600", border: "border-gray-500/20" };
     }
   };
 
   const getTypeIcon = (type: string) => {
     switch (type) {
       case "clarity": return <Lightbulb className="w-4 h-4" />;
-      case "seo": return <Target className="w-4 h-4" />;
       case "grammar": return <PenTool className="w-4 h-4" />;
       case "structure": return <BookOpen className="w-4 h-4" />;
+      case "completeness": return <Target className="w-4 h-4" />;
       default: return <Zap className="w-4 h-4" />;
     }
   };
@@ -306,28 +435,37 @@ export default function EnhancePage() {
               </div>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[var(--dash-border-subtle)]">
-              {filteredDocs.map((doc) => (
+              {loading ? (
+                <div className="p-8 text-center">
+                  <Loader2 className="w-6 h-6 text-[var(--dash-text-muted)] mx-auto animate-spin" />
+                  <p className="text-sm text-[var(--dash-text-tertiary)] mt-2">Loading documents...</p>
+                </div>
+              ) : filteredDocs.length === 0 ? (
+                <div className="p-8 text-center">
+                  <FileText className="w-8 h-8 text-[var(--dash-text-muted)] mx-auto mb-2" />
+                  <p className="text-sm text-[var(--dash-text-tertiary)]">No published documents found</p>
+                </div>
+              ) : filteredDocs.map((doc) => (
                 <button
                   key={doc.id}
                   onClick={() => handleAnalyse(doc)}
-                  className={`w-full p-5 text-left hover:bg-[var(--surface-hover)] transition-colors ${
+                  className={`w-full p-4 text-left hover:bg-[var(--surface-hover)] transition-colors ${
                     selectedDoc?.id === doc.id ? "bg-[var(--brand-primary-muted)]" : ""
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-[var(--dash-text-primary)] truncate">{doc.title}</h3>
-                      <p className="text-xs text-[var(--dash-text-tertiary)] mt-1">{doc.category} • {doc.lastUpdated}</p>
+                      <h3 className="font-medium text-[var(--dash-text-primary)] truncate text-sm">{doc.title}</h3>
+                      <p className="text-xs text-[var(--dash-text-tertiary)] mt-0.5">{doc.lastUpdated}</p>
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className={`text-lg font-bold ${doc.healthScore !== null ? getHealthColor(doc.healthScore) : 'text-[var(--dash-text-muted)]'}`}>
-                        {doc.healthScore !== null ? `${doc.healthScore}%` : 'N/A'}
+                        {doc.healthScore !== null ? `${doc.healthScore}%` : '--'}
                       </p>
-                      <p className="text-xs text-[var(--dash-text-muted)]">{doc.suggestions} tips</p>
                     </div>
                   </div>
                   <div className="mt-2 h-1.5 bg-[var(--surface-ground)] rounded-full overflow-hidden">
-                    <div className={`h-full ${doc.healthScore !== null ? getHealthBg(doc.healthScore) : 'bg-[var(--dash-border-subtle)]'} rounded-full`} style={{ width: `${doc.healthScore || 0}%` }} />
+                    <div className={`h-full ${doc.healthScore !== null ? getHealthBg(doc.healthScore) : 'bg-[var(--dash-border-subtle)]'} rounded-full transition-all`} style={{ width: `${doc.healthScore || 0}%` }} />
                   </div>
                 </button>
               ))}
@@ -346,173 +484,324 @@ export default function EnhancePage() {
               <p className="text-[var(--dash-text-tertiary)] max-w-md">
                 Choose a document from the list to get AI-powered improvement suggestions
               </p>
+              <div className="flex items-center justify-center gap-2 text-xs text-amber-600 mt-4">
+                <Coins className="w-4 h-4" />
+                <span>Costs {ENHANCE_CREDIT_COST} credits per analysis</span>
+              </div>
             </div>
           ) : isAnalyzing ? (
             <div className="flex-1 min-h-0 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-8 sm:p-12 text-center flex flex-col items-center justify-center">
               <RefreshCw className="w-12 h-12 text-[var(--brand)] mb-4 animate-spin" />
               <h3 className="text-lg font-semibold text-[var(--dash-text-primary)] mb-2">
-                Analyzing "{selectedDoc.title}"
+                Analyzing &ldquo;{selectedDoc.title}&rdquo;
               </h3>
               <p className="text-[var(--dash-text-tertiary)] max-w-md">
                 AI is reviewing your content for improvements...
               </p>
             </div>
+          ) : error && suggestions.length === 0 ? (
+            <div className="flex-1 min-h-0 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-8 sm:p-12 text-center flex flex-col items-center justify-center">
+              <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+              <h3 className="text-lg font-semibold text-[var(--dash-text-primary)] mb-2">Analysis Failed</h3>
+              <p className="text-sm text-red-600/80 mb-4 max-w-md">{error}</p>
+              <button
+                onClick={() => { setError(null); handleAnalyse(selectedDoc); }}
+                className="h-10 px-5 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-xl font-medium flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Try Again
+              </button>
+            </div>
+          ) : suggestions.length === 0 ? (
+            <div className="flex-1 min-h-0 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-8 sm:p-12 text-center flex flex-col items-center justify-center">
+              <Sparkles className="w-12 h-12 text-[var(--dash-text-muted)] mb-4" />
+              <h3 className="text-lg font-semibold text-[var(--dash-text-primary)] mb-2">
+                No suggestions yet
+              </h3>
+              <p className="text-[var(--dash-text-tertiary)] max-w-md mb-4">
+                Click on a document to analyze it with AI
+              </p>
+            </div>
           ) : (
-            <div className="flex-1 min-h-0 flex flex-col gap-6 overflow-y-auto pr-1">
-              {/* Summary */}
-              <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-6 flex-shrink-0">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-                  <div>
-                    <h2 className="text-lg font-semibold text-[var(--dash-text-primary)]">{selectedDoc.title}</h2>
-                    <p className="text-sm text-[var(--dash-text-tertiary)]">{suggestions.length} suggestions found</p>
+            <div className="flex-1 min-h-0 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl flex flex-col overflow-hidden">
+              {/* Score Header */}
+              <div className="p-5 border-b border-[var(--dash-border-subtle)] flex-shrink-0">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div>
+                      <h2 className="text-lg font-semibold text-[var(--dash-text-primary)]">{selectedDoc.title}</h2>
+                      <p className="text-sm text-[var(--dash-text-tertiary)]">{suggestions.length} suggestions found</p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <div className="text-center">
-                      <p className={`text-2xl font-bold ${selectedDoc.healthScore !== null ? getHealthColor(selectedDoc.healthScore) : 'text-[var(--dash-text-muted)]'}`}>
-                        {selectedDoc.healthScore !== null ? `${selectedDoc.healthScore}%` : 'N/A'}
-                      </p>
-                      <p className="text-xs text-[var(--dash-text-muted)]">Health Score</p>
-                    </div>
-                    {appliedSuggestions.length > 0 && (
-                      <Link
-                        href={`/dashboard/knowledge/${selectedDoc.id}`}
-                        className="h-10 px-5 bg-[var(--surface-ground)] hover:bg-[var(--surface-hover)] border border-[var(--dash-border-subtle)] text-[var(--dash-text-primary)] rounded-xl font-medium flex items-center gap-2 transition-colors"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                        View Article
-                      </Link>
+                    {score !== null && (
+                      <div className="text-center px-4 py-2 bg-[var(--surface-ground)] rounded-xl">
+                        <p className={`text-2xl font-bold ${getScoreColor(score)}`}>{score}%</p>
+                        <p className={`text-xs font-medium ${getScoreColor(score)}`}>{getScoreLabel(score)}</p>
+                      </div>
                     )}
-                    <button
-                      onClick={async () => {
-                        const unapplied = suggestions.filter(s => !appliedSuggestions.includes(s.title));
-                        for (const suggestion of unapplied) {
-                          await applySuggestion(suggestion);
-                        }
-                      }}
-                      disabled={applyingId !== null || suggestions.every(s => appliedSuggestions.includes(s.title))}
-                      className="h-10 px-5 bg-[var(--brand)] hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-medium flex items-center gap-2"
+                    <Link
+                      href={`/dashboard/knowledge/${selectedDoc.id}`}
+                      className="h-10 px-4 bg-[var(--surface-ground)] hover:bg-[var(--surface-hover)] border border-[var(--dash-border-subtle)] text-[var(--dash-text-primary)] rounded-xl font-medium flex items-center gap-2 transition-colors text-sm"
                     >
-                      <Zap className="w-4 h-4" />
-                      Apply All
+                      <ExternalLink className="w-4 h-4" />
+                      View
+                    </Link>
+                    <button
+                      onClick={() => { setError(null); handleAnalyse(selectedDoc); }}
+                      className="h-10 px-4 bg-[var(--surface-ground)] hover:bg-[var(--surface-hover)] border border-[var(--dash-border-subtle)] text-[var(--dash-text-primary)] rounded-xl font-medium flex items-center gap-2 transition-colors text-sm"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      Re-analyze
                     </button>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  {["clarity", "grammar", "structure", "completeness", "style"].map((type) => {
-                    const count = suggestions.filter(s => s.type === type).length;
-                    return count > 0 ? (
-                      <span key={type} className="px-3 py-1 bg-[var(--surface-ground)] rounded-full text-xs font-medium text-[var(--dash-text-secondary)] capitalize">
-                        {type}: {count}
-                      </span>
-                    ) : null;
-                  })}
+              </div>
+
+              {/* Document Preview Toggle */}
+              <div className="px-5 pt-4 flex-shrink-0">
+                <button
+                  onClick={() => setShowDocument(!showDocument)}
+                  className="flex items-center justify-between w-full p-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-[var(--dash-text-tertiary)]" />
+                    <span className="text-sm font-medium text-[var(--dash-text-primary)]">Document Preview</span>
+                  </div>
+                  {showDocument ? (
+                    <ChevronUp className="w-4 h-4 text-[var(--dash-text-tertiary)]" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-[var(--dash-text-tertiary)]" />
+                  )}
+                </button>
+                {showDocument && documentContent && (
+                  <div className="mt-2 p-3 bg-white border border-[var(--dash-border-subtle)] rounded-lg max-h-48 overflow-y-auto">
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                      {documentContent || "No content"}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Stats Bar */}
+              <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--dash-border-subtle)] flex-shrink-0">
+                <div className="flex items-center gap-4 text-xs">
+                  <span className="text-[var(--dash-text-tertiary)]">
+                    <span className="font-medium text-amber-600">{stats.pending}</span> pending
+                  </span>
+                  <span className="text-[var(--dash-text-tertiary)]">
+                    <span className="font-medium text-green-600">{stats.accepted}</span> accepted
+                  </span>
+                  <span className="text-[var(--dash-text-tertiary)]">
+                    <span className="font-medium text-red-600">{stats.rejected}</span> rejected
+                  </span>
                 </div>
+                {stats.pending > 0 && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleAcceptAll}
+                      disabled={applyingId !== null}
+                      className="text-xs font-medium text-green-600 hover:text-green-700 disabled:opacity-50"
+                    >
+                      Accept All
+                    </button>
+                    <span className="text-[var(--dash-border-default)]">|</span>
+                    <button
+                      onClick={handleRejectAll}
+                      className="text-xs font-medium text-red-600 hover:text-red-700"
+                    >
+                      Reject All
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Suggestions List */}
-              <div className="flex-1 min-h-0 space-y-4">
-                {suggestions.map((suggestion, idx) => (
-                  <div
-                    key={idx}
-                    className={`bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl overflow-hidden transition-all ${
-                      appliedSuggestions.includes(suggestion.title) ? "opacity-50" : ""
-                    }`}
-                  >
-                    <div className="p-5">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-3">
-                          <div className={`p-2 rounded-lg ${getTypeStyles(suggestion.type)}`}>
+              <div className="flex-1 overflow-y-auto p-5 space-y-3">
+                {suggestions.map((suggestion) => {
+                  const styles = getTypeStyles(suggestion.type);
+                  const isAccepted = suggestion.status === "accepted";
+                  const isRejected = suggestion.status === "rejected";
+                  const isPending = suggestion.status === "pending";
+
+                  return (
+                    <div
+                      key={suggestion.id}
+                      className={`border rounded-xl overflow-hidden transition-all ${
+                        isAccepted ? "border-green-500/30 bg-green-500/5" :
+                        isRejected ? "border-red-500/30 bg-red-500/5 opacity-60" :
+                        "border-[var(--dash-border-subtle)] bg-[var(--surface-ground)]"
+                      }`}
+                    >
+                      {/* Suggestion Header */}
+                      <div
+                        className="flex items-center justify-between p-4 cursor-pointer"
+                        onClick={() => toggleExpand(suggestion.id)}
+                      >
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <div className={`p-1.5 rounded-lg ${styles.bg} ${styles.text}`}>
                             {getTypeIcon(suggestion.type)}
                           </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-medium text-[var(--dash-text-primary)]">{suggestion.title}</h3>
-                              <span className={`px-2 py-0.5 text-xs font-medium rounded-full border ${getTypeStyles(suggestion.type)}`}>
-                                {suggestion.type}
-                              </span>
-                              <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-[var(--surface-ground)] text-[var(--dash-text-muted)]">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="font-medium text-[var(--dash-text-primary)] text-sm truncate">
+                                {suggestion.title}
+                              </h4>
+                              <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${
+                                suggestion.action === 'add' ? 'bg-green-100 text-green-700' :
+                                suggestion.action === 'delete' ? 'bg-red-100 text-red-700' :
+                                'bg-amber-100 text-amber-700'
+                              }`}>
                                 {suggestion.action}
                               </span>
+                              <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${styles.bg} ${styles.text}`}>
+                                {suggestion.type}
+                              </span>
                             </div>
-                            <p className="text-sm text-[var(--dash-text-tertiary)] mt-1">{suggestion.reason}</p>
                           </div>
+                          {isAccepted && (
+                            <span className="flex items-center gap-1 text-xs font-medium text-green-600 flex-shrink-0">
+                              <CheckCircle className="w-3 h-3" /> Accepted
+                            </span>
+                          )}
+                          {isRejected && (
+                            <span className="flex items-center gap-1 text-xs font-medium text-red-600 flex-shrink-0">
+                              <XCircle className="w-3 h-3" /> Rejected
+                            </span>
+                          )}
                         </div>
-                        {!appliedSuggestions.includes(suggestion.title) && (
-                          <button
-                            onClick={() => applySuggestion(suggestion)}
-                            disabled={applyingId === suggestion.title}
-                            className="h-9 px-4 bg-[var(--brand)] hover:bg-[var(--brand-dark)] disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-xl text-sm font-medium flex items-center gap-1.5 flex-shrink-0"
-                          >
-                            {applyingId === suggestion.title ? (
-                              <>
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                                Applying...
-                              </>
-                            ) : (
-                              <>
-                                <CheckCircle className="w-3 h-3" />
-                                Apply
-                              </>
-                            )}
-                          </button>
-                        )}
-                        {appliedSuggestions.includes(suggestion.title) && (
-                          <span className="flex items-center gap-1 text-sm text-[var(--status-success)]">
-                            <CheckCircle className="w-4 h-4" />
-                            Applied
-                          </span>
+                        {suggestion.expanded ? (
+                          <ChevronUp className="w-4 h-4 text-[var(--dash-text-tertiary)] ml-2 flex-shrink-0" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-[var(--dash-text-tertiary)] ml-2 flex-shrink-0" />
                         )}
                       </div>
-                      
-                      {suggestion.action === 'replace' && suggestion.find && suggestion.replace && (
-                        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="p-3 bg-[var(--status-error-bg)] rounded-lg border border-[var(--status-error)]/20">
-                            <p className="text-xs font-medium text-[var(--status-error)] mb-1">Original</p>
-                            <p className="text-sm text-[var(--dash-text-secondary)]">{suggestion.find}</p>
-                          </div>
-                          <div className="p-3 bg-[var(--status-success-bg)] rounded-lg border border-[var(--status-success)]/20">
-                            <p className="text-xs font-medium text-[var(--status-success)] mb-1">Suggested</p>
-                            <p className="text-sm text-[var(--dash-text-secondary)] whitespace-pre-line">{suggestion.replace}</p>
-                          </div>
-                        </div>
-                      )}
-                      {suggestion.action === 'add' && suggestion.content && (
-                        <div className="mt-4">
-                          <div className="p-3 bg-[var(--status-success-bg)] rounded-lg border border-[var(--status-success)]/20">
-                            <p className="text-xs font-medium text-[var(--status-success)] mb-1">Content to Add</p>
-                            <p className="text-sm text-[var(--dash-text-secondary)] whitespace-pre-line">{suggestion.content}</p>
-                          </div>
-                        </div>
-                      )}
-                      {suggestion.action === 'delete' && suggestion.find && (
-                        <div className="mt-4">
-                          <div className="p-3 bg-[var(--status-error-bg)] rounded-lg border border-[var(--status-error)]/20">
-                            <p className="text-xs font-medium text-[var(--status-error)] mb-1">Content to Remove</p>
-                            <p className="text-sm text-[var(--dash-text-secondary)]">{suggestion.find}</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
 
-              {/* Document Preview */}
-              {documentContent && (
-                <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-6 flex-shrink-0">
-                  <h3 className="text-lg font-semibold text-[var(--dash-text-primary)] mb-3 flex items-center gap-2">
-                    <BookOpen className="w-5 h-5" />
-                    Document Preview
-                  </h3>
-                  <div className="prose prose-sm max-w-none">
-                    <div className="p-4 bg-[var(--surface-ground)] rounded-lg border border-[var(--dash-border-subtle)]">
-                      <pre className="whitespace-pre-wrap text-sm text-[var(--dash-text-secondary)] font-sans">
-                        {documentContent}
-                      </pre>
+                      {/* Expanded Content */}
+                      {suggestion.expanded && (
+                        <div className="px-4 pb-4 space-y-3">
+                          {/* Reason */}
+                          <p className="text-xs text-[var(--dash-text-tertiary)] italic">
+                            {suggestion.reason}
+                          </p>
+
+                          {/* Action-specific Content */}
+                          <div className="rounded-lg border border-[var(--dash-border-subtle)] overflow-hidden">
+                            {/* ADD Action */}
+                            {suggestion.action === 'add' && suggestion.content && (
+                              <div className="bg-green-50 p-3">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Plus className="w-3 h-3 text-green-600" />
+                                  <span className="text-[10px] font-semibold text-green-700 uppercase tracking-wider">Content to Add</span>
+                                </div>
+                                <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap bg-white/70 p-3 rounded border border-green-100">
+                                  {suggestion.content}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* REPLACE Action */}
+                            {suggestion.action === 'replace' && suggestion.find && (
+                              <>
+                                <div className="bg-red-50 p-3 border-b border-red-100">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Trash2 className="w-3 h-3 text-red-600" />
+                                    <span className="text-[10px] font-semibold text-red-700 uppercase tracking-wider">Find & Remove</span>
+                                  </div>
+                                  <p className="text-sm text-red-900 leading-relaxed whitespace-pre-wrap bg-red-100/50 p-2 rounded">
+                                    {suggestion.find}
+                                  </p>
+                                </div>
+                                <div className="flex items-center justify-center py-1 bg-gray-50">
+                                  <ArrowRight className="w-4 h-4 text-gray-400" />
+                                </div>
+                                <div className="bg-green-50 p-3">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Plus className="w-3 h-3 text-green-600" />
+                                    <span className="text-[10px] font-semibold text-green-700 uppercase tracking-wider">Replace With</span>
+                                  </div>
+                                  <p className="text-sm text-green-900 leading-relaxed whitespace-pre-wrap bg-green-100/50 p-2 rounded">
+                                    {suggestion.replace}
+                                  </p>
+                                </div>
+                              </>
+                            )}
+
+                            {/* DELETE Action */}
+                            {suggestion.action === 'delete' && suggestion.find && (
+                              <div className="bg-red-50 p-3">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Trash2 className="w-3 h-3 text-red-600" />
+                                  <span className="text-[10px] font-semibold text-red-700 uppercase tracking-wider">Text to Delete</span>
+                                </div>
+                                <p className="text-sm text-red-900 leading-relaxed whitespace-pre-wrap bg-red-100/50 p-2 rounded line-through">
+                                  {suggestion.find}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Action Buttons */}
+                          {isPending && (
+                            <div className="flex items-center gap-2 pt-1">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAccept(suggestion.id);
+                                }}
+                                disabled={applyingId === suggestion.id}
+                                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 ${
+                                  suggestion.action === 'delete' 
+                                    ? 'bg-red-600 hover:bg-red-700' 
+                                    : 'bg-green-600 hover:bg-green-700'
+                                }`}
+                              >
+                                {applyingId === suggestion.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Check className="w-4 h-4" />
+                                )}
+                                {suggestion.action === 'add' ? 'Add' : suggestion.action === 'replace' ? 'Replace' : 'Delete'}
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleReject(suggestion.id);
+                                }}
+                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors"
+                              >
+                                <X className="w-4 h-4" />
+                                Dismiss
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Revert Button for Accepted Suggestions */}
+                          {isAccepted && (
+                            <div className="flex items-center gap-2 pt-1">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRevert(suggestion.id);
+                                }}
+                                disabled={applyingId === suggestion.id}
+                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+                              >
+                                {applyingId === suggestion.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <RotateCcw className="w-4 h-4" />
+                                )}
+                                Revert Change
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                </div>
-              )}
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -529,13 +818,13 @@ export default function EnhancePage() {
             <div className="space-y-4">
               <div className="p-4 bg-[var(--status-warning-bg)] border border-[var(--status-warning)]/30 rounded-xl">
                 <div className="flex items-start gap-3">
-                  <Sparkles className="w-5 h-5 text-[var(--status-warning)] flex-shrink-0 mt-0.5" />
+                  <Coins className="w-5 h-5 text-[var(--status-warning)] flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="font-semibold text-[var(--dash-text-primary)] mb-1">
                       This will use {ENHANCE_CREDIT_COST} credits
                     </p>
                     <p className="text-sm text-[var(--dash-text-secondary)]">
-                      AI will analyze "{pendingDoc.title}" and provide improvement suggestions for grammar, clarity, structure, completeness, and style.
+                      AI will analyze &ldquo;{pendingDoc.title}&rdquo; and provide improvement suggestions for grammar, clarity, structure, completeness, and style.
                     </p>
                     <p className="text-xs text-[var(--dash-text-tertiary)] mt-2">
                       Current balance: {creditsRemaining} credits
@@ -549,7 +838,7 @@ export default function EnhancePage() {
                 <ul className="list-disc list-inside space-y-1 ml-2">
                   <li>Generate a quality score (0-100)</li>
                   <li>Provide 3-5 actionable suggestions</li>
-                  <li>Show before/after previews for changes</li>
+                  <li>Allow you to accept or reject each change</li>
                 </ul>
               </div>
 
@@ -566,7 +855,7 @@ export default function EnhancePage() {
                   className="w-full px-4 py-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl text-sm text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] resize-none"
                 />
                 <p className="text-xs text-[var(--dash-text-muted)]">
-                  Add specific instructions to guide the AI's analysis
+                  Add specific instructions to guide the AI&apos;s analysis
                 </p>
               </div>
             </div>

@@ -408,6 +408,25 @@ export default async function auditRoutes(fastify: FastifyInstance) {
           .gte('created_at', startOfMonth.toISOString())
           .not('content', 'like', '__CATEGORY__%');
 
+        // Get previous period health stats to compute a real trend
+        const { data: prevHealthStats } = await supabaseAdmin
+          .rpc('get_content_health_stats', {
+            tenant_id_param: tenant.id,
+            days_threshold: days * 2,
+          });
+
+        const prevStats = prevHealthStats?.[0] || {};
+        const prevTotal = Number(prevStats.total_documents) || 0;
+        const prevExcellent = Number(prevStats.excellent_health) || 0;
+        const prevGood = Number(prevStats.good_health) || 0;
+        const prevHealthPct = prevTotal > 0
+          ? Math.round(((prevExcellent + prevGood) / prevTotal) * 100)
+          : 0;
+        const healthDelta = healthPercentage - prevHealthPct;
+        const healthChangeText = healthDelta === 0
+          ? 'No change'
+          : `${healthDelta > 0 ? '+' : ''}${healthDelta}% vs prev period`;
+
         // Get reviews due this week
         const endOfWeek = new Date();
         endOfWeek.setDate(endOfWeek.getDate() + 7);
@@ -418,6 +437,15 @@ export default async function auditRoutes(fastify: FastifyInstance) {
           .eq('tenant_id', tenant.id)
           .eq('status', 'pending')
           .lte('due_date', endOfWeek.toISOString().split('T')[0]);
+
+        // Count stale docs in previous period to compute trend
+        const prevStale = Number(prevStats.stale_documents) || 0;
+        const staleDelta = (Number(stats.stale_documents) || 0) - prevStale;
+        const staleChangeText = staleDelta === 0
+          ? `${days}+ days old`
+          : staleDelta > 0
+            ? `+${staleDelta} since last period`
+            : `${staleDelta} since last period`;
 
         fastify.log.info(
           { tenantId: tenant.id, userId: user.id, days },
@@ -430,8 +458,8 @@ export default async function auditRoutes(fastify: FastifyInstance) {
             stats: {
               content_health: {
                 value: `${healthPercentage}%`,
-                change: healthPercentage > 70 ? '+5%' : '-3%', // Placeholder trend
-                positive: healthPercentage > 70,
+                change: healthChangeText,
+                positive: healthDelta >= 0,
               },
               total_documents: {
                 value: totalDocs,
@@ -445,8 +473,8 @@ export default async function auditRoutes(fastify: FastifyInstance) {
               },
               stale_content: {
                 value: Number(stats.stale_documents) || 0,
-                change: `${days}+ days old`,
-                positive: false,
+                change: staleChangeText,
+                positive: staleDelta <= 0,
               },
             },
             health_distribution: {
@@ -649,14 +677,19 @@ export default async function auditRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Format with trend placeholders (in production, you'd calculate actual trends)
-        const formattedDocs = (topDocs || []).map((doc, index) => ({
-          id: doc.id,
-          title: doc.title,
-          views: doc.view_count || 0,
-          trend: index < 3 ? `+${Math.floor(Math.random() * 20) + 5}%` : `-${Math.floor(Math.random() * 5) + 1}%`,
-          positive: index < 3,
-        }));
+        // Format with view count context (no historical view tracking available yet)
+        const maxViews = Math.max(...(topDocs || []).map((d: any) => d.view_count || 0), 1);
+        const formattedDocs = (topDocs || []).map((doc) => {
+          const views = doc.view_count || 0;
+          const shareOfTop = Math.round((views / maxViews) * 100);
+          return {
+            id: doc.id,
+            title: doc.title,
+            views,
+            trend: `${views.toLocaleString()} views`,
+            positive: shareOfTop >= 50,
+          };
+        });
 
         fastify.log.info(
           { tenantId: tenant.id, userId: user.id, count: formattedDocs.length },

@@ -1117,9 +1117,11 @@ export default function KnowledgePage() {
                       </div>
                       {/* AI Score */}
                       <div className="text-center">
-                        <span className={`inline-flex items-center gap-1 text-sm font-medium ${getAiScoreColor(doc.aiScore)}`}>
+                        <span className={`inline-flex items-center gap-1.5 text-sm font-medium ${getAiScoreColor(doc.aiScore)}`}>
                           <Sparkles className="w-3.5 h-3.5" />
-                          {getAiScoreLabel(doc.aiScore)}
+                          {doc.aiScore !== null ? `${doc.aiScore}%` : '--'}
+                          <span className="text-[var(--dash-text-muted)] font-normal">·</span>
+                          <span className="text-xs">{getAiScoreLabel(doc.aiScore)}</span>
                         </span>
                       </div>
                       {/* Updated */}
@@ -1170,7 +1172,7 @@ export default function KnowledgePage() {
                                 {doc.state.replace("_", " ")}
                               </span>
                               <span className={`text-xs flex items-center gap-1 ${getAiScoreColor(doc.aiScore)}`}>
-                                <Sparkles className="w-3 h-3" /> {getAiScoreLabel(doc.aiScore)}
+                                <Sparkles className="w-3 h-3" /> {doc.aiScore !== null ? `${doc.aiScore}%` : '--'} · {getAiScoreLabel(doc.aiScore)}
                               </span>
                             </div>
                           </div>
@@ -1239,7 +1241,7 @@ export default function KnowledgePage() {
                       </span>
                       <span className={`flex items-center gap-1 font-medium ${getAiScoreColor(doc.aiScore)}`}>
                         <Sparkles className="w-3 h-3" />
-                        {getAiScoreLabel(doc.aiScore)}
+                        {doc.aiScore !== null ? `${doc.aiScore}%` : '--'} · {getAiScoreLabel(doc.aiScore)}
                       </span>
                     </div>
 

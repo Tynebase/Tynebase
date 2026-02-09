@@ -97,7 +97,7 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
             invited_by: user.id,
             invited_by_name: user.full_name || user.email,
           },
-          redirectTo: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/callback?tenant=${tenant.subdomain}`,
+          redirectTo: `${process.env.FRONTEND_URL || process.env.ALLOWED_ORIGINS?.split(',')[0]?.trim() || 'https://tynebase.vercel.app'}/auth/callback?tenant=${tenant.subdomain}`,
         });
 
         if (inviteError) {

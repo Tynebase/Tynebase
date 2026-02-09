@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -30,6 +30,7 @@ export default function MarkdownImportPage() {
   const [files, setFiles] = useState<UploadFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const addFiles = useCallback((newFiles: FileList | File[]) => {
     const mdFiles = Array.from(newFiles).filter(
@@ -146,18 +147,23 @@ export default function MarkdownImportPage() {
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
-        className={`relative border-2 border-dashed rounded-xl p-10 text-center transition-all ${
+        onClick={() => fileInputRef.current?.click()}
+        className={`relative border-2 border-dashed rounded-xl p-10 text-center transition-all cursor-pointer ${
           isDragging
             ? "border-[var(--brand)] bg-[var(--brand)]/5"
             : "border-[var(--dash-border-subtle)] bg-[var(--surface-card)]"
         }`}
       >
         <input
+          ref={fileInputRef}
           type="file"
           accept=".md,.markdown"
           multiple
-          onChange={(e) => e.target.files && addFiles(e.target.files)}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          onChange={(e) => {
+            if (e.target.files) addFiles(e.target.files);
+            e.target.value = '';
+          }}
+          className="hidden"
         />
         <Upload
           className={`w-12 h-12 mx-auto mb-4 ${
