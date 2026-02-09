@@ -44,7 +44,7 @@ export default function AIAssistantPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState('deepseek');
   const [selectedOutputTypes, setSelectedOutputTypes] = useState<Set<string>>(new Set(['full']));
-  const [scrapeOutputType, setScrapeOutputType] = useState('full');
+  const [selectedScrapeOutputTypes, setSelectedScrapeOutputTypes] = useState<Set<string>>(new Set(['full']));
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [availableTemplates, setAvailableTemplates] = useState<Template[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
@@ -214,7 +214,7 @@ export default function AIAssistantPage() {
       );
       
       if (completedJob.status === 'completed' && completedJob.result?.document_id) {
-        const creditCost = aiProviders.find(p => p.id === selectedProvider)?.credits || 1;
+        const creditCost = (aiProviders.find(p => p.id === selectedProvider)?.credits || 1) * selectedOutputTypes.size;
         decrementCredits(creditCost);
         refreshCredits();
         
@@ -254,21 +254,32 @@ export default function AIAssistantPage() {
         'full': 'full_article',
         'summary': 'summary',
         'outline': 'outline',
-        'template': 'full_article',
+        'raw': 'raw',
       };
+      
+      const mappedScrapeTypes = Array.from(selectedScrapeOutputTypes)
+        .map(t => scrapeOutputTypeMap[t])
+        .filter(Boolean) as ('full_article' | 'summary' | 'outline' | 'raw')[];
       
       const response = await scrapeUrlApi({ 
         url: scrapeUrl.trim(),
-        output_type: scrapeOutputTypeMap[scrapeOutputType] || 'full_article',
+        output_types: mappedScrapeTypes.length > 0 ? mappedScrapeTypes : ['full_article'],
         ai_model: selectedProvider as 'deepseek' | 'claude' | 'gemini',
       });
       
       if (response.markdown) {
-        setScrapedContent(response.markdown);
-        setProgress(100);
-        // Deduct actual credits from response
-        decrementCredits(response.credits_charged);
-        refreshCredits();
+        // If documents were created, redirect to first one
+        if (response.document_id) {
+          decrementCredits(response.credits_charged);
+          refreshCredits();
+          router.push(`/dashboard/knowledge/${response.document_id}`);
+        } else {
+          // Raw-only mode: show preview
+          setScrapedContent(response.markdown);
+          setProgress(100);
+          decrementCredits(response.credits_charged);
+          refreshCredits();
+        }
       } else {
         setError('No content extracted from URL');
       }
@@ -495,7 +506,18 @@ export default function AIAssistantPage() {
 
                 {/* Output Options */}
                 <div>
-                  <p className="text-sm font-medium text-[var(--dash-text-secondary)] mb-3">Output type:</p>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-medium text-[var(--dash-text-secondary)]">Output type:</p>
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--brand-primary-muted)] rounded-lg">
+                      <Sparkles className="w-4 h-4 text-[var(--brand)]" />
+                      <span className="text-sm font-medium text-[var(--brand)]">
+                        {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1) * selectedOutputTypes.size} credits
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-[var(--dash-text-muted)] mb-3">
+                    {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1)} credit ({selectedProvider}) × {selectedOutputTypes.size} output{selectedOutputTypes.size > 1 ? 's' : ''}
+                  </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                     {outputOptions.map((opt) => {
                       const isSelected = selectedOutputTypes.has(opt.id);
@@ -543,7 +565,7 @@ export default function AIAssistantPage() {
                       {availableTemplates.map((template) => (
                         <button
                           key={template.id}
-                          onClick={() => setSelectedTemplate(template.id)}
+                          onClick={() => setSelectedTemplate(prev => prev === template.id ? '' : template.id)}
                           className={`p-4 rounded-xl border-2 text-left transition-all ${
                             selectedTemplate === template.id
                               ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]'
@@ -551,7 +573,7 @@ export default function AIAssistantPage() {
                           }`}
                         >
                           <div className="flex items-center gap-2 mb-1">
-                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center ${
                               selectedTemplate === template.id ? 'border-[var(--brand)] bg-[var(--brand)]' : 'border-[var(--dash-border-default)]'
                             }`}>
                               {selectedTemplate === template.id && <Check className="w-2.5 h-2.5 text-white" />}
@@ -608,7 +630,7 @@ export default function AIAssistantPage() {
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4" />
-                      {selectedOutputTypes.size > 1 ? `Generate ${selectedOutputTypes.size} Documents` : selectedOutputTypes.has('template') ? `Generate with ${availableTemplates.find(t => t.id === selectedTemplate)?.title || 'Template'}` : 'Generate Document'}
+                      {selectedOutputTypes.size > 1 ? `Generate ${selectedOutputTypes.size} Documents (${(aiProviders.find(p => p.id === selectedProvider)?.credits || 1) * selectedOutputTypes.size} credits)` : selectedOutputTypes.has('template') ? `Generate with ${availableTemplates.find(t => t.id === selectedTemplate)?.title || 'Template'}` : `Generate Document (${aiProviders.find(p => p.id === selectedProvider)?.credits || 1} credit${(aiProviders.find(p => p.id === selectedProvider)?.credits || 1) > 1 ? 's' : ''})`}
                     </>
                   )}
                 </button>
@@ -641,12 +663,12 @@ export default function AIAssistantPage() {
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--brand-primary-muted)] rounded-lg">
                   <Sparkles className="w-4 h-4 text-[var(--brand)]" />
                   <span className="text-sm font-medium text-[var(--brand)]">
-                    {3 + (aiProviders.find(p => p.id === selectedProvider)?.credits || 1)} credits
+                    {3 + (aiProviders.find(p => p.id === selectedProvider)?.credits || 1) * Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length} credits
                   </span>
                 </div>
               </div>
               <p className="text-xs text-[var(--dash-text-muted)] mb-3">
-                Base: 3 credits (Tavily scrape) + AI: {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1)} credit ({selectedProvider})
+                Base: 3 credits (Tavily scrape) + AI: {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1)} credit ({selectedProvider}) × {Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length} AI output{Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length !== 1 ? 's' : ''}
               </p>
               <div className="grid grid-cols-2 gap-3">
                 {[
@@ -654,27 +676,40 @@ export default function AIAssistantPage() {
                   { id: 'summary', label: 'Summary', desc: 'Key points and takeaways' },
                   { id: 'outline', label: 'Outline', desc: 'Hierarchical structure only' },
                   { id: 'raw', label: 'Raw', desc: 'Just Tavily markdown' },
-                ].map((opt) => (
-                  <button
-                    key={opt.id}
-                    onClick={() => setScrapeOutputType(opt.id)}
-                    className={`p-4 rounded-xl border-2 text-left transition-all ${
-                      scrapeOutputType === opt.id
-                        ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]'
-                        : 'border-[var(--dash-border-subtle)] hover:border-[var(--dash-border-default)]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                        scrapeOutputType === opt.id ? 'border-[var(--brand)] bg-[var(--brand)]' : 'border-[var(--dash-border-default)]'
-                      }`}>
-                        {scrapeOutputType === opt.id && <Check className="w-2.5 h-2.5 text-white" />}
+                ].map((opt) => {
+                  const isSelected = selectedScrapeOutputTypes.has(opt.id);
+                  return (
+                    <button
+                      key={opt.id}
+                      onClick={() => {
+                        setSelectedScrapeOutputTypes(prev => {
+                          const next = new Set(prev);
+                          if (next.has(opt.id)) {
+                            if (next.size > 1) next.delete(opt.id);
+                          } else {
+                            next.add(opt.id);
+                          }
+                          return next;
+                        });
+                      }}
+                      className={`p-4 rounded-xl border-2 text-left transition-all ${
+                        isSelected
+                          ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]'
+                          : 'border-[var(--dash-border-subtle)] hover:border-[var(--dash-border-default)]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+                          isSelected ? 'border-[var(--brand)] bg-[var(--brand)]' : 'border-[var(--dash-border-default)]'
+                        }`}>
+                          {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
+                        </div>
+                        <span className="font-medium text-[var(--dash-text-primary)]">{opt.label}</span>
                       </div>
-                      <span className="font-medium text-[var(--dash-text-primary)]">{opt.label}</span>
-                    </div>
-                    <p className="text-xs text-[var(--dash-text-tertiary)] ml-6">{opt.desc}</p>
-                  </button>
-                ))}
+                      <p className="text-xs text-[var(--dash-text-tertiary)] ml-6">{opt.desc}</p>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -752,7 +787,10 @@ export default function AIAssistantPage() {
                 ) : (
                   <>
                     <LinkIcon className="w-4 h-4" />
-                    Extract Content
+                    {selectedScrapeOutputTypes.size > 1 
+                      ? `Extract & Generate ${selectedScrapeOutputTypes.size} Documents (${3 + (aiProviders.find(p => p.id === selectedProvider)?.credits || 1) * Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length} credits)`
+                      : `Extract Content (${3 + (aiProviders.find(p => p.id === selectedProvider)?.credits || 1) * Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length} credits)`
+                    }
                   </>
                 )}
               </button>
@@ -1120,7 +1158,7 @@ export default function AIAssistantPage() {
                   {availableTemplates.map((template) => (
                   <button
                     key={template.id}
-                    onClick={() => setSelectedTemplate(template.id)}
+                    onClick={() => setSelectedTemplate(prev => prev === template.id ? '' : template.id)}
                     className={`w-full p-4 rounded-xl border-2 text-left transition-all group ${
                       selectedTemplate === template.id
                         ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]'

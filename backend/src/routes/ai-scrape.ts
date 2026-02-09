@@ -38,9 +38,9 @@ const ScrapeRequestSchema = z.object({
       },
       { message: 'URL points to a private or internal network address (SSRF protection)' }
     ),
-  output_type: z.enum(['full_article', 'summary', 'outline', 'raw'])
-    .optional()
-    .default('full_article'),
+  output_types: z.array(
+    z.enum(['full_article', 'summary', 'outline', 'raw'])
+  ).min(1).max(4).optional().default(['full_article']),
   ai_model: z.enum(['deepseek', 'claude', 'gemini'])
     .optional()
     .default('deepseek'),
@@ -149,16 +149,17 @@ export default async function aiScrapeRoutes(fastify: FastifyInstance) {
       try {
         const validated = ScrapeRequestSchema.parse(request.body);
 
-        // Calculate credits: 3 base + AI model cost
+        // Calculate credits: 3 base + AI model cost × number of AI outputs
         const aiModelCost = getModelCreditCost(validated.ai_model);
-        const totalCredits = SCRAPE_BASE_CREDITS + aiModelCost;
+        const aiOutputCount = validated.output_types.filter(t => t !== 'raw').length;
+        const totalCredits = SCRAPE_BASE_CREDITS + (aiModelCost * aiOutputCount);
 
         request.log.info(
           {
             tenantId: tenant.id,
             userId: user.id,
             url: validated.url,
-            outputType: validated.output_type,
+            outputTypes: validated.output_types,
             aiModel: validated.ai_model,
             credits: totalCredits,
           },
@@ -213,43 +214,90 @@ export default async function aiScrapeRoutes(fastify: FastifyInstance) {
           'URL scrape completed with Tavily'
         );
 
-        let finalContent = scrapeResult.markdown;
-        let tokensUsed = 0;
+        const modelMapping: Record<string, AIModel> = {
+          deepseek: 'deepseek-v3',
+          gemini: 'gemini-2.5-flash',
+          claude: 'claude-sonnet-4.5',
+        };
 
-        // Step 3: Process with AI if not raw output
-        if (validated.output_type !== 'raw') {
-          const modelMapping: Record<string, AIModel> = {
-            deepseek: 'deepseek-v3',
-            gemini: 'gemini-2.5-flash',
-            claude: 'claude-sonnet-4.5',
-          };
+        // Step 3: Process with AI for each output type, save documents
+        const documentIds: string[] = [];
+        let firstMarkdown = scrapeResult.markdown;
+        let totalTokensUsed = 0;
+        const isOnlyRaw = validated.output_types.length === 1 && validated.output_types[0] === 'raw';
 
-          const prompt = getPromptForOutputType(
-            validated.output_type,
-            scrapeResult.markdown,
-            scrapeResult.title
-          );
+        const OUTPUT_TYPE_LABELS: Record<string, string> = {
+          full_article: 'Article',
+          summary: 'Summary',
+          outline: 'Outline',
+          raw: 'Raw',
+        };
 
-          request.log.info(
-            { tenantId: tenant.id, aiModel: validated.ai_model, outputType: validated.output_type },
-            'Processing scraped content with AI'
-          );
+        for (const outputType of validated.output_types) {
+          let content: string;
 
-          const aiResponse = await generateText({
-            prompt,
-            model: modelMapping[validated.ai_model],
-            maxTokens: 4000,
-            systemPrompt: 'You are a professional document writer. Generate the requested content IMMEDIATELY and IN FULL. Do NOT ask clarifying questions or engage in conversation. Do NOT include meta-commentary like "Here is your document". Just output the content directly using proper Markdown formatting.',
-          });
+          if (outputType === 'raw') {
+            content = scrapeResult.markdown;
+          } else {
+            const prompt = getPromptForOutputType(
+              outputType,
+              scrapeResult.markdown,
+              scrapeResult.title
+            );
 
-          finalContent = aiResponse.content;
-          tokensUsed = (aiResponse.tokensInput || 0) + (aiResponse.tokensOutput || 0);
+            request.log.info(
+              { tenantId: tenant.id, aiModel: validated.ai_model, outputType },
+              'Processing scraped content with AI'
+            );
 
-          request.log.info(
-            { tenantId: tenant.id, tokensUsed, contentLength: finalContent.length },
-            'AI processing completed'
-          );
+            const aiResponse = await generateText({
+              prompt,
+              model: modelMapping[validated.ai_model],
+              maxTokens: 4000,
+              systemPrompt: 'You are a professional document writer. Generate the requested content IMMEDIATELY and IN FULL. Do NOT ask clarifying questions or engage in conversation. Do NOT include meta-commentary like "Here is your document". Just output the content directly using proper Markdown formatting.',
+            });
+
+            content = aiResponse.content;
+            totalTokensUsed += (aiResponse.tokensInput || 0) + (aiResponse.tokensOutput || 0);
+          }
+
+          // Save first result for preview
+          if (documentIds.length === 0) {
+            firstMarkdown = content;
+          }
+
+          // Save as document unless it's the only output and it's raw (preserve preview behavior)
+          if (!isOnlyRaw) {
+            const docTitle = validated.output_types.length > 1
+              ? `${scrapeResult.title || 'Scraped Content'} — ${OUTPUT_TYPE_LABELS[outputType] || outputType}`
+              : scrapeResult.title || 'Scraped Content';
+
+            const { data: doc, error: docError } = await supabaseAdmin
+              .from('documents')
+              .insert({
+                tenant_id: tenant.id,
+                title: docTitle,
+                content,
+                status: 'draft',
+                author_id: user.id,
+              })
+              .select()
+              .single();
+
+            if (!docError && doc) {
+              documentIds.push(doc.id);
+              request.log.info(
+                { documentId: doc.id, outputType },
+                'Document created from scraped content'
+              );
+            }
+          }
         }
+
+        request.log.info(
+          { tenantId: tenant.id, totalTokensUsed, documentsCreated: documentIds.length },
+          'Scrape processing completed'
+        );
 
         // Step 4: Log usage
         await supabaseAdmin.from('query_usage').insert({
@@ -257,17 +305,19 @@ export default async function aiScrapeRoutes(fastify: FastifyInstance) {
           user_id: user.id,
           query_type: 'url_scrape',
           ai_model: validated.ai_model,
-          tokens_input: tokensUsed,
+          tokens_input: totalTokensUsed,
           tokens_output: 0,
           credits_charged: totalCredits,
           metadata: {
             url: validated.url,
-            output_type: validated.output_type,
+            output_types: validated.output_types,
             scraped_title: scrapeResult.title,
             scraped_length: scrapeResult.markdown.length,
+            document_ids: documentIds,
             credit_breakdown: {
               base: SCRAPE_BASE_CREDITS,
-              ai_model: aiModelCost,
+              ai_per_output: aiModelCost,
+              ai_output_count: aiOutputCount,
               total: totalCredits,
             },
           },
@@ -278,13 +328,15 @@ export default async function aiScrapeRoutes(fastify: FastifyInstance) {
           data: {
             url: scrapeResult.url,
             title: scrapeResult.title,
-            markdown: finalContent,
-            raw_markdown: validated.output_type !== 'raw' ? scrapeResult.markdown : undefined,
-            output_type: validated.output_type,
+            markdown: firstMarkdown,
+            raw_markdown: scrapeResult.markdown,
+            output_types: validated.output_types,
             ai_model: validated.ai_model,
-            content_length: finalContent.length,
+            content_length: firstMarkdown.length,
             credits_charged: totalCredits,
-            tokens_used: tokensUsed,
+            tokens_used: totalTokensUsed,
+            document_ids: documentIds,
+            document_id: documentIds[0] || null,
           },
         });
       } catch (error) {

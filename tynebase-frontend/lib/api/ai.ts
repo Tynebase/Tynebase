@@ -108,7 +108,7 @@ export interface ChatResponse {
 
 export interface ScrapeRequest {
   url: string;
-  output_type?: 'full_article' | 'summary' | 'outline' | 'raw';
+  output_types?: ('full_article' | 'summary' | 'outline' | 'raw')[];
   ai_model?: 'deepseek' | 'claude' | 'gemini';
   timeout?: number;
 }
@@ -118,11 +118,13 @@ export interface ScrapeResponse {
   title: string;
   markdown: string;
   raw_markdown?: string;
-  output_type: string;
+  output_types: string[];
   ai_model: string;
   content_length: number;
   credits_charged: number;
   tokens_used: number;
+  document_ids?: string[];
+  document_id?: string | null;
 }
 
 export interface VideoUploadResponse {

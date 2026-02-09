@@ -21,6 +21,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import * as crypto from 'crypto';
+import { execSync } from 'child_process';
 
 const mammoth = require('mammoth');
 const pdfParse = require('pdf-parse');
@@ -445,23 +446,89 @@ async function extractPdfContent(
     const isScannedPdf = cleanText.length < 100;
     
     if (isScannedPdf && enableOcr) {
-      console.log(`[Worker ${workerId}] PDF appears to be scanned, running OCR...`);
+      console.log(`[Worker ${workerId}] PDF appears to be scanned, running OCR with pdftoppm + Tesseract...`);
       markdown += '**Document Type:** Scanned/Image-based PDF\n\n';
       markdown += '---\n\n';
-      markdown += '## OCR Extracted Text\n\n';
-      
-      // Note: Full OCR would require converting PDF pages to images first
-      // For now, we'll note that OCR is available
-      markdown += '*This is a scanned document. Advanced OCR processing is recommended for optimal text extraction.*\n\n';
-      markdown += '> **Tip:** For best results with scanned legal documents, consider using dedicated OCR preprocessing.\n\n';
-      
-      if (cleanText.length > 0) {
-        markdown += '### Partial Text Extracted:\n\n';
-        markdown += cleanText;
+
+      let ocrText = '';
+      const tempDir = path.join(os.tmpdir(), `ocr-${Date.now()}`);
+
+      try {
+        fs.mkdirSync(tempDir, { recursive: true });
+
+        // Write PDF to temp file for pdftoppm
+        const tempPdfPath = path.join(tempDir, 'input.pdf');
+        fs.writeFileSync(tempPdfPath, buffer);
+
+        // Convert PDF pages to PNG images using pdftoppm (from poppler-utils)
+        // Limit to first 20 pages to avoid excessive processing
+        const maxPages = Math.min(data.numpages || 20, 20);
+        console.log(`[Worker ${workerId}] Converting ${maxPages} PDF page(s) to images...`);
+
+        execSync(
+          `pdftoppm -png -r 300 -l ${maxPages} "${tempPdfPath}" "${path.join(tempDir, 'page')}"`,
+          { timeout: 60000 }
+        );
+
+        // Find generated page images
+        const pageFiles = fs.readdirSync(tempDir)
+          .filter(f => f.startsWith('page-') && f.endsWith('.png'))
+          .sort();
+
+        console.log(`[Worker ${workerId}] Generated ${pageFiles.length} page image(s), running OCR...`);
+
+        // OCR each page with Tesseract.js
+        for (const pageFile of pageFiles) {
+          const imagePath = path.join(tempDir, pageFile);
+          const imageBuffer = fs.readFileSync(imagePath);
+
+          const { data: { text: pageText } } = await Tesseract.recognize(
+            imageBuffer,
+            'eng',
+            {
+              logger: (m: any) => {
+                if (m.status === 'recognizing text') {
+                  console.log(`[Worker ${workerId}] OCR ${pageFile}: ${Math.round(m.progress * 100)}%`);
+                }
+              }
+            }
+          );
+
+          if (pageText && pageText.trim().length > 0) {
+            ocrText += pageText.trim() + '\n\n';
+          }
+        }
+
+        if (ocrText.trim().length > 0) {
+          markdown += '## OCR Extracted Text\n\n';
+          markdown += ocrText.trim();
+          console.log(`[Worker ${workerId}] OCR extracted ${ocrText.length} characters from ${pageFiles.length} page(s)`);
+          metadata.ocr_processed = true;
+          metadata.ocr_pages = pageFiles.length;
+          metadata.ocr_characters = ocrText.length;
+        } else {
+          markdown += '*OCR processing completed but no readable text was found in the scanned pages.*\n';
+          metadata.ocr_processed = true;
+          metadata.ocr_pages = pageFiles.length;
+          metadata.ocr_characters = 0;
+        }
+      } catch (ocrError) {
+        console.error(`[Worker ${workerId}] PDF OCR failed:`, ocrError);
+        markdown += '## OCR Extraction\n\n';
+        markdown += '*OCR processing encountered an error. Partial text may be available below.*\n\n';
+        if (cleanText.length > 0) {
+          markdown += cleanText;
+        }
+        metadata.ocr_processed = false;
+        metadata.ocr_error = ocrError instanceof Error ? ocrError.message : 'Unknown OCR error';
+      } finally {
+        // Clean up temp directory
+        try {
+          fs.rmSync(tempDir, { recursive: true, force: true });
+        } catch { /* ignore cleanup errors */ }
       }
-      
+
       metadata.is_scanned = true;
-      metadata.ocr_processed = false;
     } else {
       markdown += cleanText;
       metadata.is_scanned = false;
