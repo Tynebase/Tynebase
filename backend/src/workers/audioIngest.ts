@@ -23,6 +23,13 @@ import { getModelCreditCost } from '../utils/creditCalculator';
 import { generateText } from '../services/ai/generation';
 import type { AIModel } from '../services/ai/types';
 import { z } from 'zod';
+
+// Map frontend model names to backend AIModel types
+const MODEL_MAP: Record<string, AIModel> = {
+  'gemini': 'gemini-2.5-flash',
+  'deepseek': 'deepseek-v3',
+  'claude': 'claude-sonnet-4.5',
+};
 import * as fs from 'fs';
 
 const OutputOptionsSchema = z.object({
@@ -102,9 +109,9 @@ export async function processAudioIngestJob(job: Job): Promise<Record<string, an
     // All transcription uses Gemini: 10 credits base
     const baseCredits = 10;
     
-    // Use selected model for summary/article generation
-    const aiModelForOutputs = outputOptions.ai_model;
-    const modelCreditCost = getModelCreditCost(aiModelForOutputs || 'deepseek');
+    // Map frontend model name to backend model name for credit calculation
+    const backendModelName = MODEL_MAP[outputOptions.ai_model] || 'gemini-2.5-flash';
+    const modelCreditCost = getModelCreditCost(backendModelName);
     
     let totalCredits = baseCredits;
     const creditBreakdown: Record<string, number> = { base: baseCredits };
@@ -156,15 +163,13 @@ export async function processAudioIngestJob(job: Job): Promise<Record<string, an
 
     // Generate AI summary if requested
     if (outputOptions.generate_summary && transcript.length > 100) {
-      console.log(`[Worker ${workerId}] Generating AI summary using ${aiModelForOutputs}...`);
+      console.log(`[Worker ${workerId}] Generating AI summary using ${backendModelName}...`);
       try {
         const summaryPrompt = `Generate a concise summary of the following transcript. Focus on key points, main topics discussed, and important takeaways. Format as clear bullet points or short paragraphs.\n\nTranscript:\n${transcript.substring(0, 50000)}`;
         
         const summaryResponse = await generateText({
           prompt: summaryPrompt,
-          model: (aiModelForOutputs === 'deepseek' ? 'deepseek-v3' : 
-                 aiModelForOutputs === 'gemini' ? 'gemini-2.5-flash' : 
-                 'claude-sonnet-4.5') as AIModel,
+          model: backendModelName,
           maxTokens: 2000,
         });
         const summaryContent = summaryResponse.content;
@@ -193,15 +198,13 @@ export async function processAudioIngestJob(job: Job): Promise<Record<string, an
 
     // Generate AI article if requested
     if (outputOptions.generate_article && transcript.length > 100) {
-      console.log(`[Worker ${workerId}] Generating AI article using ${aiModelForOutputs}...`);
+      console.log(`[Worker ${workerId}] Generating AI article using ${backendModelName}...`);
       try {
         const articlePrompt = `Transform the following transcript into a well-formatted, professional article or documentation. Improve readability, add proper structure with headings, remove filler words, and enhance clarity while preserving all important information. Use markdown formatting.\n\nTranscript:\n${transcript.substring(0, 50000)}`;
         
         const articleResponse = await generateText({
           prompt: articlePrompt,
-          model: (aiModelForOutputs === 'deepseek' ? 'deepseek-v3' : 
-                 aiModelForOutputs === 'gemini' ? 'gemini-2.5-flash' : 
-                 'claude-sonnet-4.5') as AIModel,
+          model: backendModelName,
           maxTokens: 4000,
         });
         const articleContent = articleResponse.content;
