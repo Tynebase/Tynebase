@@ -149,7 +149,33 @@ function initializeYdocFromContent(ydoc: Y.Doc, content: string): void {
     listStack.length = 0;
   }
   
-  for (const line of lines) {
+  /**
+   * Look ahead from a given index to check if there's another list item coming
+   * (possibly after blank lines and paragraph text). This prevents breaking
+   * list context when AI generates list items separated by explanatory paragraphs.
+   */
+  function hasUpcomingListItem(fromIndex: number, expectedIndent: number): boolean {
+    for (let i = fromIndex; i < lines.length; i++) {
+      const t = lines[i].trim();
+      if (!t) continue; // skip blank lines
+      const ind = getIndent(lines[i]);
+      // Found another list item at the same or similar indent level
+      if (ind >= expectedIndent - 2 && t.match(/^(\d+\.\s+|[-*]\s+)/)) {
+        return true;
+      }
+      // Found a heading — that definitely breaks the list
+      if (t.match(/^#{1,6}\s+/)) return false;
+      // Found a horizontal rule
+      if (t === '---' || t === '***' || t === '___') return false;
+      // Non-list text: keep scanning (AI often puts paragraphs between list items)
+      // But only scan a limited window to avoid false positives
+      if (i - fromIndex > 10) return false;
+    }
+    return false;
+  }
+
+  for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+    const line = lines[lineIdx];
     const trimmedLine = line.trim();
     const indent = getIndent(line);
     
@@ -240,8 +266,31 @@ function initializeYdocFromContent(ydoc: Y.Doc, content: string): void {
       continue;
     }
     
-    // Any non-list line breaks the list context
-    clearListStack();
+    // Empty lines: skip without breaking list context
+    if (!trimmedLine) {
+      // Only add empty paragraph if we're NOT inside a list context
+      if (listStack.length === 0) {
+        const paragraph = new Y.XmlElement('paragraph');
+        fragment.insert(fragment.length, [paragraph]);
+      }
+      continue;
+    }
+    
+    // Non-list text while inside a list context:
+    // Check if there's an upcoming list item — if so, add this text as a
+    // continuation paragraph inside the last list item instead of breaking the list.
+    if (listStack.length > 0) {
+      const currentCtx = listStack[listStack.length - 1];
+      if (hasUpcomingListItem(lineIdx + 1, currentCtx.indent)) {
+        // Add as continuation paragraph inside the last list item
+        const paragraph = new Y.XmlElement('paragraph');
+        insertTextWithMarks(paragraph, trimmedLine);
+        currentCtx.lastItem.insert(currentCtx.lastItem.length, [paragraph]);
+        continue;
+      }
+      // No upcoming list item — break out of list context
+      clearListStack();
+    }
     
     // Handle code blocks
     if (trimmedLine.startsWith('```')) {
@@ -266,11 +315,9 @@ function initializeYdocFromContent(ydoc: Y.Doc, content: string): void {
       continue;
     }
     
-    // Regular paragraph (including empty lines as empty paragraphs)
+    // Regular paragraph
     const paragraph = new Y.XmlElement('paragraph');
-    if (trimmedLine) {
-      insertTextWithMarks(paragraph, trimmedLine);
-    }
+    insertTextWithMarks(paragraph, trimmedLine);
     fragment.insert(fragment.length, [paragraph]);
   }
   
