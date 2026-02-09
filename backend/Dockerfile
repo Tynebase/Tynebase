@@ -26,9 +26,11 @@ FROM node:20-alpine AS runtime
 
 # Install dumb-init for proper signal handling, ffmpeg for audio/video processing,
 # poppler-utils for PDF-to-image conversion (OCR pipeline),
-# and python3/pip for yt-dlp plugins (bgutil-ytdlp-pot-provider)
-RUN apk add --no-cache dumb-init ffmpeg poppler-utils python3 py3-pip \
-    && pip3 install --break-system-packages bgutil-ytdlp-pot-provider
+# and python3/pip for yt-dlp plugins
+RUN apk add --no-cache dumb-init ffmpeg poppler-utils python3 py3-pip
+
+# Install yt-dlp PO token provider (non-critical, allow failure)
+RUN pip3 install --break-system-packages bgutil-ytdlp-pot-provider || echo "WARNING: bgutil-ytdlp-pot-provider install failed, yt-dlp PO tokens handled by sidecar"
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
