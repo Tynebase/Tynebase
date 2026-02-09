@@ -276,18 +276,27 @@ function initializeYdocFromContent(ydoc: Y.Doc, content: string): void {
       continue;
     }
     
-    // Non-list text while inside a list context:
-    // Check if there's an upcoming list item — if so, add this text as a
-    // continuation paragraph inside the last list item instead of breaking the list.
+    // Non-list text while inside a list context
     if (listStack.length > 0) {
       const currentCtx = listStack[listStack.length - 1];
-      if (hasUpcomingListItem(lineIdx + 1, currentCtx.indent)) {
-        // Add as continuation paragraph inside the last list item
+      
+      // Indented text always belongs to the last list item as continuation
+      if (indent > currentCtx.indent) {
         const paragraph = new Y.XmlElement('paragraph');
         insertTextWithMarks(paragraph, trimmedLine);
         currentCtx.lastItem.insert(currentCtx.lastItem.length, [paragraph]);
         continue;
       }
+      
+      // Unindented text: check if there's an upcoming list item — if so,
+      // treat as continuation to preserve list context across paragraphs
+      if (hasUpcomingListItem(lineIdx + 1, currentCtx.indent)) {
+        const paragraph = new Y.XmlElement('paragraph');
+        insertTextWithMarks(paragraph, trimmedLine);
+        currentCtx.lastItem.insert(currentCtx.lastItem.length, [paragraph]);
+        continue;
+      }
+      
       // No upcoming list item — break out of list context
       clearListStack();
     }
