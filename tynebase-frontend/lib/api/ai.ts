@@ -34,7 +34,7 @@ export interface GenerateRequest {
   prompt: string;
   model?: 'deepseek' | 'claude' | 'gemini';
   max_tokens?: number;
-  output_type?: 'full_article' | 'summary' | 'outline' | 'with_template';
+  output_types?: ('full_article' | 'summary' | 'outline' | 'with_template')[];
   template_content?: string;
 }
 

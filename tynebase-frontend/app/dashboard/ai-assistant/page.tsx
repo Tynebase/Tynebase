@@ -43,7 +43,8 @@ export default function AIAssistantPage() {
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState('deepseek');
-  const [outputType, setOutputType] = useState('full');
+  const [selectedOutputTypes, setSelectedOutputTypes] = useState<Set<string>>(new Set(['full']));
+  const [scrapeOutputType, setScrapeOutputType] = useState('full');
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [availableTemplates, setAvailableTemplates] = useState<Template[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
@@ -180,9 +181,14 @@ export default function AIAssistantPage() {
         'template': 'with_template',
       };
       
+      // Build output_types array from selected set
+      const mappedTypes = Array.from(selectedOutputTypes)
+        .map(t => outputTypeMap[t])
+        .filter(Boolean) as ('full_article' | 'summary' | 'outline' | 'with_template')[];
+      
       // If using template, get template content to send separately
       let templateContent: string | undefined;
-      if (outputType === 'template' && selectedTemplate) {
+      if (selectedOutputTypes.has('template') && selectedTemplate) {
         const template = availableTemplates.find(t => t.id === selectedTemplate);
         if (template) {
           templateContent = template.content;
@@ -192,7 +198,7 @@ export default function AIAssistantPage() {
       const response = await generate({
         prompt: prompt.trim(),
         model: modelMap[selectedProvider] || 'deepseek',
-        output_type: outputTypeMap[outputType] || 'full_article',
+        output_types: mappedTypes.length > 0 ? mappedTypes : ['full_article'],
         template_content: templateContent,
       });
       
@@ -244,7 +250,7 @@ export default function AIAssistantPage() {
     setScrapedContent(null);
     
     try {
-      const outputTypeMap: Record<string, 'full_article' | 'summary' | 'outline' | 'raw'> = {
+      const scrapeOutputTypeMap: Record<string, 'full_article' | 'summary' | 'outline' | 'raw'> = {
         'full': 'full_article',
         'summary': 'summary',
         'outline': 'outline',
@@ -253,7 +259,7 @@ export default function AIAssistantPage() {
       
       const response = await scrapeUrlApi({ 
         url: scrapeUrl.trim(),
-        output_type: outputTypeMap[outputType] || 'full_article',
+        output_type: scrapeOutputTypeMap[scrapeOutputType] || 'full_article',
         ai_model: selectedProvider as 'deepseek' | 'claude' | 'gemini',
       });
       
@@ -491,32 +497,46 @@ export default function AIAssistantPage() {
                 <div>
                   <p className="text-sm font-medium text-[var(--dash-text-secondary)] mb-3">Output type:</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                    {outputOptions.map((opt) => (
-                      <button
-                        key={opt.id}
-                        onClick={() => setOutputType(opt.id)}
-                        className={`p-4 rounded-xl border-2 text-left transition-all ${
-                          outputType === opt.id
-                            ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]'
-                            : 'border-[var(--dash-border-subtle)] hover:border-[var(--dash-border-default)]'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                            outputType === opt.id ? 'border-[var(--brand)] bg-[var(--brand)]' : 'border-[var(--dash-border-default)]'
-                          }`}>
-                            {outputType === opt.id && <Check className="w-2.5 h-2.5 text-white" />}
+                    {outputOptions.map((opt) => {
+                      const isSelected = selectedOutputTypes.has(opt.id);
+                      return (
+                        <button
+                          key={opt.id}
+                          onClick={() => {
+                            setSelectedOutputTypes(prev => {
+                              const next = new Set(prev);
+                              if (next.has(opt.id)) {
+                                // Don't allow deselecting the last one
+                                if (next.size > 1) next.delete(opt.id);
+                              } else {
+                                next.add(opt.id);
+                              }
+                              return next;
+                            });
+                          }}
+                          className={`p-4 rounded-xl border-2 text-left transition-all ${
+                            isSelected
+                              ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]'
+                              : 'border-[var(--dash-border-subtle)] hover:border-[var(--dash-border-default)]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+                              isSelected ? 'border-[var(--brand)] bg-[var(--brand)]' : 'border-[var(--dash-border-default)]'
+                            }`}>
+                              {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
+                            </div>
+                            <span className="font-medium text-[var(--dash-text-primary)]">{opt.label}</span>
                           </div>
-                          <span className="font-medium text-[var(--dash-text-primary)]">{opt.label}</span>
-                        </div>
-                        <p className="text-xs text-[var(--dash-text-tertiary)] ml-6">{opt.desc}</p>
-                      </button>
-                    ))}
+                          <p className="text-xs text-[var(--dash-text-tertiary)] ml-6">{opt.desc}</p>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
-                {/* Template Selection - Show when 'From Template' is selected */}
-                {outputType === 'template' && (
+                {/* Template Selection - Show when 'With Template' is selected */}
+                {selectedOutputTypes.has('template') && (
                   <div>
                     <p className="text-sm font-medium text-[var(--dash-text-secondary)] mb-3">Choose a template:</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -577,7 +597,7 @@ export default function AIAssistantPage() {
 
                 <button
                   onClick={handleGenerate}
-                  disabled={!prompt.trim() || isGenerating || (outputType === 'template' && !selectedTemplate)}
+                  disabled={!prompt.trim() || isGenerating || (selectedOutputTypes.has('template') && !selectedTemplate)}
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[var(--brand)] hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-all"
                 >
                   {isGenerating ? (
@@ -588,7 +608,7 @@ export default function AIAssistantPage() {
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4" />
-                      {outputType === 'template' ? `Generate with ${availableTemplates.find(t => t.id === selectedTemplate)?.title || 'Template'}` : 'Generate Document'}
+                      {selectedOutputTypes.size > 1 ? `Generate ${selectedOutputTypes.size} Documents` : selectedOutputTypes.has('template') ? `Generate with ${availableTemplates.find(t => t.id === selectedTemplate)?.title || 'Template'}` : 'Generate Document'}
                     </>
                   )}
                 </button>
@@ -637,18 +657,18 @@ export default function AIAssistantPage() {
                 ].map((opt) => (
                   <button
                     key={opt.id}
-                    onClick={() => setOutputType(opt.id)}
+                    onClick={() => setScrapeOutputType(opt.id)}
                     className={`p-4 rounded-xl border-2 text-left transition-all ${
-                      outputType === opt.id
+                      scrapeOutputType === opt.id
                         ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]'
                         : 'border-[var(--dash-border-subtle)] hover:border-[var(--dash-border-default)]'
                     }`}
                   >
                     <div className="flex items-center gap-2 mb-1">
                       <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                        outputType === opt.id ? 'border-[var(--brand)] bg-[var(--brand)]' : 'border-[var(--dash-border-default)]'
+                        scrapeOutputType === opt.id ? 'border-[var(--brand)] bg-[var(--brand)]' : 'border-[var(--dash-border-default)]'
                       }`}>
-                        {outputType === opt.id && <Check className="w-2.5 h-2.5 text-white" />}
+                        {scrapeOutputType === opt.id && <Check className="w-2.5 h-2.5 text-white" />}
                       </div>
                       <span className="font-medium text-[var(--dash-text-primary)]">{opt.label}</span>
                     </div>
@@ -1134,7 +1154,7 @@ export default function AIAssistantPage() {
                 <div className="mt-4 pt-4 border-t border-[var(--dash-border-subtle)]">
                   <button 
                     onClick={() => {
-                      setOutputType('template');
+                      setSelectedOutputTypes(new Set(['template']));
                       handleGenerate();
                     }}
                     disabled={!prompt.trim() || isGenerating}

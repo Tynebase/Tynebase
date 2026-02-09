@@ -27,9 +27,13 @@ const GenerateRequestSchema = z.object({
     .max(4000)
     .optional()
     .default(2000),
-  output_type: z.enum(['full_article', 'summary', 'outline', 'with_template'])
+  output_types: z.array(
+    z.enum(['full_article', 'summary', 'outline', 'with_template'])
+  )
+    .min(1, 'At least one output type is required')
+    .max(4)
     .optional()
-    .default('full_article'),
+    .default(['full_article']),
   template_content: z.string()
     .max(50000)
     .optional(),
@@ -115,8 +119,9 @@ export default async function aiGenerateRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Get credit cost based on model (DeepSeek: 1, Gemini: 2, Claude: 5)
-        const creditsToDeduct = getModelCreditCost(validated.model);
+        // Get credit cost based on model × number of output types
+        const modelCost = getModelCreditCost(validated.model);
+        const creditsToDeduct = modelCost * validated.output_types.length;
 
         request.log.info(
           {
@@ -179,7 +184,7 @@ export default async function aiGenerateRoutes(fastify: FastifyInstance) {
             prompt: validated.prompt,
             model: validated.model,
             max_tokens: validated.max_tokens,
-            output_type: validated.output_type,
+            output_types: validated.output_types,
             template_content: validated.template_content,
             user_id: user.id,
             estimated_credits: creditsToDeduct,

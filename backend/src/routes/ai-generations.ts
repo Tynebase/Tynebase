@@ -68,7 +68,7 @@ export default async function recentGenerationsRoutes(fastify: FastifyInstance) 
           .from('job_queue')
           .select('id, tenant_id, type, status, payload, result, created_at, started_at, completed_at')
           .eq('tenant_id', tenant.id)
-          .in('type', ['generate', 'scrape', 'enhance', 'enhance_apply', 'legal_document_upload', 'video_transcribe_to_document'])
+          .in('type', ['ai_generation', 'generate', 'scrape', 'enhance', 'enhance_apply', 'legal_document_process', 'legal_document_upload', 'video_transcribe_to_document'])
           .order('created_at', { ascending: false })
           .range(offset, offset + limit - 1);
 
@@ -100,7 +100,7 @@ export default async function recentGenerationsRoutes(fastify: FastifyInstance) 
           .from('job_queue')
           .select('id', { count: 'exact', head: true })
           .eq('tenant_id', tenant.id)
-          .in('type', ['generate', 'scrape', 'enhance', 'enhance_apply', 'legal_document_upload', 'video_transcribe_to_document']);
+          .in('type', ['ai_generation', 'generate', 'scrape', 'enhance', 'enhance_apply', 'legal_document_process', 'legal_document_upload', 'video_transcribe_to_document']);
 
         if (status !== 'all') {
           countQuery = countQuery.eq('status', status);
@@ -117,7 +117,7 @@ export default async function recentGenerationsRoutes(fastify: FastifyInstance) 
           let type: GenerationJob['type'] = 'From Prompt';
           if (job.type === 'scrape') {
             type = 'From URL';
-          } else if (job.type === 'legal_document_upload') {
+          } else if (job.type === 'legal_document_process' || job.type === 'legal_document_upload') {
             type = 'From File';
           } else if (job.type === 'enhance' || job.type === 'enhance_apply') {
             type = 'Enhance';

@@ -25,7 +25,9 @@ const AIGenerationPayloadSchema = z.object({
   prompt: z.string().min(1),
   model: z.enum(['deepseek', 'claude', 'gemini']),
   max_tokens: z.number().int().positive().optional(),
-  output_type: z.enum(['full_article', 'summary', 'outline', 'with_template']).optional().default('full_article'),
+  output_types: z.array(
+    z.enum(['full_article', 'summary', 'outline', 'with_template'])
+  ).min(1).optional().default(['full_article']),
   template_content: z.string().optional(),
   user_id: z.string().uuid(),
   estimated_credits: z.number().int().positive(),
@@ -53,70 +55,104 @@ export async function processAIGenerationJob(job: Job): Promise<void> {
 
   try {
     const validated = AIGenerationPayloadSchema.parse(job.payload);
+    const outputTypes = validated.output_types || ['full_article'];
 
-    const generatedContent = await callAIProvider(
-      validated.prompt,
-      validated.model,
-      validated.max_tokens || 2000,
-      validated.output_type || 'full_article',
-      validated.template_content
-    );
+    console.log(`[Worker ${workerId}] Generating ${outputTypes.length} output(s): ${outputTypes.join(', ')}`);
 
-    console.log(`[Worker ${workerId}] AI generation completed. Content length: ${generatedContent.content?.length || 0}`);
+    const OUTPUT_TYPE_LABELS: Record<string, string> = {
+      full_article: 'Article',
+      summary: 'Summary',
+      outline: 'Outline',
+      with_template: 'From Template',
+    };
 
-    const sanitizedContent = sanitizeAIOutput(generatedContent.content);
-    
-    console.log(`[Worker ${workerId}] Content sanitized. Length: ${sanitizedContent.length}`);
+    const documentIds: string[] = [];
+    let firstDocId: string | null = null;
+    let firstTitle: string | null = null;
+    let totalTokensInput = 0;
+    let totalTokensOutput = 0;
+    let lastProvider = '';
+    let lastModel: AIModel | null = null;
 
-    const documentTitle = generateDocumentTitle(validated.prompt, sanitizedContent);
+    for (const outputType of outputTypes) {
+      console.log(`[Worker ${workerId}] Generating output type: ${outputType}`);
 
-    // NOTE: We intentionally do NOT save yjs_state here.
-    // The collab server will initialize the Y.js document from the markdown content
-    // using initializeYdocFromContent() which properly parses markdown into TipTap nodes
-    // (headings, lists, blockquotes, etc.) for beautiful rich text rendering.
+      const generatedContent = await callAIProvider(
+        validated.prompt,
+        validated.model,
+        validated.max_tokens || 2000,
+        outputType,
+        validated.template_content
+      );
 
-    const { data: document, error: docError } = await supabaseAdmin
-      .from('documents')
-      .insert({
-        tenant_id: job.tenant_id,
-        title: documentTitle,
-        content: sanitizedContent,
-        status: 'draft',
-        author_id: validated.user_id,
-      })
-      .select()
-      .single();
+      console.log(`[Worker ${workerId}] AI generation completed for ${outputType}. Content length: ${generatedContent.content?.length || 0}`);
 
-    if (docError) {
-      console.error(`[Worker ${workerId}] Failed to create document:`, docError);
-      await failJob({
-        jobId: job.id,
-        error: 'Failed to create document',
-        errorDetails: { message: docError.message, code: docError.code },
-      });
-      return;
+      const sanitizedContent = sanitizeAIOutput(generatedContent.content);
+      const baseTitle = generateDocumentTitle(validated.prompt, sanitizedContent);
+      const documentTitle = outputTypes.length > 1
+        ? `${baseTitle} — ${OUTPUT_TYPE_LABELS[outputType] || outputType}`
+        : baseTitle;
+
+      // NOTE: We intentionally do NOT save yjs_state here.
+      // The collab server will initialize the Y.js document from the markdown content
+      // using initializeYdocFromContent() which properly parses markdown into TipTap nodes
+      // (headings, lists, blockquotes, etc.) for beautiful rich text rendering.
+
+      const { data: document, error: docError } = await supabaseAdmin
+        .from('documents')
+        .insert({
+          tenant_id: job.tenant_id,
+          title: documentTitle,
+          content: sanitizedContent,
+          status: 'draft',
+          author_id: validated.user_id,
+        })
+        .select()
+        .single();
+
+      if (docError) {
+        console.error(`[Worker ${workerId}] Failed to create document for ${outputType}:`, docError);
+        continue;
+      }
+
+      console.log(`[Worker ${workerId}] Document created: ${document.id} (${outputType})`);
+      documentIds.push(document.id);
+      if (!firstDocId) {
+        firstDocId = document.id;
+        firstTitle = document.title;
+      }
+
+      totalTokensInput += generatedContent.tokensInput;
+      totalTokensOutput += generatedContent.tokensOutput;
+      lastProvider = generatedContent.provider;
+      lastModel = generatedContent.model;
+
+      const { error: lineageError } = await supabaseAdmin
+        .from('document_lineage')
+        .insert({
+          document_id: document.id,
+          event_type: 'ai_generated',
+          actor_id: validated.user_id,
+          metadata: {
+            model: validated.model,
+            provider: generatedContent.provider,
+            prompt_length: validated.prompt.length,
+            output_length: sanitizedContent.length,
+            output_type: outputType,
+          },
+        });
+
+      if (lineageError) {
+        console.error(`[Worker ${workerId}] Failed to create lineage event:`, lineageError);
+      }
     }
 
-    console.log(`[Worker ${workerId}] Document created: ${document.id}`);
-
-    const { error: lineageError } = await supabaseAdmin
-      .from('document_lineage')
-      .insert({
-        document_id: document.id,
-        event_type: 'ai_generated',
-        actor_id: validated.user_id,
-        metadata: {
-          model: validated.model,
-          provider: generatedContent.provider,
-          prompt_length: validated.prompt.length,
-          output_length: sanitizedContent.length,
-        },
+    if (documentIds.length === 0) {
+      await failJob({
+        jobId: job.id,
+        error: 'Failed to create any documents',
       });
-
-    if (lineageError) {
-      console.error(`[Worker ${workerId}] Failed to create lineage event:`, lineageError);
-    } else {
-      console.log(`[Worker ${workerId}] Lineage event created for document ${document.id}`);
+      return;
     }
 
     const currentMonth = new Date().toISOString().slice(0, 7);
@@ -127,36 +163,39 @@ export async function processAIGenerationJob(job: Job): Promise<void> {
         user_id: validated.user_id,
         query_type: 'text_generation',
         ai_model: validated.model,
-        tokens_input: generatedContent.tokensInput,
-        tokens_output: generatedContent.tokensOutput,
+        tokens_input: totalTokensInput,
+        tokens_output: totalTokensOutput,
         credits_charged: validated.estimated_credits,
         month_year: currentMonth,
         metadata: {
           job_id: job.id,
-          document_id: document.id,
+          document_ids: documentIds,
+          output_types: outputTypes,
         },
       });
 
     if (usageError) {
       console.error(`[Worker ${workerId}] Failed to log query usage:`, usageError);
     } else {
-      console.log(`[Worker ${workerId}] Query usage logged: ${generatedContent.tokensInput + generatedContent.tokensOutput} tokens`);
+      console.log(`[Worker ${workerId}] Query usage logged: ${totalTokensInput + totalTokensOutput} tokens`);
     }
 
     await completeJob({
       jobId: job.id,
       result: {
-        document_id: document.id,
-        title: document.title,
-        content: sanitizedContent,
-        tokens_input: generatedContent.tokensInput,
-        tokens_output: generatedContent.tokensOutput,
-        model: generatedContent.model,
-        provider: generatedContent.provider,
+        document_id: firstDocId,
+        document_ids: documentIds,
+        title: firstTitle,
+        output_types: outputTypes,
+        documents_created: documentIds.length,
+        tokens_input: totalTokensInput,
+        tokens_output: totalTokensOutput,
+        model: lastModel,
+        provider: lastProvider,
       },
     });
 
-    console.log(`[Worker ${workerId}] Job ${job.id} completed successfully`);
+    console.log(`[Worker ${workerId}] Job ${job.id} completed successfully — ${documentIds.length} document(s) created`);
   } catch (error) {
     console.error(`[Worker ${workerId}] Error processing AI generation job:`, error);
 
