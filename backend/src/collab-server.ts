@@ -127,12 +127,18 @@ function initializeYdocFromContent(ydoc: Y.Doc, content: string): void {
   // Split content into paragraphs
   const lines = content.split('\n');
   
+  // Track current list context to group consecutive items
+  let currentBulletList: Y.XmlElement | null = null;
+  let currentOrderedList: Y.XmlElement | null = null;
+  
   for (const line of lines) {
     const trimmedLine = line.trim();
     
     // Handle headings
     const headingMatch = trimmedLine.match(/^(#{1,6})\s+(.*)$/);
     if (headingMatch) {
+      currentBulletList = null;
+      currentOrderedList = null;
       const level = headingMatch[1].length;
       const text = headingMatch[2];
       const heading = new Y.XmlElement('heading');
@@ -144,30 +150,40 @@ function initializeYdocFromContent(ydoc: Y.Doc, content: string): void {
     
     // Handle bullet lists
     if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('* ')) {
+      currentOrderedList = null;
       const text = trimmedLine.slice(2);
-      const bulletList = new Y.XmlElement('bulletList');
+      if (!currentBulletList) {
+        currentBulletList = new Y.XmlElement('bulletList');
+        fragment.insert(fragment.length, [currentBulletList]);
+      }
       const listItem = new Y.XmlElement('listItem');
       const paragraph = new Y.XmlElement('paragraph');
       insertTextWithMarks(paragraph, text);
       listItem.insert(0, [paragraph]);
-      bulletList.insert(0, [listItem]);
-      fragment.insert(fragment.length, [bulletList]);
+      currentBulletList.insert(currentBulletList.length, [listItem]);
       continue;
     }
     
     // Handle numbered lists
     const numberedMatch = trimmedLine.match(/^\d+\.\s+(.*)$/);
     if (numberedMatch) {
+      currentBulletList = null;
       const text = numberedMatch[1];
-      const orderedList = new Y.XmlElement('orderedList');
+      if (!currentOrderedList) {
+        currentOrderedList = new Y.XmlElement('orderedList');
+        fragment.insert(fragment.length, [currentOrderedList]);
+      }
       const listItem = new Y.XmlElement('listItem');
       const paragraph = new Y.XmlElement('paragraph');
       insertTextWithMarks(paragraph, text);
       listItem.insert(0, [paragraph]);
-      orderedList.insert(0, [listItem]);
-      fragment.insert(fragment.length, [orderedList]);
+      currentOrderedList.insert(currentOrderedList.length, [listItem]);
       continue;
     }
+    
+    // Any non-list line breaks the current list context
+    currentBulletList = null;
+    currentOrderedList = null;
     
     // Handle code blocks
     if (trimmedLine.startsWith('```')) {
