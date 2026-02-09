@@ -724,7 +724,7 @@ export default function AIChatPage() {
                                     <span className="font-medium text-[var(--dash-text-primary)]">{currentModel.name}</span>
                                     <span>•</span>
                                     <Coins className="w-3 h-3 text-amber-500" />
-                                    <span>{currentModel.credits} credit/msg</span>
+                                    <span>{currentModel.credits} {currentModel.credits === 1 ? 'credit' : 'credits'}/msg</span>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6 max-w-2xl">
                                     <ExamplePrompt onClick={() => setInput("What are the key points in my documents?")}>
@@ -941,7 +941,7 @@ export default function AIChatPage() {
                         <div className="flex items-center justify-between mt-2 px-1">
                             <div className="flex items-center gap-2 text-[10px] text-[var(--dash-text-tertiary)]">
                                 <Coins className="w-3 h-3 text-amber-500" />
-                                <span>{currentModel.credits} credit per message</span>
+                                <span>{currentModel.credits} {currentModel.credits === 1 ? 'credit' : 'credits'} per message</span>
                             </div>
                             <p className="text-[10px] text-[var(--dash-text-tertiary)]">
                                 Press Enter to send, Shift+Enter for new line

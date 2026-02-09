@@ -355,7 +355,7 @@ export default function AudioPage() {
               </div>
             </div>
             <p className="text-sm text-[var(--dash-text-tertiary)] mb-4">
-              Base: {getBaseCredits()} credits ({selectedProvider === 'gemini' ? 'Gemini transcription' : 'Whisper transcription'}) • AI outputs: +{aiProviders.find(p => p.id === selectedProvider)?.credits || 2} credit each
+              Base: {getBaseCredits()} credits ({selectedProvider === 'gemini' ? 'Gemini transcription' : 'Whisper transcription'}) • AI outputs: +{aiProviders.find(p => p.id === selectedProvider)?.credits || 2} {(aiProviders.find(p => p.id === selectedProvider)?.credits || 2) === 1 ? 'credit' : 'credits'} each
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               <label className={`flex items-start gap-3 p-5 border rounded-lg cursor-pointer transition-colors ${
@@ -389,7 +389,7 @@ export default function AudioPage() {
                 <div>
                   <p className="font-medium text-[var(--dash-text-primary)]">Summary</p>
                   <p className="text-sm text-[var(--dash-text-tertiary)]">AI-generated key points</p>
-                  <p className="text-xs text-[var(--brand)] mt-1">+{aiProviders.find(p => p.id === selectedProvider)?.credits || 1} credit</p>
+                  <p className="text-xs text-[var(--brand)] mt-1">+{aiProviders.find(p => p.id === selectedProvider)?.credits || 1} {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1) === 1 ? 'credit' : 'credits'}</p>
                 </div>
               </label>
               <label className={`flex items-start gap-3 p-5 border rounded-lg cursor-pointer transition-colors ${
@@ -406,7 +406,7 @@ export default function AudioPage() {
                 <div>
                   <p className="font-medium text-[var(--dash-text-primary)]">Article</p>
                   <p className="text-sm text-[var(--dash-text-tertiary)]">Formatted documentation</p>
-                  <p className="text-xs text-[var(--brand)] mt-1">+{aiProviders.find(p => p.id === selectedProvider)?.credits || 1} credit</p>
+                  <p className="text-xs text-[var(--brand)] mt-1">+{aiProviders.find(p => p.id === selectedProvider)?.credits || 1} {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1) === 1 ? 'credit' : 'credits'}</p>
                 </div>
               </label>
             </div>
@@ -432,7 +432,7 @@ export default function AudioPage() {
                       <span className="font-medium text-[var(--dash-text-primary)]">{provider.name}</span>
                     </div>
                     <p className="text-xs text-[var(--dash-text-tertiary)] ml-5">{provider.desc}</p>
-                    <p className="text-xs text-[var(--brand)] ml-5 mt-1">{provider.credits} credit per output</p>
+                    <p className="text-xs text-[var(--brand)] ml-5 mt-1">{provider.credits} {provider.credits === 1 ? 'credit' : 'credits'} per output</p>
                   </button>
                 ))}
               </div>

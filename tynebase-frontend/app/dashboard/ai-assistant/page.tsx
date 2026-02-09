@@ -516,7 +516,7 @@ export default function AIAssistantPage() {
                     </div>
                   </div>
                   <p className="text-xs text-[var(--dash-text-muted)] mb-3">
-                    {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1)} credit ({selectedProvider}) × {selectedOutputTypes.size} output{selectedOutputTypes.size > 1 ? 's' : ''}
+                    {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1)} {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1) === 1 ? 'credit' : 'credits'} ({selectedProvider}) × {selectedOutputTypes.size} output{selectedOutputTypes.size > 1 ? 's' : ''}
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                     {outputOptions.map((opt) => {
@@ -630,7 +630,7 @@ export default function AIAssistantPage() {
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4" />
-                      {selectedOutputTypes.size > 1 ? `Generate ${selectedOutputTypes.size} Documents (${(aiProviders.find(p => p.id === selectedProvider)?.credits || 1) * selectedOutputTypes.size} credits)` : selectedOutputTypes.has('template') ? `Generate with ${availableTemplates.find(t => t.id === selectedTemplate)?.title || 'Template'}` : `Generate Document (${aiProviders.find(p => p.id === selectedProvider)?.credits || 1} credit${(aiProviders.find(p => p.id === selectedProvider)?.credits || 1) > 1 ? 's' : ''})`}
+                      {selectedOutputTypes.size > 1 ? `Generate ${selectedOutputTypes.size} Documents (${(aiProviders.find(p => p.id === selectedProvider)?.credits || 1) * selectedOutputTypes.size} credits)` : selectedOutputTypes.has('template') ? `Generate with ${availableTemplates.find(t => t.id === selectedTemplate)?.title || 'Template'}` : `Generate Document (${aiProviders.find(p => p.id === selectedProvider)?.credits || 1} ${(aiProviders.find(p => p.id === selectedProvider)?.credits || 1) === 1 ? 'credit' : 'credits'})`}
                     </>
                   )}
                 </button>
@@ -668,7 +668,7 @@ export default function AIAssistantPage() {
                 </div>
               </div>
               <p className="text-xs text-[var(--dash-text-muted)] mb-3">
-                Base: 3 credits (Tavily scrape) + AI: {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1)} credit ({selectedProvider}) × {Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length} AI output{Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length !== 1 ? 's' : ''}
+                Base: 3 credits (Tavily scrape) + AI: {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1)} {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1) === 1 ? 'credit' : 'credits'} ({selectedProvider}) × {Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length} AI output{Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length !== 1 ? 's' : ''}
               </p>
               <div className="grid grid-cols-2 gap-3">
                 {[
@@ -898,7 +898,7 @@ export default function AIAssistantPage() {
                 </div>
                 <p className="text-xs text-[var(--dash-text-muted)]">
                   Base: {selectedFile.size > LARGE_FILE_THRESHOLD ? LARGE_FILE_CREDITS : BASE_FILE_CREDITS} credits 
-                  {selectedFile.size > LARGE_FILE_THRESHOLD && ' (file &gt;50MB)'} • AI outputs: +{aiProviders.find(p => p.id === selectedProvider)?.credits || 1} credit each ({selectedProvider})
+                  {selectedFile.size > LARGE_FILE_THRESHOLD && ' (file &gt;50MB)'} • AI outputs: +{aiProviders.find(p => p.id === selectedProvider)?.credits || 1} {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1) === 1 ? 'credit' : 'credits'} each ({selectedProvider})
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <label className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-colors ${
@@ -932,7 +932,7 @@ export default function AIAssistantPage() {
                     <div>
                       <p className="font-medium text-[var(--dash-text-primary)]">Summary</p>
                       <p className="text-sm text-[var(--dash-text-tertiary)]">AI-generated key points</p>
-                      <p className="text-xs text-[var(--brand)] mt-1">+{aiProviders.find(p => p.id === selectedProvider)?.credits || 1} credit</p>
+                      <p className="text-xs text-[var(--brand)] mt-1">+{aiProviders.find(p => p.id === selectedProvider)?.credits || 1} {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1) === 1 ? 'credit' : 'credits'}</p>
                     </div>
                   </label>
                   <label className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-colors ${
@@ -949,7 +949,7 @@ export default function AIAssistantPage() {
                     <div>
                       <p className="font-medium text-[var(--dash-text-primary)]">Article</p>
                       <p className="text-sm text-[var(--dash-text-tertiary)]">Formatted documentation</p>
-                      <p className="text-xs text-[var(--brand)] mt-1">+{aiProviders.find(p => p.id === selectedProvider)?.credits || 1} credit</p>
+                      <p className="text-xs text-[var(--brand)] mt-1">+{aiProviders.find(p => p.id === selectedProvider)?.credits || 1} {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1) === 1 ? 'credit' : 'credits'}</p>
                     </div>
                   </label>
                 </div>

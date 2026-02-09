@@ -390,7 +390,7 @@ export default function AskPage() {
                         <div className="flex items-center justify-between mt-2 px-1">
                             <div className="flex items-center gap-2 text-[10px] text-[var(--dash-text-tertiary)]">
                                 <Coins className="w-3 h-3 text-amber-500" />
-                                <span>{currentModel.credits} credit per question</span>
+                                <span>{currentModel.credits} {currentModel.credits === 1 ? 'credit' : 'credits'} per question</span>
                             </div>
                             <div className="text-[10px] text-[var(--dash-text-tertiary)]">
                                 Press <kbd className="px-1.5 py-0.5 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded text-[10px]">Enter</kbd> to ask
