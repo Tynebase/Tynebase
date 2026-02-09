@@ -93,7 +93,7 @@ export async function generateText(
     const inputTokens = countTokens(request.prompt, 'gpt-4');
 
     // Prepare Bedrock request payload
-    const payload = {
+    const payload: any = {
       anthropic_version: 'bedrock-2023-05-31',
       max_tokens: maxTokens,
       temperature,
@@ -104,6 +104,10 @@ export async function generateText(
         },
       ],
     };
+
+    if (request.systemPrompt) {
+      payload.system = request.systemPrompt;
+    }
 
     // Call Bedrock API
     const command = new InvokeModelCommand({
@@ -189,7 +193,7 @@ export async function* generateTextStream(
     const inputTokens = countTokens(request.prompt, 'gpt-4');
 
     // Prepare Bedrock request payload
-    const payload = {
+    const payload: any = {
       anthropic_version: 'bedrock-2023-05-31',
       max_tokens: maxTokens,
       temperature,
@@ -200,6 +204,10 @@ export async function* generateTextStream(
         },
       ],
     };
+
+    if (request.systemPrompt) {
+      payload.system = request.systemPrompt;
+    }
 
     // Call Bedrock API with streaming
     const command = new InvokeModelWithResponseStreamCommand({

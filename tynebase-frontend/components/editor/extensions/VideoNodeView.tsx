@@ -85,6 +85,7 @@ export default function VideoNodeView({ node, selected, deleteNode }: NodeViewPr
       
       // Poll for job completion and reload when done
       const jobId = result.job_id;
+      let timeoutId: ReturnType<typeof setTimeout>;
       const pollInterval = setInterval(async () => {
         try {
           const statusResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/jobs/${jobId}`, {
@@ -95,13 +96,20 @@ export default function VideoNodeView({ node, selected, deleteNode }: NodeViewPr
           });
           
           if (statusResponse.ok) {
-            const jobStatus = await statusResponse.json();
+            const data = await statusResponse.json();
+            const jobStatus = data.job || data; // Backend wraps in { job: {...} }
             if (jobStatus.status === 'completed') {
               clearInterval(pollInterval);
+              clearTimeout(timeoutId);
               window.location.reload();
             } else if (jobStatus.status === 'failed') {
               clearInterval(pollInterval);
-              throw new Error('Video transcription failed');
+              clearTimeout(timeoutId);
+              const errorMsg = jobStatus.error_message || 'Video transcription failed';
+              console.error('Video transcription job failed:', errorMsg);
+              setIsTranscribing(false);
+              setShowMenu(false);
+              alert(`Video transcription failed: ${errorMsg}`);
             }
           }
         } catch (pollError) {
@@ -109,11 +117,13 @@ export default function VideoNodeView({ node, selected, deleteNode }: NodeViewPr
         }
       }, 3000); // Poll every 3 seconds
       
-      // Fallback: reload after 60 seconds if polling fails
-      setTimeout(() => {
+      // Fallback: stop polling after 120 seconds
+      timeoutId = setTimeout(() => {
         clearInterval(pollInterval);
-        window.location.reload();
-      }, 60000);
+        setIsTranscribing(false);
+        setShowMenu(false);
+        alert('Video transcription timed out. Please check the document and try again.');
+      }, 120000);
       
     } catch (error) {
       console.error('Failed to transcribe video:', error);

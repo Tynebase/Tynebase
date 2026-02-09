@@ -15,6 +15,8 @@ logger = logging.getLogger(__name__)
 
 # PO-token provider URL (running on same container)
 POT_PROVIDER_URL = os.getenv('POT_PROVIDER_URL', 'http://localhost:4416')
+# Residential proxy URL (e.g. socks5://user:pass@host:port or http://user:pass@host:port)
+PROXY_URL = os.getenv('PROXY_URL', '')
 
 @app.route('/health', methods=['GET'])
 def health():
@@ -60,10 +62,17 @@ def download_youtube():
             'noplaylist': True,
             'extractor_args': {
                 'youtubepot-bgutilhttp': {
-                    'base_url': POT_PROVIDER_URL
+                    'base_url': [POT_PROVIDER_URL]
                 }
-            }
+            },
+            'js_runtimes': {'node': {}},
         }
+        
+        if PROXY_URL:
+            ydl_opts['proxy'] = PROXY_URL
+            logger.info(f"Using proxy: {PROXY_URL.split('@')[-1] if '@' in PROXY_URL else 'configured'}")
+        else:
+            logger.warning('No PROXY_URL configured - YouTube may block datacenter IPs')
         
         if extract_audio:
             ydl_opts.update({

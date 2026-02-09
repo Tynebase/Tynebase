@@ -140,24 +140,41 @@
 
 ---
 
-## 9. Video & Audio Ingest Errors
-**Screen:** AI Assistant / Ingest  
-**URL:** `/dashboard/ai-assistant` or similar ingest flow  
+## 9. Video & Audio Ingest Errors ✅ FIXED (YouTube pipeline confirmed working)
+**Screen:** Document Editor → Video node → "Add to RAG" button  
+**URL:** `/dashboard/knowledge/[ID]`  
 **Symptoms:**
-- **Video:** Pasting a YouTube URL → "Processing Error" (400 Bad Request / Vertex AI error)
-- **Audio:** Uploading audio file → "Processing Error" (Whisper SageMaker exception)
-- **Generate button:** Unresponsive after video URL input
+- **Video:** Clicking "Start Transcription" on embedded YouTube video → job dispatched but fails immediately, UI shows "Processing Video" overlay forever with no error feedback
+- **Audio:** Uploading audio file → "Processing Error" (Whisper SageMaker exception) — Whisper pipeline still to be tested
 
-**Files to investigate:**
-- `backend/src/routes/ai.ts` or `backend/src/routes/ingest.ts` — video/audio processing endpoints
-- Check Vertex AI configuration and API keys
-- Check SageMaker Whisper endpoint configuration
-- `tynebase-frontend/app/dashboard/ai-assistant/` — the ingest UI components
+**Root causes found & fixed:**
+1. **`YT_DLP_SIDECAR_URL` not set in Fly.io secrets** — Set to `http://tynebase-sidecar.internal:5000`
+2. **Frontend swallowed job failure silently** — Fixed in `VideoNodeView.tsx` to handle `failed` status, reset UI, show error
+3. **Frontend read wrong response path** — Fixed to use `data.job.status`
+4. **`claim_job` SQL ignored `next_retry_at`** — Fixed with migration `20260209000000_fix_claim_job_retry_delay.sql`
+5. **`worker.ts` `validateJobPayload` left jobs stuck** — Now calls `failJob()` on validation failure
+6. **Sidecar gunicorn bound to IPv4 only** — Fly `.internal` DNS resolves to IPv6; fixed gunicorn bind to `[::]:5000`
+7. **yt-dlp "Sign in to confirm you're not a bot"** — YouTube blocks Fly.io datacenter IPs. Fixed by adding DataImpulse residential proxy (`PROXY_URL` secret on sidecar)
+8. **yt-dlp missing JS runtime** — Installed Node.js in sidecar Dockerfile, configured `js_runtimes: {'node': {}}`
+9. **PO-token provider not running** — Installed `bgutil-ytdlp-pot-provider`, built its Node.js HTTP server, started it on port 4416 in `start.sh`
+10. **Sidecar machines suspending (ENOTFOUND)** — Set `auto_stop_machines = 'off'`, destroyed extra machine, kept 1 always-on
+11. **No retry logic for sidecar connection** — Added 5-retry backoff in `downloadYouTubeAudio` for `ENOTFOUND`/`ECONNREFUSED`
 
-**Steps:**
-1. Try pasting a YouTube URL and check Fly.io logs for the exact error
-2. Try uploading a short audio file and check logs
-3. Verify API keys and service endpoints are configured in environment variables
+**Fixes applied across:**
+- `tynebase-frontend/components/editor/extensions/VideoNodeView.tsx` — Job polling, error handling, UI reset
+- `supabase/migrations/20260209000000_fix_claim_job_retry_delay.sql` — Retry delay enforcement
+- `backend/src/worker.ts` — `failJob()` on validation failure
+- `backend/src/workers/videoTranscribeToDocument.ts` — Sidecar retry logic with backoff
+- `yt-dlp-sidecar/app.py` — Proxy support, PO-token extractor_args, js_runtimes config
+- `yt-dlp-sidecar/Dockerfile` — Node.js, git, bgutil-ytdlp-pot-provider build
+- `yt-dlp-sidecar/start.sh` — PO-token server startup, IPv6 gunicorn bind
+- `fly.pot.toml` — `auto_stop_machines = 'off'`, `min_machines_running = 1`
+
+**Remaining:**
+- Whisper pipeline (non-Gemini models) — to be tested next session
+- Frontend VideoNodeView fix + claim_job migration — not yet deployed to production frontend/DB
+
+**Status:** ✅ YouTube transcription + Gemini summary pipeline fully working end-to-end
 
 ---
 

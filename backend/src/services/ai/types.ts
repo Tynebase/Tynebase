@@ -27,6 +27,7 @@ export interface AIGenerationRequest {
   maxTokens?: number;
   temperature?: number;
   stream?: boolean;
+  systemPrompt?: string;
 }
 
 export interface AIGenerationResponse {

@@ -348,7 +348,7 @@ export async function generateText(
     const inputTokens = countTokens(request.prompt, 'gpt-4');
 
     // Prepare request
-    const generationRequest = {
+    const generationRequest: any = {
       contents: [
         {
           role: 'user',
@@ -364,6 +364,12 @@ export async function generateText(
         temperature,
       },
     };
+
+    if (request.systemPrompt) {
+      generationRequest.systemInstruction = {
+        parts: [{ text: request.systemPrompt }],
+      };
+    }
 
     // Call Vertex AI API with timeout
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -438,7 +444,7 @@ export async function* generateTextStream(
   try {
     const inputTokens = countTokens(request.prompt, 'gpt-4');
 
-    const generationRequest = {
+    const generationRequest: any = {
       contents: [
         {
           role: 'user',
@@ -454,6 +460,12 @@ export async function* generateTextStream(
         temperature,
       },
     };
+
+    if (request.systemPrompt) {
+      generationRequest.systemInstruction = {
+        parts: [{ text: request.systemPrompt }],
+      };
+    }
 
     const streamResult = await model.generateContentStream(generationRequest);
 

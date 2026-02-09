@@ -1042,7 +1042,7 @@ export default function KnowledgePage() {
               <div className="text-center">Status</div>
               <div className="text-center">AI Score</div>
               <div>Updated</div>
-              <div className="text-right">Actions</div>
+              <div className="text-right">Views</div>
             </div>
             <div className="divide-y divide-[var(--dash-border-subtle)] flex-1 min-h-0 overflow-auto">
               {filteredDocs.map((doc) => (
@@ -1127,7 +1127,7 @@ export default function KnowledgePage() {
                         <p className="text-sm text-[var(--dash-text-secondary)]">{doc.updatedAt}</p>
                         <p className="text-xs text-[var(--dash-text-muted)]">by {doc.lastEditor}</p>
                       </div>
-                      {/* Actions */}
+                      {/* Views */}
                       <div className="flex items-center justify-end gap-1">
                         <div className="flex items-center gap-1 text-xs text-[var(--dash-text-muted)]">
                           <Eye className="w-3.5 h-3.5" />

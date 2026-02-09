@@ -174,6 +174,21 @@ export async function processAIGenerationJob(job: Job): Promise<void> {
  * @param maxTokens - Maximum tokens to generate
  * @returns Generated content with token counts
  */
+/**
+ * System prompt for document generation.
+ * Instructs the AI to produce complete document content directly,
+ * rather than engaging in conversational back-and-forth.
+ */
+const DOCUMENT_GENERATION_SYSTEM_PROMPT = `You are a professional document writer. Your task is to generate complete, well-structured document content based on the user's request.
+
+CRITICAL RULES:
+- Generate the requested document content IMMEDIATELY and IN FULL. Do NOT ask clarifying questions, do NOT engage in conversation, and do NOT request more information.
+- Write the document as if you are the author, not an assistant having a chat.
+- Use Markdown formatting: headings (#, ##, ###), bullet points, numbered lists, bold, italic, etc.
+- Make reasonable assumptions where details are not provided. Fill in professional, realistic placeholder content rather than asking the user.
+- The output should be a complete, ready-to-use document — not a conversation or a list of questions.
+- Do NOT include meta-commentary like "Here is your document" or "I'd be happy to help". Just output the document content directly.`;
+
 async function callAIProvider(
   prompt: string,
   model: 'deepseek' | 'claude' | 'gemini',
@@ -203,25 +218,32 @@ async function callAIProvider(
     throw new Error(`Unsupported model: ${model}`);
   }
 
+  const requestBase = {
+    prompt,
+    model: actualModel,
+    maxTokens,
+    systemPrompt: DOCUMENT_GENERATION_SYSTEM_PROMPT,
+  };
+
   // Route to appropriate provider based on model
   if (model === 'deepseek') {
     // DeepSeek via AWS Bedrock
     const result = await Promise.race([
-      generateText({ prompt, model: actualModel, maxTokens }),
+      generateText(requestBase),
       timeoutPromise,
     ]);
     return result;
   } else if (model === 'claude') {
     // Claude via AWS Bedrock (Anthropic service)
     const result = await Promise.race([
-      generateTextAnthropic({ prompt, model: actualModel, maxTokens }),
+      generateTextAnthropic(requestBase),
       timeoutPromise,
     ]);
     return result;
   } else if (model === 'gemini') {
     // Gemini 2.0 via Google Vertex AI
     const result = await Promise.race([
-      generateTextVertex({ prompt, model: actualModel, maxTokens }),
+      generateTextVertex(requestBase),
       timeoutPromise,
     ]);
     return result;

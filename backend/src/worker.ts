@@ -46,6 +46,16 @@ const startWorker = async () => {
       
       if (!validateJobPayload(job)) {
         console.error(`[Worker ${WORKER_ID}] Invalid job payload for job ${job.id}`);
+        try {
+          const { failJob } = await import('./utils/failJob');
+          await failJob({
+            jobId: job.id,
+            error: 'Invalid job payload',
+            errorDetails: { type: 'ValidationError', timestamp: new Date().toISOString() },
+          });
+        } catch (failError) {
+          console.error(`[Worker ${WORKER_ID}] Failed to mark invalid job as failed:`, failError);
+        }
         return;
       }
 

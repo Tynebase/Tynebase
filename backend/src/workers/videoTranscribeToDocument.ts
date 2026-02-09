@@ -73,6 +73,7 @@ export async function processVideoTranscribeToDocumentJob(job: Job): Promise<Rec
   
   console.log(`[Worker ${workerId}] Processing video transcribe to document job ${job.id}`);
   console.log(`[Worker ${workerId}] Tenant: ${job.tenant_id}`);
+  console.log(`[Worker ${workerId}] YT_DLP_SIDECAR_URL configured: ${YT_DLP_SIDECAR_URL ? YT_DLP_SIDECAR_URL : 'NOT SET'}`);
   console.log(`[Worker ${workerId}] Raw job payload:`, JSON.stringify(job.payload));
 
   try {
@@ -358,30 +359,52 @@ async function downloadYouTubeAudio(
   if (YT_DLP_SIDECAR_URL) {
     console.log(`[Worker ${workerId}] Using yt-dlp sidecar: ${YT_DLP_SIDECAR_URL}`);
     
-    const response = await axios({
-      method: 'POST',
-      url: `${YT_DLP_SIDECAR_URL}/download`,
-      data: {
-        url: videoUrl,
-        format: 'bestaudio[ext=m4a]/bestaudio[ext=mp3]/bestaudio',
-        extract_audio: true,
-      },
-      responseType: 'stream',
-      timeout: 300000,
-    });
-    
-    const basePath = outputTemplate.replace('.%(ext)s', '');
-    const outputPath = `${basePath}.mp3`;
-    
-    const writer = fs.createWriteStream(outputPath);
-    response.data.pipe(writer);
-    
-    await new Promise<void>((resolve, reject) => {
-      writer.on('finish', () => resolve());
-      writer.on('error', reject);
-    });
-    
-    return outputPath;
+    const maxRetries = 5;
+    const retryDelaySecs = [3, 5, 10, 15, 20];
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await axios({
+          method: 'POST',
+          url: `${YT_DLP_SIDECAR_URL}/download`,
+          data: {
+            url: videoUrl,
+            format: 'bestaudio[ext=m4a]/bestaudio[ext=mp3]/bestaudio',
+            extract_audio: true,
+          },
+          responseType: 'stream',
+          timeout: 300000,
+        });
+        
+        const basePath = outputTemplate.replace('.%(ext)s', '');
+        const outputPath = `${basePath}.mp3`;
+        
+        const writer = fs.createWriteStream(outputPath);
+        response.data.pipe(writer);
+        
+        await new Promise<void>((resolve, reject) => {
+          writer.on('finish', () => resolve());
+          writer.on('error', reject);
+        });
+        
+        return outputPath;
+      } catch (err: any) {
+        lastError = err;
+        const code = err?.code || '';
+        const isRetryable = ['ENOTFOUND', 'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT'].includes(code);
+        
+        if (isRetryable && attempt < maxRetries) {
+          const delay = retryDelaySecs[attempt - 1] || 20;
+          console.log(`[Worker ${workerId}] Sidecar connection failed (${code}), retrying in ${delay}s (attempt ${attempt}/${maxRetries})...`);
+          await new Promise(r => setTimeout(r, delay * 1000));
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    throw lastError || new Error('Sidecar download failed after retries');
   }
   
   throw new Error('YT_DLP_SIDECAR_URL not configured - sidecar is required for YouTube downloads');

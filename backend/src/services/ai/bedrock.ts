@@ -73,10 +73,14 @@ export async function generateText(
     const inputTokens = countTokens(request.prompt, 'gpt-4');
 
     // DeepSeek on Bedrock uses OpenAI-compatible messages format
+    const messages: Array<{ role: string; content: string }> = [];
+    if (request.systemPrompt) {
+      messages.push({ role: 'system', content: request.systemPrompt });
+    }
+    messages.push({ role: 'user', content: request.prompt });
+
     const payload = {
-      messages: [
-        { role: 'user', content: request.prompt }
-      ],
+      messages,
       max_tokens: maxTokens,
       temperature,
       top_p: 0.9,
@@ -153,10 +157,14 @@ export async function* generateTextStream(
     const inputTokens = countTokens(request.prompt, 'gpt-4');
 
     // DeepSeek on Bedrock uses OpenAI-compatible messages format
+    const messages: Array<{ role: string; content: string }> = [];
+    if (request.systemPrompt) {
+      messages.push({ role: 'system', content: request.systemPrompt });
+    }
+    messages.push({ role: 'user', content: request.prompt });
+
     const payload = {
-      messages: [
-        { role: 'user', content: request.prompt }
-      ],
+      messages,
       max_tokens: maxTokens,
       temperature,
       top_p: 0.9,
