@@ -312,6 +312,7 @@ async function processDocument(job: Job, workerId: string): Promise<void> {
                  processing_options.ai_model === 'gemini' ? 'gemini-2.5-flash' : 
                  'claude-sonnet-4.5') as AIModel,
           maxTokens: 2000,
+          systemPrompt: 'You are a professional document summarizer. Generate the summary IMMEDIATELY and IN FULL. Do NOT ask clarifying questions or engage in conversation. Do NOT include meta-commentary. Just output the summary content directly using proper Markdown formatting.',
         });
         const summaryContent = summaryResponse.content;
 
@@ -347,6 +348,7 @@ async function processDocument(job: Job, workerId: string): Promise<void> {
                  processing_options.ai_model === 'gemini' ? 'gemini-2.5-flash' : 
                  'claude-sonnet-4.5') as AIModel,
           maxTokens: 4000,
+          systemPrompt: 'You are a professional document writer. Generate the article IMMEDIATELY and IN FULL. Do NOT ask clarifying questions or engage in conversation. Do NOT include meta-commentary. Just output the article content directly using proper Markdown formatting.',
         });
         const articleContent = articleResponse.content;
 

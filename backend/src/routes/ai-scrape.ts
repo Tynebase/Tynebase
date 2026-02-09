@@ -239,6 +239,7 @@ export default async function aiScrapeRoutes(fastify: FastifyInstance) {
             prompt,
             model: modelMapping[validated.ai_model],
             maxTokens: 4000,
+            systemPrompt: 'You are a professional document writer. Generate the requested content IMMEDIATELY and IN FULL. Do NOT ask clarifying questions or engage in conversation. Do NOT include meta-commentary like "Here is your document". Just output the content directly using proper Markdown formatting.',
           });
 
           finalContent = aiResponse.content;

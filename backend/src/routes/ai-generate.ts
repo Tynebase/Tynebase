@@ -27,6 +27,12 @@ const GenerateRequestSchema = z.object({
     .max(4000)
     .optional()
     .default(2000),
+  output_type: z.enum(['full_article', 'summary', 'outline', 'with_template'])
+    .optional()
+    .default('full_article'),
+  template_content: z.string()
+    .max(50000)
+    .optional(),
 });
 
 type GenerateRequest = z.infer<typeof GenerateRequestSchema>;
@@ -173,6 +179,8 @@ export default async function aiGenerateRoutes(fastify: FastifyInstance) {
             prompt: validated.prompt,
             model: validated.model,
             max_tokens: validated.max_tokens,
+            output_type: validated.output_type,
+            template_content: validated.template_content,
             user_id: user.id,
             estimated_credits: creditsToDeduct,
           },

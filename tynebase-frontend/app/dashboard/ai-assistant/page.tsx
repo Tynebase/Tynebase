@@ -172,18 +172,28 @@ export default function AIAssistantPage() {
         'gemini': 'gemini',
       };
       
-      // If using template, append template structure to prompt
-      let finalPrompt = prompt.trim();
+      // Map frontend output type IDs to backend enum values
+      const outputTypeMap: Record<string, 'full_article' | 'summary' | 'outline' | 'with_template'> = {
+        'full': 'full_article',
+        'summary': 'summary',
+        'outline': 'outline',
+        'template': 'with_template',
+      };
+      
+      // If using template, get template content to send separately
+      let templateContent: string | undefined;
       if (outputType === 'template' && selectedTemplate) {
         const template = availableTemplates.find(t => t.id === selectedTemplate);
         if (template) {
-          finalPrompt = `${prompt.trim()}\n\nUse this template structure:\n${template.content}`;
+          templateContent = template.content;
         }
       }
       
       const response = await generate({
-        prompt: finalPrompt,
+        prompt: prompt.trim(),
         model: modelMap[selectedProvider] || 'deepseek',
+        output_type: outputTypeMap[outputType] || 'full_article',
+        template_content: templateContent,
       });
       
       const job = response.job;

@@ -25,6 +25,8 @@ const AIGenerationPayloadSchema = z.object({
   prompt: z.string().min(1),
   model: z.enum(['deepseek', 'claude', 'gemini']),
   max_tokens: z.number().int().positive().optional(),
+  output_type: z.enum(['full_article', 'summary', 'outline', 'with_template']).optional().default('full_article'),
+  template_content: z.string().optional(),
   user_id: z.string().uuid(),
   estimated_credits: z.number().int().positive(),
 });
@@ -55,7 +57,9 @@ export async function processAIGenerationJob(job: Job): Promise<void> {
     const generatedContent = await callAIProvider(
       validated.prompt,
       validated.model,
-      validated.max_tokens || 2000
+      validated.max_tokens || 2000,
+      validated.output_type || 'full_article',
+      validated.template_content
     );
 
     console.log(`[Worker ${workerId}] AI generation completed. Content length: ${generatedContent.content?.length || 0}`);
@@ -172,27 +176,73 @@ export async function processAIGenerationJob(job: Job): Promise<void> {
  * @param prompt - User prompt
  * @param model - AI model name
  * @param maxTokens - Maximum tokens to generate
+ * @param outputType - Desired output format
+ * @param templateContent - Optional template structure to follow
  * @returns Generated content with token counts
  */
-/**
- * System prompt for document generation.
- * Instructs the AI to produce complete document content directly,
- * rather than engaging in conversational back-and-forth.
- */
-const DOCUMENT_GENERATION_SYSTEM_PROMPT = `You are a professional document writer. Your task is to generate complete, well-structured document content based on the user's request.
 
-CRITICAL RULES:
-- Generate the requested document content IMMEDIATELY and IN FULL. Do NOT ask clarifying questions, do NOT engage in conversation, and do NOT request more information.
-- Write the document as if you are the author, not an assistant having a chat.
+/**
+ * Builds a dynamic system prompt based on the requested output type and optional template.
+ */
+function buildSystemPrompt(
+  outputType: string,
+  templateContent?: string
+): string {
+  const baseRules = `CRITICAL RULES:
+- Generate the requested content IMMEDIATELY and IN FULL. Do NOT ask clarifying questions, do NOT engage in conversation, and do NOT request more information.
+- Write as the author, not an assistant having a chat.
+- Make reasonable assumptions where details are not provided. Fill in professional, realistic content rather than asking the user.
+- Do NOT include meta-commentary like "Here is your document" or "I'd be happy to help". Just output the content directly.`;
+
+  switch (outputType) {
+    case 'summary':
+      return `You are a professional content summarizer. Your task is to generate a concise, well-structured summary based on the user's request.
+
+${baseRules}
+- Focus on key points, main themes, and critical takeaways.
+- Organize the summary into clear sections with headings.
+- Use Markdown formatting: headings (##, ###), bullet points, **bold** for emphasis.
+- Keep it concise but comprehensive — capture all essential information.
+- The output should be a ready-to-use summary document.`;
+
+    case 'outline':
+      return `You are a professional document planner. Your task is to generate a detailed hierarchical outline based on the user's request.
+
+${baseRules}
+- Create a structured outline with main topics as top-level headings.
+- Use nested bullet points for sub-topics and key details.
+- Include brief annotations or notes under each section describing what should be covered.
+- Use Markdown formatting: headings (#, ##, ###) for main sections, bullet points (-, *) for sub-items.
+- The output should be a complete outline that could serve as a blueprint for a full document.`;
+
+    case 'with_template':
+      return `You are a professional document writer. Your task is to generate complete document content by following the provided template structure.
+
+${baseRules}
+- You MUST follow the template structure provided below. Use its headings, sections, and organization as your guide.
+- Fill in every section of the template with substantive, relevant content based on the user's request.
+- Replace any placeholder text (e.g., [brackets]) with actual professional content.
+- Use Markdown formatting consistent with the template.
+- Do NOT skip sections — populate every part of the template.
+${templateContent ? `\nTEMPLATE STRUCTURE TO FOLLOW:\n\n${templateContent}` : ''}`;
+
+    case 'full_article':
+    default:
+      return `You are a professional document writer. Your task is to generate complete, well-structured document content based on the user's request.
+
+${baseRules}
 - Use Markdown formatting: headings (#, ##, ###), bullet points, numbered lists, bold, italic, etc.
-- Make reasonable assumptions where details are not provided. Fill in professional, realistic placeholder content rather than asking the user.
-- The output should be a complete, ready-to-use document — not a conversation or a list of questions.
-- Do NOT include meta-commentary like "Here is your document" or "I'd be happy to help". Just output the document content directly.`;
+- Create a comprehensive, publication-ready document with a clear introduction, well-organized body sections, and a conclusion if appropriate.
+- The output should be a complete, ready-to-use document.`;
+  }
+}
 
 async function callAIProvider(
   prompt: string,
   model: 'deepseek' | 'claude' | 'gemini',
-  maxTokens: number
+  maxTokens: number,
+  outputType: string = 'full_article',
+  templateContent?: string
 ): Promise<{
   content: string;
   model: AIModel;
@@ -218,11 +268,13 @@ async function callAIProvider(
     throw new Error(`Unsupported model: ${model}`);
   }
 
+  const systemPrompt = buildSystemPrompt(outputType, templateContent);
+
   const requestBase = {
     prompt,
     model: actualModel,
     maxTokens,
-    systemPrompt: DOCUMENT_GENERATION_SYSTEM_PROMPT,
+    systemPrompt,
   };
 
   // Route to appropriate provider based on model
