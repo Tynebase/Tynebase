@@ -12,11 +12,14 @@ import {
   getStaleDocuments,
   getTopPerformers,
   getReviewQueue,
+  createReview,
   type AuditStats,
   type StaleDocument,
   type TopPerformer,
   type DocumentReview,
 } from "@/lib/api/audit";
+import { updateDocument } from "@/lib/api/documents";
+import { useToast } from "@/components/ui/Toast";
 
 interface StatItem {
   label: string;
@@ -36,9 +39,11 @@ interface HealthItem {
 
 export default function AuditPage() {
   const router = useRouter();
+  const { addToast } = useToast();
   const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d">("30d");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [bulkAction, setBulkAction] = useState<string | null>(null);
   
   // Data states
   const [auditStats, setAuditStats] = useState<StatItem[]>([]);
@@ -439,16 +444,68 @@ export default function AuditPage() {
       <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-6 mt-auto">
         <h2 className="font-semibold text-[var(--dash-text-primary)] mb-4">Bulk Actions</h2>
         <div className="flex flex-wrap gap-3">
-          <button className="flex items-center gap-2 px-5 py-2.5 bg-[var(--surface-ground)] rounded-lg text-sm text-[var(--dash-text-secondary)] hover:text-[var(--dash-text-primary)] transition-colors">
-            <AlertCircle className="w-4 h-4" />
-            Archive Stale Content
+          <button
+            disabled={bulkAction !== null || staleDocuments.length === 0}
+            onClick={async () => {
+              setBulkAction('archive');
+              try {
+                let archived = 0;
+                for (const doc of staleDocuments) {
+                  await updateDocument(doc.id, { status: 'draft' });
+                  archived++;
+                }
+                addToast({ type: 'success', title: `Archived ${archived} stale document${archived !== 1 ? 's' : ''} as drafts` });
+                fetchData(true);
+              } catch (err) {
+                console.error('Archive stale content failed:', err);
+                addToast({ type: 'error', title: 'Failed to archive some documents' });
+              } finally {
+                setBulkAction(null);
+              }
+            }}
+            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--surface-ground)] rounded-lg text-sm text-[var(--dash-text-secondary)] hover:text-[var(--dash-text-primary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {bulkAction === 'archive' ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertCircle className="w-4 h-4" />}
+            {bulkAction === 'archive' ? 'Archiving...' : `Archive Stale Content${staleDocuments.length > 0 ? ` (${staleDocuments.length})` : ''}`}
           </button>
-          <button className="flex items-center gap-2 px-5 py-2.5 bg-[var(--surface-ground)] rounded-lg text-sm text-[var(--dash-text-secondary)] hover:text-[var(--dash-text-primary)] transition-colors">
-            <Calendar className="w-4 h-4" />
-            Schedule Batch Review
+          <button
+            disabled={bulkAction !== null || staleDocuments.length === 0}
+            onClick={async () => {
+              setBulkAction('review');
+              try {
+                let scheduled = 0;
+                const dueDate = new Date();
+                dueDate.setDate(dueDate.getDate() + 7);
+                const dueDateStr = dueDate.toISOString().split('T')[0];
+                for (const doc of staleDocuments) {
+                  await createReview({
+                    document_id: doc.id,
+                    reason: 'Stale content — scheduled via bulk review',
+                    priority: doc.status === 'critical' ? 'high' : 'medium',
+                    due_date: dueDateStr,
+                  });
+                  scheduled++;
+                }
+                addToast({ type: 'success', title: `Scheduled reviews for ${scheduled} document${scheduled !== 1 ? 's' : ''}` });
+                fetchData(true);
+              } catch (err) {
+                console.error('Schedule batch review failed:', err);
+                addToast({ type: 'error', title: 'Failed to schedule some reviews' });
+              } finally {
+                setBulkAction(null);
+              }
+            }}
+            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--surface-ground)] rounded-lg text-sm text-[var(--dash-text-secondary)] hover:text-[var(--dash-text-primary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {bulkAction === 'review' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calendar className="w-4 h-4" />}
+            {bulkAction === 'review' ? 'Scheduling...' : `Schedule Batch Review${staleDocuments.length > 0 ? ` (${staleDocuments.length})` : ''}`}
           </button>
-          <button className="flex items-center gap-2 px-5 py-2.5 bg-[var(--surface-ground)] rounded-lg text-sm text-[var(--dash-text-secondary)] hover:text-[var(--dash-text-primary)] transition-colors">
-            <Eye className="w-4 h-4" />
+          <button
+            disabled={bulkAction !== null}
+            onClick={handleExport}
+            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--surface-ground)] rounded-lg text-sm text-[var(--dash-text-secondary)] hover:text-[var(--dash-text-primary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download className="w-4 h-4" />
             Generate Health Report
           </button>
         </div>

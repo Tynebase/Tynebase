@@ -283,7 +283,7 @@ export default function SourcesHealthPage() {
                   <p className="text-xs text-[var(--dash-text-tertiary)] mt-0.5">Inspect the normalised content used for retrieval.</p>
                 </button>
                 <button
-                  onClick={() => router.push('/dashboard/ai-assistant')}
+                  onClick={() => router.push('/dashboard/ai-assistant/ask')}
                   className="w-full text-left rounded-xl border border-[var(--dash-border-subtle)] hover:border-[var(--brand)] bg-[var(--surface-card)] px-5 py-4 transition-colors"
                 >
                   <p className="text-sm font-semibold text-[var(--dash-text-primary)]">Run a test query</p>

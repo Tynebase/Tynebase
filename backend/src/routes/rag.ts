@@ -562,15 +562,26 @@ export default async function ragRoutes(fastify: FastifyInstance) {
           .eq('type', 'rag_index')
           .eq('status', 'processing');
 
-        // Count total chunks
-        const { count: totalChunks } = await supabaseAdmin
-          .from('document_chunks')
-          .select('*', { count: 'exact', head: true })
-          .in('document_id', 
-            (allIndexedDocs || []).map(d => d.id).length > 0 
-              ? (allIndexedDocs || []).map(d => d.id)
-              : ['00000000-0000-0000-0000-000000000000']
-          );
+        // Count total chunks across ALL tenant documents
+        const { data: allTenantDocIds } = await supabaseAdmin
+          .from('documents')
+          .select('id')
+          .eq('tenant_id', tenant.id);
+
+        const allDocIds = (allTenantDocIds || []).map(d => d.id);
+        let totalChunks = 0;
+
+        if (allDocIds.length > 0) {
+          // Batch in groups of 100 to avoid Supabase .in() limits
+          for (let i = 0; i < allDocIds.length; i += 100) {
+            const batch = allDocIds.slice(i, i + 100);
+            const { count } = await supabaseAdmin
+              .from('document_chunks')
+              .select('*', { count: 'exact', head: true })
+              .in('document_id', batch);
+            totalChunks += count || 0;
+          }
+        }
 
         // Get recent pipeline events (last 20 job queue entries for this tenant)
         const { data: recentJobs } = await supabaseAdmin
