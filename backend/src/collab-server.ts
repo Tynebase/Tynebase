@@ -124,21 +124,39 @@ function insertTextWithMarks(parent: Y.XmlElement, text: string): void {
 function initializeYdocFromContent(ydoc: Y.Doc, content: string): void {
   const fragment = ydoc.getXmlFragment('default');
   
-  // Split content into paragraphs
   const lines = content.split('\n');
   
-  // Track current list context to group consecutive items
-  let currentBulletList: Y.XmlElement | null = null;
-  let currentOrderedList: Y.XmlElement | null = null;
+  // Stack to track nested list context
+  // Each entry: { list: Y.XmlElement, lastItem: Y.XmlElement, indent: number, type: 'bullet' | 'ordered' }
+  interface ListContext {
+    list: Y.XmlElement;
+    lastItem: Y.XmlElement;
+    indent: number;
+    type: 'bullet' | 'ordered';
+  }
+  const listStack: ListContext[] = [];
+  
+  /** Get the indentation level of a line (number of leading spaces/tabs) */
+  function getIndent(line: string): number {
+    const match = line.match(/^(\s*)/);
+    if (!match) return 0;
+    // Count tabs as 4 spaces
+    return match[1].replace(/\t/g, '    ').length;
+  }
+  
+  /** Clear the list stack */
+  function clearListStack(): void {
+    listStack.length = 0;
+  }
   
   for (const line of lines) {
     const trimmedLine = line.trim();
+    const indent = getIndent(line);
     
     // Handle headings
     const headingMatch = trimmedLine.match(/^(#{1,6})\s+(.*)$/);
     if (headingMatch) {
-      currentBulletList = null;
-      currentOrderedList = null;
+      clearListStack();
       const level = headingMatch[1].length;
       const text = headingMatch[2];
       const heading = new Y.XmlElement('heading');
@@ -148,46 +166,85 @@ function initializeYdocFromContent(ydoc: Y.Doc, content: string): void {
       continue;
     }
     
-    // Handle bullet lists
-    if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('* ')) {
-      currentOrderedList = null;
-      const text = trimmedLine.slice(2);
-      if (!currentBulletList) {
-        currentBulletList = new Y.XmlElement('bulletList');
-        fragment.insert(fragment.length, [currentBulletList]);
+    // Check for bullet list item
+    const bulletMatch = trimmedLine.match(/^[-*]\s+(.*)$/);
+    if (bulletMatch) {
+      const text = bulletMatch[1];
+      
+      // Pop stack entries deeper than current indent
+      while (listStack.length > 0 && listStack[listStack.length - 1].indent > indent) {
+        listStack.pop();
       }
+      
       const listItem = new Y.XmlElement('listItem');
       const paragraph = new Y.XmlElement('paragraph');
       insertTextWithMarks(paragraph, text);
       listItem.insert(0, [paragraph]);
-      currentBulletList.insert(currentBulletList.length, [listItem]);
+      
+      if (listStack.length > 0 && listStack[listStack.length - 1].indent === indent) {
+        // Sibling: append to existing list at this level
+        const current = listStack[listStack.length - 1];
+        current.list.insert(current.list.length, [listItem]);
+        current.lastItem = listItem;
+      } else if (listStack.length > 0 && listStack[listStack.length - 1].indent < indent) {
+        // Nested list: create sub-list inside parent's lastItem
+        const parent = listStack[listStack.length - 1];
+        const subList = new Y.XmlElement('bulletList');
+        subList.insert(0, [listItem]);
+        parent.lastItem.insert(parent.lastItem.length, [subList]);
+        listStack.push({ list: subList, lastItem: listItem, indent, type: 'bullet' });
+      } else {
+        // Top-level bullet list
+        const bulletList = new Y.XmlElement('bulletList');
+        bulletList.insert(0, [listItem]);
+        fragment.insert(fragment.length, [bulletList]);
+        listStack.push({ list: bulletList, lastItem: listItem, indent, type: 'bullet' });
+      }
       continue;
     }
     
-    // Handle numbered lists
+    // Check for numbered list item
     const numberedMatch = trimmedLine.match(/^\d+\.\s+(.*)$/);
     if (numberedMatch) {
-      currentBulletList = null;
       const text = numberedMatch[1];
-      if (!currentOrderedList) {
-        currentOrderedList = new Y.XmlElement('orderedList');
-        fragment.insert(fragment.length, [currentOrderedList]);
+      
+      // Pop stack entries deeper than current indent
+      while (listStack.length > 0 && listStack[listStack.length - 1].indent > indent) {
+        listStack.pop();
       }
+      
       const listItem = new Y.XmlElement('listItem');
       const paragraph = new Y.XmlElement('paragraph');
       insertTextWithMarks(paragraph, text);
       listItem.insert(0, [paragraph]);
-      currentOrderedList.insert(currentOrderedList.length, [listItem]);
+      
+      if (listStack.length > 0 && listStack[listStack.length - 1].indent === indent) {
+        // Sibling: append to existing list at this level
+        const current = listStack[listStack.length - 1];
+        current.list.insert(current.list.length, [listItem]);
+        current.lastItem = listItem;
+      } else if (listStack.length > 0 && listStack[listStack.length - 1].indent < indent) {
+        // Nested list: create sub-list inside parent's lastItem
+        const parent = listStack[listStack.length - 1];
+        const subList = new Y.XmlElement('orderedList');
+        subList.insert(0, [listItem]);
+        parent.lastItem.insert(parent.lastItem.length, [subList]);
+        listStack.push({ list: subList, lastItem: listItem, indent, type: 'ordered' });
+      } else {
+        // Top-level ordered list
+        const orderedList = new Y.XmlElement('orderedList');
+        orderedList.insert(0, [listItem]);
+        fragment.insert(fragment.length, [orderedList]);
+        listStack.push({ list: orderedList, lastItem: listItem, indent, type: 'ordered' });
+      }
       continue;
     }
     
-    // Any non-list line breaks the current list context
-    currentBulletList = null;
-    currentOrderedList = null;
+    // Any non-list line breaks the list context
+    clearListStack();
     
     // Handle code blocks
     if (trimmedLine.startsWith('```')) {
-      // Skip code fence markers, actual code will be handled as paragraphs
       continue;
     }
     
