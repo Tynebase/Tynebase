@@ -2165,11 +2165,9 @@ export default async function documentRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Check credit limits
-        const GEMINI_BASE_CREDITS = 10;
-        const WHISPER_BASE_CREDITS = 5;
-        const baseCredits = options.ai_model === 'gemini' ? GEMINI_BASE_CREDITS : WHISPER_BASE_CREDITS;
-        let creditsPerVideo = baseCredits;
+        // Check credit limits (all transcription uses Gemini)
+        const BASE_CREDITS = 10;
+        let creditsPerVideo = BASE_CREDITS;
         
         // Add model costs for summary/article
         const modelCosts: Record<string, number> = {

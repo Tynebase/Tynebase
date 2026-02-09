@@ -16,7 +16,6 @@
 
 import { supabaseAdmin } from '../lib/supabase';
 import { transcribeAudio } from '../services/ai/vertex';
-import { transcribeAudioWithWhisper, extractAudioFromVideo } from '../services/ai/whisper';
 import { generateText } from '../services/ai/generation';
 import { uploadToGCS, deleteFromGCS } from '../services/storage/gcs';
 import { completeJob } from '../utils/completeJob';
@@ -143,21 +142,7 @@ export async function processVideoTranscribeToDocumentJob(job: Job): Promise<Rec
         console.log(`[Worker ${workerId}] Gemini transcription successful: ${transcript.length} characters`);
       } catch (geminiError: any) {
         console.error(`[Worker ${workerId}] Gemini transcription failed:`, geminiError);
-        console.log(`[Worker ${workerId}] Falling back to Whisper...`);
-        
-        // Fallback to Whisper
-        const audioPath = path.join(tempDir, `audio_${Date.now()}.wav`);
-        await extractAudioFromVideo(localAudioPath, audioPath);
-        const whisperResult = await transcribeAudioWithWhisper(audioPath);
-        transcript = whisperResult.content;
-        usedWhisper = true;
-        
-        // Cleanup audio file
-        if (fs.existsSync(audioPath)) {
-          fs.unlinkSync(audioPath);
-        }
-        
-        console.log(`[Worker ${workerId}] Whisper transcription successful: ${transcript.length} characters`);
+        throw new Error(`Gemini transcription failed: ${geminiError.message}`);
       }
 
       // Step 4: Generate additional content if requested

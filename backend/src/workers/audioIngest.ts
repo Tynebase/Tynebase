@@ -16,8 +16,7 @@
 
 import { supabaseAdmin } from '../lib/supabase';
 import { transcribeAudio } from '../services/ai/vertex';
-import { transcribeAudioWithWhisper } from '../services/ai/whisper';
-import { downloadFromGCS, deleteFromGCS } from '../services/storage/gcs';
+import { deleteFromGCS } from '../services/storage/gcs';
 import { completeJob } from '../utils/completeJob';
 import { failJob } from '../utils/failJob';
 import { getModelCreditCost } from '../utils/creditCalculator';
@@ -25,8 +24,6 @@ import { generateText } from '../services/ai/generation';
 import type { AIModel } from '../services/ai/types';
 import { z } from 'zod';
 import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
 
 const OutputOptionsSchema = z.object({
   generate_transcript: z.boolean().default(true),
@@ -81,101 +78,32 @@ export async function processAudioIngestJob(job: Job): Promise<Record<string, an
       ai_model: 'gemini' as const,
     };
     
-    // Determine pipeline: Gemini-only (10 credits) vs Whisper+Model (5 credits)
-    const useGeminiPipeline = outputOptions.ai_model === 'gemini';
-    
-    console.log(`[Worker ${workerId}] Pipeline: ${useGeminiPipeline ? 'Gemini (10 credits base)' : 'Whisper+' + outputOptions.ai_model + ' (5 credits base)'}`);
+    console.log(`[Worker ${workerId}] Pipeline: Gemini transcription (10 credits base), AI generation model: ${outputOptions.ai_model}`);
 
-    // Transcribe audio
-    if (useGeminiPipeline) {
-      // Gemini pipeline (10 credits base)
-      console.log(`[Worker ${workerId}] Transcribing audio with Gemini 2.5 Flash...`);
-      try {
-        const geminiAudioResult = await transcribeAudio(
-          validated.gcs_uri,
-          'Transcribe this audio content with timestamps. Include all spoken words and important context.'
-        );
-        transcript = geminiAudioResult.content;
-        tokensUsed = geminiAudioResult.tokensInput + geminiAudioResult.tokensOutput;
-        console.log(`[Worker ${workerId}] Gemini audio transcription successful`);
-      } catch (geminiError: any) {
-        console.error(`[Worker ${workerId}] Gemini audio transcription failed:`, geminiError);
-        
-        // Fallback to Whisper - download file first
-        console.log(`[Worker ${workerId}] Falling back to Whisper...`);
-        try {
-          const tempDir = os.tmpdir();
-          const audioFileName = `audio_${Date.now()}_${job.id.slice(0, 8)}.mp3`;
-          localAudioPath = path.join(tempDir, audioFileName);
-          
-          console.log(`[Worker ${workerId}] Downloading audio from GCS for Whisper...`);
-          await downloadFromGCS(validated.gcs_uri, localAudioPath);
-          
-          const whisperResult = await transcribeAudioWithWhisper(localAudioPath);
-          transcript = whisperResult.content;
-          tokensUsed = whisperResult.tokensInput + whisperResult.tokensOutput;
-          usedFallback = true;
-          console.log(`[Worker ${workerId}] Whisper transcription successful`);
-          
-          // Cleanup local file
-          if (fs.existsSync(localAudioPath)) {
-            fs.unlinkSync(localAudioPath);
-            localAudioPath = null;
-          }
-        } catch (whisperError: any) {
-          console.error(`[Worker ${workerId}] Whisper also failed:`, whisperError);
-          // Cleanup on error
-          if (localAudioPath && fs.existsSync(localAudioPath)) {
-            fs.unlinkSync(localAudioPath);
-          }
-          throw new Error(`All transcription methods failed. Gemini Audio: ${geminiError.message}, Whisper: ${whisperError.message}`);
-        }
-      }
-    } else {
-      // Whisper pipeline (5 credits base) - forced when user selects deepseek/claude
-      console.log(`[Worker ${workerId}] Using Whisper for transcription (user selected ${outputOptions.ai_model})...`);
-      try {
-        const tempDir = os.tmpdir();
-        const audioFileName = `audio_${Date.now()}_${job.id.slice(0, 8)}.mp3`;
-        localAudioPath = path.join(tempDir, audioFileName);
-        
-        console.log(`[Worker ${workerId}] Downloading audio from GCS for Whisper...`);
-        await downloadFromGCS(validated.gcs_uri, localAudioPath);
-        
-        const whisperResult = await transcribeAudioWithWhisper(localAudioPath);
-        transcript = whisperResult.content;
-        tokensUsed = whisperResult.tokensInput + whisperResult.tokensOutput;
-        usedFallback = true;
-        console.log(`[Worker ${workerId}] Whisper transcription successful`);
-        
-        // Cleanup local file
-        if (fs.existsSync(localAudioPath)) {
-          fs.unlinkSync(localAudioPath);
-          localAudioPath = null;
-        }
-      } catch (whisperError: any) {
-        console.error(`[Worker ${workerId}] Whisper transcription failed:`, whisperError);
-        // Cleanup on error
-        if (localAudioPath && fs.existsSync(localAudioPath)) {
-          fs.unlinkSync(localAudioPath);
-        }
-        throw new Error(`Whisper transcription failed: ${whisperError.message}`);
-      }
+    // Transcribe audio with Gemini (all models use Gemini for transcription)
+    console.log(`[Worker ${workerId}] Transcribing audio with Gemini 2.5 Flash...`);
+    try {
+      const geminiAudioResult = await transcribeAudio(
+        validated.gcs_uri,
+        'Transcribe this audio content with timestamps. Include all spoken words and important context.'
+      );
+      transcript = geminiAudioResult.content;
+      tokensUsed = geminiAudioResult.tokensInput + geminiAudioResult.tokensOutput;
+      console.log(`[Worker ${workerId}] Gemini audio transcription successful`);
+    } catch (geminiError: any) {
+      console.error(`[Worker ${workerId}] Gemini audio transcription failed:`, geminiError);
+      throw new Error(`Gemini audio transcription failed: ${geminiError.message}`);
     }
 
     console.log(`[Worker ${workerId}] Transcription completed: ${transcript.length} characters, ${tokensUsed} tokens`);
 
     const durationMinutes = estimateAudioDuration(transcript, validated.file_size);
     
-    // Calculate base credits based on pipeline:
-    // - Gemini pipeline: 10 credits base
-    // - Whisper + Model pipeline: 5 credits base
-    const GEMINI_BASE_CREDITS = 10;
-    const WHISPER_BASE_CREDITS = 5;
-    const baseCredits = useGeminiPipeline ? GEMINI_BASE_CREDITS : WHISPER_BASE_CREDITS;
+    // All transcription uses Gemini: 10 credits base
+    const baseCredits = 10;
     
-    // For summary/article: Gemini pipeline forces Gemini, otherwise use selected model
-    const aiModelForOutputs = useGeminiPipeline ? 'gemini' : outputOptions.ai_model;
+    // Use selected model for summary/article generation
+    const aiModelForOutputs = outputOptions.ai_model;
     const modelCreditCost = getModelCreditCost(aiModelForOutputs || 'deepseek');
     
     let totalCredits = baseCredits;

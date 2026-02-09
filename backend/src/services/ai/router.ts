@@ -38,15 +38,7 @@ const PROVIDER_CONFIGS: Record<AIProvider, AIProviderConfig[]> = {
       region: 'europe-west2',
     },
   ],
-  sagemaker: [
-    {
-      provider: 'sagemaker',
-      model: 'whisper-large-v3-turbo',
-      capabilities: ['audio-transcription'],
-      endpoint: 'runtime.sagemaker.eu-west-2.amazonaws.com',
-      region: 'eu-west-2',
-    },
-  ],
+  // SageMaker Whisper endpoint removed - all transcription now uses Gemini
 };
 
 /**
@@ -58,7 +50,7 @@ const DEFAULT_MODEL: AIModel = 'deepseek-v3';
 /**
  * Valid provider names for validation
  */
-const VALID_PROVIDERS: AIProvider[] = ['bedrock', 'vertex', 'sagemaker'];
+const VALID_PROVIDERS: AIProvider[] = ['bedrock', 'vertex'];
 
 /**
  * Routes to the appropriate AI provider based on tenant settings and capability requirements

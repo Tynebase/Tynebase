@@ -25,16 +25,13 @@ interface UIOutputOptions {
   article: boolean;
 }
 
-// Base credits depend on pipeline:
-// - Gemini: 10 credits (Gemini for transcription + AI outputs)
-// - DeepSeek/Claude: 5 credits (Whisper for transcription + selected model for AI outputs)
-const GEMINI_BASE_CREDITS = 10;
-const WHISPER_BASE_CREDITS = 5;
+// Base credits: 10 credits (Gemini for transcription) + model cost per AI output
+const BASE_CREDITS = 10;
 
 const aiProviders = [
-  { id: 'gemini', name: 'Gemini 2.5', desc: 'Full Gemini pipeline', credits: 2, baseCredits: GEMINI_BASE_CREDITS },
-  { id: 'deepseek', name: 'DeepSeek', desc: 'Whisper + DeepSeek', credits: 1, baseCredits: WHISPER_BASE_CREDITS },
-  { id: 'claude', name: 'Claude Sonnet 4.5', desc: 'Whisper + Claude', credits: 5, baseCredits: WHISPER_BASE_CREDITS },
+  { id: 'gemini', name: 'Gemini 2.5', desc: 'Gemini transcription + generation', credits: 2, baseCredits: BASE_CREDITS },
+  { id: 'deepseek', name: 'DeepSeek', desc: 'Gemini transcription + DeepSeek generation', credits: 1, baseCredits: BASE_CREDITS },
+  { id: 'claude', name: 'Claude Sonnet 4.5', desc: 'Gemini transcription + Claude generation', credits: 5, baseCredits: BASE_CREDITS },
 ];
 
 function formatTimeAgo(dateString: string): string {
@@ -78,7 +75,7 @@ export default function AudioPage() {
   // Calculate total credits based on AI model selection
   const calculateCredits = () => {
     const provider = aiProviders.find(p => p.id === selectedProvider);
-    const baseCredits = provider?.baseCredits || GEMINI_BASE_CREDITS;
+    const baseCredits = provider?.baseCredits || BASE_CREDITS;
     const modelCreditCost = provider?.credits || 2;
     let credits = baseCredits;
     // Transcript is included in base cost
@@ -87,7 +84,7 @@ export default function AudioPage() {
     return credits;
   };
   
-  const getBaseCredits = () => aiProviders.find(p => p.id === selectedProvider)?.baseCredits || GEMINI_BASE_CREDITS;
+  const getBaseCredits = () => aiProviders.find(p => p.id === selectedProvider)?.baseCredits || BASE_CREDITS;
   
   // Load recent audio on mount
   useEffect(() => {
@@ -355,7 +352,7 @@ export default function AudioPage() {
               </div>
             </div>
             <p className="text-sm text-[var(--dash-text-tertiary)] mb-4">
-              Base: {getBaseCredits()} credits ({selectedProvider === 'gemini' ? 'Gemini transcription' : 'Whisper transcription'}) • AI outputs: +{aiProviders.find(p => p.id === selectedProvider)?.credits || 2} {(aiProviders.find(p => p.id === selectedProvider)?.credits || 2) === 1 ? 'credit' : 'credits'} each
+              Base: {getBaseCredits()} credits (Gemini transcription) • AI outputs: +{aiProviders.find(p => p.id === selectedProvider)?.credits || 2} {(aiProviders.find(p => p.id === selectedProvider)?.credits || 2) === 1 ? 'credit' : 'credits'} each
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               <label className={`flex items-start gap-3 p-5 border rounded-lg cursor-pointer transition-colors ${

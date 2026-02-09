@@ -3,13 +3,12 @@
  * Defines the contract for AI provider implementations
  */
 
-export type AIProvider = 'bedrock' | 'vertex' | 'sagemaker';
+export type AIProvider = 'bedrock' | 'vertex';
 
 export type AIModel = 
   | 'deepseek-v3'
   | 'claude-sonnet-4.5'
-  | 'gemini-2.5-flash'
-  | 'whisper-large-v3-turbo';
+  | 'gemini-2.5-flash';
 
 export type AICapability = 'text-generation' | 'video-transcription' | 'audio-transcription';
 

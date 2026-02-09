@@ -17,7 +17,6 @@
 
 import { supabaseAdmin } from '../lib/supabase';
 import { transcribeVideo, transcribeAudio } from '../services/ai/vertex';
-import { transcribeAudioWithWhisper, extractAudioFromVideo } from '../services/ai/whisper';
 import { uploadToGCS, deleteFromGCS } from '../services/storage/gcs';
 import { completeJob } from '../utils/completeJob';
 import { failJob } from '../utils/failJob';
@@ -128,14 +127,11 @@ export async function processVideoIngestJob(job: Job): Promise<Record<string, an
       ai_model: 'gemini' as const,
     };
     
-    // Determine pipeline: Gemini-only (10 credits) vs Whisper+Model (5 credits)
-    const useGeminiPipeline = outputOptions.ai_model === 'gemini';
-    
-    console.log(`[Worker ${workerId}] Pipeline: ${useGeminiPipeline ? 'Gemini (10 credits base)' : 'Whisper+' + outputOptions.ai_model + ' (5 credits base)'}`);
+    console.log(`[Worker ${workerId}] Pipeline: Gemini transcription (10 credits base), AI generation model: ${outputOptions.ai_model}`);
 
     // For YouTube videos: Download → GCS → Gemini 2.5 Flash
     if (isYouTubeVideo) {
-      if (useGeminiPipeline) {
+      if (outputOptions.ai_model === 'gemini') {
         // Gemini pipeline - download audio, upload to GCS, transcribe with Gemini 2.5 Flash
         console.log(`[Worker ${workerId}] Processing YouTube video with Gemini pipeline...`);
         try {
@@ -169,34 +165,16 @@ export async function processVideoIngestJob(job: Job): Promise<Record<string, an
           }
         } catch (geminiError: any) {
           console.error(`[Worker ${workerId}] Gemini audio transcription failed:`, geminiError);
-          
-          // Fallback to Whisper
-          try {
-            console.log(`[Worker ${workerId}] Falling back to Whisper...`);
-            if (!localVideoPath) {
-              const tempDir = os.tmpdir();
-              const videoFileBase = `yt_${Date.now()}_${job.id.slice(0, 8)}`;
-              const outputTemplate = path.join(tempDir, videoFileBase + '.%(ext)s');
-              localVideoPath = await downloadYouTubeAudio(videoUrl, outputTemplate, workerId);
-            }
-            const whisperResult = await fallbackTranscriptionFromFile(localVideoPath, workerId);
-            transcript = whisperResult.transcript;
-            tokensUsed = whisperResult.tokensUsed;
-            usedFallback = true;
-            console.log(`[Worker ${workerId}] Whisper transcription successful`);
-            
-            // Cleanup local file
-            if (localVideoPath && fs.existsSync(localVideoPath)) {
-              fs.unlinkSync(localVideoPath);
-            }
-          } catch (whisperError: any) {
-            console.error(`[Worker ${workerId}] Whisper also failed:`, whisperError);
-            throw new Error(`All transcription methods failed. Gemini Audio: ${geminiError.message}, Whisper: ${whisperError.message}`);
+          // Cleanup local file
+          if (localVideoPath && fs.existsSync(localVideoPath)) {
+            fs.unlinkSync(localVideoPath);
           }
+          throw new Error(`Gemini audio transcription failed: ${geminiError.message}`);
         }
       } else {
-        // Whisper pipeline (user selected deepseek/claude) - need to download
-        console.log(`[Worker ${workerId}] Using yt-dlp + Whisper for transcription (user selected ${outputOptions.ai_model})...`);
+        // Non-Gemini model selected (deepseek/claude) - use Gemini for transcription,
+        // then the selected model for summary/article generation
+        console.log(`[Worker ${workerId}] Using Gemini for YouTube transcription (user selected ${outputOptions.ai_model} for generation)...`);
         try {
           const tempDir = os.tmpdir();
           const videoFileBase = `yt_${Date.now()}_${job.id.slice(0, 8)}`;
@@ -206,24 +184,35 @@ export async function processVideoIngestJob(job: Job): Promise<Record<string, an
           const stats = fs.statSync(localVideoPath);
           fileSize = stats.size;
           
-          const fallbackResult = await fallbackTranscriptionFromFile(localVideoPath, workerId);
-          transcript = fallbackResult.transcript;
-          tokensUsed = fallbackResult.tokensUsed;
-          usedFallback = true;
-          console.log(`[Worker ${workerId}] Whisper transcription successful`);
+          // Upload to GCS for Gemini transcription
+          const gcsFileName = `${videoFileBase}.mp3`;
+          console.log(`[Worker ${workerId}] Uploading audio to GCS: ${gcsFileName}`);
+          const gcsUri = await uploadToGCS(localVideoPath, gcsFileName);
           
-          // Cleanup local file
+          const geminiAudioResult = await transcribeAudio(
+            gcsUri,
+            'Transcribe this audio content with timestamps. Include all spoken words and important context.'
+          );
+          transcript = geminiAudioResult.content;
+          tokensUsed = geminiAudioResult.tokensInput + geminiAudioResult.tokensOutput;
+          console.log(`[Worker ${workerId}] Gemini audio transcription successful`);
+          
+          // Cleanup GCS and local file
+          await deleteFromGCS(gcsUri);
           if (localVideoPath && fs.existsSync(localVideoPath)) {
             fs.unlinkSync(localVideoPath);
           }
-        } catch (fallbackError: any) {
-          console.error(`[Worker ${workerId}] Whisper transcription failed:`, fallbackError);
-          throw new Error(`Whisper transcription failed: ${fallbackError.message}`);
+        } catch (error: any) {
+          console.error(`[Worker ${workerId}] Gemini transcription failed:`, error);
+          if (localVideoPath && fs.existsSync(localVideoPath)) {
+            fs.unlinkSync(localVideoPath);
+          }
+          throw new Error(`Gemini transcription failed: ${error.message}`);
         }
       }
     } else {
       // For uploaded videos with signed URLs
-      if (useGeminiPipeline) {
+      if (outputOptions.ai_model === 'gemini') {
         // Gemini pipeline (10 credits base)
         console.log(`[Worker ${workerId}] Transcribing video with Gemini...`);
         try {
@@ -234,32 +223,22 @@ export async function processVideoIngestJob(job: Job): Promise<Record<string, an
           transcript = transcriptionResult.content;
           tokensUsed = transcriptionResult.tokensInput + transcriptionResult.tokensOutput;
         } catch (geminiError: any) {
-          console.warn(`[Worker ${workerId}] Gemini transcription failed: ${geminiError.message}`);
-          console.log(`[Worker ${workerId}] Falling back to Whisper...`);
-
-          try {
-            const fallbackResult = await fallbackTranscription(videoUrl, isYouTubeVideo, workerId);
-            transcript = fallbackResult.transcript;
-            tokensUsed = fallbackResult.tokensUsed;
-            usedFallback = true;
-            console.log(`[Worker ${workerId}] Fallback transcription successful`);
-          } catch (fallbackError: any) {
-            console.error(`[Worker ${workerId}] Fallback transcription also failed:`, fallbackError);
-            throw new Error(`Both Gemini and fallback transcription failed. Gemini: ${geminiError.message}, Fallback: ${fallbackError.message}`);
-          }
+          console.error(`[Worker ${workerId}] Gemini transcription failed: ${geminiError.message}`);
+          throw new Error(`Gemini video transcription failed: ${geminiError.message}`);
         }
       } else {
-        // Whisper pipeline (5 credits base) - forced when user selects deepseek/claude
-        console.log(`[Worker ${workerId}] Using Whisper for transcription (user selected ${outputOptions.ai_model})...`);
+        // Non-Gemini model selected (deepseek/claude) - use Gemini for transcription
+        console.log(`[Worker ${workerId}] Using Gemini for video transcription (user selected ${outputOptions.ai_model} for generation)...`);
         try {
-          const fallbackResult = await fallbackTranscription(videoUrl, isYouTubeVideo, workerId);
-          transcript = fallbackResult.transcript;
-          tokensUsed = fallbackResult.tokensUsed;
-          usedFallback = true;
-          console.log(`[Worker ${workerId}] Whisper transcription successful`);
-        } catch (fallbackError: any) {
-          console.error(`[Worker ${workerId}] Whisper transcription failed:`, fallbackError);
-          throw new Error(`Whisper transcription failed: ${fallbackError.message}`);
+          transcriptionResult = await transcribeVideo(
+            videoUrl,
+            'Transcribe this video content with timestamps. Include all spoken words and important visual context. Format the output as a readable transcript with clear sections.'
+          );
+          transcript = transcriptionResult.content;
+          tokensUsed = transcriptionResult.tokensInput + transcriptionResult.tokensOutput;
+        } catch (geminiError: any) {
+          console.error(`[Worker ${workerId}] Gemini video transcription failed:`, geminiError);
+          throw new Error(`Gemini video transcription failed: ${geminiError.message}`);
         }
       }
     }
@@ -268,15 +247,11 @@ export async function processVideoIngestJob(job: Job): Promise<Record<string, an
 
     const durationMinutes = estimateVideoDuration(transcript, fileSize);
     
-    // Calculate base credits based on pipeline:
-    // - Gemini pipeline: 10 credits base
-    // - Whisper + Model pipeline: 5 credits base
-    const GEMINI_BASE_CREDITS = 10;
-    const WHISPER_BASE_CREDITS = 5;
-    const baseCredits = useGeminiPipeline ? GEMINI_BASE_CREDITS : WHISPER_BASE_CREDITS;
+    // All transcription uses Gemini: 10 credits base
+    const baseCredits = 10;
     
-    // For summary/article: Gemini pipeline forces Gemini, otherwise use selected model
-    const aiModelForOutputs = useGeminiPipeline ? 'gemini' : outputOptions.ai_model;
+    // Use selected model for summary/article generation
+    const aiModelForOutputs = outputOptions.ai_model;
     const modelCreditCost = getModelCreditCost(aiModelForOutputs || 'deepseek');
     
     let totalCredits = baseCredits;
@@ -721,106 +696,3 @@ async function downloadFromSidecar(
   }
 }
 
-/**
- * Fallback transcription using yt-dlp + Whisper
- * Used when Gemini API fails
- * 
- * @param videoUrl - Video URL (signed URL or YouTube URL)
- * @param isYouTube - Whether this is a YouTube video
- * @param workerId - Worker ID for logging
- * @returns Transcript and token count
- */
-async function fallbackTranscription(
-  videoUrl: string,
-  isYouTube: boolean,
-  workerId: string
-): Promise<{ transcript: string; tokensUsed: number }> {
-  const tempDir = os.tmpdir();
-  const videoFileName = `video_${Date.now()}.mp3`;
-  const audioFileName = `audio_${Date.now()}.wav`;
-  const videoPath = path.join(tempDir, videoFileName);
-  const audioPath = path.join(tempDir, audioFileName);
-
-  try {
-    if (isYouTube) {
-      console.log(`[Worker ${workerId}] Downloading YouTube audio with yt-dlp...`);
-      await downloadYouTubeAudio(videoUrl, videoPath, workerId);
-    } else {
-      console.log(`[Worker ${workerId}] Downloading video from signed URL...`);
-      const axios = require('axios');
-      const response = await axios({
-        method: 'GET',
-        url: videoUrl,
-        responseType: 'stream',
-      });
-
-      const writer = fs.createWriteStream(videoPath);
-      response.data.pipe(writer);
-
-      await new Promise<void>((resolve, reject) => {
-        writer.on('finish', () => resolve());
-        writer.on('error', reject);
-      });
-    }
-
-    console.log(`[Worker ${workerId}] Video downloaded: ${videoPath}`);
-
-    const extractedAudioPath = await extractAudioFromVideo(videoPath, audioPath);
-    console.log(`[Worker ${workerId}] Audio extracted: ${extractedAudioPath}`);
-
-    const whisperResult = await transcribeAudioWithWhisper(extractedAudioPath);
-    const transcript = whisperResult.content;
-    const tokensUsed = whisperResult.tokensInput + whisperResult.tokensOutput;
-
-    return { transcript, tokensUsed };
-  } catch (error) {
-    console.error(`[Worker ${workerId}] Fallback transcription error:`, error);
-    throw error;
-  } finally {
-    if (fs.existsSync(videoPath)) {
-      fs.unlinkSync(videoPath);
-      console.log(`[Worker ${workerId}] Cleaned up temp video file`);
-    }
-    if (fs.existsSync(audioPath)) {
-      fs.unlinkSync(audioPath);
-      console.log(`[Worker ${workerId}] Cleaned up temp audio file`);
-    }
-  }
-}
-
-/**
- * Fallback transcription from a local video file using ffmpeg + Whisper
- * Used when we already have the video downloaded locally
- * 
- * @param videoPath - Local path to video file
- * @param workerId - Worker ID for logging
- * @returns Transcript and token count
- */
-async function fallbackTranscriptionFromFile(
-  videoPath: string,
-  workerId: string
-): Promise<{ transcript: string; tokensUsed: number }> {
-  const tempDir = os.tmpdir();
-  const audioFileName = `audio_${Date.now()}.wav`;
-  const audioPath = path.join(tempDir, audioFileName);
-
-  try {
-    console.log(`[Worker ${workerId}] Extracting audio from local video file...`);
-    const extractedAudioPath = await extractAudioFromVideo(videoPath, audioPath);
-    console.log(`[Worker ${workerId}] Audio extracted: ${extractedAudioPath}`);
-
-    const whisperResult = await transcribeAudioWithWhisper(extractedAudioPath);
-    const transcript = whisperResult.content;
-    const tokensUsed = whisperResult.tokensInput + whisperResult.tokensOutput;
-
-    return { transcript, tokensUsed };
-  } catch (error) {
-    console.error(`[Worker ${workerId}] Fallback transcription from file error:`, error);
-    throw error;
-  } finally {
-    if (fs.existsSync(audioPath)) {
-      fs.unlinkSync(audioPath);
-      console.log(`[Worker ${workerId}] Cleaned up temp audio file`);
-    }
-  }
-}
