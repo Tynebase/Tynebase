@@ -78,7 +78,8 @@ export default function AudioPage() {
     const baseCredits = provider?.baseCredits || BASE_CREDITS;
     const modelCreditCost = provider?.credits || 2;
     let credits = baseCredits;
-    // Transcript is included in base cost
+    // Transcript uses Gemini (included in base), summary/article use selected model
+    if (outputOptions.transcript) credits += 0; // Transcript included in base
     if (outputOptions.summary) credits += modelCreditCost;
     if (outputOptions.article) credits += modelCreditCost;
     return credits;
@@ -352,7 +353,7 @@ export default function AudioPage() {
               </div>
             </div>
             <p className="text-sm text-[var(--dash-text-tertiary)] mb-4">
-              Base: {getBaseCredits()} credits (Gemini transcription) • AI outputs: +{aiProviders.find(p => p.id === selectedProvider)?.credits || 2} {(aiProviders.find(p => p.id === selectedProvider)?.credits || 2) === 1 ? 'credit' : 'credits'} each
+              Base: {getBaseCredits()} credits (Gemini transcription) • Summary/Article: +{aiProviders.find(p => p.id === selectedProvider)?.credits || 2} {(aiProviders.find(p => p.id === selectedProvider)?.credits || 2) === 1 ? 'credit' : 'credits'} each
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               <label className={`flex items-start gap-3 p-5 border rounded-lg cursor-pointer transition-colors ${
