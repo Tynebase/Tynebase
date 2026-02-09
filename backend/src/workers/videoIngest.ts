@@ -217,8 +217,51 @@ export async function processVideoIngestJob(job: Job): Promise<Record<string, an
           throw new Error(`Gemini transcription failed: ${error.message}`);
         }
       }
+    } else if (validated.url && !validated.storage_path) {
+      // Direct URL from external video platform (Vimeo, Dailymotion, etc.) or direct file URL
+      // These URLs can't be passed directly to Gemini - must download first, upload to GCS, then transcribe
+      console.log(`[Worker ${workerId}] Processing direct URL video via download pipeline...`);
+      try {
+        const tempDir = os.tmpdir();
+        const videoFileBase = `url_${Date.now()}_${job.id.slice(0, 8)}`;
+        const outputTemplate = path.join(tempDir, videoFileBase + '.%(ext)s');
+
+        console.log(`[Worker ${workerId}] Downloading video/audio from URL...`);
+        localVideoPath = await downloadVideoFromURL(videoUrl, outputTemplate, workerId);
+        const stats = fs.statSync(localVideoPath);
+        fileSize = stats.size;
+        console.log(`[Worker ${workerId}] Downloaded: ${localVideoPath} (${fileSize} bytes)`);
+
+        // Upload to GCS
+        const gcsFileName = `${videoFileBase}.mp3`;
+        console.log(`[Worker ${workerId}] Uploading audio to GCS: ${gcsFileName}`);
+        const gcsUri = await uploadToGCS(localVideoPath, gcsFileName);
+        console.log(`[Worker ${workerId}] Audio uploaded to: ${gcsUri}`);
+
+        // Transcribe using Gemini with audio
+        console.log(`[Worker ${workerId}] Transcribing audio with Gemini (model: ${outputOptions.ai_model} for generation)...`);
+        const geminiAudioResult = await transcribeAudio(
+          gcsUri,
+          'Transcribe this audio content with timestamps. Include all spoken words and important context.'
+        );
+        transcript = geminiAudioResult.content;
+        tokensUsed = geminiAudioResult.tokensInput + geminiAudioResult.tokensOutput;
+        console.log(`[Worker ${workerId}] Gemini audio transcription successful`);
+
+        // Cleanup GCS and local file
+        await deleteFromGCS(gcsUri);
+        if (localVideoPath && fs.existsSync(localVideoPath)) {
+          fs.unlinkSync(localVideoPath);
+        }
+      } catch (error: any) {
+        console.error(`[Worker ${workerId}] Direct URL video processing failed:`, error);
+        if (localVideoPath && fs.existsSync(localVideoPath)) {
+          fs.unlinkSync(localVideoPath);
+        }
+        throw new Error(`Direct URL video processing failed: ${error.message}`);
+      }
     } else {
-      // For uploaded videos with signed URLs
+      // For uploaded videos with signed URLs (from Supabase Storage)
       if (outputOptions.ai_model === 'gemini') {
         // Gemini pipeline (10 credits base)
         console.log(`[Worker ${workerId}] Transcribing video with Gemini...`);
@@ -698,5 +741,107 @@ async function downloadFromSidecar(
     console.error(`[Worker ${workerId}] Sidecar download failed:`, error.message);
     throw new Error(`Sidecar download failed: ${error.message}`);
   }
+}
+
+/**
+ * Check if a URL points to a direct video/audio file (e.g. .mp4, .webm, .mp3)
+ */
+function isDirectFileUrl(url: string): boolean {
+  const videoExtensions = /\.(mp4|webm|mkv|avi|mov|flv|wmv|mp3|m4a|ogg|wav|aac)(\?.*)?$/i;
+  return videoExtensions.test(url);
+}
+
+/**
+ * Download video/audio from any URL (Vimeo, Dailymotion, TikTok, direct file, etc.)
+ * Strategy:
+ *   1. If sidecar is available, try yt-dlp generic download (supports 1000+ sites)
+ *   2. If sidecar fails or URL is a direct file, fall back to HTTP download
+ * 
+ * @param videoUrl - Any video URL
+ * @param outputTemplate - Output path template with %(ext)s
+ * @param workerId - Worker ID for logging
+ */
+async function downloadVideoFromURL(
+  videoUrl: string,
+  outputTemplate: string,
+  workerId: string
+): Promise<string> {
+  const axios = require('axios');
+  const basePath = outputTemplate.replace('.%(ext)s', '');
+  const outputPath = `${basePath}.mp3`;
+
+  // Strategy 1: Try yt-dlp sidecar generic endpoint (handles Vimeo, Dailymotion, Twitter, etc.)
+  if (YT_DLP_SIDECAR_URL) {
+    try {
+      console.log(`[Worker ${workerId}] Trying sidecar /download-generic for: ${videoUrl}`);
+      const response = await axios({
+        method: 'POST',
+        url: `${YT_DLP_SIDECAR_URL}/download-generic`,
+        data: {
+          url: videoUrl,
+          format: 'bestaudio[ext=m4a]/bestaudio[ext=mp3]/bestaudio',
+          extract_audio: true,
+        },
+        responseType: 'stream',
+        timeout: 300000, // 5 minutes
+      });
+
+      const writer = fs.createWriteStream(outputPath);
+      response.data.pipe(writer);
+
+      await new Promise<void>((resolve, reject) => {
+        writer.on('finish', () => resolve());
+        writer.on('error', reject);
+      });
+
+      // Verify file was written
+      if (fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) {
+        console.log(`[Worker ${workerId}] Sidecar generic download complete: ${outputPath}`);
+        return outputPath;
+      }
+      console.warn(`[Worker ${workerId}] Sidecar returned empty file, falling back to HTTP download`);
+    } catch (sidecarError: any) {
+      console.warn(`[Worker ${workerId}] Sidecar generic download failed: ${sidecarError.message}, falling back to HTTP download`);
+    }
+  }
+
+  // Strategy 2: Direct HTTP download (for plain file URLs like .mp4, .webm)
+  if (isDirectFileUrl(videoUrl)) {
+    try {
+      console.log(`[Worker ${workerId}] Downloading direct file URL: ${videoUrl}`);
+      const directOutputPath = `${basePath}${path.extname(new URL(videoUrl).pathname) || '.mp4'}`;
+
+      const response = await axios({
+        method: 'GET',
+        url: videoUrl,
+        responseType: 'stream',
+        timeout: 300000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        },
+      });
+
+      const writer = fs.createWriteStream(directOutputPath);
+      response.data.pipe(writer);
+
+      await new Promise<void>((resolve, reject) => {
+        writer.on('finish', () => resolve());
+        writer.on('error', reject);
+      });
+
+      if (fs.existsSync(directOutputPath) && fs.statSync(directOutputPath).size > 0) {
+        console.log(`[Worker ${workerId}] Direct HTTP download complete: ${directOutputPath}`);
+        return directOutputPath;
+      }
+      throw new Error('Downloaded file is empty');
+    } catch (httpError: any) {
+      throw new Error(`Direct HTTP download failed: ${httpError.message}`);
+    }
+  }
+
+  throw new Error(
+    `Unable to download video from URL: ${videoUrl}. ` +
+    (YT_DLP_SIDECAR_URL ? 'yt-dlp sidecar could not process this URL and it is not a direct file URL.' : 'YT_DLP_SIDECAR_URL not configured and URL is not a direct file link.')
+  );
 }
 

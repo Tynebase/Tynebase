@@ -97,6 +97,7 @@ const start = async () => {
     await fastify.register(import('./routes/ai-scrape'), { prefix: '' });
     await fastify.register(import('./routes/video-upload'), { prefix: '' });
     await fastify.register(import('./routes/youtube-video'), { prefix: '' });
+    await fastify.register(import('./routes/direct-video-url'), { prefix: '' });
     await fastify.register(import('./routes/video-transcribe-to-document'), { prefix: '' });
     await fastify.register(import('./routes/audio-upload'), { prefix: '' });
     await fastify.register(import('./routes/media-jobs'), { prefix: '' });

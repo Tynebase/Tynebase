@@ -16,7 +16,7 @@ import {
   Loader2,
   FileVideo,
 } from "lucide-react";
-import { uploadVideo, transcribeYouTube, pollJobUntilComplete, listMediaJobs, type Job, type MediaJob, type OutputOptions } from "@/lib/api/ai";
+import { uploadVideo, transcribeYouTube, transcribeDirectURL, pollJobUntilComplete, listMediaJobs, type Job, type MediaJob, type OutputOptions } from "@/lib/api/ai";
 import { useCredits } from "@/contexts/CreditsContext";
 
 type VideoSource = "upload" | "youtube" | "url";
@@ -205,6 +205,54 @@ export default function VideoPage() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to process YouTube video');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleProcessDirectURL = async () => {
+    if (!videoUrl.trim()) return;
+    
+    setIsProcessing(true);
+    setError(null);
+    setProgress(0);
+    
+    try {
+      const apiOptions: OutputOptions = {
+        generate_transcript: outputOptions.transcript,
+        generate_summary: outputOptions.summary,
+        generate_article: outputOptions.article,
+        ai_model: selectedProvider as 'deepseek' | 'gemini' | 'claude',
+      };
+      
+      const response = await transcribeDirectURL({
+        url: videoUrl.trim(),
+        output_options: apiOptions,
+      });
+      const job = response.job;
+      setCurrentJob(job);
+      
+      const completedJob = await pollJobUntilComplete(
+        job.id,
+        (updatedJob) => {
+          setCurrentJob(updatedJob);
+          setProgress(updatedJob.progress || 0);
+        }
+      );
+      
+      if (completedJob.status === 'completed' && completedJob.result?.document_id) {
+        const creditsCharged = typeof completedJob.result.credits_charged === 'number'
+          ? completedJob.result.credits_charged
+          : calculateCredits();
+        decrementCredits(creditsCharged);
+        refreshCredits();
+        await refreshVideos();
+        router.push(`/dashboard/knowledge/${completedJob.result.document_id}`);
+      } else if (completedJob.status === 'failed') {
+        setError(completedJob.error_message || 'Video processing failed');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to process video URL');
     } finally {
       setIsProcessing(false);
     }
@@ -427,12 +475,12 @@ export default function VideoPage() {
                         type="url"
                         value={videoUrl}
                         onChange={(e) => setVideoUrl(e.target.value)}
-                        placeholder="https://example.com/video.mp4"
+                        placeholder="https://vimeo.com/... or any video URL"
                         className="w-full pl-11 pr-4 py-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
                       />
                     </div>
                     <button
-                      onClick={handleProcessYouTube}
+                      onClick={handleProcessDirectURL}
                       disabled={!videoUrl || isProcessing}
                       className="px-7 py-3.5 bg-[var(--brand)] hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-all flex items-center justify-center gap-2"
                     >
@@ -450,6 +498,9 @@ export default function VideoPage() {
                     </button>
                   </div>
                 </div>
+                <p className="text-xs text-[var(--dash-text-tertiary)]">
+                  Supports Vimeo, Dailymotion, Twitter/X, TikTok, and 1000+ other video platforms
+                </p>
               </div>
             )}
 

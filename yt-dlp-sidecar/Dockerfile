@@ -14,12 +14,9 @@ RUN apt-get update && apt-get install -y \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python packages
-RUN pip install --no-cache-dir \
-    yt-dlp \
-    bgutil-ytdlp-pot-provider \
-    flask \
-    gunicorn
+# Install Python packages (with retries for flaky builder network)
+COPY yt-dlp-sidecar/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir --retries 10 --timeout 60 -r /app/requirements.txt
 
 # Clone and build the bgutil PO-token HTTP server
 RUN git clone --single-branch --branch 1.2.2 https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git /app/pot-provider \
