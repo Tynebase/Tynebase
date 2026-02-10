@@ -6,6 +6,7 @@ import { authMiddleware } from '../middleware/auth';
 import { membershipGuard } from '../middleware/membershipGuard';
 import { rateLimitMiddleware } from '../middleware/rateLimit';
 import { dispatchJob } from '../utils/dispatchJob';
+import { writeAuditLog, getClientIp } from '../lib/auditLog';
 
 /**
  * Zod schema for GET /api/documents query parameters
@@ -593,6 +594,16 @@ export default async function documentRoutes(fastify: FastifyInstance) {
           'Document created successfully'
         );
 
+        writeAuditLog({
+          tenantId: tenant.id,
+          actorId: user.id,
+          action: 'document.created',
+          actionType: 'document',
+          targetName: title,
+          ipAddress: getClientIp(request),
+          metadata: { document_id: document.id },
+        });
+
         return reply.code(201).send({
           success: true,
           data: {
@@ -942,6 +953,16 @@ export default async function documentRoutes(fastify: FastifyInstance) {
           'Document updated successfully'
         );
 
+        writeAuditLog({
+          tenantId: tenant.id,
+          actorId: user.id,
+          action: 'document.updated',
+          actionType: 'document',
+          targetName: updatedDoc.title,
+          ipAddress: getClientIp(request),
+          metadata: { document_id: updatedDoc.id, fields_updated: Object.keys(updateData) },
+        });
+
         return reply.code(200).send({
           success: true,
           data: {
@@ -1091,6 +1112,16 @@ export default async function documentRoutes(fastify: FastifyInstance) {
           },
           'Document deleted successfully'
         );
+
+        writeAuditLog({
+          tenantId: tenant.id,
+          actorId: user.id,
+          action: 'document.deleted',
+          actionType: 'document',
+          targetName: existingDoc.title,
+          ipAddress: getClientIp(request),
+          metadata: { document_id: id },
+        });
 
         return reply.code(200).send({
           success: true,
@@ -1423,6 +1454,16 @@ export default async function documentRoutes(fastify: FastifyInstance) {
           },
           'Document published successfully'
         );
+
+        writeAuditLog({
+          tenantId: tenant.id,
+          actorId: user.id,
+          action: 'document.published',
+          actionType: 'document',
+          targetName: existingDoc.title,
+          ipAddress: getClientIp(request),
+          metadata: { document_id: publishedDoc.id },
+        });
 
         return reply.code(200).send({
           success: true,

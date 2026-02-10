@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { supabaseAdmin } from '../lib/supabase';
 import { loginRateLimitMiddleware } from '../middleware/rateLimit';
+import { writeAuditLog, getClientIp } from '../lib/auditLog';
 
 // Tier credit allocations
 const TIER_CREDITS: Record<string, number> = {
@@ -227,6 +228,16 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
         fastify.log.info({ userId, tenantId, subdomain }, 'Signup completed successfully');
 
+        writeAuditLog({
+          tenantId,
+          actorId: userId,
+          action: 'auth.signup',
+          actionType: 'auth',
+          targetName: email,
+          ipAddress: getClientIp(request),
+          metadata: { full_name: full_name || null },
+        });
+
         return reply.code(201).send({
           success: true,
           data: {
@@ -358,6 +369,16 @@ export default async function authRoutes(fastify: FastifyInstance) {
       }
 
       fastify.log.info({ userId: data.user.id }, 'Login successful');
+
+      writeAuditLog({
+        tenantId: userProfile.tenant_id,
+        actorId: userProfile.id,
+        action: 'auth.login',
+        actionType: 'auth',
+        targetName: userProfile.email,
+        ipAddress: getClientIp(request),
+        metadata: { role: userProfile.role },
+      });
 
       return reply.code(200).send({
         success: true,
@@ -647,6 +668,16 @@ export default async function authRoutes(fastify: FastifyInstance) {
           },
         });
       }
+
+      writeAuditLog({
+        tenantId: updatedUser.tenant_id,
+        actorId: updatedUser.id,
+        action: 'user.profile_updated',
+        actionType: 'user',
+        targetName: updatedUser.full_name || updatedUser.email,
+        ipAddress: getClientIp(request),
+        metadata: { fields_updated: Object.keys(body) },
+      });
 
       return reply.code(200).send({
         success: true,

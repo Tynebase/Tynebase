@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { supabaseAdmin } from '../lib/supabase';
 import { authMiddleware } from '../middleware/auth';
+import { writeAuditLog, getClientIp } from '../lib/auditLog';
 
 /**
  * Zod schema for tenant settings validation
@@ -175,6 +176,16 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
         },
         'Tenant updated successfully'
       );
+
+      writeAuditLog({
+        tenantId: id,
+        actorId: user.id,
+        action: 'settings.tenant_updated',
+        actionType: 'settings',
+        targetName: updatedTenant.name,
+        ipAddress: getClientIp(request),
+        metadata: { fields_updated: Object.keys(updateData) },
+      });
 
       return reply.code(200).send({
         success: true,

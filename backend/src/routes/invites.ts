@@ -5,6 +5,7 @@ import { rateLimitMiddleware } from '../middleware/rateLimit';
 import { tenantContextMiddleware } from '../middleware/tenantContext';
 import { authMiddleware } from '../middleware/auth';
 import { membershipGuard } from '../middleware/membershipGuard';
+import { writeAuditLog, getClientIp } from '../lib/auditLog';
 
 /**
  * Zod schema for POST /api/invites request body
@@ -127,6 +128,16 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
           { email, role, tenantId: tenant.id, invitedBy: user.id },
           'User invitation sent successfully'
         );
+
+        writeAuditLog({
+          tenantId: tenant.id,
+          actorId: user.id,
+          action: 'user.invited',
+          actionType: 'user',
+          targetName: email,
+          ipAddress: getClientIp(request),
+          metadata: { role },
+        });
 
         return reply.code(200).send({
           success: true,
@@ -294,6 +305,16 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
           { userId: user_id, tenantId: tenant_id, role },
           'User accepted invite and joined tenant'
         );
+
+        writeAuditLog({
+          tenantId: tenant_id,
+          actorId: user_id,
+          action: 'user.invite_accepted',
+          actionType: 'user',
+          targetName: authUser.email || null,
+          ipAddress: getClientIp(request),
+          metadata: { role },
+        });
 
         return reply.code(200).send({
           success: true,
