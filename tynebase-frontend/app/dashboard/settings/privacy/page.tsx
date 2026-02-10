@@ -222,7 +222,7 @@ export default function PrivacySettingsPage() {
                 AI Processing
               </label>
               <p className="text-sm text-[var(--dash-text-tertiary)]">
-                Allow AI models to process your content for generation, enhancement, and chat features.
+                Allow AI models to process your content for generation, enhancement and chat features.
                 Disabling this will block all AI operations.
               </p>
             </div>
