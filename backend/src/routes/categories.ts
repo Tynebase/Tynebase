@@ -598,7 +598,7 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
 
   /**
    * GET /api/categories/uncategorized
-   * Get the Uncategorized system category for the tenant
+   * Get the Uncategorised system category for the tenant
    */
   fastify.get(
     '/api/categories/uncategorized',
@@ -610,7 +610,7 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
         const tenant = (request as any).tenant;
         const user = (request as any).user;
 
-        // Find or create Uncategorized category using RPC
+        // Find or create Uncategorised category using RPC
         const { data: categoryId, error: rpcError } = await supabaseAdmin
           .rpc('get_or_create_uncategorized_category', {
             p_tenant_id: tenant.id,
@@ -618,9 +618,9 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
           });
 
         if (rpcError) {
-          fastify.log.error({ error: rpcError }, 'Failed to get/create Uncategorized category');
+          fastify.log.error({ error: rpcError }, 'Failed to get/create Uncategorised category');
           return reply.code(500).send({
-            error: { code: 'FETCH_FAILED', message: 'Failed to get Uncategorized category', details: {} },
+            error: { code: 'FETCH_FAILED', message: 'Failed to get Uncategorised category', details: {} },
           });
         }
 
@@ -642,7 +642,7 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
 
         if (categoryError || !category) {
           return reply.code(404).send({
-            error: { code: 'CATEGORY_NOT_FOUND', message: 'Uncategorized category not found', details: {} },
+            error: { code: 'CATEGORY_NOT_FOUND', message: 'Uncategorised category not found', details: {} },
           });
         }
 
@@ -651,7 +651,7 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
           data: { category },
         });
       } catch (error) {
-        fastify.log.error({ error }, 'Unexpected error in GET /api/categories/uncategorized');
+        fastify.log.error({ error }, 'Unexpected error in GET /api/categories/uncategorised');
         return reply.code(500).send({
           error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred', details: {} },
         });

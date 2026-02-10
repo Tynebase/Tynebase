@@ -1112,7 +1112,7 @@ export default function KnowledgePage() {
                       {/* Status */}
                       <div className="text-center">
                         <span className={`inline-flex px-3 py-1.5 text-xs font-medium rounded-full ${getStateColor(doc.state)}`}>
-                          {doc.state.replace("_", " ")}
+                          {doc.state.replace("_", " ").replace(/\b\w/g, c => c.toUpperCase())}
                         </span>
                       </div>
                       {/* AI Score */}
@@ -1169,7 +1169,7 @@ export default function KnowledgePage() {
                             </div>
                             <div className="flex items-center gap-2">
                               <span className={`inline-flex px-2 py-0.5 text-[10px] font-medium rounded-full ${getStateColor(doc.state)}`}>
-                                {doc.state.replace("_", " ")}
+                                {doc.state.replace("_", " ").replace(/\b\w/g, c => c.toUpperCase())}
                               </span>
                               <span className={`text-xs flex items-center gap-1 ${getAiScoreColor(doc.aiScore)}`}>
                                 <Sparkles className="w-3 h-3" /> {doc.aiScore !== null ? `${doc.aiScore}%` : '--'} · {getAiScoreLabel(doc.aiScore)}
@@ -1224,7 +1224,7 @@ export default function KnowledgePage() {
                       <div className="flex items-center gap-2">
                         {doc.starred && <Star className="w-4 h-4 text-amber-500 fill-amber-500" />}
                         <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${getStateColor(doc.state)}`}>
-                          {doc.state.replace("_", " ")}
+                          {doc.state.replace("_", " ").replace(/\b\w/g, c => c.toUpperCase())}
                         </span>
                       </div>
                     </div>
