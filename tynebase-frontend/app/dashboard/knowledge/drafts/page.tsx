@@ -491,7 +491,7 @@ export default function DraftsPage() {
               onChange={(e) => setSelectedCategoryForMove(e.target.value || null)}
               className="w-full px-3 py-2 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
             >
-              <option value="">Select a category...</option>
+              <option value="" disabled hidden>Select a category...</option>
               <option value="none">Remove from category</option>
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>{cat.name}</option>

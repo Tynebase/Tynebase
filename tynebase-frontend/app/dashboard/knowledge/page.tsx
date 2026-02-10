@@ -110,6 +110,8 @@ export default function KnowledgePage() {
   // Confirmation screen states for bulk actions
   const [moveCategorySuccess, setMoveCategorySuccess] = useState(false);
   const [moveCategoryTargetName, setMoveCategoryTargetName] = useState<string>('');
+  const [assignTagSuccess, setAssignTagSuccess] = useState(false);
+  const [assignTagTargetName, setAssignTagTargetName] = useState<string>('');
   const [addToCollectionSuccess, setAddToCollectionSuccess] = useState(false);
   const [addToCollectionTargetName, setAddToCollectionTargetName] = useState<string>('');
 
@@ -442,7 +444,7 @@ export default function KnowledgePage() {
       
       // Get target category name for confirmation
       const targetName = selectedCategoryForMove === 'none' 
-        ? 'Uncategorized' 
+        ? 'Uncategorised' 
         : apiCategories.find(c => c.id === selectedCategoryForMove)?.name || 'Unknown';
       setMoveCategoryTargetName(targetName);
       
@@ -469,6 +471,10 @@ export default function KnowledgePage() {
     
     try {
       setBulkActionLoading(true);
+      
+      // Get target tag name for confirmation
+      const targetTagName = tags.find(t => t.id === selectedTagId)?.name || 'Unknown';
+      
       await addTagToDocuments(selectedTagId, Array.from(selectedIds));
       
       // Refetch documents to get updated tags
@@ -479,9 +485,8 @@ export default function KnowledgePage() {
       const uiDocs = response.documents.map(mapDocumentToUI);
       setDocuments(uiDocs);
       
-      setAssignTagsModalOpen(false);
-      setSelectedTagId(null);
-      clearSelection();
+      setAssignTagTargetName(targetTagName);
+      setAssignTagSuccess(true);
     } catch (err) {
       console.error('Failed to assign tag:', err);
       setError(err instanceof Error ? err.message : 'Failed to assign tag');
@@ -1035,10 +1040,6 @@ export default function KnowledgePage() {
               </span>
             )}
           </p>
-          <div className="flex items-center gap-2 text-xs text-[var(--dash-text-muted)]">
-            <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-[var(--status-success)]" /> Published</span>
-            <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-[var(--dash-text-muted)]" /> Draft</span>
-          </div>
         </div>
       )}
 
@@ -1172,7 +1173,7 @@ export default function KnowledgePage() {
                       </div>
                       {/* Category */}
                       <div className="px-2 overflow-hidden">
-                        <span className="text-sm text-[var(--dash-text-secondary)] truncate block">{categories.find(c => c.id === doc.categoryId)?.name || 'Uncategorized'}</span>
+                        <span className="text-sm text-[var(--dash-text-secondary)] truncate block">{categories.find(c => c.id === doc.categoryId)?.name || 'Uncategorised'}</span>
                       </div>
                       {/* Tags */}
                       <div className="px-2 overflow-hidden">
@@ -1437,22 +1438,20 @@ export default function KnowledgePage() {
         title="Documents Deleted"
         size="sm"
       >
-        <div className="flex flex-col items-center gap-4 py-4">
+        <div className="flex flex-col items-center gap-4 py-6">
           <div className="w-12 h-12 rounded-full bg-[var(--status-success-bg)] flex items-center justify-center">
             <CheckCircle className="w-6 h-6 text-[var(--status-success)]" />
           </div>
           <p className="text-sm text-[var(--dash-text-secondary)] text-center">
             {deleteSuccessMessage}
           </p>
-        </div>
-        <ModalFooter>
           <button
             onClick={() => setDeleteSuccessOpen(false)}
-            className="px-4 py-2 text-sm font-medium text-white bg-[var(--brand)] rounded-lg hover:bg-[var(--brand)]/90 transition-colors"
+            className="mt-2 px-8 py-2.5 text-sm font-medium text-white bg-[var(--brand)] rounded-lg hover:bg-[var(--brand)]/90 transition-colors"
           >
             OK
           </button>
-        </ModalFooter>
+        </div>
       </Modal>
 
       {/* Document Import Modal */}
@@ -1511,7 +1510,7 @@ export default function KnowledgePage() {
                 onChange={(e) => setSelectedCategoryForMove(e.target.value || null)}
                 className="w-full px-3 py-2 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
               >
-                <option value="">Select a category...</option>
+                <option value="" disabled hidden>Select a category...</option>
                 <option value="none">Remove from category</option>
                 {apiCategories.map((cat) => (
                   <option key={cat.id} value={cat.id}>{cat.name}</option>
@@ -1555,78 +1554,121 @@ export default function KnowledgePage() {
         onClose={() => {
           setAssignTagsModalOpen(false);
           setSelectedTagId(null);
+          setAssignTagSuccess(false);
+          setAssignTagTargetName('');
+          clearSelection();
         }}
-        title="Assign a Tag"
-        description={`Add a tag to ${selectedIds.size} document${selectedIds.size !== 1 ? 's' : ''}`}
+        title={assignTagSuccess ? 'Tag Assigned' : 'Assign a Tag'}
+        description={assignTagSuccess 
+          ? `Successfully assigned tag to documents`
+          : `Add a tag to ${selectedIds.size} document${selectedIds.size !== 1 ? 's' : ''}`
+        }
         size="sm"
       >
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-[var(--dash-text-primary)]">Select Tag</label>
-            {(() => {
-              // Get tags already assigned to all selected documents
-              const selectedDocs = documents.filter(d => selectedIds.has(d.id));
-              const alreadyAssignedTagIds = new Set(
-                tags.filter(tag =>
-                  selectedDocs.length > 0 &&
-                  selectedDocs.every(doc => doc.tags.some(t => t.id === tag.id))
-                ).map(tag => tag.id)
-              );
-              const availableTags = tags.filter(tag => !alreadyAssignedTagIds.has(tag.id));
-
-              if (availableTags.length === 0) {
-                return (
-                  <p className="text-sm text-[var(--dash-text-tertiary)]">
-                    No available tags to assign. All tags are already assigned to the selected documents.
-                  </p>
-                );
-              }
-
-              return (
-                <select
-                  value={selectedTagId || ''}
-                  onChange={(e) => setSelectedTagId(e.target.value || null)}
-                  className="w-full px-3 py-2 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
-                >
-                  <option value="">Select a tag...</option>
-                  {availableTags.map((tag) => (
-                    <option key={tag.id} value={tag.id}>{tag.name}</option>
-                  ))}
-                </select>
-              );
-            })()}
+        {assignTagSuccess ? (
+          // Success Confirmation Screen
+          <div className="space-y-6">
+            <div className="text-center py-4">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-500/10 flex items-center justify-center">
+                <CheckCircle className="w-8 h-8 text-green-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-[var(--dash-text-primary)] mb-2">
+                Success!
+              </h3>
+              <p className="text-sm text-[var(--dash-text-secondary)]">
+                {selectedIds.size} document{selectedIds.size !== 1 ? 's' : ''} tagged with <strong>{assignTagTargetName}</strong>
+              </p>
+            </div>
+            
+            <ModalFooter>
+              <button
+                onClick={() => {
+                  setAssignTagsModalOpen(false);
+                  setSelectedTagId(null);
+                  setAssignTagSuccess(false);
+                  setAssignTagTargetName('');
+                  clearSelection();
+                }}
+                className="w-full px-4 py-2.5 text-sm font-medium text-white bg-[var(--brand)] rounded-lg hover:bg-[var(--brand-dark)] transition-colors flex items-center justify-center gap-2"
+              >
+                <CheckCircle className="w-4 h-4" />
+                Done
+              </button>
+            </ModalFooter>
           </div>
-        </div>
-        
-        <ModalFooter>
-          <button
-            onClick={() => {
-              setAssignTagsModalOpen(false);
-              setSelectedTagId(null);
-            }}
-            disabled={bulkActionLoading}
-            className="px-4 py-2 text-sm font-medium text-[var(--dash-text-secondary)] bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleBulkAssignTag}
-            disabled={bulkActionLoading || !selectedTagId}
-            className="px-4 py-2 text-sm font-medium text-white bg-[var(--brand)] rounded-lg hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-          >
-            {bulkActionLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Assigning...
-              </>
-            ) : (
-              <>
-                <TagIcon className="w-4 h-4" />
-                Assign Tag
-              </>
-            )}
-          </button>
-        </ModalFooter>
+        ) : (
+          <>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-[var(--dash-text-primary)]">Select Tag</label>
+              {(() => {
+                // Get tags already assigned to all selected documents
+                const selectedDocs = documents.filter(d => selectedIds.has(d.id));
+                const alreadyAssignedTagIds = new Set(
+                  tags.filter(tag =>
+                    selectedDocs.length > 0 &&
+                    selectedDocs.every(doc => doc.tags.some(t => t.id === tag.id))
+                  ).map(tag => tag.id)
+                );
+                const availableTags = tags.filter(tag => !alreadyAssignedTagIds.has(tag.id));
+
+                if (availableTags.length === 0) {
+                  return (
+                    <p className="text-sm text-[var(--dash-text-tertiary)]">
+                      No available tags to assign. All tags are already assigned to the selected documents.
+                    </p>
+                  );
+                }
+
+                return (
+                  <select
+                    value={selectedTagId || ''}
+                    onChange={(e) => setSelectedTagId(e.target.value || null)}
+                    className="w-full px-3 py-2 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
+                  >
+                    <option value="" disabled hidden>Select a tag...</option>
+                    {availableTags.map((tag) => (
+                      <option key={tag.id} value={tag.id}>{tag.name}</option>
+                    ))}
+                  </select>
+                );
+              })()}
+            </div>
+          </div>
+          
+          <ModalFooter>
+            <button
+              onClick={() => {
+                setAssignTagsModalOpen(false);
+                setSelectedTagId(null);
+                setAssignTagSuccess(false);
+                setAssignTagTargetName('');
+              }}
+              disabled={bulkActionLoading}
+              className="px-4 py-2 text-sm font-medium text-[var(--dash-text-secondary)] bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleBulkAssignTag}
+              disabled={bulkActionLoading || !selectedTagId}
+              className="px-4 py-2 text-sm font-medium text-white bg-[var(--brand)] rounded-lg hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            >
+              {bulkActionLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Assigning...
+                </>
+              ) : (
+                <>
+                  <TagIcon className="w-4 h-4" />
+                  Assign Tag
+                </>
+              )}
+            </button>
+          </ModalFooter>
+          </>
+        )}
       </Modal>
 
       {/* Add to Collection Modal */}

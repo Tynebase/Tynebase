@@ -30,6 +30,7 @@ import {
 import Link from "next/link";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/Card";
 import { DeleteConfirmationModal } from "@/components/ui/DeleteConfirmationModal";
+import { Modal } from "@/components/ui/Modal";
 import { 
   getDocument, 
   updateDocument, 
@@ -114,6 +115,7 @@ export default function EditDocumentPage() {
   const [visibility, setVisibility] = useState<"public" | "private" | "team">("team");
   const [mode, setMode] = useState<"edit" | "read">("edit");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showCopyLinkModal, setShowCopyLinkModal] = useState(false);
   const hasFetched = useRef(false);
 
   // Refetch content when switching to read mode to get latest saved content
@@ -711,9 +713,9 @@ export default function EditDocumentPage() {
                     <Button variant="ghost" className="w-full justify-start gap-2" onClick={() => {
                       const url = `${window.location.origin}/dashboard/knowledge/${documentId}`;
                       navigator.clipboard.writeText(url).then(() => {
-                        alert('Link copied to clipboard!');
+                        setShowCopyLinkModal(true);
                       }).catch(() => {
-                        alert('Failed to copy link.');
+                        setShowCopyLinkModal(true);
                       });
                     }}>
                       <ExternalLink className="w-4 h-4" />
@@ -721,7 +723,7 @@ export default function EditDocumentPage() {
                     </Button>
                     <Button
                       variant="ghost"
-                      className="w-full justify-start gap-2 text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                      className="w-full justify-center gap-2 text-red-500 hover:text-red-600 hover:bg-red-500/10"
                       onClick={() => setShowDeleteModal(true)}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -838,6 +840,31 @@ export default function EditDocumentPage() {
             </div>
         </div>
       </div>
+
+      {/* Copy Link Success Modal */}
+      <Modal
+        isOpen={showCopyLinkModal}
+        onClose={() => setShowCopyLinkModal(false)}
+        size="sm"
+      >
+        <div className="flex flex-col items-center text-center">
+          <div className="w-14 h-14 rounded-full bg-green-500/10 flex items-center justify-center mb-5">
+            <CheckCircle className="w-7 h-7 text-green-500" />
+          </div>
+          <h3 className="text-lg font-semibold text-[var(--dash-text-primary)] mb-2">
+            Link Copied
+          </h3>
+          <p className="text-sm text-[var(--dash-text-tertiary)] max-w-xs">
+            The document link has been copied to your clipboard.
+          </p>
+          <button
+            onClick={() => setShowCopyLinkModal(false)}
+            className="mt-6 px-8 py-2.5 text-sm font-medium text-white bg-[var(--brand)] rounded-lg hover:bg-[var(--brand-dark)] transition-colors"
+          >
+            Done
+          </button>
+        </div>
+      </Modal>
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal
