@@ -142,11 +142,11 @@ export default function TemplatesPage() {
 
       {/* Error State */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+        <div className="bg-[var(--status-error)]/10 border border-[var(--status-error)]/20 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-[var(--status-error)] flex-shrink-0 mt-0.5" />
           <div>
-            <h3 className="text-sm font-semibold text-red-900">Failed to load templates</h3>
-            <p className="text-sm text-red-700 mt-1">{error}</p>
+            <h3 className="text-sm font-semibold text-[var(--dash-text-primary)]">Failed to load templates</h3>
+            <p className="text-sm text-[var(--dash-text-secondary)] mt-1">{error}</p>
           </div>
         </div>
       )}
@@ -341,7 +341,7 @@ export default function TemplatesPage() {
                                             setOpenMenuId(null);
                                             router.push(`/dashboard/templates/${template.id}`);
                                           }}
-                                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--dash-text-primary)] hover:bg-[var(--surface-ground)] transition-colors"
+                                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--dash-text-primary)] hover:bg-[var(--surface-ground)] rounded-md transition-colors"
                                         >
                                           <Pencil className="w-3.5 h-3.5" />
                                           Edit
@@ -353,7 +353,7 @@ export default function TemplatesPage() {
                                               handleDeleteTemplate(template.id);
                                             }}
                                             disabled={deletingId === template.id}
-                                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--status-error)] hover:bg-[var(--status-error)]/10 rounded-md transition-colors"
                                           >
                                             {deletingId === template.id ? (
                                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -368,7 +368,7 @@ export default function TemplatesPage() {
                                               e.stopPropagation();
                                               setConfirmDeleteId(template.id);
                                             }}
-                                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--status-error)] hover:bg-[var(--status-error)]/10 rounded-md transition-colors"
                                           >
                                             <Trash2 className="w-3.5 h-3.5" />
                                             Delete

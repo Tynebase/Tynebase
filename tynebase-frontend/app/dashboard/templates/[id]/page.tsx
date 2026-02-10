@@ -185,7 +185,7 @@ export default function TemplateDetailPage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowDeleteConfirm(true)}
-                className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                className="gap-2 text-[var(--status-error)] hover:text-[var(--status-error)] hover:bg-[var(--status-error)]/10"
               >
                 <Trash2 className="w-4 h-4" />
                 Delete
@@ -253,17 +253,17 @@ export default function TemplateDetailPage() {
 
       {/* Delete Confirmation Dialog */}
       {showDeleteConfirm && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+        <div className="bg-[var(--status-error)]/10 border border-[var(--status-error)]/20 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-[var(--status-error)] flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <h3 className="text-sm font-semibold text-red-900">Delete this template?</h3>
-            <p className="text-sm text-red-700 mt-1">This action cannot be undone. The template will be permanently removed.</p>
+            <h3 className="text-sm font-semibold text-[var(--dash-text-primary)]">Delete this template?</h3>
+            <p className="text-sm text-[var(--dash-text-secondary)] mt-1">This action cannot be undone. The template will be permanently deleted.</p>
             <div className="flex items-center gap-2 mt-3">
               <Button
                 size="sm"
                 onClick={handleDelete}
                 disabled={isDeleting}
-                className="bg-red-600 hover:bg-red-700 text-white gap-2"
+                className="bg-[var(--status-error)] hover:bg-[var(--status-error)]/90 text-white gap-2"
               >
                 {isDeleting ? (
                   <>
@@ -273,7 +273,7 @@ export default function TemplateDetailPage() {
                 ) : (
                   <>
                     <Trash2 className="w-4 h-4" />
-                    Yes, Delete
+                    Delete
                   </>
                 )}
               </Button>

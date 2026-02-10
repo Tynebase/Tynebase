@@ -146,7 +146,7 @@ export default function AuditPage() {
   };
 
   const handleDocumentClick = (docId: string) => {
-    router.push(`/dashboard/sources/${docId}`);
+    router.push(`/dashboard/knowledge/${docId}`);
   };
 
   const handleExport = () => {
