@@ -185,7 +185,7 @@ export default function TemplateDetailPage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowDeleteConfirm(true)}
-                className="gap-2 text-[var(--status-error)] hover:text-[var(--status-error)] hover:bg-[var(--status-error)]/10"
+                className="gap-2 text-[var(--status-error)] hover:text-[var(--status-error)] hover:bg-[var(--status-error-bg)]"
               >
                 <Trash2 className="w-4 h-4" />
                 Delete
@@ -253,7 +253,7 @@ export default function TemplateDetailPage() {
 
       {/* Delete Confirmation Dialog */}
       {showDeleteConfirm && (
-        <div className="bg-[var(--status-error)]/10 border border-[var(--status-error)]/20 rounded-lg p-4 flex items-start gap-3">
+        <div className="bg-[var(--status-error-bg)] border border-[var(--status-error)]/20 rounded-lg p-4 flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-[var(--status-error)] flex-shrink-0 mt-0.5" />
           <div className="flex-1">
             <h3 className="text-sm font-semibold text-[var(--dash-text-primary)]">Delete this template?</h3>
@@ -263,7 +263,7 @@ export default function TemplateDetailPage() {
                 size="sm"
                 onClick={handleDelete}
                 disabled={isDeleting}
-                className="bg-[var(--status-error)] hover:bg-[var(--status-error)]/90 text-white gap-2"
+                className="bg-[var(--status-error)] hover:opacity-90 text-white gap-2"
               >
                 {isDeleting ? (
                   <>
