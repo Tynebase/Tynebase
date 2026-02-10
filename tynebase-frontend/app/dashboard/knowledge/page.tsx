@@ -122,7 +122,18 @@ export default function KnowledgePage() {
 
   // Resizable column widths (in fr units, matching the original grid template)
   const defaultColWidths = [3.5, 1, 1.5, 0.8, 0.8, 0.8, 1.5, 0.8];
-  const [colWidths, setColWidths] = useState<number[]>(defaultColWidths);
+  const COL_WIDTHS_KEY = 'tynebase_knowledge_col_widths';
+  const [colWidths, setColWidths] = useState<number[]>(() => {
+    if (typeof window === 'undefined') return defaultColWidths;
+    try {
+      const saved = localStorage.getItem(COL_WIDTHS_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length === defaultColWidths.length) return parsed;
+      }
+    } catch {}
+    return defaultColWidths;
+  });
   const resizingCol = useRef<number | null>(null);
   const resizeStartX = useRef<number>(0);
   const resizeStartWidths = useRef<number[]>([...defaultColWidths]);
@@ -167,6 +178,10 @@ export default function KnowledgePage() {
       document.removeEventListener('mouseup', handleMouseUp);
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
+      setColWidths(current => {
+        try { localStorage.setItem(COL_WIDTHS_KEY, JSON.stringify(current)); } catch {}
+        return current;
+      });
     };
 
     document.body.style.cursor = 'col-resize';
@@ -1111,10 +1126,10 @@ export default function KnowledgePage() {
                   return [
                     <div key={`h-${i}`} className="relative flex items-center">{header.props.children}
                       <div
-                        className="absolute right-0 top-0 bottom-0 w-[3px] cursor-col-resize group/resize z-10 flex items-center justify-center"
+                        className="absolute -right-[5px] top-0 bottom-0 w-[11px] cursor-col-resize group/resize z-10 flex items-center justify-center"
                         onMouseDown={(e) => handleResizeStart(e, i)}
                       >
-                        <div className="w-px h-4 bg-[var(--dash-border-subtle)] group-hover/resize:bg-[var(--brand)] group-hover/resize:h-full transition-all" />
+                        <div className="w-px h-full bg-[var(--dash-border-subtle)] group-hover/resize:w-[2px] group-hover/resize:bg-[var(--brand)] transition-all" />
                       </div>
                     </div>
                   ];
@@ -1156,13 +1171,13 @@ export default function KnowledgePage() {
                         </div>
                       </div>
                       {/* Category */}
-                      <div className="px-2">
-                        <span className="text-sm text-[var(--dash-text-secondary)]">{categories.find(c => c.id === doc.categoryId)?.name || 'Uncategorized'}</span>
+                      <div className="px-2 overflow-hidden">
+                        <span className="text-sm text-[var(--dash-text-secondary)] truncate block">{categories.find(c => c.id === doc.categoryId)?.name || 'Uncategorized'}</span>
                       </div>
                       {/* Tags */}
-                      <div className="px-2">
+                      <div className="px-2 overflow-hidden">
                         {doc.tags?.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-nowrap gap-1 overflow-hidden">
                             {doc.tags.slice(0, 2).map((tag) => (
                               <span key={tag.id} className="inline-flex px-2 py-0.5 text-xs rounded-full bg-[var(--surface-hover)] text-[var(--dash-text-secondary)]">
                                 {tag.name}
@@ -1179,7 +1194,7 @@ export default function KnowledgePage() {
                         )}
                       </div>
                       {/* Visibility */}
-                      <div className="text-center px-2">
+                      <div className="text-center px-2 overflow-hidden">
                         <span
                           className="inline-flex items-center justify-center"
                           title={getVisibilityLabel(doc.visibility)}
@@ -1188,14 +1203,14 @@ export default function KnowledgePage() {
                         </span>
                       </div>
                       {/* Status */}
-                      <div className="text-center px-2">
-                        <span className={`inline-flex px-3 py-1.5 text-xs font-medium rounded-full ${getStateColor(doc.state)}`}>
+                      <div className="text-center px-2 overflow-hidden">
+                        <span className={`inline-flex px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap ${getStateColor(doc.state)}`}>
                           {doc.state.replace("_", " ").replace(/\b\w/g, c => c.toUpperCase())}
                         </span>
                       </div>
                       {/* AI Score */}
-                      <div className="text-center px-2">
-                        <span className={`inline-flex items-center gap-1.5 text-sm font-medium ${getAiScoreColor(doc.aiScore)}`}>
+                      <div className="text-center px-2 overflow-hidden">
+                        <span className={`inline-flex items-center gap-1.5 text-sm font-medium whitespace-nowrap ${getAiScoreColor(doc.aiScore)}`}>
                           <Sparkles className="w-3.5 h-3.5" />
                           {doc.aiScore !== null ? `${doc.aiScore}%` : '--'}
                           <span className="text-[var(--dash-text-muted)] font-normal">·</span>
@@ -1203,9 +1218,9 @@ export default function KnowledgePage() {
                         </span>
                       </div>
                       {/* Updated */}
-                      <div className="px-2">
-                        <p className="text-sm text-[var(--dash-text-secondary)]">{doc.updatedAt}</p>
-                        <p className="text-xs text-[var(--dash-text-muted)]">by {doc.lastEditor}</p>
+                      <div className="px-2 overflow-hidden">
+                        <p className="text-sm text-[var(--dash-text-secondary)] truncate">{doc.updatedAt}</p>
+                        <p className="text-xs text-[var(--dash-text-muted)] truncate">by {doc.lastEditor}</p>
                       </div>
                       {/* Views */}
                       <div className="flex items-center justify-end gap-1">
