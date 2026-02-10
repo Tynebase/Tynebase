@@ -489,6 +489,57 @@ export function RichTextEditor({
       attributes: {
         class: "prose prose-lg max-w-none focus:outline-none min-h-[500px] px-8 py-6",
       },
+      handleDrop: (view, event, _slice, moved) => {
+        if (moved || readOnly) return false;
+        const dataTransfer = event.dataTransfer;
+        if (!dataTransfer?.files?.length) return false;
+        const hasMedia = Array.from(dataTransfer.files).some(
+          (f) => f.type.startsWith('image/') || f.type.startsWith('video/')
+        );
+        if (!hasMedia) return false;
+        event.preventDefault();
+        (async () => {
+          for (const file of Array.from(dataTransfer.files)) {
+            try {
+              if (file.type.startsWith('image/')) {
+                const response = await uploadDocumentAsset(documentId, file);
+                view.dispatch(view.state.tr);
+                editorRefForDrag.current?.chain().focus().setImage({ src: response.signed_url }).run();
+              } else if (file.type.startsWith('video/')) {
+                const response = await uploadDocumentAsset(documentId, file);
+                view.dispatch(view.state.tr);
+                editorRefForDrag.current?.chain().focus().setVideo({
+                  src: response.signed_url,
+                  title: response.filename,
+                  videoType: 'uploaded' as const,
+                }).run();
+              }
+            } catch (err) {
+              console.error('Failed to upload dropped file:', err);
+            }
+          }
+        })();
+        return true;
+      },
+      handlePaste: (view, event) => {
+        if (readOnly) return false;
+        const items = event.clipboardData?.items;
+        if (!items) return false;
+        const imageItem = Array.from(items).find((item) => item.type.startsWith('image/'));
+        if (!imageItem) return false;
+        const file = imageItem.getAsFile();
+        if (!file) return false;
+        event.preventDefault();
+        (async () => {
+          try {
+            const response = await uploadDocumentAsset(documentId, file);
+            editorRefForDrag.current?.chain().focus().setImage({ src: response.signed_url }).run();
+          } catch (err) {
+            console.error('Failed to upload pasted image:', err);
+          }
+        })();
+        return true;
+      },
     },
     onCreate: ({ editor }) => updateCounts(editor.getText()),
     onUpdate: ({ editor }) => updateCounts(editor.getText()),
