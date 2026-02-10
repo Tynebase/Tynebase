@@ -270,7 +270,7 @@ export function DashboardSidebar({ mobile }: { mobile?: boolean }) {
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === href;
     // Exact match for section parent routes to prevent double-highlighting
-    const exactMatchRoutes = ["/dashboard/knowledge", "/dashboard/sources"];
+    const exactMatchRoutes = ["/dashboard/knowledge", "/dashboard/sources", "/dashboard/settings", "/dashboard/ai-assistant"];
     if (exactMatchRoutes.includes(href)) return pathname === href;
     return pathname.startsWith(href) && href !== "/dashboard";
   };
