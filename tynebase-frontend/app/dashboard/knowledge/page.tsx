@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
@@ -84,6 +84,8 @@ export default function KnowledgePage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<UIDocument | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteSuccessOpen, setDeleteSuccessOpen] = useState(false);
+  const [deleteSuccessMessage, setDeleteSuccessMessage] = useState('');
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [apiCategories, setApiCategories] = useState<Category[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
@@ -117,6 +119,61 @@ export default function KnowledgePage() {
   const [selectedCategoryForMove, setSelectedCategoryForMove] = useState<string | null>(null);
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
+
+  // Resizable column widths (in fr units, matching the original grid template)
+  const defaultColWidths = [3.5, 1, 1.5, 0.8, 0.8, 0.8, 1.5, 0.8];
+  const [colWidths, setColWidths] = useState<number[]>(defaultColWidths);
+  const resizingCol = useRef<number | null>(null);
+  const resizeStartX = useRef<number>(0);
+  const resizeStartWidths = useRef<number[]>([...defaultColWidths]);
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  const gridStyle = useMemo(() => {
+    const template = colWidths.map((w, i) => i === 0 ? `minmax(0,${w}fr)` : `${w}fr`).join(' ');
+    return { gridTemplateColumns: template };
+  }, [colWidths]);
+
+  const handleResizeStart = useCallback((e: React.MouseEvent, colIndex: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizingCol.current = colIndex;
+    resizeStartX.current = e.clientX;
+    resizeStartWidths.current = [...colWidths];
+
+    const handleMouseMove = (ev: MouseEvent) => {
+      if (resizingCol.current === null || !tableRef.current) return;
+      const tableWidth = tableRef.current.getBoundingClientRect().width;
+      const totalFr = resizeStartWidths.current.reduce((a, b) => a + b, 0);
+      const pxPerFr = tableWidth / totalFr;
+      const delta = ev.clientX - resizeStartX.current;
+      const deltaFr = delta / pxPerFr;
+
+      const idx = resizingCol.current;
+      const minFr = 0.4;
+      const newLeft = Math.max(minFr, resizeStartWidths.current[idx] + deltaFr);
+      const newRight = Math.max(minFr, resizeStartWidths.current[idx + 1] - deltaFr);
+
+      setColWidths(prev => {
+        const next = [...resizeStartWidths.current];
+        next[idx] = newLeft;
+        next[idx + 1] = newRight;
+        return next;
+      });
+    };
+
+    const handleMouseUp = () => {
+      resizingCol.current = null;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [colWidths]);
 
   // Fetch categories on mount
   useEffect(() => {
@@ -282,6 +339,8 @@ export default function KnowledgePage() {
       
       setDeleteModalOpen(false);
       setDocumentToDelete(null);
+      setDeleteSuccessMessage('Your document has been deleted.');
+      setDeleteSuccessOpen(true);
     } catch (err) {
       console.error('Failed to delete document:', err);
       setError(err instanceof Error ? err.message : 'Failed to delete document');
@@ -454,11 +513,14 @@ export default function KnowledgePage() {
       await Promise.all(promises);
       
       // Update local state
+      const deletedCount = selectedIds.size;
       setDocuments(prev => prev.filter(doc => !selectedIds.has(doc.id)));
-      setTotalDocs(prev => prev - selectedIds.size);
+      setTotalDocs(prev => prev - deletedCount);
       
       setBulkDeleteModalOpen(false);
       clearSelection();
+      setDeleteSuccessMessage(deletedCount === 1 ? 'Your document has been deleted.' : `Your ${deletedCount} documents have been deleted.`);
+      setDeleteSuccessOpen(true);
     } catch (err) {
       console.error('Failed to delete documents:', err);
       setError(err instanceof Error ? err.message : 'Failed to delete documents');
@@ -1017,41 +1079,57 @@ export default function KnowledgePage() {
         <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* Documents List/Grid */}
         {viewMode === 'list' ? (
-          <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl overflow-hidden flex flex-col flex-1 min-h-0">
+          <div ref={tableRef} className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl overflow-hidden flex flex-col flex-1 min-h-0">
             {/* Table Header */}
-            <div className="hidden md:grid grid-cols-[minmax(0,3.5fr)_1fr_1.5fr_0.8fr_0.8fr_0.8fr_1.5fr_0.8fr] gap-4 px-6 py-3 bg-[var(--surface-ground)] border-b border-[var(--dash-border-subtle)] text-xs font-medium text-[var(--dash-text-muted)] uppercase tracking-wider">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => handleSelectAll(filteredDocIds)}
-                  className="flex-shrink-0 p-0.5 rounded hover:bg-[var(--surface-hover)] transition-colors"
-                  title={allFilteredSelected ? "Deselect all" : "Select all"}
-                >
-                  {allFilteredSelected ? (
-                    <CheckSquare className="w-4 h-4 text-[var(--brand)]" />
-                  ) : someFilteredSelected ? (
-                    <Minus className="w-4 h-4 text-[var(--brand)]" />
-                  ) : (
-                    <Square className="w-4 h-4 text-[var(--dash-text-muted)]" />
-                  )}
-                </button>
-                Document
-              </div>
-              <div>Category</div>
-              <div>Tags</div>
-              <div className="text-center">Visibility</div>
-              <div className="text-center">Status</div>
-              <div className="text-center">AI Score</div>
-              <div>Updated</div>
-              <div className="text-right">Views</div>
+            <div className="hidden md:grid gap-0 px-6 py-3 bg-[var(--surface-ground)] border-b border-[var(--dash-border-subtle)] text-xs font-medium text-[var(--dash-text-muted)] uppercase tracking-wider" style={gridStyle}>
+              {[
+                <div key="doc" className="flex items-center gap-3 pr-2">
+                  <button
+                    onClick={() => handleSelectAll(filteredDocIds)}
+                    className="flex-shrink-0 p-0.5 rounded hover:bg-[var(--surface-hover)] transition-colors"
+                    title={allFilteredSelected ? "Deselect all" : "Select all"}
+                  >
+                    {allFilteredSelected ? (
+                      <CheckSquare className="w-4 h-4 text-[var(--brand)]" />
+                    ) : someFilteredSelected ? (
+                      <Minus className="w-4 h-4 text-[var(--brand)]" />
+                    ) : (
+                      <Square className="w-4 h-4 text-[var(--dash-text-muted)]" />
+                    )}
+                  </button>
+                  Document
+                </div>,
+                <div key="cat" className="px-2">Category</div>,
+                <div key="tags" className="px-2">Tags</div>,
+                <div key="vis" className="text-center px-2">Visibility</div>,
+                <div key="status" className="text-center px-2">Status</div>,
+                <div key="ai" className="text-center px-2">AI Score</div>,
+                <div key="updated" className="px-2">Updated</div>,
+                <div key="views" className="text-right pl-2">Views</div>,
+              ].flatMap((header, i, arr) => {
+                if (i < arr.length - 1) {
+                  return [
+                    <div key={`h-${i}`} className="relative flex items-center">{header.props.children}
+                      <div
+                        className="absolute right-0 top-0 bottom-0 w-[3px] cursor-col-resize group/resize z-10 flex items-center justify-center"
+                        onMouseDown={(e) => handleResizeStart(e, i)}
+                      >
+                        <div className="w-px h-4 bg-[var(--dash-border-subtle)] group-hover/resize:bg-[var(--brand)] group-hover/resize:h-full transition-all" />
+                      </div>
+                    </div>
+                  ];
+                }
+                return [header];
+              })}
             </div>
             <div className="divide-y divide-[var(--dash-border-subtle)] flex-1 min-h-0 overflow-auto">
               {filteredDocs.map((doc) => (
                 <Link key={doc.id} href={`/dashboard/knowledge/${doc.id}`}>
                   <div className="block hover:bg-[var(--surface-hover)] transition-colors cursor-pointer group">
                     {/* Desktop Table View */}
-                    <div className="hidden md:grid grid-cols-[minmax(0,3.5fr)_1fr_1.5fr_0.8fr_0.8fr_0.8fr_1.5fr_0.8fr] gap-4 px-6 py-4 items-center">
+                    <div className="hidden md:grid gap-0 px-6 py-4 items-center" style={gridStyle}>
                       {/* Document Info */}
-                      <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex items-center gap-3 min-w-0 pr-2">
                         <button
                           onClick={(e) => handleSelectDocument(doc.id, e)}
                           className="flex-shrink-0 p-0.5 rounded hover:bg-[var(--surface-hover)] transition-colors"
@@ -1078,11 +1156,11 @@ export default function KnowledgePage() {
                         </div>
                       </div>
                       {/* Category */}
-                      <div>
+                      <div className="px-2">
                         <span className="text-sm text-[var(--dash-text-secondary)]">{categories.find(c => c.id === doc.categoryId)?.name || 'Uncategorized'}</span>
                       </div>
                       {/* Tags */}
-                      <div>
+                      <div className="px-2">
                         {doc.tags?.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
                             {doc.tags.slice(0, 2).map((tag) => (
@@ -1101,7 +1179,7 @@ export default function KnowledgePage() {
                         )}
                       </div>
                       {/* Visibility */}
-                      <div className="text-center">
+                      <div className="text-center px-2">
                         <span
                           className="inline-flex items-center justify-center"
                           title={getVisibilityLabel(doc.visibility)}
@@ -1110,13 +1188,13 @@ export default function KnowledgePage() {
                         </span>
                       </div>
                       {/* Status */}
-                      <div className="text-center">
+                      <div className="text-center px-2">
                         <span className={`inline-flex px-3 py-1.5 text-xs font-medium rounded-full ${getStateColor(doc.state)}`}>
                           {doc.state.replace("_", " ").replace(/\b\w/g, c => c.toUpperCase())}
                         </span>
                       </div>
                       {/* AI Score */}
-                      <div className="text-center">
+                      <div className="text-center px-2">
                         <span className={`inline-flex items-center gap-1.5 text-sm font-medium ${getAiScoreColor(doc.aiScore)}`}>
                           <Sparkles className="w-3.5 h-3.5" />
                           {doc.aiScore !== null ? `${doc.aiScore}%` : '--'}
@@ -1125,7 +1203,7 @@ export default function KnowledgePage() {
                         </span>
                       </div>
                       {/* Updated */}
-                      <div>
+                      <div className="px-2">
                         <p className="text-sm text-[var(--dash-text-secondary)]">{doc.updatedAt}</p>
                         <p className="text-xs text-[var(--dash-text-muted)]">by {doc.lastEditor}</p>
                       </div>
@@ -1333,6 +1411,31 @@ export default function KnowledgePage() {
                 Delete Document
               </>
             )}
+          </button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Delete Success Confirmation Modal */}
+      <Modal
+        isOpen={deleteSuccessOpen}
+        onClose={() => setDeleteSuccessOpen(false)}
+        title="Documents Deleted"
+        size="sm"
+      >
+        <div className="flex flex-col items-center gap-4 py-4">
+          <div className="w-12 h-12 rounded-full bg-[var(--status-success-bg)] flex items-center justify-center">
+            <CheckCircle className="w-6 h-6 text-[var(--status-success)]" />
+          </div>
+          <p className="text-sm text-[var(--dash-text-secondary)] text-center">
+            {deleteSuccessMessage}
+          </p>
+        </div>
+        <ModalFooter>
+          <button
+            onClick={() => setDeleteSuccessOpen(false)}
+            className="px-4 py-2 text-sm font-medium text-white bg-[var(--brand)] rounded-lg hover:bg-[var(--brand)]/90 transition-colors"
+          >
+            OK
           </button>
         </ModalFooter>
       </Modal>
