@@ -18,6 +18,7 @@ import { listCategories, type Category } from "@/lib/api/folders";
 import { listCollections, addDocumentsToCollection, type Collection } from "@/lib/api/collections";
 import { listTags, addTagToDocuments, type Tag as TagType } from "@/lib/api/tags";
 import { Modal, ModalFooter } from "@/components/ui/Modal";
+import { DeleteConfirmationModal } from "@/components/ui/DeleteConfirmationModal";
 import { DocumentImportModal } from "@/components/docs/DocumentImportModal";
 import { SortableCategories } from "@/components/ui/SortableCategories";
 
@@ -1387,49 +1388,14 @@ export default function KnowledgePage() {
       )}
 
       {/* Delete Confirmation Modal */}
-      <Modal
+      <DeleteConfirmationModal
         isOpen={deleteModalOpen}
         onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
         title="Delete Document"
-        description="This action cannot be undone."
-        size="sm"
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-[var(--dash-text-secondary)]">
-            Are you sure you want to delete <span className="font-semibold text-[var(--dash-text-primary)]">"{documentToDelete?.title}"</span>?
-          </p>
-          <p className="text-sm text-[var(--status-error)]">
-            This will permanently remove the document and all its content.
-          </p>
-        </div>
-        
-        <ModalFooter>
-          <button
-            onClick={handleDeleteCancel}
-            disabled={deleting}
-            className="px-4 py-2 text-sm font-medium text-[var(--dash-text-secondary)] bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleDeleteConfirm}
-            disabled={deleting}
-            className="px-4 py-2 text-sm font-medium text-white bg-[var(--status-error)] rounded-lg hover:bg-[var(--status-error)]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-          >
-            {deleting ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Deleting...
-              </>
-            ) : (
-              <>
-                <Trash2 className="w-4 h-4" />
-                Delete Document
-              </>
-            )}
-          </button>
-        </ModalFooter>
-      </Modal>
+        itemName={documentToDelete?.title}
+        confirmButtonText="Delete Document"
+      />
 
       {/* Delete Success Confirmation Modal */}
       <Modal
@@ -1757,48 +1723,14 @@ export default function KnowledgePage() {
       </Modal>
 
       {/* Bulk Delete Modal */}
-      <Modal
+      <DeleteConfirmationModal
         isOpen={bulkDeleteModalOpen}
         onClose={() => setBulkDeleteModalOpen(false)}
-        title="Delete documents"
-        size="sm"
-      >
-        <div className="space-y-4">
-          <p className="text-sm font-semibold text-[var(--status-error)]">
-            This action cannot be undone.
-          </p>
-          <p className="text-sm text-[var(--dash-text-secondary)]">
-            Are you sure you want to delete these {selectedIds.size} document{selectedIds.size !== 1 ? 's' : ''}? This will permanently remove all of the selected documents and their content.
-          </p>
-        </div>
-        
-        <ModalFooter>
-          <button
-            onClick={() => setBulkDeleteModalOpen(false)}
-            disabled={bulkActionLoading}
-            className="px-4 py-2 text-sm font-medium text-[var(--dash-text-secondary)] bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleBulkDelete}
-            disabled={bulkActionLoading}
-            className="px-4 py-2 text-sm font-medium text-white bg-[var(--status-error)] rounded-lg hover:bg-[var(--status-error)]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-          >
-            {bulkActionLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Deleting...
-              </>
-            ) : (
-              <>
-                <Trash2 className="w-4 h-4" />
-                Delete
-              </>
-            )}
-          </button>
-        </ModalFooter>
-      </Modal>
+        onConfirm={handleBulkDelete}
+        title={`Delete ${selectedIds.size} Document${selectedIds.size !== 1 ? 's' : ''}`}
+        description={`Are you sure you want to delete ${selectedIds.size} document${selectedIds.size !== 1 ? 's' : ''}? This will permanently remove all selected documents and their content.`}
+        confirmButtonText="Delete"
+      />
     </div>
   );
 }
