@@ -84,25 +84,28 @@ export function Modal({
       >
         {/* Header */}
         {(title || showCloseButton) && (
-          <div className="relative px-6 pt-6 pb-5 sm:px-8 sm:pt-8 sm:pb-6 flex-shrink-0">
-            <div className={cn("flex justify-center", showCloseButton ? "pr-10" : "")}>
-              <div className="text-center">
-                {title && (
+          <div className={cn(
+            "relative flex-shrink-0",
+            title ? "px-6 pt-6 pb-5 sm:px-8 sm:pt-8 sm:pb-6" : "px-6 pt-4 sm:px-8 sm:pt-4"
+          )}>
+            {title && (
+              <div className={cn("flex justify-center", showCloseButton ? "pr-10" : "")}>
+                <div className="text-center">
                   <h2 className="text-lg font-semibold text-[var(--text-primary)]">
                     {title}
                   </h2>
-                )}
-                {description && (
-                  <p className="text-sm text-[var(--text-tertiary)] mt-1">
-                    {description}
-                  </p>
-                )}
+                  {description && (
+                    <p className="text-sm text-[var(--text-tertiary)] mt-1">
+                      {description}
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
             {showCloseButton && (
               <button
                 onClick={onClose}
-                className="absolute right-4 top-4 sm:right-6 sm:top-6 p-2 rounded-lg text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-ground)] transition-colors"
+                className="absolute right-4 top-4 sm:right-6 sm:top-4 p-2 rounded-lg text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-ground)] transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -113,8 +116,8 @@ export function Modal({
         {/* Content */}
         <div
           className={cn(
-            "min-h-0 overflow-y-scroll px-6 sm:px-8",
-            title || showCloseButton ? "pt-2 pb-6 sm:pt-3 sm:pb-8" : "py-6 sm:py-8"
+            "min-h-0 overflow-y-auto px-6 sm:px-8",
+            title ? "pt-2 pb-6 sm:pt-3 sm:pb-8" : "py-6 sm:py-8"
           )}
         >
           {children}

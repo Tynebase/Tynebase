@@ -578,7 +578,7 @@ export default function EditDocumentPage() {
                         >
                           <span className="text-[var(--dash-text-primary)]">No category</span>
                         </button>
-                        {categories.map(c => (
+                        {categories.filter(c => !c.is_system).map(c => (
                           <button
                             key={c.id}
                             onClick={() => handleCategoryChange(c.id)}

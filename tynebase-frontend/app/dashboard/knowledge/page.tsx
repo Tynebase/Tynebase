@@ -1512,7 +1512,7 @@ export default function KnowledgePage() {
               >
                 <option value="" disabled hidden>Select a category...</option>
                 <option value="none">Uncategorised</option>
-                {apiCategories.map((cat) => (
+                {apiCategories.filter(cat => !cat.is_system).map((cat) => (
                   <option key={cat.id} value={cat.id}>{cat.name}</option>
                 ))}
               </select>
