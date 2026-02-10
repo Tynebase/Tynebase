@@ -387,7 +387,7 @@ export default function SourcesPage() {
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-sm font-semibold text-[var(--dash-text-secondary)] hover:border-[var(--status-warning)] hover:text-[var(--status-warning)] transition-all disabled:opacity-50"
         >
           <RefreshCw className={`w-4 h-4 ${retryingFailed ? 'animate-spin' : ''}`} />
-          {retryingFailed ? 'Retrying...' : 'Retry Failed Normalizations'}
+          {retryingFailed ? 'Retrying...' : 'Retry Failed Normalisations'}
         </button>
         <button
           onClick={handleReviewNormalized}
@@ -395,7 +395,7 @@ export default function SourcesPage() {
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-sm font-semibold text-[var(--dash-text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)] transition-all disabled:opacity-50"
         >
           <FileText className="w-4 h-4" />
-          Review Normalized Markdown
+          Review Normalised Markdown
         </button>
         {retryResult && (
           <span className="text-xs text-[var(--dash-text-muted)]">
@@ -525,23 +525,23 @@ export default function SourcesPage() {
       <Modal
         isOpen={showNormalizedModal}
         onClose={() => { setShowNormalizedModal(false); setNormalizedDocs(null); setExpandedDocId(null); }}
-        title="Normalized Markdown"
-        description="Review the markdown content that TyneBase has normalized for RAG indexing."
+        title="Normalised Markdown"
+        description="Review the markdown content that TyneBase has normalised for RAG indexing."
         size="full"
       >
         {loadingNormalized ? (
           <div className="flex items-center justify-center py-12">
             <RefreshCw className="w-6 h-6 text-[var(--dash-text-muted)] animate-spin" />
-            <span className="ml-3 text-sm text-[var(--dash-text-muted)]">Loading normalized documents...</span>
+            <span className="ml-3 text-sm text-[var(--dash-text-muted)]">Loading normalised documents...</span>
           </div>
         ) : normalizedDocs && normalizedDocs.length === 0 ? (
           <div className="text-center py-12">
             <FileText className="w-10 h-10 text-[var(--dash-text-muted)] mx-auto mb-3" />
-            <p className="text-sm text-[var(--dash-text-muted)]">No normalized documents found.</p>
+            <p className="text-sm text-[var(--dash-text-muted)]">No normalised documents found.</p>
           </div>
         ) : normalizedDocs ? (
           <div className="space-y-3">
-            <p className="text-xs text-[var(--dash-text-muted)] mb-4">{normalizedDocs.length} document(s) with normalized content</p>
+            <p className="text-xs text-[var(--dash-text-muted)] mb-4">{normalizedDocs.length} document(s) with normalised content</p>
             {normalizedDocs.map((doc) => (
               <div key={doc.id} className="border border-[var(--dash-border-subtle)] rounded-xl overflow-hidden">
                 <button

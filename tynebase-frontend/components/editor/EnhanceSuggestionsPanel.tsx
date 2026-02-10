@@ -583,7 +583,7 @@ export function EnhanceSuggestionsPanel({
       />
       
       {/* AI enhance panel - modal on mobile, sidebar on desktop */}
-      <div className="fixed lg:relative inset-y-0 right-0 w-full sm:w-[520px] lg:w-[520px] border-l border-[var(--dash-border-subtle)] bg-[var(--surface-card)] flex flex-col h-full min-h-[820px] overflow-hidden z-50 lg:z-auto">
+      <div className="fixed lg:relative inset-y-0 right-0 w-full sm:w-[520px] lg:w-[520px] border-l border-[var(--dash-border-subtle)] bg-[var(--surface-card)] flex flex-col h-full max-h-screen overflow-hidden z-50 lg:z-auto">
         {/* Header */}
         <div className="p-4 border-b border-[var(--dash-border-subtle)] flex items-center justify-between">
         <div className="flex items-center gap-2">
