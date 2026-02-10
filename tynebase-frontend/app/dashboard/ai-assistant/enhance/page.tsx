@@ -728,14 +728,14 @@ export default function EnhancePage() {
                             )}
 
                             {/* DELETE Action */}
-                            {suggestion.action === 'delete' && suggestion.find && (
+                            {suggestion.action === 'delete' && (suggestion.find || suggestion.content) && (
                               <div className="bg-red-50 p-3">
                                 <div className="flex items-center gap-2 mb-2">
                                   <Trash2 className="w-3 h-3 text-red-600" />
                                   <span className="text-[10px] font-semibold text-red-700 uppercase tracking-wider">Text to Delete</span>
                                 </div>
                                 <p className="text-sm text-red-900 leading-relaxed whitespace-pre-wrap bg-red-100/50 p-2 rounded line-through">
-                                  {suggestion.find}
+                                  {suggestion.find || suggestion.content}
                                 </p>
                               </div>
                             )}
