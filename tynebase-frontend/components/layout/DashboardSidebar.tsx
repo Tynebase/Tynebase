@@ -121,7 +121,7 @@ const sourcesNavigation: NavItem[] = [
     id: "sources-normalized",
     label: "Normalised Markdown",
     icon: FileSearch,
-    href: "/dashboard/sources/normalized",
+    href: "/dashboard/sources/normalised",
     color: "#8b5cf6",
   },
   {

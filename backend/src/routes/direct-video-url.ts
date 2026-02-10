@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { rateLimitMiddleware } from '../middleware/rateLimit';
 import { tenantContextMiddleware } from '../middleware/tenantContext';
 import { authMiddleware } from '../middleware/auth';
+import { creditGuardMiddleware } from '../middleware/creditGuard';
 import { dispatchJob } from '../utils/dispatchJob';
 
 const DirectVideoURLSchema = z.object({
@@ -28,6 +29,7 @@ export default async function directVideoURLRoutes(fastify: FastifyInstance) {
         rateLimitMiddleware,
         tenantContextMiddleware,
         authMiddleware,
+        creditGuardMiddleware,
       ],
     },
     async (request, reply) => {

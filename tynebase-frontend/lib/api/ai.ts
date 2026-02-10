@@ -133,6 +133,7 @@ export interface VideoUploadResponse {
 
 export interface YouTubeVideoRequest {
   url: string;
+  output_options?: OutputOptions;
 }
 
 export interface YouTubeVideoResponse {

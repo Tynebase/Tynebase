@@ -1738,10 +1738,7 @@ export default async function ragRoutes(fastify: FastifyInstance) {
             for (const doc of allDocsNoTimestamp) {
               if (untrackedDocIds.has(doc.id)) {
                 await supabaseAdmin
-                  .from('documents')
-                  .update({ last_indexed_at: new Date().toISOString() })
-                  .eq('id', doc.id)
-                  .eq('tenant_id', tenant.id);
+                  .rpc('mark_document_indexed', { doc_id: doc.id, t_id: tenant.id });
               }
             }
           }

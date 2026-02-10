@@ -71,7 +71,7 @@ function documentToDraft(doc: Document): Draft {
     id: doc.id,
     title: doc.title || "Untitled Document",
     excerpt,
-    category: "Uncategorized",
+    category: "Uncategorised",
     createdAt: formatRelativeTime(doc.created_at),
     lastEdited: formatRelativeTime(doc.updated_at),
     createdAtRaw: doc.created_at,

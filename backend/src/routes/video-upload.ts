@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { rateLimitMiddleware } from '../middleware/rateLimit';
 import { tenantContextMiddleware } from '../middleware/tenantContext';
 import { authMiddleware } from '../middleware/auth';
+import { creditGuardMiddleware } from '../middleware/creditGuard';
 import { supabaseAdmin } from '../lib/supabase';
 import { dispatchJob } from '../utils/dispatchJob';
 
@@ -22,6 +23,7 @@ export default async function videoUploadRoutes(fastify: FastifyInstance) {
         rateLimitMiddleware,
         tenantContextMiddleware,
         authMiddleware,
+        creditGuardMiddleware,
       ],
     },
     async (request, reply) => {

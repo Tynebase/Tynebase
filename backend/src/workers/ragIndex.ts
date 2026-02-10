@@ -238,26 +238,13 @@ async function processIndexing(job: Job, workerId: string): Promise<void> {
 
     console.log(`[Worker ${workerId}] Updating document last_indexed_at timestamp...`);
     
-    // Note: The DB trigger update_updated_at_column() will auto-set updated_at = NOW()
-    // We first set last_indexed_at, then read back the trigger-set updated_at and
-    // sync last_indexed_at to match it exactly, preventing false "outdated" status.
-    const { data: updatedRow, error: updateError } = await supabaseAdmin
-      .from('documents')
-      .update({ last_indexed_at: new Date().toISOString() })
-      .eq('id', document.id)
-      .eq('tenant_id', job.tenant_id)
-      .select('updated_at')
-      .single();
+    // Use atomic RPC to set last_indexed_at = GREATEST(NOW(), updated_at) on the DB,
+    // guaranteeing last_indexed_at >= updated_at regardless of clock skew or triggers.
+    const { error: updateError } = await supabaseAdmin
+      .rpc('mark_document_indexed', { doc_id: document.id, t_id: job.tenant_id });
 
     if (updateError) {
       console.error(`[Worker ${workerId}] Failed to update last_indexed_at:`, updateError);
-    } else if (updatedRow) {
-      // Sync last_indexed_at to the exact trigger-set updated_at to guarantee match
-      await supabaseAdmin
-        .from('documents')
-        .update({ last_indexed_at: updatedRow.updated_at })
-        .eq('id', document.id)
-        .eq('tenant_id', job.tenant_id);
     }
 
     console.log(`[Worker ${workerId}] Completing job...`);

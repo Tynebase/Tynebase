@@ -373,7 +373,7 @@ export default function EditDocumentPage() {
             <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-[var(--dash-text-tertiary)] min-w-0 overflow-hidden">
               <span className="text-[var(--dash-text-muted)] hidden md:inline">Knowledge Base</span>
               <span className="hidden md:inline">/</span>
-              <span className="hidden lg:inline">{selectedCategory?.name || 'Uncategorized'}</span>
+              <span className="hidden lg:inline">{selectedCategory?.name || 'Uncategorised'}</span>
               <span className="hidden lg:inline">/</span>
               <span className="text-[var(--dash-text-primary)] truncate max-w-[120px] sm:max-w-[180px] md:max-w-[240px]">{title || "Untitled"}</span>
             </div>

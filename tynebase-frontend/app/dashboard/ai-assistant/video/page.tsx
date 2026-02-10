@@ -178,9 +178,14 @@ export default function VideoPage() {
     setProgress(0);
     
     try {
-      // Note: YouTube transcription currently doesn't support output options via this endpoint
-      // TODO: Update transcribeYouTube to accept output options
-      const response = await transcribeYouTube({ url: youtubeUrl.trim() });
+      const apiOptions: OutputOptions = {
+        generate_transcript: outputOptions.transcript,
+        generate_summary: outputOptions.summary,
+        generate_article: outputOptions.article,
+        ai_model: selectedProvider as 'deepseek' | 'gemini' | 'claude',
+      };
+      
+      const response = await transcribeYouTube({ url: youtubeUrl.trim(), output_options: apiOptions });
       const job = response.job;
       setCurrentJob(job);
       

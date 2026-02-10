@@ -205,7 +205,7 @@ export default function NormalizedMarkdownPage() {
         <div className="rounded-xl border border-[var(--status-error)]/30 bg-[var(--status-error)]/5 px-4 py-3 text-sm text-[var(--dash-text-secondary)] flex items-start gap-3">
           <AlertTriangle className="w-4 h-4 text-[var(--status-error)] mt-0.5" />
           <div>
-            <p className="font-semibold text-[var(--dash-text-primary)]">Couldn’t load documents from the database</p>
+            <p className="font-semibold text-[var(--dash-text-primary)]">Couldn't load documents from the database</p>
             <p className="text-[var(--dash-text-tertiary)] mt-0.5">{error}</p>
           </div>
         </div>
@@ -280,7 +280,7 @@ export default function NormalizedMarkdownPage() {
                     >
                       <p className="font-semibold text-[var(--dash-text-primary)] truncate">{d.title}</p>
                       <p className="text-xs text-[var(--dash-text-muted)] truncate mt-0.5">
-                        {d.status ?? "draft"}
+                        {(d.status ?? "draft").charAt(0).toUpperCase() + (d.status ?? "draft").slice(1)}
                         {d.updatedAt ? ` • Updated ${new Date(d.updatedAt).toLocaleString()}` : ""}
                       </p>
                     </button>
@@ -389,7 +389,7 @@ export default function NormalizedMarkdownPage() {
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-[var(--dash-text-primary)] truncate">{selected.title}</p>
                       <p className="text-xs text-[var(--dash-text-tertiary)] mt-1">
-                        {selected.status ?? "draft"} • {selected.visibility ?? "team"}
+                        {(selected.status ?? "draft").charAt(0).toUpperCase() + (selected.status ?? "draft").slice(1)} • {(selected.visibility ?? "team").charAt(0).toUpperCase() + (selected.visibility ?? "team").slice(1)}
                         {selected.updatedAt ? ` • Updated ${new Date(selected.updatedAt).toLocaleString()}` : ""}
                       </p>
                     </div>

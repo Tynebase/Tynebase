@@ -24,10 +24,9 @@ const VideoTranscribeRequestSchema = z.object({
  * POST /api/documents/:id/transcribe-video
  * 
  * Transcribes an embedded video and appends the transcript to the document
- * Flow: Sidecar → GCS → Gemini 2.5 Flash → Append MD to document
- * Fallback: Sidecar → Supabase Storage → Whisper
+ * Flow: Sidecar → GCS → Gemini 2.5 Flash → Generate with selected model → Append MD to document
  * 
- * Cost: 12 credits (fixed, Gemini only)
+ * Cost: 10 credits base + 2 per summary/article output
  */
 export default async function videoTranscribeToDocumentRoutes(fastify: FastifyInstance) {
   fastify.post<{

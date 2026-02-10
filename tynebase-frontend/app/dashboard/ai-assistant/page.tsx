@@ -161,6 +161,10 @@ export default function AIAssistantPage() {
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
+    if (prompt.trim().length < 10) {
+      setError('Prompt must be at least 10 characters');
+      return;
+    }
     
     setIsGenerating(true);
     setError(null);

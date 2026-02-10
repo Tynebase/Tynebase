@@ -226,7 +226,7 @@ export default async function aiGenerateRoutes(fastify: FastifyInstance) {
           return reply.status(400).send({
             error: {
               code: 'VALIDATION_ERROR',
-              message: 'Invalid request parameters',
+              message: `Invalid request: ${errorMessages.join('; ')}`,
               details: errorMessages,
             },
           });

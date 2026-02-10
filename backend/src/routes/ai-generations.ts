@@ -146,6 +146,24 @@ export default async function recentGenerationsRoutes(fastify: FastifyInstance) 
           };
         }) || [];
 
+        // Filter out generations whose linked document has been deleted
+        const documentIds = transformedJobs
+          .map((j) => j.document_id)
+          .filter((id): id is string => id !== null);
+
+        let existingDocIds = new Set<string>();
+        if (documentIds.length > 0) {
+          const { data: existingDocs } = await supabaseAdmin
+            .from('documents')
+            .select('id')
+            .in('id', documentIds);
+          existingDocIds = new Set((existingDocs || []).map((d) => d.id));
+        }
+
+        const filteredJobs = transformedJobs.filter(
+          (job) => job.document_id === null || existingDocIds.has(job.document_id)
+        );
+
         request.log.info(
           {
             tenantId: tenant.id,
@@ -156,7 +174,7 @@ export default async function recentGenerationsRoutes(fastify: FastifyInstance) 
         );
 
         return reply.status(200).send({
-          generations: transformedJobs,
+          generations: filteredJobs,
           total: totalCount || 0,
           limit,
           offset,

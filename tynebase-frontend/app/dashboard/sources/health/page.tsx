@@ -276,7 +276,7 @@ export default function SourcesHealthPage() {
                   </button>
                 )}
                 <button
-                  onClick={() => router.push('/dashboard/sources/normalized')}
+                  onClick={() => router.push('/dashboard/sources/normalised')}
                   className="w-full text-left rounded-xl border border-[var(--dash-border-subtle)] hover:border-[var(--brand)] bg-[var(--surface-card)] px-5 py-4 transition-colors"
                 >
                   <p className="text-sm font-semibold text-[var(--dash-text-primary)]">Review normalised Markdown</p>

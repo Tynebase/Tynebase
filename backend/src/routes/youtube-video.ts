@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { rateLimitMiddleware } from '../middleware/rateLimit';
 import { tenantContextMiddleware } from '../middleware/tenantContext';
 import { authMiddleware } from '../middleware/auth';
+import { creditGuardMiddleware } from '../middleware/creditGuard';
 import { dispatchJob } from '../utils/dispatchJob';
 
 const YouTubeURLSchema = z.object({
@@ -15,6 +16,12 @@ const YouTubeURLSchema = z.object({
       message: 'Invalid YouTube URL format. Must be a valid YouTube video URL.',
     }
   ),
+  output_options: z.object({
+    generate_transcript: z.boolean().optional(),
+    generate_summary: z.boolean().optional(),
+    generate_article: z.boolean().optional(),
+    ai_model: z.enum(['deepseek', 'gemini', 'claude']).optional(),
+  }).optional(),
 });
 
 /**
@@ -30,6 +37,7 @@ export default async function youtubeVideoRoutes(fastify: FastifyInstance) {
         rateLimitMiddleware,
         tenantContextMiddleware,
         authMiddleware,
+        creditGuardMiddleware,
       ],
     },
     async (request, reply) => {
@@ -94,12 +102,20 @@ export default async function youtubeVideoRoutes(fastify: FastifyInstance) {
           'Dispatching YouTube video ingestion job'
         );
 
+        const { output_options } = validationResult.data;
+
         const job = await dispatchJob({
           tenantId: tenant.id,
           type: 'video_ingest_youtube',
           payload: {
-            url: sanitizedUrl,
+            youtube_url: sanitizedUrl,
             user_id: user.id,
+            output_options: output_options || {
+              generate_transcript: true,
+              generate_summary: false,
+              generate_article: false,
+              ai_model: 'gemini',
+            },
           },
         });
 

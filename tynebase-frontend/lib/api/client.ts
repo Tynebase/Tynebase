@@ -334,8 +334,11 @@ export async function apiClient<T = unknown>(
     }
 
     // Wrap other errors (network errors, etc.)
+    const isNetworkError = error instanceof TypeError && (error.message === 'Failed to fetch' || error.message.includes('fetch'));
     throw new ApiClientError({
-      message: error instanceof Error ? error.message : 'Network error occurred',
+      message: isNetworkError
+        ? 'Unable to connect to the server. Please check your internet connection and try again.'
+        : (error instanceof Error ? error.message : 'Network error occurred'),
       statusCode: 0,
     });
   }

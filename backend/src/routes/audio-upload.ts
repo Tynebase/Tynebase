@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { rateLimitMiddleware } from '../middleware/rateLimit';
 import { tenantContextMiddleware } from '../middleware/tenantContext';
 import { authMiddleware } from '../middleware/auth';
+import { creditGuardMiddleware } from '../middleware/creditGuard';
 import { dispatchJob } from '../utils/dispatchJob';
 import { uploadBufferToGCS } from '../services/storage/gcs';
 
@@ -32,6 +33,7 @@ export default async function audioUploadRoutes(fastify: FastifyInstance) {
         rateLimitMiddleware,
         tenantContextMiddleware,
         authMiddleware,
+        creditGuardMiddleware,
       ],
     },
     async (request, reply) => {

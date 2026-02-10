@@ -5,13 +5,12 @@
  * Flow:
  * 1. Download video via sidecar (YouTube) or get from Supabase Storage (uploaded)
  * 2. Upload to GCS
- * 3. Transcribe with Gemini 2.5 Flash (europe-west1)
- * 4. Format as Markdown
- * 5. Append to document content
- * 6. Charge 12 credits
- * 7. Log query_usage
- * 
- * Fallback: Sidecar → Supabase Storage → Whisper
+ * 3. Transcribe with Gemini 2.5 Flash
+ * 4. Generate summary/article with selected AI model
+ * 5. Format as Markdown
+ * 6. Append to document content
+ * 7. Charge credits
+ * 8. Log query_usage
  */
 
 import { supabaseAdmin } from '../lib/supabase';
@@ -98,8 +97,6 @@ export async function processVideoTranscribeToDocumentJob(job: Job): Promise<Rec
     let localAudioPath: string | null = null;
     let gcsUri: string | null = null;
     let transcript: string;
-    let usedWhisper = false;
-
     try {
       // Step 1: Download audio
       const tempDir = os.tmpdir();
@@ -117,7 +114,7 @@ export async function processVideoTranscribeToDocumentJob(job: Job): Promise<Rec
       // Step 2: Upload to GCS
       const gcsFileName = `${audioFileBase}.mp3`;
       console.log(`[Worker ${workerId}] Uploading audio to GCS: ${gcsFileName}`);
-      gcsUri = await uploadToGCS(localAudioPath, gcsFileName);
+      gcsUri = await uploadToGCS(localAudioPath, gcsFileName, 'audio/mpeg');
       console.log(`[Worker ${workerId}] Audio uploaded to: ${gcsUri}`);
 
       // Parse output options from validated payload
@@ -262,7 +259,7 @@ Write a polished, publication-ready article:`,
           tenant_id: job.tenant_id,
           user_id: validated.user_id,
           query_type: 'video_transcribe_to_document',
-          ai_model: usedWhisper ? 'whisper' : 'gemini',
+          ai_model: validated.output_options?.ai_model || 'gemini',
           tokens_input: 0,
           tokens_output: 0,
           credits_charged: validated.credits_to_charge,
@@ -272,7 +269,7 @@ Write a polished, publication-ready article:`,
             video_url: validated.video_url,
             video_type: validated.video_type,
             transcript_length: transcript.length,
-            used_whisper: usedWhisper,
+            transcription_method: 'gemini',
           },
         });
 
@@ -292,7 +289,7 @@ Write a polished, publication-ready article:`,
         document_id: validated.document_id,
         transcript_length: transcript.length,
         credits_charged: validated.credits_to_charge,
-        used_whisper: usedWhisper,
+        transcription_method: 'gemini',
       };
 
       await completeJob({

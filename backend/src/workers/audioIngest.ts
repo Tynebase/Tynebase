@@ -4,14 +4,13 @@
  * 
  * Workflow:
  * 1. Get audio from GCS URI
- * 2. Transcribe using Gemini 2.5 Flash (primary)
- * 3. Fallback to Whisper if Gemini fails
- * 4. Calculate credits based on pipeline
- * 5. Create document(s) with transcript/summary/article
- * 6. Create lineage event
- * 7. Log query_usage with credits
- * 8. Delete audio from GCS
- * 9. Mark job as completed with document_id
+ * 2. Transcribe using Gemini 2.5 Flash
+ * 3. Calculate credits based on pipeline
+ * 4. Create document(s) with transcript/summary/article
+ * 5. Create lineage event
+ * 6. Log query_usage with credits
+ * 7. Delete audio from GCS
+ * 8. Mark job as completed with document_id
  */
 
 import { supabaseAdmin } from '../lib/supabase';
@@ -30,7 +29,6 @@ const MODEL_MAP: Record<string, AIModel> = {
   'deepseek': 'deepseek-v3',
   'claude': 'claude-sonnet-4.5',
 };
-import * as fs from 'fs';
 
 const OutputOptionsSchema = z.object({
   generate_transcript: z.boolean().default(true),
@@ -65,8 +63,6 @@ interface Job {
  */
 export async function processAudioIngestJob(job: Job): Promise<Record<string, any>> {
   const workerId = job.worker_id;
-  let localAudioPath: string | null = null;
-  
   console.log(`[Worker ${workerId}] Processing audio ingestion job ${job.id}`);
   console.log(`[Worker ${workerId}] Tenant: ${job.tenant_id}, File: ${job.payload.original_filename}`);
 
@@ -75,7 +71,6 @@ export async function processAudioIngestJob(job: Job): Promise<Record<string, an
 
     let transcript: string;
     let tokensUsed: number;
-    let usedFallback = false;
 
     // Get output options early to determine pipeline
     const outputOptions = validated.output_options || {
@@ -275,8 +270,7 @@ export async function processAudioIngestJob(job: Job): Promise<Record<string, an
           gcs_uri: validated.gcs_uri,
           duration_minutes: durationMinutes,
           tokens_used: tokensUsed,
-          used_fallback: usedFallback,
-          transcription_method: usedFallback ? 'whisper' : 'gemini',
+          transcription_method: 'gemini',
           output_options: outputOptions,
           created_documents: {
             transcript: transcriptDocId,
@@ -298,7 +292,7 @@ export async function processAudioIngestJob(job: Job): Promise<Record<string, an
         tenant_id: job.tenant_id,
         user_id: validated.user_id,
         query_type: 'audio_ingestion',
-        ai_model: outputOptions.ai_model || (usedFallback ? 'whisper' : 'gemini'),
+        ai_model: outputOptions.ai_model || 'gemini',
         tokens_input: tokensUsed,
         tokens_output: 0,
         credits_charged: totalCredits,
@@ -310,8 +304,7 @@ export async function processAudioIngestJob(job: Job): Promise<Record<string, an
           article_document_id: articleDocId,
           duration_minutes: durationMinutes,
           file_size: validated.file_size,
-          used_fallback: usedFallback,
-          transcription_method: usedFallback ? 'whisper' : 'gemini',
+          transcription_method: 'gemini',
           credit_breakdown: creditBreakdown,
           output_options: outputOptions,
         },
@@ -342,8 +335,7 @@ export async function processAudioIngestJob(job: Job): Promise<Record<string, an
       credit_breakdown: creditBreakdown,
       tokens_used: tokensUsed,
       transcript_length: transcript.length,
-      used_fallback: usedFallback,
-      transcription_method: usedFallback ? 'whisper' : 'gemini',
+      transcription_method: 'gemini',
       output_options: outputOptions,
     };
 
@@ -357,15 +349,6 @@ export async function processAudioIngestJob(job: Job): Promise<Record<string, an
     return result;
   } catch (error) {
     console.error(`[Worker ${workerId}] Error processing audio ingestion job:`, error);
-
-    // Cleanup local file on error
-    if (localAudioPath && fs.existsSync(localAudioPath)) {
-      try {
-        fs.unlinkSync(localAudioPath);
-      } catch (cleanupError) {
-        console.warn(`[Worker ${workerId}] Failed to cleanup local audio file:`, cleanupError);
-      }
-    }
 
     await failJob({
       jobId: job.id,

@@ -3,16 +3,15 @@
  * Processes video_ingest jobs from the job queue
  * 
  * Workflow:
- * 1. Get signed URL from Supabase Storage
- * 2. Get video metadata (duration) using Gemini API
- * 3. Calculate credits (duration_minutes / 5)
- * 4. Stream video to Vertex AI Gemini API
- * 5. Receive transcript with timestamps
- * 6. Create document with transcript
- * 7. Create lineage event (type: converted_from_video)
- * 8. Log query_usage with credits
- * 9. Delete video from storage (optional config)
- * 10. Mark job as completed with document_id
+ * 1. Download audio via sidecar (YouTube) or get signed URL (upload) or download (direct URL)
+ * 2. Upload to GCS
+ * 3. Transcribe with Gemini 2.5 Flash
+ * 4. Generate summary/article with selected AI model
+ * 5. Create document(s)
+ * 6. Create lineage event (type: converted_from_video)
+ * 7. Log query_usage with credits
+ * 8. Delete video from storage (optional config)
+ * 9. Mark job as completed with document_id
  */
 
 import { supabaseAdmin } from '../lib/supabase';
@@ -123,7 +122,6 @@ export async function processVideoIngestJob(job: Job): Promise<Record<string, an
     let transcriptionResult;
     let transcript: string;
     let tokensUsed: number;
-    let usedFallback = false;
     let localVideoPath: string | null = null;
 
     // Get output options early to determine pipeline
@@ -136,86 +134,48 @@ export async function processVideoIngestJob(job: Job): Promise<Record<string, an
     
     console.log(`[Worker ${workerId}] Pipeline: Gemini transcription (10 credits base), AI generation model: ${outputOptions.ai_model}`);
 
-    // For YouTube videos: Download → GCS → Gemini 2.5 Flash
+    // For YouTube videos: Sidecar (proxy + PO token) → Download audio → GCS → Gemini 2.5 Flash transcription
+    // Note: Transcription is ALWAYS Gemini regardless of ai_model selection.
+    // The ai_model setting only affects summary/article generation downstream.
     if (isYouTubeVideo) {
-      if (outputOptions.ai_model === 'gemini') {
-        // Gemini pipeline - download audio, upload to GCS, transcribe with Gemini 2.5 Flash
-        console.log(`[Worker ${workerId}] Processing YouTube video with Gemini pipeline...`);
-        try {
-          const tempDir = os.tmpdir();
-          const videoFileBase = `yt_${Date.now()}_${job.id.slice(0, 8)}`;
-          const outputTemplate = path.join(tempDir, videoFileBase + '.%(ext)s');
-          
-          console.log(`[Worker ${workerId}] Downloading audio via sidecar...`);
-          localVideoPath = await downloadYouTubeAudio(videoUrl, outputTemplate, workerId);
-          
-          // Upload to GCS
-          const gcsFileName = `${videoFileBase}.mp3`;
-          console.log(`[Worker ${workerId}] Uploading audio to GCS: ${gcsFileName}`);
-          const gcsUri = await uploadToGCS(localVideoPath, gcsFileName);
-          console.log(`[Worker ${workerId}] Audio uploaded to: ${gcsUri}`);
-          
-          // Transcribe using Gemini 2.5 Flash with audio
-          console.log(`[Worker ${workerId}] Transcribing audio with Gemini 2.5 Flash (europe-west1)...`);
-          const geminiAudioResult = await transcribeAudio(
-            gcsUri,
-            'Transcribe this audio content with timestamps. Include all spoken words and important context.'
-          );
-          transcript = geminiAudioResult.content;
-          tokensUsed = geminiAudioResult.tokensInput + geminiAudioResult.tokensOutput;
-          console.log(`[Worker ${workerId}] Gemini audio transcription successful`);
-          
-          // Cleanup GCS and local file
-          await deleteFromGCS(gcsUri);
-          if (localVideoPath && fs.existsSync(localVideoPath)) {
-            fs.unlinkSync(localVideoPath);
-          }
-        } catch (geminiError: any) {
-          console.error(`[Worker ${workerId}] Gemini audio transcription failed:`, geminiError);
-          // Cleanup local file
-          if (localVideoPath && fs.existsSync(localVideoPath)) {
-            fs.unlinkSync(localVideoPath);
-          }
-          throw new Error(`Gemini audio transcription failed: ${geminiError.message}`);
+      console.log(`[Worker ${workerId}] YouTube pipeline: sidecar download → GCS → Gemini transcription (generation model: ${outputOptions.ai_model})`);
+      try {
+        const tempDir = os.tmpdir();
+        const videoFileBase = `yt_${Date.now()}_${job.id.slice(0, 8)}`;
+        const outputTemplate = path.join(tempDir, videoFileBase + '.%(ext)s');
+        
+        console.log(`[Worker ${workerId}] Downloading audio via sidecar (proxy + PO token)...`);
+        localVideoPath = await downloadYouTubeAudio(videoUrl, outputTemplate, workerId);
+        const stats = fs.statSync(localVideoPath);
+        fileSize = stats.size;
+        
+        // Upload to GCS
+        const gcsFileName = `${videoFileBase}.mp3`;
+        console.log(`[Worker ${workerId}] Uploading audio to GCS: ${gcsFileName}`);
+        const gcsUri = await uploadToGCS(localVideoPath, gcsFileName, 'audio/mpeg');
+        console.log(`[Worker ${workerId}] Audio uploaded to: ${gcsUri}`);
+        
+        // Transcribe using Gemini 2.5 Flash with audio
+        console.log(`[Worker ${workerId}] Transcribing audio with Gemini 2.5 Flash...`);
+        const geminiAudioResult = await transcribeAudio(
+          gcsUri,
+          'Transcribe this audio content with timestamps. Include all spoken words and important context.'
+        );
+        transcript = geminiAudioResult.content;
+        tokensUsed = geminiAudioResult.tokensInput + geminiAudioResult.tokensOutput;
+        console.log(`[Worker ${workerId}] Gemini audio transcription successful`);
+        
+        // Cleanup GCS and local file
+        await deleteFromGCS(gcsUri);
+        if (localVideoPath && fs.existsSync(localVideoPath)) {
+          fs.unlinkSync(localVideoPath);
         }
-      } else {
-        // Non-Gemini model selected (deepseek/claude) - use Gemini for transcription,
-        // then the selected model for summary/article generation
-        console.log(`[Worker ${workerId}] Using Gemini for YouTube transcription (user selected ${outputOptions.ai_model} for generation)...`);
-        try {
-          const tempDir = os.tmpdir();
-          const videoFileBase = `yt_${Date.now()}_${job.id.slice(0, 8)}`;
-          const outputTemplate = path.join(tempDir, videoFileBase + '.%(ext)s');
-          
-          localVideoPath = await downloadYouTubeAudio(videoUrl, outputTemplate, workerId);
-          const stats = fs.statSync(localVideoPath);
-          fileSize = stats.size;
-          
-          // Upload to GCS for Gemini transcription
-          const gcsFileName = `${videoFileBase}.mp3`;
-          console.log(`[Worker ${workerId}] Uploading audio to GCS: ${gcsFileName}`);
-          const gcsUri = await uploadToGCS(localVideoPath, gcsFileName);
-          
-          const geminiAudioResult = await transcribeAudio(
-            gcsUri,
-            'Transcribe this audio content with timestamps. Include all spoken words and important context.'
-          );
-          transcript = geminiAudioResult.content;
-          tokensUsed = geminiAudioResult.tokensInput + geminiAudioResult.tokensOutput;
-          console.log(`[Worker ${workerId}] Gemini audio transcription successful`);
-          
-          // Cleanup GCS and local file
-          await deleteFromGCS(gcsUri);
-          if (localVideoPath && fs.existsSync(localVideoPath)) {
-            fs.unlinkSync(localVideoPath);
-          }
-        } catch (error: any) {
-          console.error(`[Worker ${workerId}] Gemini transcription failed:`, error);
-          if (localVideoPath && fs.existsSync(localVideoPath)) {
-            fs.unlinkSync(localVideoPath);
-          }
-          throw new Error(`Gemini transcription failed: ${error.message}`);
+      } catch (error: any) {
+        console.error(`[Worker ${workerId}] YouTube transcription failed:`, error);
+        if (localVideoPath && fs.existsSync(localVideoPath)) {
+          fs.unlinkSync(localVideoPath);
         }
+        throw new Error(`YouTube transcription failed: ${error.message}`);
       }
     } else if (validated.url && !validated.storage_path) {
       // Direct URL from external video platform (Vimeo, Dailymotion, etc.) or direct file URL
@@ -235,11 +195,11 @@ export async function processVideoIngestJob(job: Job): Promise<Record<string, an
         // Upload to GCS
         const gcsFileName = `${videoFileBase}.mp3`;
         console.log(`[Worker ${workerId}] Uploading audio to GCS: ${gcsFileName}`);
-        const gcsUri = await uploadToGCS(localVideoPath, gcsFileName);
+        const gcsUri = await uploadToGCS(localVideoPath, gcsFileName, 'audio/mpeg');
         console.log(`[Worker ${workerId}] Audio uploaded to: ${gcsUri}`);
 
         // Transcribe using Gemini with audio
-        console.log(`[Worker ${workerId}] Transcribing audio with Gemini (model: ${outputOptions.ai_model} for generation)...`);
+        console.log(`[Worker ${workerId}] Transcribing audio with Gemini (generation model: ${outputOptions.ai_model})...`);
         const geminiAudioResult = await transcribeAudio(
           gcsUri,
           'Transcribe this audio content with timestamps. Include all spoken words and important context.'
@@ -262,34 +222,18 @@ export async function processVideoIngestJob(job: Job): Promise<Record<string, an
       }
     } else {
       // For uploaded videos with signed URLs (from Supabase Storage)
-      if (outputOptions.ai_model === 'gemini') {
-        // Gemini pipeline (10 credits base)
-        console.log(`[Worker ${workerId}] Transcribing video with Gemini...`);
-        try {
-          transcriptionResult = await transcribeVideo(
-            videoUrl,
-            'Transcribe this video content with timestamps. Include all spoken words and important visual context. Format the output as a readable transcript with clear sections.'
-          );
-          transcript = transcriptionResult.content;
-          tokensUsed = transcriptionResult.tokensInput + transcriptionResult.tokensOutput;
-        } catch (geminiError: any) {
-          console.error(`[Worker ${workerId}] Gemini transcription failed: ${geminiError.message}`);
-          throw new Error(`Gemini video transcription failed: ${geminiError.message}`);
-        }
-      } else {
-        // Non-Gemini model selected (deepseek/claude) - use Gemini for transcription
-        console.log(`[Worker ${workerId}] Using Gemini for video transcription (user selected ${outputOptions.ai_model} for generation)...`);
-        try {
-          transcriptionResult = await transcribeVideo(
-            videoUrl,
-            'Transcribe this video content with timestamps. Include all spoken words and important visual context. Format the output as a readable transcript with clear sections.'
-          );
-          transcript = transcriptionResult.content;
-          tokensUsed = transcriptionResult.tokensInput + transcriptionResult.tokensOutput;
-        } catch (geminiError: any) {
-          console.error(`[Worker ${workerId}] Gemini video transcription failed:`, geminiError);
-          throw new Error(`Gemini video transcription failed: ${geminiError.message}`);
-        }
+      // Transcription is ALWAYS Gemini — ai_model only affects summary/article generation
+      console.log(`[Worker ${workerId}] Transcribing uploaded video with Gemini (generation model: ${outputOptions.ai_model})...`);
+      try {
+        transcriptionResult = await transcribeVideo(
+          videoUrl,
+          'Transcribe this video content with timestamps. Include all spoken words and important visual context. Format the output as a readable transcript with clear sections.'
+        );
+        transcript = transcriptionResult.content;
+        tokensUsed = transcriptionResult.tokensInput + transcriptionResult.tokensOutput;
+      } catch (geminiError: any) {
+        console.error(`[Worker ${workerId}] Gemini video transcription failed:`, geminiError);
+        throw new Error(`Gemini video transcription failed: ${geminiError.message}`);
       }
     }
 
@@ -468,8 +412,7 @@ export async function processVideoIngestJob(job: Job): Promise<Record<string, an
           tokens_used: tokensUsed,
           is_youtube: isYouTubeVideo,
           youtube_url: validated.youtube_url || validated.url || null,
-          used_fallback: usedFallback,
-          transcription_method: usedFallback ? 'whisper' : 'gemini',
+          transcription_method: 'gemini',
           output_options: outputOptions,
           created_documents: {
             transcript: transcriptDocId,
@@ -491,7 +434,7 @@ export async function processVideoIngestJob(job: Job): Promise<Record<string, an
         tenant_id: job.tenant_id,
         user_id: validated.user_id,
         query_type: 'video_ingestion',
-        ai_model: outputOptions.ai_model || (usedFallback ? 'whisper' : 'gemini'),
+        ai_model: outputOptions.ai_model || 'gemini',
         tokens_input: tokensUsed,
         tokens_output: 0,
         credits_charged: totalCredits,
@@ -504,8 +447,7 @@ export async function processVideoIngestJob(job: Job): Promise<Record<string, an
           duration_minutes: durationMinutes,
           file_size: fileSize,
           is_youtube: isYouTubeVideo,
-          used_fallback: usedFallback,
-          transcription_method: usedFallback ? 'whisper' : 'gemini',
+          transcription_method: 'gemini',
           credit_breakdown: creditBreakdown,
           output_options: outputOptions,
         },
@@ -538,8 +480,7 @@ export async function processVideoIngestJob(job: Job): Promise<Record<string, an
       tokens_used: tokensUsed,
       transcript_length: transcript.length,
       is_youtube: isYouTubeVideo,
-      used_fallback: usedFallback,
-      transcription_method: usedFallback ? 'whisper' : 'gemini',
+      transcription_method: 'gemini',
       output_options: outputOptions,
     };
 
