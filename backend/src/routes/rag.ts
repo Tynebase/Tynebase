@@ -562,26 +562,12 @@ export default async function ragRoutes(fastify: FastifyInstance) {
           .eq('type', 'rag_index')
           .eq('status', 'processing');
 
-        // Count total chunks across ALL tenant documents
-        const { data: allTenantDocIds } = await supabaseAdmin
-          .from('documents')
-          .select('id')
+        // Count total chunks (embeddings) across ALL tenant documents
+        // The actual table is 'document_embeddings', which has a tenant_id column
+        const { count: totalChunks } = await supabaseAdmin
+          .from('document_embeddings')
+          .select('*', { count: 'exact', head: true })
           .eq('tenant_id', tenant.id);
-
-        const allDocIds = (allTenantDocIds || []).map(d => d.id);
-        let totalChunks = 0;
-
-        if (allDocIds.length > 0) {
-          // Batch in groups of 100 to avoid Supabase .in() limits
-          for (let i = 0; i < allDocIds.length; i += 100) {
-            const batch = allDocIds.slice(i, i + 100);
-            const { count } = await supabaseAdmin
-              .from('document_chunks')
-              .select('*', { count: 'exact', head: true })
-              .in('document_id', batch);
-            totalChunks += count || 0;
-          }
-        }
 
         // Get recent pipeline events (last 20 job queue entries for this tenant)
         const { data: recentJobs } = await supabaseAdmin
@@ -1287,7 +1273,7 @@ export default async function ragRoutes(fastify: FastifyInstance) {
         // Get chunk counts for each document
         const docIds = (documents || []).map((d: any) => d.id);
         const { data: chunkCounts, error: chunkError } = await supabaseAdmin
-          .from('document_chunks')
+          .from('document_embeddings')
           .select('document_id')
           .in('document_id', docIds.length > 0 ? docIds : ['00000000-0000-0000-0000-000000000000']);
 
