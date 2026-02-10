@@ -5,7 +5,7 @@
  * Handles template listing, creation, and usage (creating documents from templates).
  */
 
-import { apiGet, apiPost } from './client';
+import { apiGet, apiPost, apiPut, apiDelete } from './client';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -42,6 +42,14 @@ export interface CreateTemplateData {
   description?: string;
   content: string;
   category?: string;
+  visibility?: 'internal' | 'public';
+}
+
+export interface UpdateTemplateData {
+  title?: string;
+  description?: string | null;
+  content?: string;
+  category?: string | null;
   visibility?: 'internal' | 'public';
 }
 
@@ -150,4 +158,29 @@ export async function useTemplate(
   templateId: string
 ): Promise<UseTemplateResponse> {
   return apiPost<UseTemplateResponse>(`/api/templates/${templateId}/use`);
+}
+
+/**
+ * Update an existing template (admin only)
+ * 
+ * @param templateId - Template UUID
+ * @param data - Fields to update
+ * @returns Updated template details
+ */
+export async function updateTemplate(
+  templateId: string,
+  data: UpdateTemplateData
+): Promise<TemplateResponse> {
+  return apiPut<TemplateResponse>(`/api/templates/${templateId}`, data);
+}
+
+/**
+ * Delete a template (admin only)
+ * 
+ * @param templateId - Template UUID
+ */
+export async function deleteTemplate(
+  templateId: string
+): Promise<void> {
+  return apiDelete<void>(`/api/templates/${templateId}`);
 }

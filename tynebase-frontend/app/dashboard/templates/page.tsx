@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Code, Users, BookOpen, Rocket, Shield, Settings, Zap, Search, Plus, Star, Clock, ArrowRight, AlertCircle } from "lucide-react";
+import { Code, Users, BookOpen, Rocket, Shield, Settings, Zap, Search, Plus, Star, Clock, ArrowRight, AlertCircle, Pencil, Trash2, Loader2, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { DashboardPageHeader } from "@/components/layout/DashboardPageHeader";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { listTemplates, Template } from "@/lib/api/templates";
+import { listTemplates, deleteTemplate, Template } from "@/lib/api/templates";
 import { useRouter } from "next/navigation";
 
 const categoryIcons: Record<string, any> = {
@@ -33,6 +33,9 @@ export default function TemplatesPage() {
   const [error, setError] = useState<string | null>(null);
   const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
   const [uniqueCategories, setUniqueCategories] = useState<string[]>([]);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchTemplates() {
@@ -69,6 +72,29 @@ export default function TemplatesPage() {
 
     fetchTemplates();
   }, []);
+
+  async function handleDeleteTemplate(templateId: string) {
+    try {
+      setDeletingId(templateId);
+      await deleteTemplate(templateId);
+      setTemplates(prev => prev.filter(t => t.id !== templateId));
+      setCategoryCounts(prev => {
+        const deleted = templates.find(t => t.id === templateId);
+        const updated: Record<string, number> = { ...prev, all: (prev.all || 1) - 1 };
+        if (deleted?.category && updated[deleted.category]) {
+          updated[deleted.category] = updated[deleted.category] - 1;
+        }
+        return updated;
+      });
+      setConfirmDeleteId(null);
+      setOpenMenuId(null);
+    } catch (err: any) {
+      console.error('Failed to delete template:', err);
+      setError(err.message || 'Failed to delete template');
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   const filteredTemplates = templates.filter(t => {
     const matchesCategory = activeCategory === 'all' || t.category === activeCategory;
@@ -284,16 +310,75 @@ export default function TemplatesPage() {
                         return (
                           <div
                             key={template.id}
-                            className="bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl px-5 pt-6 pb-5 hover:shadow-md hover:border-[var(--brand)] transition-all cursor-pointer group"
+                            className="relative bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl px-5 pt-6 pb-5 hover:shadow-md hover:border-[var(--brand)] transition-all cursor-pointer group"
                             onClick={() => router.push(`/dashboard/templates/${template.id}`)}
                           >
                             <div className="flex items-start justify-between mb-3">
                               <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${color}15` }}>
                                 <TemplateIcon className="w-5 h-5" style={{ color }} />
                               </div>
-                              {template.visibility === 'public' && (
-                                <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
-                              )}
+                              <div className="flex items-center gap-1">
+                                {template.visibility === 'public' && (
+                                  <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                                )}
+                                {template.tenant_id !== null && (
+                                  <div className="relative">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenMenuId(openMenuId === template.id ? null : template.id);
+                                        setConfirmDeleteId(null);
+                                      }}
+                                      className="p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-[var(--surface-card)] transition-all"
+                                    >
+                                      <MoreVertical className="w-4 h-4 text-[var(--dash-text-muted)]" />
+                                    </button>
+                                    {openMenuId === template.id && (
+                                      <div className="absolute right-0 top-8 z-20 w-36 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg shadow-lg py-1">
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setOpenMenuId(null);
+                                            router.push(`/dashboard/templates/${template.id}`);
+                                          }}
+                                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--dash-text-primary)] hover:bg-[var(--surface-ground)] transition-colors"
+                                        >
+                                          <Pencil className="w-3.5 h-3.5" />
+                                          Edit
+                                        </button>
+                                        {confirmDeleteId === template.id ? (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleDeleteTemplate(template.id);
+                                            }}
+                                            disabled={deletingId === template.id}
+                                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                          >
+                                            {deletingId === template.id ? (
+                                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                            ) : (
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                            )}
+                                            Confirm Delete
+                                          </button>
+                                        ) : (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setConfirmDeleteId(template.id);
+                                            }}
+                                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                            Delete
+                                          </button>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                             <h3 className="font-medium text-[var(--dash-text-primary)] mb-1 group-hover:text-[var(--brand)] transition-colors">
                               {template.title}

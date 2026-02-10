@@ -28,6 +28,17 @@ const createTemplateBodySchema = z.object({
 });
 
 /**
+ * Zod schema for PUT /api/templates/:id request body
+ */
+const updateTemplateBodySchema = z.object({
+  title: z.string().min(1).max(500).optional(),
+  description: z.string().max(2000).optional().nullable(),
+  content: z.string().min(1).optional(),
+  category: z.string().max(100).optional().nullable(),
+  visibility: z.enum(['internal', 'public']).optional(),
+});
+
+/**
  * Zod schema for POST /api/templates/:id/use path parameters
  */
 const useTemplateParamsSchema = z.object({
@@ -610,6 +621,257 @@ export default async function templateRoutes(fastify: FastifyInstance) {
         }
 
         fastify.log.error({ error }, 'Unexpected error in POST /api/templates/:id/use');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
+   * PUT /api/templates/:id
+   * Updates an existing template (admin only, must own the template via tenant)
+   */
+  fastify.put(
+    '/api/templates/:id',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        // Check user has admin role
+        if (user.role !== 'admin') {
+          return reply.code(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Only admin role can update templates',
+              details: {},
+            },
+          });
+        }
+
+        const params = useTemplateParamsSchema.parse(request.params);
+        const { id: templateId } = params;
+
+        // Validate request body
+        const body = updateTemplateBodySchema.parse(request.body);
+
+        // Fetch existing template to verify ownership
+        const { data: existing, error: fetchError } = await supabaseAdmin
+          .from('templates')
+          .select('id, tenant_id')
+          .eq('id', templateId)
+          .single();
+
+        if (fetchError || !existing) {
+          return reply.code(404).send({
+            error: {
+              code: 'TEMPLATE_NOT_FOUND',
+              message: 'Template not found',
+              details: {},
+            },
+          });
+        }
+
+        // Only allow updating tenant's own templates
+        if (existing.tenant_id !== tenant.id) {
+          return reply.code(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'You can only update your own tenant templates',
+              details: {},
+            },
+          });
+        }
+
+        // Build update object (only include provided fields)
+        const updateData: Record<string, any> = {};
+        if (body.title !== undefined) updateData.title = body.title;
+        if (body.description !== undefined) updateData.description = body.description;
+        if (body.content !== undefined) updateData.content = body.content;
+        if (body.category !== undefined) updateData.category = body.category;
+        if (body.visibility !== undefined) updateData.visibility = body.visibility;
+
+        if (Object.keys(updateData).length === 0) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'No fields to update',
+              details: {},
+            },
+          });
+        }
+
+        const { data: template, error } = await supabaseAdmin
+          .from('templates')
+          .update(updateData)
+          .eq('id', templateId)
+          .select(`
+            id,
+            tenant_id,
+            title,
+            description,
+            content,
+            category,
+            visibility,
+            is_approved,
+            created_by,
+            created_at,
+            updated_at,
+            users:created_by (
+              id,
+              email,
+              full_name
+            )
+          `)
+          .single();
+
+        if (error) {
+          fastify.log.error(
+            { error, templateId, tenantId: tenant.id, userId: user.id },
+            'Failed to update template'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'UPDATE_FAILED',
+              message: 'Failed to update template',
+              details: {},
+            },
+          });
+        }
+
+        fastify.log.info(
+          { templateId, tenantId: tenant.id, userId: user.id },
+          'Template updated successfully'
+        );
+
+        return reply.code(200).send({
+          success: true,
+          data: { template },
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid request',
+              details: error.errors,
+            },
+          });
+        }
+
+        fastify.log.error({ error }, 'Unexpected error in PUT /api/templates/:id');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
+   * DELETE /api/templates/:id
+   * Deletes a template (admin only, must own the template via tenant)
+   */
+  fastify.delete(
+    '/api/templates/:id',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        // Check user has admin role
+        if (user.role !== 'admin') {
+          return reply.code(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Only admin role can delete templates',
+              details: {},
+            },
+          });
+        }
+
+        const params = useTemplateParamsSchema.parse(request.params);
+        const { id: templateId } = params;
+
+        // Fetch existing template to verify ownership
+        const { data: existing, error: fetchError } = await supabaseAdmin
+          .from('templates')
+          .select('id, tenant_id')
+          .eq('id', templateId)
+          .single();
+
+        if (fetchError || !existing) {
+          return reply.code(404).send({
+            error: {
+              code: 'TEMPLATE_NOT_FOUND',
+              message: 'Template not found',
+              details: {},
+            },
+          });
+        }
+
+        // Only allow deleting tenant's own templates
+        if (existing.tenant_id !== tenant.id) {
+          return reply.code(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'You can only delete your own tenant templates',
+              details: {},
+            },
+          });
+        }
+
+        const { error } = await supabaseAdmin
+          .from('templates')
+          .delete()
+          .eq('id', templateId);
+
+        if (error) {
+          fastify.log.error(
+            { error, templateId, tenantId: tenant.id, userId: user.id },
+            'Failed to delete template'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'DELETE_FAILED',
+              message: 'Failed to delete template',
+              details: {},
+            },
+          });
+        }
+
+        fastify.log.info(
+          { templateId, tenantId: tenant.id, userId: user.id },
+          'Template deleted successfully'
+        );
+
+        return reply.code(204).send();
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid template ID',
+              details: error.errors,
+            },
+          });
+        }
+
+        fastify.log.error({ error }, 'Unexpected error in DELETE /api/templates/:id');
         return reply.code(500).send({
           error: {
             code: 'INTERNAL_ERROR',
