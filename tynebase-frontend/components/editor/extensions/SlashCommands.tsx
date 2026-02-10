@@ -10,6 +10,7 @@ import {
   useCallback,
   forwardRef,
   useImperativeHandle,
+  useRef,
 } from "react";
 import {
   Heading1,
@@ -230,6 +231,7 @@ interface CommandListRef {
 const CommandList = forwardRef<CommandListRef, CommandListProps>(
   ({ items, command }, ref) => {
     const [selectedIndex, setSelectedIndex] = useState(0);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     const selectItem = useCallback(
       (index: number) => {
@@ -244,6 +246,15 @@ const CommandList = forwardRef<CommandListRef, CommandListProps>(
     useEffect(() => {
       setSelectedIndex(0);
     }, [items]);
+
+    useEffect(() => {
+      const container = containerRef.current;
+      if (!container) return;
+      const el = container.querySelector(`[data-index="${selectedIndex}"]`) as HTMLElement | null;
+      if (el) {
+        el.scrollIntoView({ block: "nearest" });
+      }
+    }, [selectedIndex]);
 
     useImperativeHandle(ref, () => ({
       onKeyDown: ({ event }: SuggestionKeyDownProps) => {
@@ -283,7 +294,7 @@ const CommandList = forwardRef<CommandListRef, CommandListProps>(
     let itemIndex = 0;
 
     return (
-      <div className="bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-xl shadow-xl overflow-hidden min-w-[280px] max-h-[320px] overflow-y-auto">
+      <div ref={containerRef} className="bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-xl shadow-xl overflow-hidden min-w-[280px] max-h-[320px] overflow-y-auto">
         {Object.entries(categories).map(([category, categoryItems]) => (
           <div key={category}>
             <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] bg-[var(--surface-ground)]">
@@ -294,6 +305,7 @@ const CommandList = forwardRef<CommandListRef, CommandListProps>(
               return (
                 <button
                   key={item.title}
+                  data-index={currentIndex}
                   onClick={() => selectItem(currentIndex)}
                   className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors ${
                     currentIndex === selectedIndex

@@ -60,7 +60,7 @@ export function DeleteConfirmationModal({
         </h3>
 
         {/* Description */}
-        <p className="text-sm text-[var(--dash-text-tertiary)] max-w-xs">
+        <p className="text-sm text-[var(--dash-text-tertiary)] max-w-sm mx-auto text-center">
           {description || defaultDescription}
         </p>
       </div>
