@@ -105,17 +105,28 @@ export default function DashboardPage() {
     ? "Manage your personal knowledge base"
     : "Manage your team's knowledge and documentation";
 
+  const getContentHealthLabel = (percentage: number) => {
+    if (percentage >= 80) return "Excellent";
+    if (percentage >= 60) return "Very Good";
+    if (percentage >= 40) return "Good";
+    if (percentage >= 20) return "Poor";
+    return "Very Poor";
+  };
+
+  const contentHealthPct = 100 - (stats?.storage.percentage || 0);
+  const contentHealthLabel = getContentHealthLabel(contentHealthPct);
+
   // Customize stats based on user type
   const quickStats = isIndividualUser ? [
     { label: "Total documents", value: stats?.documents.total.toString() || "0", change: `${stats?.documents.published || 0} published`, icon: BookOpen, color: "var(--brand)" },
     { label: "AI generations", value: stats?.ai.generations.toString() || "0", change: `${creditsRemaining} credits left`, icon: Sparkles, color: "var(--accent-purple)" },
     { label: "Storage Used", value: stats?.storage.used_mb && stats.storage.used_mb < 1024 ? `${stats.storage.used_mb}MB` : `${stats?.storage.used_gb || 0}GB`, change: stats?.storage.limit_mb && stats.storage.limit_mb < 1024 ? `${stats.storage.limit_mb}MB total` : `${stats?.storage.limit_gb || 5}GB total`, icon: TrendingUp, color: "var(--accent-blue)" },
-    { label: "Content health", value: `${100 - (stats?.storage.percentage || 0)}%`, change: "Good", icon: BarChart3, color: "var(--status-success)" },
+    { label: "Content health", value: `${contentHealthPct}%`, change: contentHealthLabel, icon: BarChart3, color: "var(--status-success)" },
   ] : [
     { label: "Total documents", value: stats?.documents.total.toString() || "0", change: `${stats?.documents.published || 0} published`, icon: BookOpen, color: "var(--brand)" },
     { label: "Team members", value: stats?.team.members.toString() || "0", change: "Active users", icon: Users, color: "var(--accent-blue)" },
     { label: "AI generations", value: stats?.ai.generations.toString() || "0", change: `${creditsRemaining} credits left`, icon: Sparkles, color: "var(--accent-purple)" },
-    { label: "Content health", value: `${100 - (stats?.storage.percentage || 0)}%`, change: "Good", icon: BarChart3, color: "var(--status-success)" },
+    { label: "Content health", value: `${contentHealthPct}%`, change: contentHealthLabel, icon: BarChart3, color: "var(--status-success)" },
   ];
 
   return (
