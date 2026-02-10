@@ -35,6 +35,7 @@ import {
   X
 } from "lucide-react";
 import { useState } from "react";
+import { createPortal } from "react-dom";
 
 interface NavItem {
   id: string;
@@ -363,6 +364,7 @@ export function DashboardSidebar({ mobile }: { mobile?: boolean }) {
   };
 
   return (
+    <>
     <aside className={cn(
       "bg-[var(--surface-card)] border-r border-[var(--dash-border-subtle)] flex flex-col transition-all duration-300",
       mobile ? "h-full w-full border-none" : "h-screen sticky top-0 hidden lg:flex"
@@ -445,9 +447,11 @@ export function DashboardSidebar({ mobile }: { mobile?: boolean }) {
         </div>
       </nav>
 
-      {/* Role Information Modal */}
-      {isRoleModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    </aside>
+
+      {/* Role Information Modal - portaled to body to escape sidebar stacking context */}
+      {isRoleModalOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsRoleModalOpen(false)} />
           <div className="relative w-full max-w-lg bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-xl shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)]">
@@ -466,9 +470,10 @@ export function DashboardSidebar({ mobile }: { mobile?: boolean }) {
               <RoleInfoItem title="Viewer" color="gray" desc="Read-only access to content. Can view documents and use AI chat but cannot create or edit content." />
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
-    </aside>
+    </>
   );
 }
 

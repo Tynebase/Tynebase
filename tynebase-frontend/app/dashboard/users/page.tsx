@@ -179,7 +179,7 @@ function MembersCard({ membersCount, children }: { membersCount: number; childre
         </CardDescription>
       </CardHeader>
       <CardContent className="p-0 flex-1 min-h-0">
-        <div className="divide-y divide-[var(--border-subtle)] overflow-auto">
+        <div className="divide-y divide-[var(--border-subtle)] overflow-visible">
           {children}
         </div>
       </CardContent>
@@ -412,7 +412,7 @@ export default function UsersPage() {
 
       {/* Roles Info Modal */}
       {showRolesModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowRolesModal(false)} />
           <div className="relative w-full max-w-lg bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-xl shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)]">
