@@ -873,7 +873,7 @@ export default function TeamChatPage() {
                 </button>
               </div>
               <p className="mt-2 text-xs text-[var(--text-tertiary)]">
-                Supports **bold**, *italic*, and `code` formatting
+                Supports **bold** *italic* and `code` formatting
               </p>
             </form>
           </>
@@ -1099,7 +1099,7 @@ export default function TeamChatPage() {
                 </button>
               </div>
               <p className="mt-2 text-xs text-[var(--text-tertiary)]">
-                Supports **bold**, *italic*, and `code` formatting
+                Supports **bold** *italic* and `code` formatting
               </p>
             </form>
           </>
