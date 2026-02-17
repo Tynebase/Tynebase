@@ -414,3 +414,147 @@ export async function ingestDocumentVideos(
     options || { generate_transcript: true }
   );
 }
+
+// ============================================================================
+// DOCUMENT SHARING
+// ============================================================================
+
+export interface DocumentShare {
+  id: string;
+  document_id: string;
+  shared_with: string | null;
+  permission: 'view' | 'edit';
+  share_token: string | null;
+  expires_at: string | null;
+  created_by: string;
+  created_at: string;
+  shared_user?: {
+    id: string;
+    email: string;
+    full_name: string | null;
+  } | null;
+}
+
+export interface ShareListResponse {
+  shares: DocumentShare[];
+}
+
+export interface ShareLinkResponse {
+  share: DocumentShare;
+  share_url: string;
+}
+
+export interface CreateShareLinkData {
+  permission?: 'view' | 'edit';
+  expires_in_days?: number;
+}
+
+export interface CreateUserShareData {
+  user_id: string;
+  permission?: 'view' | 'edit';
+}
+
+/**
+ * List all shares for a document
+ * 
+ * @param documentId - Document UUID
+ * @returns List of shares
+ */
+export async function listDocumentShares(
+  documentId: string
+): Promise<ShareListResponse> {
+  return apiGet<ShareListResponse>(`/api/documents/${documentId}/shares`);
+}
+
+/**
+ * Generate a share link for a document
+ * 
+ * @param documentId - Document UUID
+ * @param data - Share link options
+ * @returns Share details with URL
+ */
+export async function createShareLink(
+  documentId: string,
+  data?: CreateShareLinkData
+): Promise<ShareLinkResponse> {
+  return apiPost<ShareLinkResponse>(`/api/documents/${documentId}/share-link`, data || {});
+}
+
+/**
+ * Share a document with a specific user
+ * 
+ * @param documentId - Document UUID
+ * @param data - User share data
+ * @returns Share details
+ */
+export async function shareWithUser(
+  documentId: string,
+  data: CreateUserShareData
+): Promise<{ share: DocumentShare; updated?: boolean }> {
+  return apiPost<{ share: DocumentShare; updated?: boolean }>(`/api/documents/${documentId}/share`, data);
+}
+
+/**
+ * Revoke a share
+ * 
+ * @param documentId - Document UUID
+ * @param shareId - Share UUID
+ */
+export async function revokeShare(
+  documentId: string,
+  shareId: string
+): Promise<void> {
+  return apiDelete<void>(`/api/documents/${documentId}/shares/${shareId}`);
+}
+
+/**
+ * Resolve a share token to get document access
+ * 
+ * @param token - Share token
+ * @returns Document and permission
+ */
+export async function resolveShareToken(
+  token: string
+): Promise<{ document: Document; permission: 'view' | 'edit' }> {
+  return apiGet<{ document: Document; permission: 'view' | 'edit' }>(`/api/share/${token}`);
+}
+
+/**
+ * List public documents (community shared documents)
+ * 
+ * @param params - Query parameters
+ * @returns List of public documents
+ */
+export async function listSharedDocuments(
+  params?: { page?: number; limit?: number; category_id?: string }
+): Promise<{
+  documents: Document[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  };
+}> {
+  const queryParams = new URLSearchParams();
+  if (params?.page) queryParams.append('page', params.page.toString());
+  if (params?.limit) queryParams.append('limit', params.limit.toString());
+  if (params?.category_id) queryParams.append('category_id', params.category_id);
+  
+  const queryString = queryParams.toString();
+  const endpoint = queryString ? `/api/documents/shared?${queryString}` : '/api/documents/shared';
+  
+  return apiGet<{
+    documents: Document[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      hasNextPage: boolean;
+      hasPrevPage: boolean;
+    };
+  }>(endpoint);
+}

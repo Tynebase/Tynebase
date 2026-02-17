@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Code, Users, BookOpen, Rocket, Shield, Settings, Zap, Search, Plus, Star, Clock, ArrowRight, AlertCircle, Pencil, Trash2, Loader2, MoreVertical } from "lucide-react";
+import { Code, Users, BookOpen, Rocket, Shield, Settings, Zap, Search, Plus, Star, Clock, ArrowRight, AlertCircle, Pencil, Trash2, Loader2, MoreVertical, Share2, Globe } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { DashboardPageHeader } from "@/components/layout/DashboardPageHeader";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { listTemplates, deleteTemplate, Template } from "@/lib/api/templates";
+import { listTemplates, deleteTemplate, updateTemplate, Template } from "@/lib/api/templates";
 import { useRouter } from "next/navigation";
 
 const categoryIcons: Record<string, any> = {
@@ -36,6 +36,7 @@ export default function TemplatesPage() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [sharingId, setSharingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchTemplates() {
@@ -93,6 +94,38 @@ export default function TemplatesPage() {
       setError(err.message || 'Failed to delete template');
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  async function handleShareTemplate(templateId: string) {
+    try {
+      setSharingId(templateId);
+      await updateTemplate(templateId, { visibility: 'public' });
+      setTemplates(prev => prev.map(t => 
+        t.id === templateId ? { ...t, visibility: 'public' as const } : t
+      ));
+      setOpenMenuId(null);
+    } catch (err: any) {
+      console.error('Failed to share template:', err);
+      setError(err.message || 'Failed to share template');
+    } finally {
+      setSharingId(null);
+    }
+  }
+
+  async function handleUnshareTemplate(templateId: string) {
+    try {
+      setSharingId(templateId);
+      await updateTemplate(templateId, { visibility: 'internal' });
+      setTemplates(prev => prev.map(t => 
+        t.id === templateId ? { ...t, visibility: 'internal' as const } : t
+      ));
+      setOpenMenuId(null);
+    } catch (err: any) {
+      console.error('Failed to unshare template:', err);
+      setError(err.message || 'Failed to unshare template');
+    } finally {
+      setSharingId(null);
     }
   }
 
@@ -334,7 +367,7 @@ export default function TemplatesPage() {
                                       <MoreVertical className="w-4 h-4 text-[var(--dash-text-muted)]" />
                                     </button>
                                     {openMenuId === template.id && (
-                                      <div className="absolute right-0 top-8 z-20 w-36 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg shadow-lg py-1">
+                                      <div className="absolute right-0 top-8 z-20 w-44 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg shadow-lg py-1">
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation();
@@ -346,6 +379,39 @@ export default function TemplatesPage() {
                                           <Pencil className="w-3.5 h-3.5" />
                                           Edit
                                         </button>
+                                        {template.visibility === 'public' ? (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleUnshareTemplate(template.id);
+                                            }}
+                                            disabled={sharingId === template.id}
+                                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--dash-text-primary)] hover:bg-[var(--surface-ground)] rounded-md transition-colors"
+                                          >
+                                            {sharingId === template.id ? (
+                                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                            ) : (
+                                              <Globe className="w-3.5 h-3.5" />
+                                            )}
+                                            Make Private
+                                          </button>
+                                        ) : (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleShareTemplate(template.id);
+                                            }}
+                                            disabled={sharingId === template.id}
+                                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-green-600 hover:bg-green-50 rounded-md transition-colors"
+                                          >
+                                            {sharingId === template.id ? (
+                                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                            ) : (
+                                              <Share2 className="w-3.5 h-3.5" />
+                                            )}
+                                            Share with Community
+                                          </button>
+                                        )}
                                         {confirmDeleteId === template.id ? (
                                           <button
                                             onClick={(e) => {
@@ -409,8 +475,13 @@ export default function TemplatesPage() {
               <h3 className="text-lg font-semibold mb-1">Share your templates with the community</h3>
               <p className="text-white/80 text-sm">Help others by publishing your best templates to the community library.</p>
             </div>
-            <Button variant="secondary" size="md" className="bg-white text-[var(--brand)] hover:bg-white/90 border-0">
-              Publish Template
+            <Button 
+              variant="secondary" 
+              size="md" 
+              className="bg-white text-[var(--brand)] hover:bg-white/90 border-0"
+              onClick={() => router.push('/dashboard/community/shared-documents')}
+            >
+              View Shared Content
             </Button>
           </div>
         </div>

@@ -4,7 +4,7 @@
  * Provides functions for inviting users to a tenant.
  */
 
-import { apiPost } from './client';
+import { apiPost, apiGet, apiDelete } from './client';
 
 export interface InviteUserRequest {
   email: string;
@@ -62,4 +62,53 @@ export interface AcceptInviteResponse {
  */
 export async function acceptInvite(data: AcceptInviteRequest): Promise<AcceptInviteResponse> {
   return apiPost<AcceptInviteResponse>('/api/invites/accept', data);
+}
+
+// ============================================================================
+// PENDING INVITES
+// ============================================================================
+
+export interface PendingInvite {
+  id: string;
+  email: string;
+  role: 'admin' | 'editor' | 'member' | 'viewer';
+  invited_by: string;
+  created_at: string;
+}
+
+export interface PendingInvitesResponse {
+  invites: PendingInvite[];
+  count: number;
+}
+
+/**
+ * List pending invitations for the tenant
+ * 
+ * Returns users who have been invited but haven't accepted yet.
+ * Admin only.
+ */
+export async function listPendingInvites(): Promise<PendingInvitesResponse> {
+  return apiGet<PendingInvitesResponse>('/api/invites/pending');
+}
+
+/**
+ * Cancel a pending invitation
+ * 
+ * Removes the unconfirmed user. Admin only.
+ * 
+ * @param inviteId - The ID of the pending invite to cancel
+ */
+export async function cancelInvite(inviteId: string): Promise<{ message: string }> {
+  return apiDelete<{ message: string }>(`/api/invites/${inviteId}`);
+}
+
+/**
+ * Resend an invitation email
+ * 
+ * Generates a new magic link and sends it to the invited user. Admin only.
+ * 
+ * @param inviteId - The ID of the pending invite to resend
+ */
+export async function resendInvite(inviteId: string): Promise<{ message: string; email: string }> {
+  return apiPost<{ message: string; email: string }>(`/api/invites/${inviteId}/resend`, {});
 }

@@ -1,13 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
 import { Card, CardContent } from "@/components/ui/Card";
 import { DashboardPageHeader } from "@/components/layout/DashboardPageHeader";
 import { PollDisplay } from "@/components/PollDisplay";
-import { Poll } from "@/lib/api/discussions";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  Discussion,
+  DiscussionReply,
+  getDiscussion,
+  getDiscussionReplies,
+  createReply,
+  toggleDiscussionLike,
+  toggleReplyLike,
+  toggleDiscussionPin,
+  toggleDiscussionLock,
+  toggleDiscussionResolved,
+  deleteDiscussion,
+  acceptReplyAsAnswer,
+} from "@/lib/api/discussions";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -16,129 +31,178 @@ import {
   Pin,
   Send,
   ThumbsUp,
+  Loader2,
+  MoreHorizontal,
+  Lock,
+  Unlock,
+  Trash2,
+  Check,
 } from "lucide-react";
 
-interface DiscussionMock {
-  id: number;
-  title: string;
-  excerpt: string;
-  author: string;
-  category: string;
-  createdAt: string;
-  replies: number;
-  views: number;
-  likes: number;
-  isPinned: boolean;
-  isResolved: boolean;
-  tags: string[];
-  poll?: Poll;
-}
-
-const discussions: DiscussionMock[] = [
-  {
-    id: 1,
-    title: "Welcome to the TyneBase Community!",
-    excerpt:
-      "Introduce yourself and let us know what brings you here. We're excited to have you!",
-    author: "Sarah Chen",
-    category: "announcements",
-    createdAt: "2 hours ago",
-    replies: 24,
-    views: 342,
-    likes: 56,
-    isPinned: true,
-    isResolved: false,
-    tags: ["welcome", "introduction"],
-    poll: {
-      id: "poll-1",
-      question: "What feature would you like to see next?",
-      options: [
-        { id: "opt-1", text: "Dark mode", votes_count: 45 },
-        { id: "opt-2", text: "Mobile app", votes_count: 32 },
-        { id: "opt-3", text: "API integrations", votes_count: 28 },
-        { id: "opt-4", text: "Team workspaces", votes_count: 19 },
-      ],
-      total_votes: 124,
-      has_voted: false,
-      created_at: "2026-02-01T10:00:00Z",
-    } as Poll,
-  },
-  {
-    id: 2,
-    title: "How to set up webhooks for real-time notifications?",
-    excerpt:
-      "I'm trying to configure webhooks to get notified when documents are updated. Can someone guide me through the process?",
-    author: "John Smith",
-    category: "questions",
-    createdAt: "5 hours ago",
-    replies: 8,
-    views: 127,
-    likes: 12,
-    isPinned: false,
-    isResolved: true,
-    tags: ["webhooks", "integrations"],
-  },
-  {
-    id: 3,
-    title: "Feature Request: Dark mode for the editor",
-    excerpt:
-      "Would love to see a dedicated dark mode for the document editor. The current theme is great but would be nice to have more contrast options.",
-    author: "Emily Davis",
-    category: "ideas",
-    createdAt: "Yesterday",
-    replies: 15,
-    views: 234,
-    likes: 89,
-    isPinned: false,
-    isResolved: false,
-    tags: ["feature-request", "editor", "ui"],
-  },
-  {
-    id: 4,
-    title: "Best practices for organizing large knowledge bases",
-    excerpt:
-      "As our documentation grows, what are some recommended approaches for keeping everything organised and easily searchable?",
-    author: "Mike Johnson",
-    category: "questions",
-    createdAt: "2 days ago",
-    replies: 21,
-    views: 456,
-    likes: 34,
-    isPinned: false,
-    isResolved: false,
-    tags: ["organization", "best-practices"],
-  },
-  {
-    id: 5,
-    title: "Monthly Community Roundup - January 2026",
-    excerpt:
-      "Here's a summary of all the amazing contributions from our community this month. Thank you all for being part of this journey!",
-    author: "TyneBase Team",
-    category: "announcements",
-    createdAt: "3 days ago",
-    replies: 7,
-    views: 289,
-    likes: 45,
-    isPinned: true,
-    isResolved: false,
-    tags: ["roundup", "community"],
-  },
-];
 
 export default function DiscussionPage({
   params,
 }: {
   params: { id: string };
 }) {
-  const discussionId = useMemo(() => Number(params.id), [params.id]);
-  const discussion = useMemo(
-    () => discussions.find((d) => d.id === discussionId) ?? null,
-    [discussionId]
-  );
-
+  const router = useRouter();
+  const { user } = useAuth();
+  const [discussion, setDiscussion] = useState<Discussion | null>(null);
+  const [replies, setReplies] = useState<DiscussionReply[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [reply, setReply] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [showActions, setShowActions] = useState(false);
 
-  if (!discussion) {
+  const isAdmin = user?.role === 'admin' || (user as { role?: string })?.role === 'super_admin';
+  const isEditor = user?.role === 'editor';
+  const canModerate = isAdmin || isEditor;
+  const isAuthor = discussion?.author?.id === user?.id;
+
+  const fetchDiscussion = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await getDiscussion(params.id);
+      setDiscussion(response.discussion);
+      
+      const repliesResponse = await getDiscussionReplies(params.id);
+      setReplies(repliesResponse.replies);
+    } catch (err) {
+      console.error("Failed to fetch discussion:", err);
+      setError("Failed to load discussion.");
+    } finally {
+      setLoading(false);
+    }
+  }, [params.id]);
+
+  useEffect(() => {
+    fetchDiscussion();
+  }, [fetchDiscussion]);
+
+  const handleSubmitReply = async () => {
+    if (!reply.trim() || submitting) return;
+    try {
+      setSubmitting(true);
+      const response = await createReply(params.id, { content: reply.trim() });
+      setReplies(prev => [...prev, response.reply]);
+      setReply("");
+      if (discussion) {
+        setDiscussion({ ...discussion, replies_count: discussion.replies_count + 1 });
+      }
+    } catch (err) {
+      console.error("Failed to post reply:", err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleLikeDiscussion = async () => {
+    if (!discussion) return;
+    try {
+      const response = await toggleDiscussionLike(params.id);
+      setDiscussion({
+        ...discussion,
+        has_liked: response.liked,
+        likes_count: response.liked ? discussion.likes_count + 1 : discussion.likes_count - 1,
+      });
+    } catch (err) {
+      console.error("Failed to toggle like:", err);
+    }
+  };
+
+  const handleLikeReply = async (replyId: string) => {
+    try {
+      const response = await toggleReplyLike(params.id, replyId);
+      setReplies(prev => prev.map(r => 
+        r.id === replyId 
+          ? { ...r, has_liked: response.liked, likes_count: response.liked ? r.likes_count + 1 : r.likes_count - 1 }
+          : r
+      ));
+    } catch (err) {
+      console.error("Failed to toggle reply like:", err);
+    }
+  };
+
+  const handleTogglePin = async () => {
+    if (!discussion) return;
+    try {
+      const response = await toggleDiscussionPin(params.id);
+      setDiscussion({ ...discussion, is_pinned: response.is_pinned });
+    } catch (err) {
+      console.error("Failed to toggle pin:", err);
+    }
+  };
+
+  const handleToggleLock = async () => {
+    if (!discussion) return;
+    try {
+      const response = await toggleDiscussionLock(params.id);
+      setDiscussion({ ...discussion, is_locked: response.is_locked });
+    } catch (err) {
+      console.error("Failed to toggle lock:", err);
+    }
+  };
+
+  const handleToggleResolved = async () => {
+    if (!discussion) return;
+    try {
+      const response = await toggleDiscussionResolved(params.id);
+      setDiscussion({ ...discussion, is_resolved: response.is_resolved });
+    } catch (err) {
+      console.error("Failed to toggle resolved:", err);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm("Are you sure you want to delete this discussion?")) return;
+    try {
+      await deleteDiscussion(params.id);
+      router.push("/dashboard/community");
+    } catch (err) {
+      console.error("Failed to delete discussion:", err);
+    }
+  };
+
+  const handleAcceptAnswer = async (replyId: string) => {
+    try {
+      const response = await acceptReplyAsAnswer(params.id, replyId);
+      setReplies(prev => prev.map(r => ({
+        ...r,
+        is_accepted_answer: r.id === replyId ? response.is_accepted_answer : false,
+      })));
+      if (response.is_accepted_answer && discussion) {
+        setDiscussion({ ...discussion, is_resolved: true });
+      }
+    } catch (err) {
+      console.error("Failed to accept answer:", err);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    if (diffMins < 60) return `${diffMins} min ago`;
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    if (diffDays === 1) return "Yesterday";
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return date.toLocaleDateString();
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-full flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--brand)]" />
+      </div>
+    );
+  }
+
+  if (error || !discussion) {
     return (
       <div className="min-h-full flex flex-col gap-6">
         <div>
@@ -153,16 +217,19 @@ export default function DiscussionPage({
         <Card>
           <CardContent className="p-8">
             <div className="text-lg font-semibold text-[var(--dash-text-primary)]">
-              Discussion not found
+              {error || "Discussion not found"}
             </div>
             <div className="text-sm text-[var(--dash-text-tertiary)] mt-2">
-              The discussion you’re looking for doesn’t exist (yet).
+              The discussion you're looking for doesn't exist or couldn't be loaded.
             </div>
           </CardContent>
         </Card>
       </div>
     );
   }
+
+  const authorName = discussion.author?.full_name || discussion.author?.email || "Unknown";
+  const authorInitials = authorName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
 
   return (
     <div className="min-h-full flex flex-col gap-8">
@@ -177,10 +244,11 @@ export default function DiscussionPage({
         }
         title={
           <div className="flex items-center gap-2 justify-center">
-            {discussion.isPinned && <Pin className="w-4 h-4 text-[var(--brand)]" />}
-            {discussion.isResolved && (
+            {discussion.is_pinned && <Pin className="w-4 h-4 text-[var(--brand)]" />}
+            {discussion.is_resolved && (
               <CheckCircle2 className="w-4 h-4 text-[var(--status-success)]" />
             )}
+            {discussion.is_locked && <Lock className="w-4 h-4 text-[var(--dash-text-muted)]" />}
             <h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">
               {discussion.title}
             </h1>
@@ -189,30 +257,67 @@ export default function DiscussionPage({
         description={
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm text-[var(--dash-text-tertiary)] mt-2">
             <span className="font-medium text-[var(--dash-text-secondary)]">
-              {discussion.author}
+              {authorName}
             </span>
-            <span>{discussion.createdAt}</span>
+            <span>{formatDate(discussion.created_at)}</span>
             <span className="flex items-center gap-1.5">
               <MessageSquare className="w-4 h-4" />
-              {discussion.replies} replies
+              {discussion.replies_count} replies
             </span>
             <span className="flex items-center gap-1.5">
               <Eye className="w-4 h-4" />
-              {discussion.views} views
+              {discussion.views_count} views
             </span>
             <span className="flex items-center gap-1.5">
               <ThumbsUp className="w-4 h-4" />
-              {discussion.likes} likes
+              {discussion.likes_count} likes
             </span>
           </div>
         }
         right={
-          <Button variant="primary" size="lg" className="gap-2 px-7" asChild>
-            <Link href="/dashboard/community/new">
-              <Send className="w-5 h-5" />
-              New Discussion
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            {(canModerate || isAuthor) && (
+              <div className="relative">
+                <Button variant="outline" size="md" className="px-3" onClick={() => setShowActions(!showActions)}>
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+                {showActions && (
+                  <div className="absolute right-0 top-full mt-1 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg shadow-lg py-1 min-w-[160px] z-10">
+                    {canModerate && (
+                      <>
+                        <button onClick={handleTogglePin} className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2">
+                          <Pin className="w-4 h-4" />
+                          {discussion.is_pinned ? "Unpin" : "Pin"}
+                        </button>
+                        <button onClick={handleToggleLock} className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2">
+                          {discussion.is_locked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                          {discussion.is_locked ? "Unlock" : "Lock"}
+                        </button>
+                      </>
+                    )}
+                    {(canModerate || isAuthor) && (
+                      <button onClick={handleToggleResolved} className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4" />
+                        {discussion.is_resolved ? "Mark Unresolved" : "Mark Resolved"}
+                      </button>
+                    )}
+                    {(isAdmin || isAuthor) && (
+                      <button onClick={handleDelete} className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2 text-red-600">
+                        <Trash2 className="w-4 h-4" />
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            <Button variant="primary" size="lg" className="gap-2 px-7" asChild>
+              <Link href="/dashboard/community/new">
+                <Send className="w-5 h-5" />
+                New Discussion
+              </Link>
+            </Button>
+          </div>
         }
       />
 
@@ -223,48 +328,49 @@ export default function DiscussionPage({
               <div className="space-y-4">
                 <div className="flex items-center gap-4">
                   <div className="w-11 h-11 rounded-full bg-[var(--brand-primary-muted)] flex items-center justify-center text-[var(--brand)] font-semibold text-sm flex-shrink-0">
-                    {discussion.author.split(" ").map((n) => n[0]).join("")}
+                    {authorInitials}
                   </div>
                   <div className="min-w-0">
                     <div className="font-semibold text-[var(--dash-text-primary)]">
-                      {discussion.author}
+                      {authorName}
                     </div>
                     <div className="text-sm text-[var(--dash-text-tertiary)]">
-                      Posted {discussion.createdAt}
+                      Posted {formatDate(discussion.created_at)}
                     </div>
                   </div>
                 </div>
 
-                <div className="text-[var(--dash-text-primary)] leading-relaxed">
-                  {discussion.excerpt}
+                <div className="text-[var(--dash-text-primary)] leading-relaxed whitespace-pre-wrap">
+                  {discussion.content}
                 </div>
 
                 {discussion.poll && (
                   <PollDisplay
-                    poll={discussion.poll as Poll}
-                    discussionId={discussion.id.toString()}
+                    poll={discussion.poll}
+                    discussionId={discussion.id}
                   />
                 )}
 
                 <div className="flex flex-wrap items-center gap-2 pt-2">
-                  {discussion.tags.map((tag) => (
+                  {(discussion.tags || []).map((tag) => (
                     <span
                       key={tag}
                       className="px-2.5 py-1 text-xs bg-[var(--surface-ground)] text-[var(--dash-text-muted)] rounded-full"
                     >
-                      {tag}
+                      #{tag}
                     </span>
                   ))}
                 </div>
 
                 <div className="flex items-center gap-2 pt-4">
-                  <Button variant="outline" size="md" className="px-5">
+                  <Button 
+                    variant={discussion.has_liked ? "primary" : "outline"} 
+                    size="md" 
+                    className="px-5"
+                    onClick={handleLikeDiscussion}
+                  >
                     <ThumbsUp className="w-4 h-4" />
-                    Like
-                  </Button>
-                  <Button variant="outline" size="md" className="px-5">
-                    <MessageSquare className="w-4 h-4" />
-                    Reply
+                    {discussion.has_liked ? "Liked" : "Like"} ({discussion.likes_count})
                   </Button>
                 </div>
               </div>
@@ -273,30 +379,61 @@ export default function DiscussionPage({
 
           <Card>
             <CardContent className="p-6 sm:p-8">
-              <div className="font-semibold text-[var(--dash-text-primary)] mb-4">Replies</div>
+              <div className="font-semibold text-[var(--dash-text-primary)] mb-4">Replies ({replies.length})</div>
 
               <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="border border-[var(--dash-border-subtle)] rounded-xl p-5"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-[var(--surface-ground)] flex items-center justify-center text-[var(--dash-text-secondary)] font-semibold text-xs flex-shrink-0">
-                        U{i}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold text-[var(--dash-text-primary)]">
-                          User {i}
+                {replies.length === 0 ? (
+                  <p className="text-sm text-[var(--dash-text-tertiary)]">No replies yet. Be the first to respond!</p>
+                ) : (
+                  replies.map((r) => {
+                    const replyAuthor = r.author?.full_name || r.author?.email || "Unknown";
+                    const replyInitials = replyAuthor.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+                    return (
+                      <div
+                        key={r.id}
+                        className={`border rounded-xl p-5 ${r.is_accepted_answer ? "border-[var(--status-success)] bg-[var(--status-success)]/5" : "border-[var(--dash-border-subtle)]"}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-[var(--surface-ground)] flex items-center justify-center text-[var(--dash-text-secondary)] font-semibold text-xs flex-shrink-0">
+                              {replyInitials}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-[var(--dash-text-primary)] flex items-center gap-2">
+                                {replyAuthor}
+                                {r.is_accepted_answer && (
+                                  <span className="inline-flex items-center text-[10px] bg-[var(--status-success)]/10 text-[var(--status-success)] px-1.5 py-0.5 rounded font-medium">
+                                    <Check className="w-3 h-3 mr-1" /> Accepted
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs text-[var(--dash-text-muted)]">{formatDate(r.created_at)}</div>
+                            </div>
+                          </div>
+                          {isAuthor && !r.is_accepted_answer && (
+                            <Button variant="ghost" size="sm" onClick={() => handleAcceptAnswer(r.id)} className="text-xs">
+                              <Check className="w-3 h-3 mr-1" /> Accept
+                            </Button>
+                          )}
                         </div>
-                        <div className="text-xs text-[var(--dash-text-muted)]">1 day ago</div>
+                        <div className="text-sm text-[var(--dash-text-tertiary)] mt-3 leading-relaxed whitespace-pre-wrap">
+                          {r.content}
+                        </div>
+                        <div className="flex items-center gap-2 mt-3">
+                          <Button 
+                            variant={r.has_liked ? "primary" : "ghost"} 
+                            size="sm" 
+                            className="text-xs"
+                            onClick={() => handleLikeReply(r.id)}
+                          >
+                            <ThumbsUp className="w-3 h-3 mr-1" />
+                            {r.likes_count}
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-sm text-[var(--dash-text-tertiary)] mt-3 leading-relaxed">
-                      This is a placeholder reply. We can wire this up to real data once the backend/forum model is ready.
-                    </div>
-                  </div>
-                ))}
+                    );
+                  })
+                )}
               </div>
             </CardContent>
           </Card>
@@ -306,24 +443,36 @@ export default function DiscussionPage({
           <Card>
             <CardContent className="p-6">
               <div className="font-semibold text-[var(--dash-text-primary)] mb-3">Write a reply</div>
-              <Textarea
-                value={reply}
-                onChange={(e) => setReply(e.target.value)}
-                placeholder="Add a helpful reply..."
-                rows={8}
-                className="px-4 py-3 bg-[var(--surface-card)]"
-              />
-              <div className="flex items-center justify-end gap-3 mt-4">
-                <Button variant="outline" size="md" className="px-5" onClick={() => setReply("")}
-                  disabled={reply.trim().length === 0}
-                >
-                  Clear
-                </Button>
-                <Button variant="primary" size="md" className="px-5" disabled={reply.trim().length === 0}>
-                  <Send className="w-4 h-4" />
-                  Post Reply
-                </Button>
-              </div>
+              {discussion.is_locked ? (
+                <p className="text-sm text-[var(--dash-text-muted)]">This discussion is locked. No new replies can be added.</p>
+              ) : (
+                <>
+                  <Textarea
+                    value={reply}
+                    onChange={(e) => setReply(e.target.value)}
+                    placeholder="Add a helpful reply..."
+                    rows={8}
+                    className="px-4 py-3 bg-[var(--surface-card)]"
+                  />
+                  <div className="flex items-center justify-end gap-3 mt-4">
+                    <Button variant="outline" size="md" className="px-5" onClick={() => setReply("")}
+                      disabled={reply.trim().length === 0}
+                    >
+                      Clear
+                    </Button>
+                    <Button 
+                      variant="primary" 
+                      size="md" 
+                      className="px-5" 
+                      disabled={reply.trim().length === 0 || submitting}
+                      onClick={handleSubmitReply}
+                    >
+                      {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                      Post Reply
+                    </Button>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 

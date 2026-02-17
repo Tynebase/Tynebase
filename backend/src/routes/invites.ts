@@ -8,10 +8,27 @@ import { membershipGuard } from '../middleware/membershipGuard';
 import { writeAuditLog, getClientIp } from '../lib/auditLog';
 
 /**
+ * User limits per subscription tier
+ */
+const TIER_USER_LIMITS: Record<string, number> = {
+  free: 1,
+  base: 5,
+  pro: 10,
+  enterprise: Infinity,
+};
+
+/**
+ * Get the user limit for a given tier
+ */
+function getUserLimitForTier(tier: string): number {
+  return TIER_USER_LIMITS[tier] ?? 1;
+}
+
+/**
  * Zod schema for POST /api/invites request body
  */
 const inviteUserSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: z.string().trim().toLowerCase().email('Invalid email address'),
   role: z.enum(['admin', 'editor', 'member', 'viewer']).default('member'),
 });
 
@@ -22,7 +39,7 @@ const acceptInviteSchema = z.object({
   user_id: z.string().uuid(),
   tenant_id: z.string().uuid(),
   role: z.enum(['admin', 'editor', 'member', 'viewer']),
-  full_name: z.string().optional(),
+  full_name: z.string().trim().max(100, 'Name must be 100 characters or less').optional(),
 });
 
 /**
@@ -69,6 +86,43 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
         const body = inviteUserSchema.parse(request.body);
         const { email, role } = body;
 
+        // Prevent self-invite
+        if (email.toLowerCase() === user.email.toLowerCase()) {
+          return reply.code(400).send({
+            error: {
+              code: 'SELF_INVITE',
+              message: 'You cannot invite yourself',
+              details: {},
+            },
+          });
+        }
+
+        // Check user limit for tenant's tier
+        const userLimit = getUserLimitForTier(tenant.tier);
+        const { count: currentUserCount } = await supabaseAdmin
+          .from('users')
+          .select('id', { count: 'exact', head: true })
+          .eq('tenant_id', tenant.id)
+          .eq('status', 'active');
+
+        // Also count pending invites towards the limit
+        const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
+        const pendingInviteCount = authUsers?.users?.filter(
+          u => u.user_metadata?.tenant_id === tenant.id && !u.email_confirmed_at
+        ).length || 0;
+
+        const totalUsers = (currentUserCount || 0) + pendingInviteCount;
+
+        if (totalUsers >= userLimit) {
+          return reply.code(403).send({
+            error: {
+              code: 'USER_LIMIT_REACHED',
+              message: `Your ${tenant.tier} plan allows up to ${userLimit} user${userLimit === 1 ? '' : 's'}. Please upgrade to invite more team members.`,
+              details: { currentUsers: currentUserCount, pendingInvites: pendingInviteCount, limit: userLimit },
+            },
+          });
+        }
+
         // Check if user already exists in tenant
         const { data: existingUser } = await supabaseAdmin
           .from('users')
@@ -82,6 +136,24 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
             error: {
               code: 'USER_EXISTS',
               message: 'User with this email already exists in this workspace',
+              details: {},
+            },
+          });
+        }
+
+        // Check if there's already a pending invite for this email to this tenant
+        const { data: allUsers } = await supabaseAdmin.auth.admin.listUsers();
+        const existingPendingInvite = allUsers?.users?.find(
+          u => u.email === email && 
+               u.user_metadata?.tenant_id === tenant.id && 
+               !u.email_confirmed_at
+        );
+
+        if (existingPendingInvite) {
+          return reply.code(400).send({
+            error: {
+              code: 'INVITE_PENDING',
+              message: 'An invitation has already been sent to this email. Use the Resend option to send another email.',
               details: {},
             },
           });
@@ -109,7 +181,7 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
             return reply.code(400).send({
               error: {
                 code: 'EMAIL_EXISTS',
-                message: 'This email is already registered. They can log in and join your workspace.',
+                message: 'This email is already registered with another account. Users can only belong to one workspace. They would need to create a new account with a different email to join your workspace.',
                 details: {},
               },
             });
@@ -232,6 +304,41 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
           });
         }
 
+        // Validate that the tenant_id and role match what's in the user's metadata
+        // This prevents tampering with the invite data
+        const metadataTenantId = authUser.user_metadata?.tenant_id;
+        const metadataRole = authUser.user_metadata?.role;
+
+        if (!metadataTenantId || !metadataRole) {
+          return reply.code(400).send({
+            error: {
+              code: 'INVALID_INVITE',
+              message: 'No valid invitation found for this user',
+              details: {},
+            },
+          });
+        }
+
+        if (metadataTenantId !== tenant_id) {
+          return reply.code(403).send({
+            error: {
+              code: 'TENANT_MISMATCH',
+              message: 'Tenant ID does not match the invitation',
+              details: {},
+            },
+          });
+        }
+
+        if (metadataRole !== role) {
+          return reply.code(403).send({
+            error: {
+              code: 'ROLE_MISMATCH',
+              message: 'Role does not match the invitation',
+              details: {},
+            },
+          });
+        }
+
         // Check if user record already exists
         const { data: existingUser } = await supabaseAdmin
           .from('users')
@@ -249,10 +356,10 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Verify tenant exists
+        // Verify tenant exists and get tier for limit check
         const { data: tenant, error: tenantError } = await supabaseAdmin
           .from('tenants')
-          .select('id, subdomain, name')
+          .select('id, subdomain, name, tier')
           .eq('id', tenant_id)
           .single();
 
@@ -262,6 +369,24 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
               code: 'TENANT_NOT_FOUND',
               message: 'Tenant not found',
               details: {},
+            },
+          });
+        }
+
+        // Double-check user limit (in case tier changed since invite was sent)
+        const userLimit = getUserLimitForTier(tenant.tier);
+        const { count: currentUserCount } = await supabaseAdmin
+          .from('users')
+          .select('id', { count: 'exact', head: true })
+          .eq('tenant_id', tenant_id)
+          .eq('status', 'active');
+
+        if ((currentUserCount || 0) >= userLimit) {
+          return reply.code(403).send({
+            error: {
+              code: 'USER_LIMIT_REACHED',
+              message: `This workspace has reached its user limit. Please contact the workspace administrator to upgrade the plan.`,
+              details: { currentUsers: currentUserCount, limit: userLimit },
             },
           });
         }
@@ -340,6 +465,335 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
         }
 
         fastify.log.error({ error }, 'Unexpected error in POST /api/invites/accept');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
+   * GET /api/invites/pending
+   * List pending invitations for the tenant
+   * 
+   * Returns users who have been invited but haven't confirmed yet.
+   * 
+   * Authorization:
+   * - Requires valid JWT
+   * - User must be admin of tenant
+   */
+  fastify.get(
+    '/api/invites/pending',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        // Only admins can view pending invites
+        if (user.role !== 'admin') {
+          return reply.code(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Only admins can view pending invites',
+              details: {},
+            },
+          });
+        }
+
+        // Query auth.users for pending invites to this tenant
+        const { data: pendingUsers, error } = await supabaseAdmin.auth.admin.listUsers();
+
+        if (error) {
+          fastify.log.error({ error, tenantId: tenant.id }, 'Failed to list pending invites');
+          return reply.code(500).send({
+            error: {
+              code: 'FETCH_FAILED',
+              message: 'Failed to fetch pending invites',
+              details: {},
+            },
+          });
+        }
+
+        // Filter for users invited to this tenant who haven't confirmed
+        const pendingInvites = pendingUsers.users
+          .filter(u => 
+            u.user_metadata?.tenant_id === tenant.id && 
+            !u.email_confirmed_at
+          )
+          .map(u => ({
+            id: u.id,
+            email: u.email,
+            role: u.user_metadata?.role || 'member',
+            invited_by: u.user_metadata?.invited_by_name || 'Unknown',
+            created_at: u.created_at,
+          }));
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            invites: pendingInvites,
+            count: pendingInvites.length,
+          },
+        });
+      } catch (error) {
+        fastify.log.error({ error }, 'Unexpected error in GET /api/invites/pending');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
+   * DELETE /api/invites/:id
+   * Cancel a pending invitation
+   * 
+   * Deletes the unconfirmed user from auth.users.
+   * 
+   * Authorization:
+   * - Requires valid JWT
+   * - User must be admin of tenant
+   */
+  fastify.delete(
+    '/api/invites/:id',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+        const { id } = request.params as { id: string };
+
+        // Only admins can cancel invites
+        if (user.role !== 'admin') {
+          return reply.code(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Only admins can cancel invites',
+              details: {},
+            },
+          });
+        }
+
+        // Verify the invite belongs to this tenant
+        const { data: invitedUser, error: fetchError } = await supabaseAdmin.auth.admin.getUserById(id);
+
+        if (fetchError || !invitedUser?.user) {
+          return reply.code(404).send({
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Invitation not found',
+              details: {},
+            },
+          });
+        }
+
+        // Check tenant ownership and that user hasn't confirmed
+        if (invitedUser.user.user_metadata?.tenant_id !== tenant.id) {
+          return reply.code(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'This invitation does not belong to your workspace',
+              details: {},
+            },
+          });
+        }
+
+        if (invitedUser.user.email_confirmed_at) {
+          return reply.code(400).send({
+            error: {
+              code: 'ALREADY_CONFIRMED',
+              message: 'This user has already accepted the invitation',
+              details: {},
+            },
+          });
+        }
+
+        // Delete the unconfirmed user
+        const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(id);
+
+        if (deleteError) {
+          fastify.log.error({ error: deleteError, userId: id }, 'Failed to cancel invite');
+          return reply.code(500).send({
+            error: {
+              code: 'DELETE_FAILED',
+              message: 'Failed to cancel invitation',
+              details: {},
+            },
+          });
+        }
+
+        fastify.log.info(
+          { inviteId: id, email: invitedUser.user.email, tenantId: tenant.id, cancelledBy: user.id },
+          'Invitation cancelled'
+        );
+
+        writeAuditLog({
+          tenantId: tenant.id,
+          actorId: user.id,
+          action: 'user.invite_cancelled',
+          actionType: 'user',
+          targetName: invitedUser.user.email || null,
+          ipAddress: getClientIp(request),
+          metadata: {},
+        });
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            message: 'Invitation cancelled successfully',
+          },
+        });
+      } catch (error) {
+        fastify.log.error({ error }, 'Unexpected error in DELETE /api/invites/:id');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
+   * POST /api/invites/:id/resend
+   * Resend an invitation email
+   * 
+   * Generates a new magic link and sends it to the invited user.
+   * 
+   * Authorization:
+   * - Requires valid JWT
+   * - User must be admin of tenant
+   */
+  fastify.post(
+    '/api/invites/:id/resend',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+        const { id } = request.params as { id: string };
+
+        // Only admins can resend invites
+        if (user.role !== 'admin') {
+          return reply.code(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Only admins can resend invites',
+              details: {},
+            },
+          });
+        }
+
+        // Verify the invite belongs to this tenant
+        const { data: invitedUser, error: fetchError } = await supabaseAdmin.auth.admin.getUserById(id);
+
+        if (fetchError || !invitedUser?.user) {
+          return reply.code(404).send({
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Invitation not found',
+              details: {},
+            },
+          });
+        }
+
+        // Check tenant ownership and that user hasn't confirmed
+        if (invitedUser.user.user_metadata?.tenant_id !== tenant.id) {
+          return reply.code(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'This invitation does not belong to your workspace',
+              details: {},
+            },
+          });
+        }
+
+        if (invitedUser.user.email_confirmed_at) {
+          return reply.code(400).send({
+            error: {
+              code: 'ALREADY_CONFIRMED',
+              message: 'This user has already accepted the invitation',
+              details: {},
+            },
+          });
+        }
+
+        const email = invitedUser.user.email;
+        if (!email) {
+          return reply.code(400).send({
+            error: {
+              code: 'NO_EMAIL',
+              message: 'Invited user has no email address',
+              details: {},
+            },
+          });
+        }
+
+        // Generate a new invite link
+        const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+          data: {
+            tenant_id: tenant.id,
+            tenant_subdomain: tenant.subdomain,
+            tenant_name: tenant.name,
+            role: invitedUser.user.user_metadata?.role || 'member',
+            invited_by: user.id,
+            invited_by_name: user.full_name || user.email,
+          },
+          redirectTo: `${process.env.FRONTEND_URL || process.env.ALLOWED_ORIGINS?.split(',')[0]?.trim() || 'https://tynebase.vercel.app'}/auth/callback?tenant=${tenant.subdomain}`,
+        });
+
+        if (inviteError) {
+          fastify.log.error({ error: inviteError, email, tenantId: tenant.id }, 'Failed to resend invite');
+          return reply.code(500).send({
+            error: {
+              code: 'RESEND_FAILED',
+              message: 'Failed to resend invitation email',
+              details: {},
+            },
+          });
+        }
+
+        fastify.log.info(
+          { inviteId: id, email, tenantId: tenant.id, resentBy: user.id },
+          'Invitation resent'
+        );
+
+        writeAuditLog({
+          tenantId: tenant.id,
+          actorId: user.id,
+          action: 'user.invite_resent',
+          actionType: 'user',
+          targetName: email,
+          ipAddress: getClientIp(request),
+          metadata: {},
+        });
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            message: 'Invitation resent successfully',
+            email: email,
+          },
+        });
+      } catch (error) {
+        fastify.log.error({ error }, 'Unexpected error in POST /api/invites/:id/resend');
         return reply.code(500).send({
           error: {
             code: 'INTERNAL_ERROR',

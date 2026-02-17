@@ -648,7 +648,7 @@ const server = new Server({
 
       const { data: userRecord, error: userError } = await supabase
         .from('users')
-        .select('tenant_id')
+        .select('tenant_id, full_name, email')
         .eq('id', user.id)
         .single();
 
@@ -662,12 +662,14 @@ const server = new Server({
         throw new Error('Unauthorized access to document');
       }
 
-      console.log(`[Collab] User ${user.id} authenticated for document ${documentName}`);
+      // Use full_name if available, otherwise fall back to email
+      const displayName = userRecord.full_name || userRecord.email || user.email || 'Anonymous';
+      console.log(`[Collab] User ${user.id} (${displayName}) authenticated for document ${documentName}`);
       
       return {
         user: {
           id: user.id,
-          name: user.email || 'Anonymous',
+          name: displayName,
         },
       };
     } catch (error: any) {

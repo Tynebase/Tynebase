@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { listUsers, User } from "@/lib/api/users";
+import { listUsers, updateUser, deleteUser, User } from "@/lib/api/users";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Modal, ModalFooter } from "@/components/ui/Modal";
@@ -21,9 +22,13 @@ import {
   Download,
   Send,
   Info,
-  X
+  X,
+  Trash2,
+  AlertTriangle,
+  Loader2,
+  ShieldOff
 } from "lucide-react";
-import { inviteUser } from "@/lib/api/invites";
+import { inviteUser, listPendingInvites, cancelInvite, resendInvite, PendingInvite } from "@/lib/api/invites";
 import { useToast } from "@/components/ui/Toast";
 
 
@@ -208,6 +213,7 @@ function PendingInvitesCard({ children }: { children: React.ReactNode }) {
 
 export default function UsersPage() {
   const { addToast } = useToast();
+  const { user: currentUser } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -219,6 +225,26 @@ export default function UsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [showRolesModal, setShowRolesModal] = useState(false);
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
+  
+  // Role change modal state
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editRole, setEditRole] = useState<"admin" | "editor" | "member" | "viewer">("member");
+  const [updating, setUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  
+  // Delete confirmation modal state
+  const [deletingUser, setDeletingUser] = useState<User | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Pending invites state
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
+  const [loadingInvites, setLoadingInvites] = useState(false);
+  const [resendingId, setResendingId] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  // Admin guard - check if current user is admin
+  const isAdmin = currentUser?.role === 'admin';
 
   useEffect(() => {
     async function fetchUsers() {
@@ -235,6 +261,23 @@ export default function UsersPage() {
     }
     fetchUsers();
   }, []);
+
+  // Fetch pending invites
+  useEffect(() => {
+    async function fetchPendingInvites() {
+      if (!isAdmin) return;
+      try {
+        setLoadingInvites(true);
+        const response = await listPendingInvites();
+        setPendingInvites(response.invites);
+      } catch (err: any) {
+        console.error('Failed to fetch pending invites:', err);
+      } finally {
+        setLoadingInvites(false);
+      }
+    }
+    fetchPendingInvites();
+  }, [isAdmin]);
 
   const filteredMembers = users.filter((user) => {
     const matchesSearch =
@@ -255,17 +298,95 @@ export default function UsersPage() {
       addToast({ type: "success", title: "Invitation sent", description: `Invitation sent to ${inviteEmail}` });
       setInviteEmail("");
       setShowInviteModal(false);
-    } catch (err) {
-      addToast({ type: "success", title: "Invitation sent", description: `Invitation sent to ${inviteEmail}` });
-      setInviteEmail("");
-      setShowInviteModal(false);
+      // Refresh pending invites
+      const response = await listPendingInvites();
+      setPendingInvites(response.invites);
+    } catch (err: any) {
+      console.error('Failed to send invite:', err);
+      addToast({ type: "error", title: "Invitation failed", description: err.message || "Failed to send invitation. Please try again." });
     } finally {
       setInviting(false);
     }
   };
 
   const handleChangeRole = (member: User) => {
-    addToast({ type: "info", title: "Change Role", description: `Role management for ${member.full_name || member.email} - navigate to Settings > Users for full controls.` });
+    setEditingUser(member);
+    setEditRole(member.role);
+    setUpdateError(null);
+    setActiveDropdownId(null);
+  };
+
+  const handleUpdateUser = async () => {
+    if (!editingUser) return;
+    
+    try {
+      setUpdating(true);
+      setUpdateError(null);
+      const response = await updateUser(editingUser.id, { role: editRole });
+      
+      // Update local state
+      setUsers(users.map(u => u.id === editingUser.id ? response.user : u));
+      setEditingUser(null);
+      addToast({ type: "success", title: "Role updated", description: `${editingUser.full_name || editingUser.email}'s role has been updated to ${editRole}` });
+    } catch (err: any) {
+      console.error('Failed to update user:', err);
+      setUpdateError(err.message || 'Failed to update user');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleDeleteClick = (member: User) => {
+    setDeletingUser(member);
+    setDeleteError(null);
+    setActiveDropdownId(null);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deletingUser) return;
+    
+    try {
+      setDeleting(true);
+      setDeleteError(null);
+      await deleteUser(deletingUser.id);
+      
+      // Remove from local state
+      setUsers(users.filter(u => u.id !== deletingUser.id));
+      setDeletingUser(null);
+      addToast({ type: "success", title: "User removed", description: `${deletingUser.full_name || deletingUser.email} has been removed from the workspace` });
+    } catch (err: any) {
+      console.error('Failed to delete user:', err);
+      setDeleteError(err.message || 'Failed to remove user');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleResendInvite = async (invite: PendingInvite) => {
+    try {
+      setResendingId(invite.id);
+      await resendInvite(invite.id);
+      addToast({ type: "success", title: "Invitation resent", description: `Invitation resent to ${invite.email}` });
+    } catch (err: any) {
+      console.error('Failed to resend invite:', err);
+      addToast({ type: "error", title: "Resend failed", description: err.message || "Failed to resend invitation" });
+    } finally {
+      setResendingId(null);
+    }
+  };
+
+  const handleCancelInvite = async (invite: PendingInvite) => {
+    try {
+      setCancellingId(invite.id);
+      await cancelInvite(invite.id);
+      setPendingInvites(pendingInvites.filter(i => i.id !== invite.id));
+      addToast({ type: "success", title: "Invitation cancelled", description: `Invitation to ${invite.email} has been cancelled` });
+    } catch (err: any) {
+      console.error('Failed to cancel invite:', err);
+      addToast({ type: "error", title: "Cancel failed", description: err.message || "Failed to cancel invitation" });
+    } finally {
+      setCancellingId(null);
+    }
   };
 
   const handleSendEmail = (member: User) => {
@@ -275,6 +396,26 @@ export default function UsersPage() {
   const handleMoreOptions = (memberId: string) => {
     setActiveDropdownId(activeDropdownId === memberId ? null : memberId);
   };
+
+  // Admin guard - show permission denied for non-admins
+  if (!isAdmin) {
+    return (
+      <div className="w-full h-full min-h-0 flex flex-col items-center justify-center gap-6 p-8">
+        <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center">
+          <ShieldOff className="w-10 h-10 text-red-500" />
+        </div>
+        <div className="text-center max-w-md">
+          <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Access Denied</h1>
+          <p className="text-[var(--text-tertiary)]">
+            You don't have permission to access user management. Only administrators can view and manage team members.
+          </p>
+        </div>
+        <Button variant="outline" onClick={() => window.history.back()}>
+          Go Back
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full min-h-0 flex flex-col gap-8">
@@ -346,6 +487,14 @@ export default function UsersPage() {
                         <button onClick={() => { handleSendEmail(member); setActiveDropdownId(null); }} className="w-full text-left px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-ground)] flex items-center gap-2">
                           <Mail className="w-4 h-4" /> Send Email
                         </button>
+                        {member.id !== currentUser?.id && (
+                          <>
+                            <div className="h-px bg-[var(--border-subtle)] my-1" />
+                            <button onClick={() => handleDeleteClick(member)} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2">
+                              <Trash2 className="w-4 h-4" /> Remove User
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
@@ -354,6 +503,69 @@ export default function UsersPage() {
             </div>
           ))}
         </MembersCard>
+
+        {/* Pending Invitations Card */}
+        {pendingInvites.length > 0 && (
+          <PendingInvitesCard>
+            {loadingInvites ? (
+              <div className="px-6 py-8 flex items-center justify-center">
+                <Loader2 className="w-5 h-5 animate-spin text-[var(--text-tertiary)]" />
+              </div>
+            ) : (
+              pendingInvites.map((invite) => (
+                <div
+                  key={invite.id}
+                  className="flex flex-col gap-3 px-5 py-4 sm:px-6 sm:flex-row sm:items-center sm:justify-between hover:bg-[var(--surface-ground)] transition-colors"
+                >
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
+                      <Mail className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium text-[var(--text-primary)] truncate">{invite.email}</p>
+                      <p className="text-sm text-[var(--text-tertiary)]">
+                        Invited as <span className={`font-medium ${getRoleBadgeClass(invite.role)} px-1.5 py-0.5 rounded text-xs`}>{invite.role}</span> by {invite.invited_by}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-[var(--text-tertiary)]">
+                      {new Date(invite.created_at).toLocaleDateString()}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => handleResendInvite(invite)}
+                      disabled={resendingId === invite.id}
+                    >
+                      {resendingId === invite.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Send className="w-3.5 h-3.5" />
+                      )}
+                      Resend
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600 hover:bg-red-50 gap-1.5"
+                      onClick={() => handleCancelInvite(invite)}
+                      disabled={cancellingId === invite.id}
+                    >
+                      {cancellingId === invite.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <XCircle className="w-3.5 h-3.5" />
+                      )}
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </PendingInvitesCard>
+        )}
 
       </div>
 
@@ -406,6 +618,78 @@ export default function UsersPage() {
           <Button variant="primary" className="gap-2 px-6" onClick={handleSendInvite} disabled={inviting || !inviteEmail.trim()}>
             <Send className="w-4 h-4" />
             {inviting ? 'Sending...' : 'Send Invite'}
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Role Change Modal */}
+      <Modal
+        isOpen={!!editingUser}
+        onClose={() => setEditingUser(null)}
+        title="Change Role"
+        description={editingUser ? `Update role for ${editingUser.full_name || editingUser.email}` : ''}
+        size="md"
+      >
+        <div className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+              Role
+            </label>
+            <select
+              value={editRole}
+              onChange={(e) => setEditRole(e.target.value as any)}
+              className="w-full px-4 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]"
+            >
+              <option value="viewer">Viewer - Read-only access</option>
+              <option value="member">Member - Can create & edit own docs</option>
+              <option value="editor">Editor - Can edit any document</option>
+              <option value="admin">Admin - Full access</option>
+            </select>
+          </div>
+          {updateError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+              {updateError}
+            </div>
+          )}
+        </div>
+        <ModalFooter className="gap-4">
+          <Button variant="ghost" className="px-6" onClick={() => setEditingUser(null)}>
+            Cancel
+          </Button>
+          <Button variant="primary" className="gap-2 px-6" onClick={handleUpdateUser} disabled={updating}>
+            {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCog className="w-4 h-4" />}
+            {updating ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!deletingUser}
+        onClose={() => setDeletingUser(null)}
+        title="Remove User"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0" />
+            <p className="text-sm text-red-700">
+              This will remove <strong>{deletingUser?.full_name || deletingUser?.email}</strong> from your workspace. This action cannot be undone.
+            </p>
+          </div>
+          {deleteError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+              {deleteError}
+            </div>
+          )}
+        </div>
+        <ModalFooter className="gap-4">
+          <Button variant="ghost" className="px-6" onClick={() => setDeletingUser(null)}>
+            Cancel
+          </Button>
+          <Button variant="destructive" className="gap-2 px-6" onClick={handleDeleteUser} disabled={deleting}>
+            {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            {deleting ? 'Removing...' : 'Remove User'}
           </Button>
         </ModalFooter>
       </Modal>

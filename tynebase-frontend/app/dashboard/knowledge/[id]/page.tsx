@@ -25,7 +25,8 @@ import {
   Loader2,
   AlertTriangle,
   CheckCircle,
-  X
+  X,
+  Share2
 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/Card";
@@ -41,6 +42,7 @@ import {
   type Document 
 } from "@/lib/api/documents";
 import { listCategories, type Category as APICategory } from "@/lib/api/folders";
+import { ShareModal } from "@/components/docs/ShareModal";
 
 function htmlToPlainText(html: string | null | undefined) {
   if (!html) return '';
@@ -116,6 +118,7 @@ export default function EditDocumentPage() {
   const [mode, setMode] = useState<"edit" | "read">("edit");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCopyLinkModal, setShowCopyLinkModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const hasFetched = useRef(false);
 
   // Refetch content when switching to read mode to get latest saved content
@@ -430,6 +433,16 @@ export default function EditDocumentPage() {
             </button>
           </div>
 
+          {/* Share Button */}
+          <Button
+            variant="ghost"
+            className="gap-1 sm:gap-2 px-2 sm:px-3"
+            onClick={() => setShowShareModal(true)}
+          >
+            <Share2 className="w-4 h-4" />
+            <span className="hidden sm:inline">Share</span>
+          </Button>
+
           {/* Version History */}
           <Button
             variant="ghost"
@@ -610,13 +623,22 @@ export default function EditDocumentPage() {
                     </label>
                     <div className="space-y-2">
                       {[
-                        { id: "public", label: "Public", desc: "Coming Soon", icon: Globe, disabled: true },
+                        { id: "public", label: "Public", desc: "Shared with community", icon: Globe, disabled: false },
                         { id: "team", label: "Team Only", desc: "Workspace members", icon: Users, disabled: false },
                         { id: "private", label: "Private", desc: "Only you", icon: Lock, disabled: false },
                       ].map((option) => (
                         <button
                           key={option.id}
-                          onClick={() => !option.disabled && setVisibility(option.id as typeof visibility)}
+                          onClick={async () => {
+                            if (option.disabled) return;
+                            const newVisibility = option.id as typeof visibility;
+                            setVisibility(newVisibility);
+                            try {
+                              await updateDocument(documentId, { visibility: newVisibility });
+                            } catch (err) {
+                              console.error('Failed to update visibility:', err);
+                            }
+                          }}
                           disabled={option.disabled}
                           className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all ${
                             option.disabled
@@ -636,9 +658,9 @@ export default function EditDocumentPage() {
                           <div className="text-left flex-1">
                             <div className="flex items-center gap-2">
                               <p className="text-sm font-medium text-[var(--dash-text-primary)]">{option.label}</p>
-                              {option.disabled && (
-                                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-[var(--surface-ground)] text-[var(--dash-text-muted)] rounded">
-                                  Soon
+                              {option.id === "public" && visibility === "public" && (
+                                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-green-100 text-green-700 rounded">
+                                  Community
                                 </span>
                               )}
                             </div>
@@ -874,6 +896,14 @@ export default function EditDocumentPage() {
         title="Delete Document"
         itemName={title}
         confirmButtonText="Delete Document"
+      />
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        documentId={documentId}
+        documentTitle={title}
       />
     </div>
   );

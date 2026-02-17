@@ -5,7 +5,7 @@
  * Handles discussion listing, creation, and replies.
  */
 
-import { apiGet, apiPost } from './client';
+import { apiGet, apiPost, apiPatch, apiDelete } from './client';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -13,11 +13,11 @@ import { apiGet, apiPost } from './client';
 
 export interface Discussion {
   id: string;
-  tenant_id: string | null;
+  tenant_id?: string | null;
   title: string;
   content: string;
   category: string;
-  author_id: string;
+  author_id?: string;
   created_at: string;
   updated_at: string;
   replies_count: number;
@@ -25,12 +25,32 @@ export interface Discussion {
   likes_count: number;
   is_pinned: boolean;
   is_resolved: boolean;
+  is_locked?: boolean;
   tags: string[];
-  poll?: Poll;
+  poll?: Poll | null;
+  has_liked?: boolean;
   author?: {
     id: string;
     email: string;
     full_name: string | null;
+    avatar_url?: string | null;
+  };
+}
+
+export interface DiscussionReply {
+  id: string;
+  content: string;
+  parent_id?: string | null;
+  is_accepted_answer: boolean;
+  likes_count: number;
+  has_liked?: boolean;
+  created_at: string;
+  updated_at: string;
+  author?: {
+    id: string;
+    email: string;
+    full_name: string | null;
+    avatar_url?: string | null;
   };
 }
 
@@ -46,7 +66,7 @@ export interface Poll {
   options: PollOption[];
   total_votes: number;
   has_voted: boolean;
-  selected_option_id?: string;
+  selected_option_id?: string | null;
   created_at: string;
   ends_at?: string | null;
 }
@@ -85,22 +105,31 @@ export interface DiscussionResponse {
   discussion: Discussion;
 }
 
+export interface RepliesResponse {
+  replies: DiscussionReply[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  };
+}
+
 // ============================================================================
 // API FUNCTIONS
 // ============================================================================
 
 /**
  * List discussions with optional filtering and pagination
- *
- * @param params - Query parameters for filtering and pagination
- * @returns List of discussions with pagination metadata
  */
 export async function listDiscussions(
   params?: DiscussionListParams
 ): Promise<DiscussionListResponse> {
   const queryParams = new URLSearchParams();
 
-  if (params?.category) {
+  if (params?.category && params.category !== 'all') {
     queryParams.append('category', params.category);
   }
 
@@ -124,9 +153,6 @@ export async function listDiscussions(
 
 /**
  * Create a new discussion
- *
- * @param data - Discussion creation data
- * @returns Created discussion details
  */
 export async function createDiscussion(
   data: CreateDiscussionData
@@ -136,20 +162,128 @@ export async function createDiscussion(
 
 /**
  * Get a single discussion by ID
- *
- * @param id - Discussion UUID
- * @returns Discussion details
  */
 export async function getDiscussion(id: string): Promise<DiscussionResponse> {
   return apiGet<DiscussionResponse>(`/api/discussions/${id}`);
 }
 
 /**
+ * Update a discussion
+ */
+export async function updateDiscussion(
+  id: string,
+  data: Partial<CreateDiscussionData>
+): Promise<DiscussionResponse> {
+  return apiPatch<DiscussionResponse>(`/api/discussions/${id}`, data);
+}
+
+/**
+ * Delete a discussion
+ */
+export async function deleteDiscussion(id: string): Promise<{ success: boolean }> {
+  return apiDelete<{ success: boolean }>(`/api/discussions/${id}`);
+}
+
+/**
+ * Toggle like on a discussion
+ */
+export async function toggleDiscussionLike(id: string): Promise<{ liked: boolean }> {
+  return apiPost<{ liked: boolean }>(`/api/discussions/${id}/like`, {});
+}
+
+/**
+ * Toggle pin on a discussion (admin/editor only)
+ */
+export async function toggleDiscussionPin(id: string): Promise<{ is_pinned: boolean }> {
+  return apiPost<{ is_pinned: boolean }>(`/api/discussions/${id}/pin`, {});
+}
+
+/**
+ * Toggle lock on a discussion (admin/editor only)
+ */
+export async function toggleDiscussionLock(id: string): Promise<{ is_locked: boolean }> {
+  return apiPost<{ is_locked: boolean }>(`/api/discussions/${id}/lock`, {});
+}
+
+/**
+ * Toggle resolved status on a discussion
+ */
+export async function toggleDiscussionResolved(id: string): Promise<{ is_resolved: boolean }> {
+  return apiPost<{ is_resolved: boolean }>(`/api/discussions/${id}/resolve`, {});
+}
+
+/**
+ * Get replies for a discussion
+ */
+export async function getDiscussionReplies(
+  discussionId: string,
+  params?: { page?: number; limit?: number }
+): Promise<RepliesResponse> {
+  const queryParams = new URLSearchParams();
+  if (params?.page) queryParams.append('page', params.page.toString());
+  if (params?.limit) queryParams.append('limit', params.limit.toString());
+  
+  const queryString = queryParams.toString();
+  const endpoint = queryString 
+    ? `/api/discussions/${discussionId}/replies?${queryString}` 
+    : `/api/discussions/${discussionId}/replies`;
+
+  return apiGet<RepliesResponse>(endpoint);
+}
+
+/**
+ * Create a reply to a discussion
+ */
+export async function createReply(
+  discussionId: string,
+  data: { content: string; parent_id?: string }
+): Promise<{ reply: DiscussionReply }> {
+  return apiPost<{ reply: DiscussionReply }>(`/api/discussions/${discussionId}/replies`, data);
+}
+
+/**
+ * Update a reply
+ */
+export async function updateReply(
+  discussionId: string,
+  replyId: string,
+  data: { content: string }
+): Promise<{ reply: DiscussionReply }> {
+  return apiPatch<{ reply: DiscussionReply }>(`/api/discussions/${discussionId}/replies/${replyId}`, data);
+}
+
+/**
+ * Delete a reply
+ */
+export async function deleteReply(
+  discussionId: string,
+  replyId: string
+): Promise<{ success: boolean }> {
+  return apiDelete<{ success: boolean }>(`/api/discussions/${discussionId}/replies/${replyId}`);
+}
+
+/**
+ * Toggle like on a reply
+ */
+export async function toggleReplyLike(
+  discussionId: string,
+  replyId: string
+): Promise<{ liked: boolean }> {
+  return apiPost<{ liked: boolean }>(`/api/discussions/${discussionId}/replies/${replyId}/like`, {});
+}
+
+/**
+ * Accept a reply as the answer
+ */
+export async function acceptReplyAsAnswer(
+  discussionId: string,
+  replyId: string
+): Promise<{ is_accepted_answer: boolean }> {
+  return apiPost<{ is_accepted_answer: boolean }>(`/api/discussions/${discussionId}/replies/${replyId}/accept`, {});
+}
+
+/**
  * Vote on a poll
- *
- * @param discussionId - Discussion UUID containing the poll
- * @param optionId - Poll option ID to vote for
- * @returns Updated poll data
  */
 export async function voteOnPoll(
   discussionId: string,
@@ -160,9 +294,6 @@ export async function voteOnPoll(
 
 /**
  * Remove vote from a poll
- *
- * @param discussionId - Discussion UUID containing the poll
- * @returns Updated poll data
  */
 export async function removePollVote(
   discussionId: string

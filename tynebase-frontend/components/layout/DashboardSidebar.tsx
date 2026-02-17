@@ -55,6 +55,13 @@ const mainNavigation: NavItem[] = [
     href: "/dashboard",
     color: "#3b82f6",
   },
+  {
+    id: "community",
+    label: "Community",
+    icon: Users,
+    href: "/dashboard/community",
+    color: "#8b5cf6",
+  },
 ];
 
 const knowledgeNavigation: NavItem[] = [
@@ -192,6 +199,13 @@ const toolsNavigation: NavItem[] = [
     icon: FileText,
     href: "/dashboard/templates",
     color: "#f97316",
+  },
+  {
+    id: "team-chat",
+    label: "Team Chat",
+    icon: MessageCircle,
+    href: "/dashboard/tools/team-chat",
+    color: "#3b82f6",
   },
 ];
 

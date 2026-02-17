@@ -721,6 +721,30 @@ export function RichTextEditor({
             </div>
           </div>
           <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+            {/* Collaborator Avatars */}
+            {activeUsers.length > 0 && (
+              <div className="flex items-center -space-x-2 mr-2">
+                {activeUsers.slice(0, 4).map((user, idx) => (
+                  <div
+                    key={`${user.name}-${idx}`}
+                    className="w-7 h-7 rounded-full border-2 border-white flex items-center justify-center text-xs font-semibold text-white shadow-sm"
+                    style={{ backgroundColor: user.color, zIndex: 10 - idx }}
+                    title={user.name}
+                  >
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+                ))}
+                {activeUsers.length > 4 && (
+                  <div
+                    className="w-7 h-7 rounded-full border-2 border-white bg-slate-500 flex items-center justify-center text-xs font-semibold text-white shadow-sm"
+                    style={{ zIndex: 5 }}
+                    title={`${activeUsers.length - 4} more`}
+                  >
+                    +{activeUsers.length - 4}
+                  </div>
+                )}
+              </div>
+            )}
             {/* Collaboration Status */}
             <div className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 bg-[var(--surface-ground)] rounded-full border border-[var(--border-subtle)]">
               <div className={`w-2 h-2 rounded-full ${status === "connected" ? "bg-green-500" : status === "connecting" ? "bg-amber-500 animate-pulse" : "bg-red-500"}`} />
