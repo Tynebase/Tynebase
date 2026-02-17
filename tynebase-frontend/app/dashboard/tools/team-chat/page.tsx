@@ -72,6 +72,8 @@ export default function TeamChatPage() {
   const [threadInput, setThreadInput] = useState("");
   const [hasMore, setHasMore] = useState(false);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  const [deleteModal, setDeleteModal] = useState<{ type: 'channel' | 'dm'; messageId: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // State - Direct Messages
   const [dmConversations, setDmConversations] = useState<DMConversation[]>([]);
@@ -285,13 +287,15 @@ export default function TeamChatPage() {
   };
 
   const handleDeleteDMMessage = async (messageId: string) => {
-    if (!confirm("Are you sure you want to delete this message?")) return;
-
+    setIsDeleting(true);
     try {
       await deleteDMMessage(messageId);
       setDmMessages((prev) => prev.filter((m) => m.id !== messageId));
     } catch (err: any) {
       console.error("Failed to delete DM:", err);
+    } finally {
+      setIsDeleting(false);
+      setDeleteModal(null);
     }
   };
 
@@ -394,13 +398,15 @@ export default function TeamChatPage() {
   };
 
   const handleDeleteMessage = async (messageId: string) => {
-    if (!confirm("Are you sure you want to delete this message?")) return;
-
+    setIsDeleting(true);
     try {
       await deleteMessage(messageId);
       setMessages((prev) => prev.filter((m) => m.id !== messageId));
     } catch (err: any) {
       console.error("Failed to delete message:", err);
+    } finally {
+      setIsDeleting(false);
+      setDeleteModal(null);
     }
   };
 
@@ -827,7 +833,7 @@ export default function TeamChatPage() {
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDeleteDMMessage(message.id)}
+                          onClick={() => setDeleteModal({ type: 'dm', messageId: message.id })}
                           className="p-1.5 text-[var(--text-tertiary)] hover:text-red-500 hover:bg-[var(--surface-ground)] rounded"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -1053,7 +1059,7 @@ export default function TeamChatPage() {
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDeleteMessage(message.id)}
+                          onClick={() => setDeleteModal({ type: 'channel', messageId: message.id })}
                           className="p-1.5 text-[var(--text-tertiary)] hover:text-red-500 hover:bg-[var(--surface-ground)] rounded"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -1195,6 +1201,58 @@ export default function TeamChatPage() {
             </div>
           </form>
         </aside>
+      )}
+
+      {/* Delete Message Confirmation Modal */}
+      {deleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => !isDeleting && setDeleteModal(null)}
+          />
+          <div className="relative bg-[var(--surface-card)] rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-500/10 rounded-full">
+                <Trash2 className="w-5 h-5 text-red-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-[var(--text-primary)]">
+                Delete Message
+              </h3>
+            </div>
+            <p className="text-[var(--text-secondary)] mb-6">
+              Are you sure you want to delete this message? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteModal(null)}
+                disabled={isDeleting}
+                className="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] rounded-lg transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (deleteModal.type === 'dm') {
+                    handleDeleteDMMessage(deleteModal.messageId);
+                  } else {
+                    handleDeleteMessage(deleteModal.messageId);
+                  }
+                }}
+                disabled={isDeleting}
+                className="px-4 py-2 text-sm font-medium bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
