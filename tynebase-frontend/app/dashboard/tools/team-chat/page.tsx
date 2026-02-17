@@ -538,7 +538,7 @@ export default function TeamChatPage() {
   }
 
   return (
-    <div className="flex bg-[var(--surface-ground)] overflow-hidden -mx-4 -mt-6 -mb-6 sm:-mx-8 sm:-mt-8 sm:-mb-8 lg:-mx-10" style={{ height: 'calc(100vh - 4rem)' }}>
+    <div className="flex bg-[var(--surface-ground)] overflow-hidden -mx-4 -mt-6 -mb-6 sm:-mx-8 sm:-mt-8 sm:-mb-8 lg:-mx-10" style={{ height: 'calc(100vh - 6.5rem)' }}>
       {/* Mobile sidebar toggle */}
       <button
         onClick={() => setShowMobileSidebar(true)}
