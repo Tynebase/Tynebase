@@ -10,6 +10,27 @@ import {
 import { listSharedDocuments, Document } from "@/lib/api/documents";
 import { listTemplates, Template } from "@/lib/api/templates";
 
+// Strip markdown/HTML for plain text preview
+const stripMarkdown = (text: string): string => {
+  return text
+    .replace(/#{1,6}\s?/g, '') // headers
+    .replace(/\*\*([^*]+)\*\*/g, '$1') // bold
+    .replace(/\*([^*]+)\*/g, '$1') // italic
+    .replace(/__([^_]+)__/g, '$1') // bold alt
+    .replace(/_([^_]+)_/g, '$1') // italic alt
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // links
+    .replace(/!\[([^\]]*)]\([^)]+\)/g, '') // images
+    .replace(/`{1,3}[^`]*`{1,3}/g, '') // code
+    .replace(/^>\s?/gm, '') // blockquotes
+    .replace(/^[-*+]\s/gm, '') // list items
+    .replace(/^\d+\.\s/gm, '') // numbered lists
+    .replace(/<[^>]*>/g, '') // HTML tags
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\n{2,}/g, ' ')
+    .replace(/\n/g, ' ')
+    .trim();
+};
+
 type TabType = "documents" | "templates";
 
 export default function SharedDocumentsPage() {
@@ -197,7 +218,7 @@ export default function SharedDocumentsPage() {
                   return (
                     <Link
                       key={doc.id}
-                      href={`/dashboard/documents/${doc.id}`}
+                      href={`/dashboard/knowledge/${doc.id}`}
                       className="block bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl p-5 hover:shadow-md hover:border-[var(--brand)] transition-all group"
                     >
                       <div className="flex items-start gap-3 mb-3">
@@ -215,7 +236,7 @@ export default function SharedDocumentsPage() {
                         </div>
                       </div>
                       <p className="text-sm text-[var(--dash-text-tertiary)] line-clamp-2 mb-3">
-                        {doc.content?.slice(0, 150) || "No content preview available"}
+                        {doc.content ? stripMarkdown(doc.content).slice(0, 150) : "No content preview available"}
                       </p>
                       <div className="flex items-center justify-between text-xs text-[var(--dash-text-muted)]">
                         <span className="flex items-center gap-1">
