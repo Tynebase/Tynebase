@@ -47,7 +47,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
     { preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard] },
     async (request, reply) => {
       try {
-        const tenant = (request as any).tenant;
         const query = request.query as { category?: string; page?: string; limit?: string; sortBy?: string };
         
         const page = Math.max(1, parseInt(query.page || '1', 10));
@@ -200,7 +199,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
     { preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard] },
     async (request, reply) => {
       try {
-        const tenant = (request as any).tenant;
         const user = (request as any).user;
         const { id } = request.params as { id: string };
 
@@ -298,7 +296,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
     { preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard] },
     async (request, reply) => {
       try {
-        const tenant = (request as any).tenant;
         const user = (request as any).user;
         const { id } = request.params as { id: string };
         const body = updateDiscussionSchema.parse(request.body);
@@ -401,7 +398,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
     { preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard] },
     async (request, reply) => {
       try {
-        const tenant = (request as any).tenant;
         const user = (request as any).user;
         const { id } = request.params as { id: string };
 
@@ -444,7 +440,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
     { preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard] },
     async (request, reply) => {
       try {
-        const tenant = (request as any).tenant;
         const user = (request as any).user;
         const { id } = request.params as { id: string };
 
@@ -487,7 +482,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
     { preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard] },
     async (request, reply) => {
       try {
-        const tenant = (request as any).tenant;
         const user = (request as any).user;
         const { id } = request.params as { id: string };
 
@@ -530,7 +524,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
     { preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard] },
     async (request, reply) => {
       try {
-        const tenant = (request as any).tenant;
         const user = (request as any).user;
         const { id } = request.params as { id: string };
 
@@ -575,7 +568,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
     { preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard] },
     async (request, reply) => {
       try {
-        const tenant = (request as any).tenant;
         const user = (request as any).user;
         const { id } = request.params as { id: string };
         const query = request.query as { page?: string; limit?: string };
@@ -701,7 +693,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
     { preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard] },
     async (request, reply) => {
       try {
-        const tenant = (request as any).tenant;
         const user = (request as any).user;
         const { rid } = request.params as { id: string; rid: string };
         const body = updateReplySchema.parse(request.body);
@@ -752,7 +743,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
     { preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard] },
     async (request, reply) => {
       try {
-        const tenant = (request as any).tenant;
         const user = (request as any).user;
         const { rid } = request.params as { id: string; rid: string };
 
@@ -794,7 +784,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
     { preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard] },
     async (request, reply) => {
       try {
-        const tenant = (request as any).tenant;
         const user = (request as any).user;
         const { rid } = request.params as { id: string; rid: string };
 
@@ -837,7 +826,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
     { preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard] },
     async (request, reply) => {
       try {
-        const tenant = (request as any).tenant;
         const user = (request as any).user;
         const { id, rid } = request.params as { id: string; rid: string };
 
@@ -900,7 +888,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
     { preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard] },
     async (request, reply) => {
       try {
-        const tenant = (request as any).tenant;
         const user = (request as any).user;
         const { id } = request.params as { id: string };
         const body = voteOnPollSchema.parse(request.body);
