@@ -401,7 +401,7 @@ export default function CommunityPage() {
                                     <MoreHorizontal className="w-4 h-4" />
                                   </button>
                                   {openMenuId === discussion.id && (
-                                    <div className="absolute right-0 bottom-full mb-1 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg shadow-lg py-1 min-w-[140px] z-50">
+                                    <div className="absolute right-0 top-full mt-1 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg shadow-lg py-1 min-w-[140px] z-50">
                                       <button
                                         onClick={(e) => handleEditClick(e, discussion.id)}
                                         className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2 text-[var(--dash-text-secondary)]"

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { Card, CardContent } from "@/components/ui/Card";
 import { SimpleRichTextEditor } from "@/components/editor/SimpleRichTextEditor";
 import { DashboardPageHeader } from "@/components/layout/DashboardPageHeader";
-import { createDiscussion, createDraftDiscussion, uploadDiscussionAsset, updateDiscussion } from "@/lib/api/discussions";
+import { createDiscussion, createDraftDiscussion, uploadDiscussionAsset, updateDiscussion, deleteDiscussion } from "@/lib/api/discussions";
 import { listTemplates, Template } from "@/lib/api/templates";
 import { ArrowLeft, Plus, Send, Tag, Loader2, AlertCircle, BarChart3, X, FileText, Search, Quote } from "lucide-react";
 
@@ -125,17 +125,11 @@ export default function NewDiscussionPage() {
         .map((t) => t.trim())
         .filter((t) => t.length > 0);
 
-      // Update the draft discussion with the full content
-      await updateDiscussion(draftId, {
-        title: title.trim(),
-        content: content.trim(),
-        category,
-        tags: parsedTags,
-      });
-
-      // If there's a poll, we need to add it separately (poll creation is handled by createDiscussion)
-      // For now, if user wants a poll, we'll create a new discussion instead
+      // If there's a poll, delete the draft and create a fresh discussion with poll
       if (hasPoll && isPollValid) {
+        // Delete the draft first to avoid duplicate
+        await deleteDiscussion(draftId);
+        
         const response = await createDiscussion({
           title: title.trim(),
           content: content.trim(),
@@ -148,6 +142,13 @@ export default function NewDiscussionPage() {
         });
         router.push(`/dashboard/community/${response.discussion.id}`);
       } else {
+        // Update the draft discussion with the full content (no poll)
+        await updateDiscussion(draftId, {
+          title: title.trim(),
+          content: content.trim(),
+          category,
+          tags: parsedTags,
+        });
         router.push(`/dashboard/community/${draftId}`);
       }
     } catch (err) {
