@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
@@ -55,11 +55,25 @@ export default function DiscussionPage() {
   const [showActions, setShowActions] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const actionsRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (actionsRef.current && !actionsRef.current.contains(event.target as Node)) {
+        setShowActions(false);
+      }
+    };
+    if (showActions) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showActions]);
 
   const isAdmin = user?.role === 'admin' || (user as { role?: string })?.role === 'super_admin';
   const isEditor = user?.role === 'editor';
   const canModerate = isAdmin || isEditor;
-  const isAuthor = discussion?.author?.id === user?.id;
+  const isAuthor = !!(user?.id && discussion?.author_id && user.id === discussion.author_id);
 
   const fetchDiscussion = useCallback(async () => {
     try {
@@ -279,7 +293,7 @@ export default function DiscussionPage() {
         right={
           <div className="flex items-center gap-2">
             {(canModerate || isAuthor) && (
-              <div className="relative">
+              <div className="relative" ref={actionsRef}>
                 <Button variant="outline" size="md" className="px-3" onClick={() => setShowActions(!showActions)}>
                   <MoreHorizontal className="w-4 h-4" />
                 </Button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
@@ -39,6 +39,20 @@ export default function CommunityPage() {
   const [discussionToDelete, setDiscussionToDelete] = useState<Discussion | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpenMenuId(null);
+      }
+    };
+    if (openMenuId) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [openMenuId]);
 
   const handleDeleteClick = (e: React.MouseEvent, discussion: Discussion) => {
     e.preventDefault();
@@ -372,7 +386,7 @@ export default function CommunityPage() {
 
                           {/* Actions menu for author only */}
                           {user?.id && discussion.author_id && user.id === discussion.author_id && (
-                            <div className="relative flex-shrink-0">
+                            <div className="relative flex-shrink-0" ref={openMenuId === discussion.id ? menuRef : undefined}>
                               <button
                                 onClick={(e) => toggleMenu(e, discussion.id)}
                                 className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-[var(--dash-text-primary)] transition-colors"
