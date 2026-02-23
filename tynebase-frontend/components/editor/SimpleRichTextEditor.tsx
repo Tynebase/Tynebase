@@ -4,7 +4,7 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
-import Image from "@tiptap/extension-image";
+import { ResizableImage } from "./extensions/ResizableImage";
 import Youtube from "@tiptap/extension-youtube";
 import Placeholder from "@tiptap/extension-placeholder";
 import { useEffect, useState, useRef, useCallback } from "react";
@@ -68,7 +68,7 @@ export function SimpleRichTextEditor({
           class: "text-[var(--brand)] underline",
         },
       }),
-      Image.configure({
+      ResizableImage.configure({
         HTMLAttributes: {
           class: "max-w-full h-auto rounded-lg my-4",
         },
