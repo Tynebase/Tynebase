@@ -63,7 +63,7 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
             replies_count, views_count, likes_count, tags, created_at, updated_at,
             author:users!discussions_author_id_fkey (id, email, full_name, avatar_url)
           `, { count: 'exact' })
-          .eq('tenant_id', tenant.id);
+;
 
         if (category && category !== 'all') {
           discussionsQuery = discussionsQuery.eq('category', category);
@@ -212,7 +212,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
             author:users!discussions_author_id_fkey (id, email, full_name, avatar_url)
           `)
           .eq('id', id)
-          .eq('tenant_id', tenant.id)
           .single();
 
         if (error || !discussion) {
@@ -308,7 +307,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
           .from('discussions')
           .select('id, author_id')
           .eq('id', id)
-          .eq('tenant_id', tenant.id)
           .single();
 
         if (!existing) {
@@ -359,7 +357,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
           .from('discussions')
           .select('id, author_id, title')
           .eq('id', id)
-          .eq('tenant_id', tenant.id)
           .single();
 
         if (!existing) {
@@ -412,7 +409,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
           .from('discussions')
           .select('id')
           .eq('id', id)
-          .eq('tenant_id', tenant.id)
           .single();
 
         if (!existing) {
@@ -460,7 +456,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
           .from('discussions')
           .select('id, is_pinned')
           .eq('id', id)
-          .eq('tenant_id', tenant.id)
           .single();
 
         if (!existing) {
@@ -504,7 +499,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
           .from('discussions')
           .select('id, is_locked')
           .eq('id', id)
-          .eq('tenant_id', tenant.id)
           .single();
 
         if (!existing) {
@@ -544,7 +538,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
           .from('discussions')
           .select('id, is_resolved, author_id')
           .eq('id', id)
-          .eq('tenant_id', tenant.id)
           .single();
 
         if (!existing) {
@@ -595,7 +588,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
           .from('discussions')
           .select('id')
           .eq('id', id)
-          .eq('tenant_id', tenant.id)
           .single();
 
         if (!discussion) {
@@ -661,7 +653,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
           .from('discussions')
           .select('id, is_locked')
           .eq('id', id)
-          .eq('tenant_id', tenant.id)
           .single();
 
         if (!discussion) {
@@ -719,7 +710,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
           .from('discussion_replies')
           .select('id, author_id')
           .eq('id', rid)
-          .eq('tenant_id', tenant.id)
           .single();
 
         if (!existing) {
@@ -770,7 +760,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
           .from('discussion_replies')
           .select('id, author_id')
           .eq('id', rid)
-          .eq('tenant_id', tenant.id)
           .single();
 
         if (!existing) {
@@ -813,7 +802,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
           .from('discussion_replies')
           .select('id')
           .eq('id', rid)
-          .eq('tenant_id', tenant.id)
           .single();
 
         if (!existing) {
@@ -857,7 +845,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
           .from('discussions')
           .select('id, author_id')
           .eq('id', id)
-          .eq('tenant_id', tenant.id)
           .single();
 
         if (!discussion) {
@@ -923,7 +910,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
           .from('discussions')
           .select('id')
           .eq('id', id)
-          .eq('tenant_id', tenant.id)
           .single();
 
         if (!discussion) {
