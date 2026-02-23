@@ -3,10 +3,9 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { FileText, User, Clock, Eye, ArrowLeft, Loader2, AlertCircle } from "lucide-react";
+import { User, Clock, Eye, ArrowLeft, Loader2, AlertCircle } from "lucide-react";
 import { getPublicDocument, Document } from "@/lib/api/documents";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { MarkdownReader } from "@/components/ui/MarkdownReader";
 
 export default function PublicDocumentPage() {
   const params = useParams();
@@ -106,58 +105,31 @@ export default function PublicDocumentPage() {
 
       {/* Content */}
       <main className="max-w-4xl mx-auto px-4 py-8">
-        {/* Document Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-xl bg-[var(--brand-primary-muted)] flex items-center justify-center">
-              <FileText className="w-6 h-6 text-[var(--brand)]" />
-            </div>
-            <div>
-              {categoryName && (
-                <span
-                  className="inline-block px-2 py-0.5 rounded text-xs font-medium mb-1"
-                  style={{ backgroundColor: `${categoryColor}20`, color: categoryColor }}
-                >
-                  {categoryName}
-                </span>
-              )}
-              <h1 className="text-3xl font-bold text-[var(--dash-text-primary)]">
-                {document.title}
-              </h1>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-4 text-sm text-[var(--dash-text-muted)]">
-            <span className="flex items-center gap-1.5">
-              <User className="w-4 h-4" />
-              {authorName}
+        {/* Document Meta */}
+        <div className="mb-6 flex items-center gap-4 text-sm text-[var(--dash-text-muted)]">
+          {categoryName && (
+            <span
+              className="inline-block px-2 py-0.5 rounded text-xs font-medium"
+              style={{ backgroundColor: `${categoryColor}20`, color: categoryColor }}
+            >
+              {categoryName}
             </span>
-            <span className="flex items-center gap-1.5">
-              <Clock className="w-4 h-4" />
-              {formatDate(document.created_at)}
-            </span>
-          </div>
+          )}
+          <span className="flex items-center gap-1.5">
+            <User className="w-4 h-4" />
+            {authorName}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Clock className="w-4 h-4" />
+            {formatDate(document.created_at)}
+          </span>
         </div>
 
-        {/* Document Content */}
-        <article className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-8">
-          <div className="prose prose-slate dark:prose-invert max-w-none
-            prose-headings:text-[var(--dash-text-primary)]
-            prose-p:text-[var(--dash-text-secondary)]
-            prose-a:text-[var(--brand)]
-            prose-strong:text-[var(--dash-text-primary)]
-            prose-code:bg-[var(--surface-ground)] prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded
-            prose-pre:bg-[var(--surface-ground)] prose-pre:border prose-pre:border-[var(--dash-border-subtle)]
-            prose-blockquote:border-l-[var(--brand)] prose-blockquote:text-[var(--dash-text-tertiary)]
-            prose-ul:text-[var(--dash-text-secondary)]
-            prose-ol:text-[var(--dash-text-secondary)]
-            prose-li:text-[var(--dash-text-secondary)]
-          ">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {document.content || "No content available."}
-            </ReactMarkdown>
-          </div>
-        </article>
+        {/* Document Content - using same MarkdownReader as main app */}
+        <MarkdownReader 
+          content={document.content || "No content available."} 
+          title={document.title}
+        />
       </main>
 
       {/* Footer */}
