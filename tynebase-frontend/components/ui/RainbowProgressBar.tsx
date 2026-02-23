@@ -1,44 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
 interface RainbowProgressBarProps {
   isLoading: boolean;
   duration?: number;
 }
 
-export function RainbowProgressBar({ isLoading, duration = 2000 }: RainbowProgressBarProps) {
-  const [progress, setProgress] = useState(0);
-
-  useEffect(() => {
-    if (!isLoading) {
-      setProgress(100);
-      const timer = setTimeout(() => setProgress(0), 300);
-      return () => clearTimeout(timer);
-    }
-
-    setProgress(0);
-    const startTime = Date.now();
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const newProgress = Math.min((elapsed / duration) * 90, 90);
-      setProgress(newProgress);
-    }, 50);
-
-    return () => clearInterval(interval);
-  }, [isLoading, duration]);
-
-  if (progress === 0 && !isLoading) return null;
+export function RainbowProgressBar({ isLoading }: RainbowProgressBarProps) {
+  if (!isLoading) return null;
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-[9999] h-1">
+    <div className="fixed top-0 left-0 right-0 z-[9999] h-1 overflow-hidden">
       <div
-        className="h-full rainbow-gradient transition-all duration-300 ease-out"
+        className="h-full w-full"
         style={{
-          width: `${progress}%`,
-          opacity: progress === 100 ? 0 : 1,
+          background: 'linear-gradient(90deg, #4285f4, #ea4335, #fbbc04, #34a853, #4285f4)',
+          backgroundSize: '200% 100%',
+          animation: 'shimmer 1.5s ease-in-out infinite',
         }}
       />
+      <style jsx>{`
+        @keyframes shimmer {
+          0% {
+            background-position: 200% 0;
+          }
+          100% {
+            background-position: -200% 0;
+          }
+        }
+      `}</style>
     </div>
   );
 }
