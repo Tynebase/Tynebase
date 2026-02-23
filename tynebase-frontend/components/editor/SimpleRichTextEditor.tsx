@@ -4,11 +4,14 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
+import Image from "@tiptap/extension-image";
+import Youtube from "@tiptap/extension-youtube";
 import Placeholder from "@tiptap/extension-placeholder";
-import { useEffect } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
-  List, ListOrdered, Quote, Code, Link as LinkIcon
+  List, ListOrdered, Quote, Code, Link as LinkIcon,
+  Image as ImageIcon, Youtube as YoutubeIcon, Upload, Loader2, X
 } from "lucide-react";
 
 interface SimpleRichTextEditorProps {
@@ -16,6 +19,8 @@ interface SimpleRichTextEditorProps {
   onChange: (value: string) => void;
   placeholder?: string;
   minHeight?: string;
+  discussionId?: string;
+  onUploadAsset?: (file: File) => Promise<{ signed_url: string }>;
 }
 
 export function SimpleRichTextEditor({
@@ -23,7 +28,31 @@ export function SimpleRichTextEditor({
   onChange,
   placeholder = "Write your content...",
   minHeight = "200px",
+  discussionId,
+  onUploadAsset,
 }: SimpleRichTextEditorProps) {
+  const [showImageInput, setShowImageInput] = useState(false);
+  const [showYoutubeInput, setShowYoutubeInput] = useState(false);
+  const [imageUrl, setImageUrl] = useState("");
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const imageFileRef = useRef<HTMLInputElement>(null);
+  const editorRef = useRef<any>(null);
+
+  const handleImageUpload = useCallback(async (file: File) => {
+    if (!onUploadAsset) return;
+    setIsUploading(true);
+    try {
+      const response = await onUploadAsset(file);
+      editorRef.current?.chain().focus().setImage({ src: response.signed_url }).run();
+    } catch (err) {
+      console.error('Failed to upload image:', err);
+    } finally {
+      setIsUploading(false);
+    }
+  }, [onUploadAsset]);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -36,6 +65,16 @@ export function SimpleRichTextEditor({
           class: "text-[var(--brand)] underline",
         },
       }),
+      Image.configure({
+        HTMLAttributes: {
+          class: "max-w-full h-auto rounded-lg my-4",
+        },
+      }),
+      Youtube.configure({
+        HTMLAttributes: {
+          class: "w-full aspect-video rounded-lg my-4",
+        },
+      }),
       Placeholder.configure({
         placeholder,
       }),
@@ -46,11 +85,37 @@ export function SimpleRichTextEditor({
         class: `prose prose-sm max-w-none focus:outline-none p-4 text-[var(--dash-text-primary)]`,
         style: `min-height: ${minHeight}`,
       },
+      handleDrop: (view, event, _slice, moved) => {
+        if (moved || !onUploadAsset) return false;
+        const dataTransfer = event.dataTransfer;
+        if (!dataTransfer?.files?.length) return false;
+        const file = dataTransfer.files[0];
+        if (!file.type.startsWith('image/')) return false;
+        event.preventDefault();
+        handleImageUpload(file);
+        return true;
+      },
+      handlePaste: (view, event) => {
+        if (!onUploadAsset) return false;
+        const items = event.clipboardData?.items;
+        if (!items) return false;
+        const imageItem = Array.from(items).find((item) => item.type.startsWith('image/'));
+        if (!imageItem) return false;
+        const file = imageItem.getAsFile();
+        if (!file) return false;
+        event.preventDefault();
+        handleImageUpload(file);
+        return true;
+      },
     },
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
     },
   });
+
+  useEffect(() => {
+    editorRef.current = editor;
+  }, [editor]);
 
   useEffect(() => {
     if (editor && value !== editor.getHTML()) {
@@ -99,9 +164,50 @@ export function SimpleRichTextEditor({
     }
   };
 
+  const addImageFromUrl = () => {
+    if (imageUrl) {
+      editor.chain().focus().setImage({ src: imageUrl }).run();
+      setImageUrl("");
+      setShowImageInput(false);
+    }
+  };
+
+  const addYoutubeVideo = () => {
+    if (youtubeUrl) {
+      editor.chain().focus().setYoutubeVideo({ src: youtubeUrl }).run();
+      setYoutubeUrl("");
+      setShowYoutubeInput(false);
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleImageUpload(file);
+      setShowImageInput(false);
+    }
+    if (imageFileRef.current) imageFileRef.current.value = "";
+  };
+
   return (
-    <div className="border border-[var(--dash-border-subtle)] rounded-lg overflow-hidden bg-[var(--surface-card)]">
-      <div className="flex items-center gap-0.5 p-2 border-b border-[var(--dash-border-subtle)] bg-[var(--surface-ground)]">
+    <div className="border border-[var(--dash-border-subtle)] rounded-lg overflow-hidden bg-[var(--surface-card)] relative">
+      {/* Drag overlay */}
+      {isDragging && onUploadAsset && (
+        <div className="absolute inset-0 bg-[var(--brand)]/10 border-2 border-dashed border-[var(--brand)] rounded-lg z-10 flex items-center justify-center">
+          <div className="text-[var(--brand)] font-medium">Drop image here</div>
+        </div>
+      )}
+
+      {/* Hidden file input */}
+      <input
+        ref={imageFileRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileInputChange}
+        className="hidden"
+      />
+
+      <div className="flex items-center gap-0.5 p-2 border-b border-[var(--dash-border-subtle)] bg-[var(--surface-ground)] flex-wrap">
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBold().run()}
           isActive={editor.isActive("bold")}
@@ -171,6 +277,93 @@ export function SimpleRichTextEditor({
         >
           <LinkIcon className="w-4 h-4" />
         </ToolbarButton>
+
+        <div className="w-px h-5 bg-[var(--dash-border-subtle)] mx-1" />
+
+        {/* Image button */}
+        <div className="relative">
+          <ToolbarButton
+            onClick={() => setShowImageInput(!showImageInput)}
+            isActive={showImageInput}
+            title="Add Image"
+          >
+            {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+          </ToolbarButton>
+          {showImageInput && (
+            <div className="absolute top-full left-0 mt-1 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg shadow-lg p-3 z-20 min-w-[280px]">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-[var(--dash-text-primary)]">Add Image</span>
+                <button onClick={() => setShowImageInput(false)} className="text-[var(--dash-text-muted)] hover:text-[var(--dash-text-primary)]">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              {onUploadAsset && (
+                <button
+                  onClick={() => imageFileRef.current?.click()}
+                  className="w-full flex items-center gap-2 px-3 py-2 mb-2 text-sm bg-[var(--surface-ground)] hover:bg-[var(--surface-hover)] rounded-lg transition-colors"
+                >
+                  <Upload className="w-4 h-4" />
+                  Upload from device
+                </button>
+              )}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  placeholder="Or paste image URL..."
+                  className="flex-1 px-3 py-1.5 text-sm bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded focus:outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                  onKeyDown={(e) => e.key === 'Enter' && addImageFromUrl()}
+                />
+                <button
+                  onClick={addImageFromUrl}
+                  disabled={!imageUrl}
+                  className="px-3 py-1.5 text-sm bg-[var(--brand)] text-white rounded hover:opacity-90 disabled:opacity-50"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* YouTube button */}
+        <div className="relative">
+          <ToolbarButton
+            onClick={() => setShowYoutubeInput(!showYoutubeInput)}
+            isActive={showYoutubeInput}
+            title="Embed YouTube Video"
+          >
+            <YoutubeIcon className="w-4 h-4" />
+          </ToolbarButton>
+          {showYoutubeInput && (
+            <div className="absolute top-full left-0 mt-1 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg shadow-lg p-3 z-20 min-w-[280px]">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-[var(--dash-text-primary)]">Embed YouTube</span>
+                <button onClick={() => setShowYoutubeInput(false)} className="text-[var(--dash-text-muted)] hover:text-[var(--dash-text-primary)]">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={youtubeUrl}
+                  onChange={(e) => setYoutubeUrl(e.target.value)}
+                  placeholder="Paste YouTube URL..."
+                  className="flex-1 px-3 py-1.5 text-sm bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded focus:outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                  onKeyDown={(e) => e.key === 'Enter' && addYoutubeVideo()}
+                />
+                <button
+                  onClick={addYoutubeVideo}
+                  disabled={!youtubeUrl}
+                  className="px-3 py-1.5 text-sm bg-[var(--brand)] text-white rounded hover:opacity-90 disabled:opacity-50"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <EditorContent editor={editor} />

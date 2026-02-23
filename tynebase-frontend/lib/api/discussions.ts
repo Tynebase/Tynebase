@@ -300,3 +300,36 @@ export async function removePollVote(
 ): Promise<{ poll: Poll }> {
   return apiPost<{ poll: Poll }>(`/api/discussions/${discussionId}/poll/remove-vote`, {});
 }
+
+/**
+ * Upload an asset (image/video) for a discussion
+ */
+export async function uploadDiscussionAsset(
+  discussionId: string,
+  file: File
+): Promise<{ signed_url: string; filename: string; asset_type: string }> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+  const subdomain = typeof window !== 'undefined' ? localStorage.getItem('tenant_subdomain') : null;
+
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/api/discussions/${discussionId}/upload`,
+    {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(subdomain ? { 'X-Tenant-Subdomain': subdomain } : {}),
+      },
+      body: formData,
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData?.error?.message || 'Failed to upload asset');
+  }
+
+  return response.json();
+}

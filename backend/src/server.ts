@@ -122,6 +122,7 @@ const start = async () => {
     await fastify.register(import('./routes/chat'), { prefix: '' });
     await fastify.register(import('./routes/dm'), { prefix: '' });
     await fastify.register(import('./routes/discussions'), { prefix: '' });
+    await fastify.register(import('./routes/discussion-assets'), { prefix: '' });
     await fastify.register(import('./routes/document-shares'), { prefix: '' });
 
     const port = parseInt(env.PORT, 10);
