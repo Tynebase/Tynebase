@@ -37,6 +37,10 @@ const SEARCH_REGION = process.env.BEDROCK_SEARCH_REGION || 'eu-west-1';
 const RERANK_MODEL_ID = process.env.BEDROCK_RERANK_MODEL_ID || 'cohere.rerank-v3-5:0';
 const RERANK_REGION = process.env.BEDROCK_RERANK_REGION || 'eu-central-1';
 
+// Build full ARN for rerank model (required by Bedrock Agent Runtime)
+const getModelArn = (modelId: string, region: string) => 
+  `arn:aws:bedrock:${region}::foundation-model/${modelId}`;
+
 /**
  * Embedding dimensions for Cohere Embed v4
  */
@@ -259,7 +263,7 @@ export async function rerankDocuments(
         bedrockRerankingConfiguration: {
           numberOfResults: topN || documents.length,
           modelConfiguration: {
-            modelArn: RERANK_MODEL_ID,
+            modelArn: getModelArn(RERANK_MODEL_ID, RERANK_REGION),
           },
         },
       },
