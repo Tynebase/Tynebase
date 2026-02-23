@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { memo, useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
@@ -38,7 +38,18 @@ import {
   Trash2,
   Check,
   X,
+  Reply as ReplyIcon,
+  CornerDownRight,
 } from "lucide-react";
+
+type HtmlContentProps = {
+  content: string;
+  className: string;
+};
+
+const HtmlContent = memo(function HtmlContent({ content, className }: HtmlContentProps) {
+  return <div className={className} dangerouslySetInnerHTML={{ __html: content }} />;
+});
 
 
 export default function DiscussionPage() {
@@ -55,6 +66,8 @@ export default function DiscussionPage() {
   const [showActions, setShowActions] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [nestedReply, setNestedReply] = useState("");
   const actionsRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -96,13 +109,22 @@ export default function DiscussionPage() {
     fetchDiscussion();
   }, [fetchDiscussion]);
 
-  const handleSubmitReply = async () => {
-    if (!reply.trim() || submitting) return;
+  const handleSubmitReply = async (parentId?: string) => {
+    const content = parentId ? nestedReply.trim() : reply.trim();
+    if (!content || submitting) return;
     try {
       setSubmitting(true);
-      const response = await createReply(discussionId, { content: reply.trim() });
+      const response = await createReply(discussionId, { 
+        content, 
+        parent_id: parentId 
+      });
       setReplies(prev => [...prev, response.reply]);
-      setReply("");
+      if (parentId) {
+        setNestedReply("");
+        setReplyingTo(null);
+      } else {
+        setReply("");
+      }
       if (discussion) {
         setDiscussion({ ...discussion, replies_count: discussion.replies_count + 1 });
       }
@@ -111,6 +133,121 @@ export default function DiscussionPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // Build nested reply tree
+  const buildReplyTree = (replies: DiscussionReply[], parentId: string | null = null): DiscussionReply[] => {
+    return replies
+      .filter(r => (r.parent_id || null) === parentId)
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  };
+
+  const rootReplies = buildReplyTree(replies, null);
+
+  const renderReply = (r: DiscussionReply, depth: number = 0) => {
+    const replyAuthor = r.author?.full_name || r.author?.email || "Unknown";
+    const replyInitials = replyAuthor.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+    const childReplies = buildReplyTree(replies, r.id);
+    const maxDepth = 4; // Limit nesting depth
+    
+    return (
+      <div key={r.id} className={depth > 0 ? "mt-3" : ""}>
+        <div
+          className={`border rounded-xl p-4 ${r.is_accepted_answer ? "border-[var(--status-success)] bg-[var(--status-success)]/5" : "border-[var(--dash-border-subtle)]"}`}
+          style={{ marginLeft: depth > 0 ? `${Math.min(depth, maxDepth) * 24}px` : 0 }}
+        >
+          {depth > 0 && (
+            <div className="flex items-center gap-1 text-xs text-[var(--dash-text-muted)] mb-2">
+              <CornerDownRight className="w-3 h-3" />
+              <span>Reply</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-[var(--surface-ground)] flex items-center justify-center text-[var(--dash-text-secondary)] font-semibold text-xs flex-shrink-0">
+                {replyInitials}
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-[var(--dash-text-primary)] flex items-center gap-2">
+                  {replyAuthor}
+                  {r.is_accepted_answer && (
+                    <span className="inline-flex items-center text-[10px] bg-[var(--status-success)]/10 text-[var(--status-success)] px-1.5 py-0.5 rounded font-medium">
+                      <Check className="w-3 h-3 mr-1" /> Accepted
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-[var(--dash-text-muted)]">{formatDate(r.created_at)}</div>
+              </div>
+            </div>
+            {isAuthor && !r.is_accepted_answer && (
+              <Button variant="ghost" size="sm" onClick={() => handleAcceptAnswer(r.id)} className="text-xs">
+                <Check className="w-3 h-3 mr-1" /> Accept
+              </Button>
+            )}
+          </div>
+          <HtmlContent
+            className="text-sm text-[var(--dash-text-tertiary)] mt-3 leading-relaxed [&>p]:my-1 [&>p]:leading-relaxed [&>p:empty]:h-2 [&>ul]:list-disc [&>ul]:pl-4 [&>ol]:list-decimal [&>ol]:pl-4 [&>strong]:font-semibold [&>em]:italic [&>code]:bg-[var(--surface-ground)] [&>code]:px-1 [&>code]:rounded [&>code]:text-xs [&>a]:text-[var(--brand)] [&>a]:underline"
+            content={r.content}
+          />
+          <div className="flex items-center gap-2 mt-3">
+            <Button 
+              variant={r.has_liked ? "primary" : "ghost"} 
+              size="sm" 
+              className="text-xs"
+              onClick={() => handleLikeReply(r.id)}
+            >
+              <ThumbsUp className="w-3 h-3 mr-1" />
+              {r.likes_count}
+            </Button>
+            {!discussion?.is_locked && depth < maxDepth && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-xs"
+                onClick={() => setReplyingTo(replyingTo === r.id ? null : r.id)}
+              >
+                <ReplyIcon className="w-3 h-3 mr-1" />
+                Reply
+              </Button>
+            )}
+          </div>
+          
+          {/* Inline reply form */}
+          {replyingTo === r.id && (
+            <div className="mt-3 pl-4 border-l-2 border-[var(--dash-border-subtle)]">
+              <textarea
+                value={nestedReply}
+                onChange={(e) => setNestedReply(e.target.value)}
+                placeholder="Write a reply..."
+                rows={3}
+                className="w-full px-3 py-2 text-sm bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-lg focus:outline-none focus:border-[var(--brand)] resize-none"
+              />
+              <div className="flex items-center justify-end gap-2 mt-2">
+                <Button variant="ghost" size="sm" onClick={() => { setReplyingTo(null); setNestedReply(""); }}>
+                  Cancel
+                </Button>
+                <Button 
+                  variant="primary" 
+                  size="sm" 
+                  disabled={!nestedReply.trim() || submitting}
+                  onClick={() => handleSubmitReply(r.id)}
+                >
+                  {submitting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                  Reply
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {/* Render child replies */}
+        {childReplies.length > 0 && (
+          <div className="space-y-3">
+            {childReplies.map(child => renderReply(child, depth + 1))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   const handleLikeDiscussion = async () => {
@@ -204,7 +341,7 @@ export default function DiscussionPage() {
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
     if (diffMins < 60) return `${diffMins} min ago`;
-    if (diffHours < 24) return `${diffHours} hours ago`;
+    if (diffHours < 24) return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
     if (diffDays === 1) return "Yesterday";
     if (diffDays < 7) return `${diffDays} days ago`;
     return date.toLocaleDateString();
@@ -356,9 +493,9 @@ export default function DiscussionPage() {
                   </div>
                 </div>
 
-                <div 
+                <HtmlContent
                   className="text-[var(--dash-text-primary)] leading-relaxed [&>p]:my-2 [&>p]:leading-relaxed [&>p:empty]:h-4 [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 [&>strong]:font-semibold [&>em]:italic [&>code]:bg-[var(--surface-ground)] [&>code]:px-1 [&>code]:py-0.5 [&>code]:rounded [&>code]:text-sm [&>a]:text-[var(--brand)] [&>a]:underline"
-                  dangerouslySetInnerHTML={{ __html: discussion.content }}
+                  content={discussion.content}
                 />
 
                 {discussion.poll && (
@@ -399,58 +536,10 @@ export default function DiscussionPage() {
               <div className="font-semibold text-[var(--dash-text-primary)] mb-4">Replies ({replies.length})</div>
 
               <div className="space-y-4">
-                {replies.length === 0 ? (
+                {rootReplies.length === 0 ? (
                   <p className="text-sm text-[var(--dash-text-tertiary)]">No replies yet. Be the first to respond!</p>
                 ) : (
-                  replies.map((r) => {
-                    const replyAuthor = r.author?.full_name || r.author?.email || "Unknown";
-                    const replyInitials = replyAuthor.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
-                    return (
-                      <div
-                        key={r.id}
-                        className={`border rounded-xl p-5 ${r.is_accepted_answer ? "border-[var(--status-success)] bg-[var(--status-success)]/5" : "border-[var(--dash-border-subtle)]"}`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-[var(--surface-ground)] flex items-center justify-center text-[var(--dash-text-secondary)] font-semibold text-xs flex-shrink-0">
-                              {replyInitials}
-                            </div>
-                            <div className="min-w-0">
-                              <div className="text-sm font-semibold text-[var(--dash-text-primary)] flex items-center gap-2">
-                                {replyAuthor}
-                                {r.is_accepted_answer && (
-                                  <span className="inline-flex items-center text-[10px] bg-[var(--status-success)]/10 text-[var(--status-success)] px-1.5 py-0.5 rounded font-medium">
-                                    <Check className="w-3 h-3 mr-1" /> Accepted
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-xs text-[var(--dash-text-muted)]">{formatDate(r.created_at)}</div>
-                            </div>
-                          </div>
-                          {isAuthor && !r.is_accepted_answer && (
-                            <Button variant="ghost" size="sm" onClick={() => handleAcceptAnswer(r.id)} className="text-xs">
-                              <Check className="w-3 h-3 mr-1" /> Accept
-                            </Button>
-                          )}
-                        </div>
-                        <div 
-                          className="text-sm text-[var(--dash-text-tertiary)] mt-3 leading-relaxed [&>p]:my-1 [&>p]:leading-relaxed [&>p:empty]:h-2 [&>ul]:list-disc [&>ul]:pl-4 [&>ol]:list-decimal [&>ol]:pl-4 [&>strong]:font-semibold [&>em]:italic [&>code]:bg-[var(--surface-ground)] [&>code]:px-1 [&>code]:rounded [&>code]:text-xs [&>a]:text-[var(--brand)] [&>a]:underline"
-                          dangerouslySetInnerHTML={{ __html: r.content }}
-                        />
-                        <div className="flex items-center gap-2 mt-3">
-                          <Button 
-                            variant={r.has_liked ? "primary" : "ghost"} 
-                            size="sm" 
-                            className="text-xs"
-                            onClick={() => handleLikeReply(r.id)}
-                          >
-                            <ThumbsUp className="w-3 h-3 mr-1" />
-                            {r.likes_count}
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })
+                  rootReplies.map((r) => renderReply(r, 0))
                 )}
               </div>
             </CardContent>
@@ -468,7 +557,7 @@ export default function DiscussionPage() {
                   <Textarea
                     value={reply}
                     onChange={(e) => setReply(e.target.value)}
-                    placeholder="Add a helpful reply..."
+                    placeholder="Contribute to the discussion.."
                     rows={8}
                     className="px-4 py-3 bg-[var(--surface-card)]"
                   />
@@ -483,7 +572,7 @@ export default function DiscussionPage() {
                       size="md" 
                       className="px-5" 
                       disabled={reply.trim().length === 0 || submitting}
-                      onClick={handleSubmitReply}
+                      onClick={() => handleSubmitReply()}
                     >
                       {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                       Post Reply
@@ -499,7 +588,7 @@ export default function DiscussionPage() {
               <div className="font-semibold text-[var(--dash-text-primary)] mb-2">About</div>
               <div className="text-sm text-[var(--dash-text-tertiary)] space-y-2">
                 <div>Keep conversations respectful and searchable.</div>
-                <div>Mark resolved answers where applicable.</div>
+                <div>Mark your community posts as resolved when you have your answer.</div>
               </div>
             </CardContent>
           </Card>

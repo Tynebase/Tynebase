@@ -77,7 +77,7 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
         if (sortBy === 'popular') {
           discussionsQuery = discussionsQuery.order('is_pinned', { ascending: false }).order('likes_count', { ascending: false });
         } else if (sortBy === 'unanswered') {
-          discussionsQuery = discussionsQuery.order('is_pinned', { ascending: false }).order('replies_count', { ascending: true });
+          discussionsQuery = discussionsQuery.eq('is_resolved', false).order('is_pinned', { ascending: false }).order('replies_count', { ascending: true });
         } else {
           discussionsQuery = discussionsQuery.order('is_pinned', { ascending: false }).order('created_at', { ascending: false });
         }

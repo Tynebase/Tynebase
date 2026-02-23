@@ -34,6 +34,31 @@ export function SimpleRichTextEditor({
   const [showImageInput, setShowImageInput] = useState(false);
   const [showYoutubeInput, setShowYoutubeInput] = useState(false);
   const [showLinkInput, setShowLinkInput] = useState(false);
+
+  // Close all dropdowns helper
+  const closeAllDropdowns = () => {
+    setShowImageInput(false);
+    setShowYoutubeInput(false);
+    setShowLinkInput(false);
+  };
+
+  const toggleLinkInput = () => {
+    const newState = !showLinkInput;
+    closeAllDropdowns();
+    setShowLinkInput(newState);
+  };
+
+  const toggleImageInput = () => {
+    const newState = !showImageInput;
+    closeAllDropdowns();
+    setShowImageInput(newState);
+  };
+
+  const toggleYoutubeInput = () => {
+    const newState = !showYoutubeInput;
+    closeAllDropdowns();
+    setShowYoutubeInput(newState);
+  };
   const [imageUrl, setImageUrl] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
@@ -287,7 +312,7 @@ export function SimpleRichTextEditor({
         {/* Link button */}
         <div className="relative">
           <ToolbarButton
-            onClick={() => setShowLinkInput(!showLinkInput)}
+            onClick={toggleLinkInput}
             isActive={editor.isActive("link") || showLinkInput}
             title="Add Link"
           >
@@ -335,7 +360,7 @@ export function SimpleRichTextEditor({
         {/* Image button */}
         <div className="relative">
           <ToolbarButton
-            onClick={() => setShowImageInput(!showImageInput)}
+            onClick={toggleImageInput}
             isActive={showImageInput}
             title="Add Image"
           >
@@ -382,7 +407,7 @@ export function SimpleRichTextEditor({
         {/* YouTube button */}
         <div className="relative">
           <ToolbarButton
-            onClick={() => setShowYoutubeInput(!showYoutubeInput)}
+            onClick={toggleYoutubeInput}
             isActive={showYoutubeInput}
             title="Embed YouTube Video"
           >
