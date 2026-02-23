@@ -558,3 +558,19 @@ export async function listSharedDocuments(
     };
   }>(endpoint);
 }
+
+/**
+ * Get a public document (no auth required)
+ * Only works for documents with visibility='public' and status='published'
+ */
+export async function getPublicDocument(id: string): Promise<{ document: Document }> {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+  const response = await fetch(`${baseUrl}/api/public/documents/${id}`);
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error?.error?.message || 'Document not found or not public');
+  }
+  
+  return response.json();
+}

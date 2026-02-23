@@ -218,7 +218,7 @@ export default function SharedDocumentsPage() {
                   return (
                     <Link
                       key={doc.id}
-                      href={`/dashboard/knowledge/${doc.id}`}
+                      href={`/docs/${doc.id}`}
                       className="block bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl p-5 hover:shadow-md hover:border-[var(--brand)] transition-all group"
                     >
                       <div className="flex items-start gap-3 mb-3">

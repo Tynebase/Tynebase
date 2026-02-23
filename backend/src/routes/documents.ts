@@ -2326,4 +2326,56 @@ export default async function documentRoutes(fastify: FastifyInstance) {
       }
     }
   );
+
+  /**
+   * GET /api/public/documents/:id - Get a public document (no auth required)
+   * Only returns documents with visibility='public' and status='published'
+   */
+  fastify.get(
+    '/api/public/documents/:id',
+    { preHandler: [rateLimitMiddleware] },
+    async (request, reply) => {
+      try {
+        const { id } = request.params as { id: string };
+
+        // Validate UUID format
+        if (!z.string().uuid().safeParse(id).success) {
+          return reply.code(400).send({
+            error: { code: 'INVALID_ID', message: 'Invalid document ID format', details: {} },
+          });
+        }
+
+        const { data: document, error } = await supabaseAdmin
+          .from('documents')
+          .select(`
+            id, title, content, created_at, updated_at, view_count,
+            users:author_id (id, full_name, avatar_url),
+            categories:category_id (id, name, color)
+          `)
+          .eq('id', id)
+          .eq('visibility', 'public')
+          .eq('status', 'published')
+          .single();
+
+        if (error || !document) {
+          return reply.code(404).send({
+            error: { code: 'NOT_FOUND', message: 'Document not found or not public', details: {} },
+          });
+        }
+
+        // Increment view count
+        await supabaseAdmin
+          .from('documents')
+          .update({ view_count: (document.view_count || 0) + 1 })
+          .eq('id', id);
+
+        return reply.code(200).send({ document });
+      } catch (error) {
+        fastify.log.error({ error }, 'Error fetching public document');
+        return reply.code(500).send({
+          error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred', details: {} },
+        });
+      }
+    }
+  );
 }
