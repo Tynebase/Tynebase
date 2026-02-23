@@ -64,7 +64,7 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
           .from('discussions')
           .select(`
             id, title, content, category, is_pinned, is_resolved, is_locked,
-            replies_count, views_count, likes_count, tags, created_at, updated_at,
+            replies_count, views_count, likes_count, tags, created_at, updated_at, author_id,
             author:users!discussions_author_id_fkey (id, email, full_name, avatar_url)
           `, { count: 'exact' })
 ;

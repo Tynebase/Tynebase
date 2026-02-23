@@ -37,6 +37,7 @@ import {
   Unlock,
   Trash2,
   Check,
+  X,
 } from "lucide-react";
 
 
@@ -52,6 +53,8 @@ export default function DiscussionPage() {
   const [reply, setReply] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showActions, setShowActions] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const isAdmin = user?.role === 'admin' || (user as { role?: string })?.role === 'super_admin';
   const isEditor = user?.role === 'editor';
@@ -154,12 +157,13 @@ export default function DiscussionPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this discussion?")) return;
     try {
+      setIsDeleting(true);
       await deleteDiscussion(discussionId);
       router.push("/dashboard/community");
     } catch (err) {
       console.error("Failed to delete discussion:", err);
+      setIsDeleting(false);
     }
   };
 
@@ -300,7 +304,7 @@ export default function DiscussionPage() {
                       </button>
                     )}
                     {(isAdmin || isAuthor) && (
-                      <button onClick={handleDelete} className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2 text-red-600">
+                      <button onClick={() => { setShowDeleteModal(true); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2 text-red-600">
                         <Trash2 className="w-4 h-4" />
                         Delete
                       </button>
@@ -487,6 +491,72 @@ export default function DiscussionPage() {
           </Card>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => !isDeleting && setShowDeleteModal(false)}
+          />
+          <div className="relative w-full max-w-md bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl shadow-xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--dash-border-subtle)]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                  <Trash2 className="w-5 h-5 text-red-600" />
+                </div>
+                <h2 className="text-lg font-semibold text-[var(--dash-text-primary)]">
+                  Delete Discussion
+                </h2>
+              </div>
+              <button
+                onClick={() => !isDeleting && setShowDeleteModal(false)}
+                disabled={isDeleting}
+                className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-[var(--dash-text-primary)] transition-colors disabled:opacity-50"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-4">
+              <p className="text-[var(--dash-text-secondary)]">
+                Are you sure you want to delete <span className="font-semibold text-[var(--dash-text-primary)]">"{discussion?.title}"</span>?
+              </p>
+              <p className="text-sm text-[var(--dash-text-muted)] mt-2">
+                This action cannot be undone. All replies will also be deleted.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[var(--dash-border-subtle)] bg-[var(--surface-ground)]">
+              <Button
+                variant="ghost"
+                size="md"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                className="bg-red-600 hover:bg-red-700"
+                onClick={handleDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

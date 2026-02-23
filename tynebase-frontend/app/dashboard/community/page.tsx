@@ -2,13 +2,16 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import {
   Plus, MessageSquare, Eye, Pin, Search, TrendingUp,
-  CheckCircle2, HelpCircle, Bell, Award, BarChart3, Loader2
+  CheckCircle2, HelpCircle, Bell, Award, BarChart3, Loader2,
+  MoreHorizontal, Pencil, Trash2, X
 } from "lucide-react";
-import { listDiscussions, Discussion } from "@/lib/api/discussions";
+import { listDiscussions, Discussion, deleteDiscussion } from "@/lib/api/discussions";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Forum categories with detailed info
 const categories = [
@@ -23,6 +26,8 @@ const categories = [
 const stripHtml = (html: string) => html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
 
 export default function CommunityPage() {
+  const router = useRouter();
+  const { user } = useAuth();
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"recent" | "popular" | "unanswered">("recent");
@@ -30,6 +35,46 @@ export default function CommunityPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [discussionToDelete, setDiscussionToDelete] = useState<Discussion | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  const handleDeleteClick = (e: React.MouseEvent, discussion: Discussion) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDiscussionToDelete(discussion);
+    setDeleteModalOpen(true);
+    setOpenMenuId(null);
+  };
+
+  const handleEditClick = (e: React.MouseEvent, discussionId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    router.push(`/dashboard/community/${discussionId}/edit`);
+    setOpenMenuId(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!discussionToDelete) return;
+    try {
+      setIsDeleting(true);
+      await deleteDiscussion(discussionToDelete.id);
+      setDiscussions(prev => prev.filter(d => d.id !== discussionToDelete.id));
+      setDeleteModalOpen(false);
+      setDiscussionToDelete(null);
+    } catch (err) {
+      console.error("Failed to delete discussion:", err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const toggleMenu = (e: React.MouseEvent, discussionId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setOpenMenuId(openMenuId === discussionId ? null : discussionId);
+  };
 
   const fetchDiscussions = useCallback(async (page = 1) => {
     try {
@@ -324,6 +369,36 @@ export default function CommunityPage() {
                               </span>
                             </div>
                           </div>
+
+                          {/* Actions menu for author only */}
+                          {user?.id && discussion.author_id && user.id === discussion.author_id && (
+                            <div className="relative flex-shrink-0">
+                              <button
+                                onClick={(e) => toggleMenu(e, discussion.id)}
+                                className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-[var(--dash-text-primary)] transition-colors"
+                              >
+                                <MoreHorizontal className="w-4 h-4" />
+                              </button>
+                              {openMenuId === discussion.id && (
+                                <div className="absolute right-0 top-full mt-1 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg shadow-lg py-1 min-w-[140px] z-20">
+                                  <button
+                                    onClick={(e) => handleEditClick(e, discussion.id)}
+                                    className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2 text-[var(--dash-text-secondary)]"
+                                  >
+                                    <Pencil className="w-4 h-4" />
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={(e) => handleDeleteClick(e, discussion)}
+                                    className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2 text-red-600"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </Link>
                     );
@@ -415,6 +490,72 @@ export default function CommunityPage() {
           </Card>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen && discussionToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => !isDeleting && setDeleteModalOpen(false)}
+          />
+          <div className="relative w-full max-w-md bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl shadow-xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--dash-border-subtle)]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                  <Trash2 className="w-5 h-5 text-red-600" />
+                </div>
+                <h2 className="text-lg font-semibold text-[var(--dash-text-primary)]">
+                  Delete Discussion
+                </h2>
+              </div>
+              <button
+                onClick={() => !isDeleting && setDeleteModalOpen(false)}
+                disabled={isDeleting}
+                className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-[var(--dash-text-primary)] transition-colors disabled:opacity-50"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-4">
+              <p className="text-[var(--dash-text-secondary)]">
+                Are you sure you want to delete <span className="font-semibold text-[var(--dash-text-primary)]">"{discussionToDelete.title}"</span>?
+              </p>
+              <p className="text-sm text-[var(--dash-text-muted)] mt-2">
+                This action cannot be undone. All replies will also be deleted.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[var(--dash-border-subtle)] bg-[var(--surface-ground)]">
+              <Button
+                variant="ghost"
+                size="md"
+                onClick={() => setDeleteModalOpen(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                className="bg-red-600 hover:bg-red-700"
+                onClick={confirmDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
