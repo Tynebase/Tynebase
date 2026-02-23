@@ -178,11 +178,14 @@ export async function* generateTextStream(
       body: JSON.stringify(payload),
     });
 
+    console.log(`[Bedrock] Sending streaming request to ${DEEPSEEK_MODEL_ID}`);
     const response = await client.send(command);
+    console.log(`[Bedrock] Got response, checking body`);
 
     if (!response.body) {
       throw new Error('No response body received from Bedrock');
     }
+    console.log(`[Bedrock] Starting to iterate stream`)
 
     let fullContent = '';
     let actualInputTokens = inputTokens;

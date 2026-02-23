@@ -175,6 +175,8 @@ export async function* chatWithRAGStream(
   const prompt = buildRAGPrompt(query, contextChunks, history);
 
   // Step 4: Generate streaming response
+  console.log(`[RAG Chat] Starting LLM stream with model: ${model || 'default'}`);
+  
   const aiRequest: AIGenerationRequest = {
     prompt,
     model: model as any,
@@ -191,12 +193,15 @@ export async function* chatWithRAGStream(
   let modelUsed = model || 'deepseek-v3';
 
   try {
+    console.log(`[RAG Chat] Entering stream loop`);
     // Yield each chunk as it arrives
     for await (const chunk of streamGenerator) {
       fullAnswer += chunk;
       yield chunk;
     }
+    console.log(`[RAG Chat] Stream completed, answer length: ${fullAnswer.length}`);
   } catch (error) {
+    console.error(`[RAG Chat] Stream error:`, error);
     throw error;
   }
 
