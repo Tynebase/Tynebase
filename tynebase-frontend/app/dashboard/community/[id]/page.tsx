@@ -313,7 +313,7 @@ export default function DiscussionPage() {
                 )}
               </div>
             )}
-            <Button variant="primary" size="lg" className="gap-2 px-7" asChild>
+            <Button variant="primary" size="lg" className="gap-2 px-7 !text-[#ffffff]" asChild>
               <Link href="/dashboard/community/new">
                 <Send className="w-5 h-5" />
                 New Discussion
