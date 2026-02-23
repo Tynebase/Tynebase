@@ -526,7 +526,7 @@ export default function DiscussionPage() {
 
           <Card>
             <CardContent className="p-6 sm:p-8">
-              <div className="font-semibold text-[var(--dash-text-primary)] mb-4">Replies ({replies.length})</div>
+              <div className="font-semibold text-[var(--dash-text-primary)] mb-4"><span>Replies ({replies.length})</span></div>
 
               <div className="space-y-4">
                 {rootReplies.length === 0 ? (
