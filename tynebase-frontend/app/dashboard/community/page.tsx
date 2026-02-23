@@ -141,7 +141,7 @@ export default function CommunityPage() {
               Shared Documents
             </Link>
           </Button>
-          <Button variant="primary" size="lg" className="flex-1 sm:flex-none gap-2 px-7 text-white" asChild>
+          <Button variant="primary" size="lg" className="flex-1 sm:flex-none gap-2 px-7 !text-[#ffffff]" asChild>
             <Link href="/dashboard/community/new">
               <Plus className="w-5 h-5" />
               New Discussion
