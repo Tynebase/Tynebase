@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -40,12 +40,10 @@ import {
 } from "lucide-react";
 
 
-export default function DiscussionPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default function DiscussionPage() {
   const router = useRouter();
+  const params = useParams();
+  const discussionId = params.id as string;
   const { user } = useAuth();
   const [discussion, setDiscussion] = useState<Discussion | null>(null);
   const [replies, setReplies] = useState<DiscussionReply[]>([]);
@@ -64,10 +62,10 @@ export default function DiscussionPage({
     try {
       setLoading(true);
       setError(null);
-      const response = await getDiscussion(params.id);
+      const response = await getDiscussion(discussionId);
       setDiscussion(response.discussion);
       
-      const repliesResponse = await getDiscussionReplies(params.id);
+      const repliesResponse = await getDiscussionReplies(discussionId);
       setReplies(repliesResponse.replies);
     } catch (err) {
       console.error("Failed to fetch discussion:", err);
@@ -75,7 +73,7 @@ export default function DiscussionPage({
     } finally {
       setLoading(false);
     }
-  }, [params.id]);
+  }, [discussionId]);
 
   useEffect(() => {
     fetchDiscussion();
@@ -85,7 +83,7 @@ export default function DiscussionPage({
     if (!reply.trim() || submitting) return;
     try {
       setSubmitting(true);
-      const response = await createReply(params.id, { content: reply.trim() });
+      const response = await createReply(discussionId, { content: reply.trim() });
       setReplies(prev => [...prev, response.reply]);
       setReply("");
       if (discussion) {
@@ -101,7 +99,7 @@ export default function DiscussionPage({
   const handleLikeDiscussion = async () => {
     if (!discussion) return;
     try {
-      const response = await toggleDiscussionLike(params.id);
+      const response = await toggleDiscussionLike(discussionId);
       setDiscussion({
         ...discussion,
         has_liked: response.liked,
@@ -114,7 +112,7 @@ export default function DiscussionPage({
 
   const handleLikeReply = async (replyId: string) => {
     try {
-      const response = await toggleReplyLike(params.id, replyId);
+      const response = await toggleReplyLike(discussionId, replyId);
       setReplies(prev => prev.map(r => 
         r.id === replyId 
           ? { ...r, has_liked: response.liked, likes_count: response.liked ? r.likes_count + 1 : r.likes_count - 1 }
@@ -128,7 +126,7 @@ export default function DiscussionPage({
   const handleTogglePin = async () => {
     if (!discussion) return;
     try {
-      const response = await toggleDiscussionPin(params.id);
+      const response = await toggleDiscussionPin(discussionId);
       setDiscussion({ ...discussion, is_pinned: response.is_pinned });
     } catch (err) {
       console.error("Failed to toggle pin:", err);
@@ -138,7 +136,7 @@ export default function DiscussionPage({
   const handleToggleLock = async () => {
     if (!discussion) return;
     try {
-      const response = await toggleDiscussionLock(params.id);
+      const response = await toggleDiscussionLock(discussionId);
       setDiscussion({ ...discussion, is_locked: response.is_locked });
     } catch (err) {
       console.error("Failed to toggle lock:", err);
@@ -148,7 +146,7 @@ export default function DiscussionPage({
   const handleToggleResolved = async () => {
     if (!discussion) return;
     try {
-      const response = await toggleDiscussionResolved(params.id);
+      const response = await toggleDiscussionResolved(discussionId);
       setDiscussion({ ...discussion, is_resolved: response.is_resolved });
     } catch (err) {
       console.error("Failed to toggle resolved:", err);
@@ -158,7 +156,7 @@ export default function DiscussionPage({
   const handleDelete = async () => {
     if (!confirm("Are you sure you want to delete this discussion?")) return;
     try {
-      await deleteDiscussion(params.id);
+      await deleteDiscussion(discussionId);
       router.push("/dashboard/community");
     } catch (err) {
       console.error("Failed to delete discussion:", err);
@@ -167,7 +165,7 @@ export default function DiscussionPage({
 
   const handleAcceptAnswer = async (replyId: string) => {
     try {
-      const response = await acceptReplyAsAnswer(params.id, replyId);
+      const response = await acceptReplyAsAnswer(discussionId, replyId);
       setReplies(prev => prev.map(r => ({
         ...r,
         is_accepted_answer: r.id === replyId ? response.is_accepted_answer : false,

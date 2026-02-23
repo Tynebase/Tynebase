@@ -19,6 +19,9 @@ const categories = [
   { id: "General", label: "General Discussion", icon: MessageSquare, color: "#10b981", description: "Chat about anything" },
 ];
 
+// Helper to strip HTML tags for preview
+const stripHtml = (html: string) => html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+
 export default function CommunityPage() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -138,7 +141,7 @@ export default function CommunityPage() {
               Shared Documents
             </Link>
           </Button>
-          <Button variant="primary" size="lg" className="flex-1 sm:flex-none gap-2 px-7" asChild>
+          <Button variant="primary" size="lg" className="flex-1 sm:flex-none gap-2 px-7 text-white" asChild>
             <Link href="/dashboard/community/new">
               <Plus className="w-5 h-5" />
               New Discussion
@@ -292,7 +295,10 @@ export default function CommunityPage() {
                               {discussion.title}
                             </h3>
                             <p className="text-sm text-[var(--dash-text-tertiary)] line-clamp-1 mt-1">
-                              {discussion.content.slice(0, 150)}{discussion.content.length > 150 ? "..." : ""}
+                              {(() => {
+                                const text = stripHtml(discussion.content);
+                                return text.slice(0, 150) + (text.length > 150 ? "..." : "");
+                              })()}
                             </p>
 
                             <div className="flex flex-wrap items-center gap-y-2 gap-x-3 mt-2 text-xs text-[var(--dash-text-muted)]">
