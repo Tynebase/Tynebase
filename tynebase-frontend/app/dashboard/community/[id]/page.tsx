@@ -430,37 +430,29 @@ export default function DiscussionPage() {
         }
         right={
           <div className="flex items-center gap-2">
-            {(canModerate || isAuthor) && (
+            {(isSuperAdmin || isAuthor) && (
               <div className="relative" ref={actionsRef}>
                 <Button variant="outline" size="md" className="px-3" onClick={() => setShowActions(!showActions)}>
                   <MoreHorizontal className="w-4 h-4" />
                 </Button>
                 {showActions && (
                   <div className="absolute right-0 top-full mt-1 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg shadow-lg py-1 min-w-[160px] z-10">
-                    {canModerate && (
-                      <>
-                        <button onClick={handleTogglePin} className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2">
-                          <Pin className="w-4 h-4" />
-                          {discussion.is_pinned ? "Unpin" : "Pin"}
-                        </button>
-                        <button onClick={handleToggleLock} className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2">
-                          {discussion.is_locked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-                          {discussion.is_locked ? "Unlock" : "Lock"}
-                        </button>
-                      </>
-                    )}
-                    {(canModerate || isAuthor) && (
-                      <button onClick={handleToggleResolved} className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4" />
-                        {discussion.is_resolved ? "Mark Unresolved" : "Mark Resolved"}
-                      </button>
-                    )}
-                    {(isSuperAdmin || isAuthor) && (
-                      <button onClick={() => { setShowDeleteModal(true); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2 text-red-600">
-                        <Trash2 className="w-4 h-4" />
-                        Delete
-                      </button>
-                    )}
+                    <button onClick={handleTogglePin} className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2">
+                      <Pin className="w-4 h-4" />
+                      {discussion.is_pinned ? "Unpin" : "Pin"}
+                    </button>
+                    <button onClick={handleToggleLock} className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2">
+                      {discussion.is_locked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                      {discussion.is_locked ? "Unlock" : "Lock"}
+                    </button>
+                    <button onClick={handleToggleResolved} className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4" />
+                      {discussion.is_resolved ? "Mark Unresolved" : "Mark Resolved"}
+                    </button>
+                    <button onClick={() => { setShowDeleteModal(true); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2 text-red-600">
+                      <Trash2 className="w-4 h-4" />
+                      Delete
+                    </button>
                   </div>
                 )}
               </div>

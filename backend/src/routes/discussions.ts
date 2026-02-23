@@ -489,18 +489,20 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
         const user = (request as any).user;
         const { id } = request.params as { id: string };
 
-        if (!['admin', 'super_admin', 'editor'].includes(user.role)) {
-          return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'Only admins/editors can pin discussions', details: {} } });
-        }
-
         const { data: existing } = await supabaseAdmin
           .from('discussions')
-          .select('id, is_pinned')
+          .select('id, is_pinned, author_id')
           .eq('id', id)
           .single();
 
         if (!existing) {
           return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Discussion not found', details: {} } });
+        }
+
+        const isOwner = existing.author_id === user.id;
+        const isSuperAdmin = user.is_super_admin === true;
+        if (!isOwner && !isSuperAdmin) {
+          return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'Only the author can pin this discussion', details: {} } });
         }
 
         const { error } = await supabaseAdmin
@@ -531,18 +533,20 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
         const user = (request as any).user;
         const { id } = request.params as { id: string };
 
-        if (!['admin', 'super_admin', 'editor'].includes(user.role)) {
-          return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'Only admins/editors can lock discussions', details: {} } });
-        }
-
         const { data: existing } = await supabaseAdmin
           .from('discussions')
-          .select('id, is_locked')
+          .select('id, is_locked, author_id')
           .eq('id', id)
           .single();
 
         if (!existing) {
           return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Discussion not found', details: {} } });
+        }
+
+        const isOwner = existing.author_id === user.id;
+        const isSuperAdmin = user.is_super_admin === true;
+        if (!isOwner && !isSuperAdmin) {
+          return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'Only the author can lock this discussion', details: {} } });
         }
 
         const { error } = await supabaseAdmin
@@ -584,9 +588,9 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
         }
 
         const isOwner = existing.author_id === user.id;
-        const isAdmin = ['admin', 'super_admin', 'editor'].includes(user.role);
-        if (!isOwner && !isAdmin) {
-          return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'Not authorized to resolve this discussion', details: {} } });
+        const isSuperAdmin = user.is_super_admin === true;
+        if (!isOwner && !isSuperAdmin) {
+          return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'Only the author can resolve this discussion', details: {} } });
         }
 
         const { error } = await supabaseAdmin
