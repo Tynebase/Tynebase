@@ -284,10 +284,11 @@ export default function CommunityPage() {
                   {pagination.total} results
                 </span>
               </div>
-              <div className="hidden md:flex gap-4 text-xs text-[var(--dash-text-muted)] font-medium mr-10">
-                <span className="w-14 text-center">Replies</span>
-                <span className="w-14 text-center">Views</span>
-                <span className="w-14 text-center">Likes</span>
+              <div className="hidden md:flex items-center text-xs text-[var(--dash-text-muted)] font-medium">
+                <span className="w-16 text-center">Replies</span>
+                <span className="w-16 text-center">Views</span>
+                <span className="w-16 text-center">Likes</span>
+                <span className="w-10"></span>
               </div>
             </CardHeader>
             <CardContent className="p-0 flex-1 overflow-auto dashboard-scroll">
@@ -379,47 +380,48 @@ export default function CommunityPage() {
                             </div>
                           </div>
 
-                          <div className="hidden md:flex items-center justify-end gap-4 text-sm text-[var(--dash-text-secondary)]">
-                            <span className="w-14 text-center flex items-center justify-center gap-1">
+                          <div className="hidden md:flex items-center text-sm text-[var(--dash-text-secondary)]">
+                            <span className="w-16 flex items-center justify-center gap-1">
                               {discussion.replies_count} <MessageSquare className="w-3.5 h-3.5 text-[var(--dash-text-muted)]" />
                             </span>
-                            <span className="w-14 text-center flex items-center justify-center gap-1">
+                            <span className="w-16 flex items-center justify-center gap-1">
                               {discussion.views_count} <Eye className="w-3.5 h-3.5 text-[var(--dash-text-muted)]" />
                             </span>
-                            <span className="w-14 text-center flex items-center justify-center gap-1">
+                            <span className="w-16 flex items-center justify-center gap-1">
                               {discussion.likes_count} <ThumbsUp className="w-3.5 h-3.5 text-[var(--dash-text-muted)]" />
                             </span>
-                          </div>
-
-                          {/* Actions menu for author only */}
-                          {user?.id && discussion.author_id && user.id === discussion.author_id && (
-                            <div className="relative flex-shrink-0" ref={openMenuId === discussion.id ? menuRef : undefined}>
-                              <button
-                                onClick={(e) => toggleMenu(e, discussion.id)}
-                                className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-[var(--dash-text-primary)] transition-colors"
-                              >
-                                <MoreHorizontal className="w-4 h-4" />
-                              </button>
-                              {openMenuId === discussion.id && (
-                                <div className="absolute right-0 bottom-full mb-1 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg shadow-lg py-1 min-w-[140px] z-50">
+                            {/* Actions menu placeholder or actual menu */}
+                            <div className="w-10 flex justify-center">
+                              {user?.id && discussion.author_id && user.id === discussion.author_id ? (
+                                <div className="relative" ref={openMenuId === discussion.id ? menuRef : undefined}>
                                   <button
-                                    onClick={(e) => handleEditClick(e, discussion.id)}
-                                    className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2 text-[var(--dash-text-secondary)]"
+                                    onClick={(e) => toggleMenu(e, discussion.id)}
+                                    className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-[var(--dash-text-primary)] transition-colors"
                                   >
-                                    <Pencil className="w-4 h-4" />
-                                    Edit
+                                    <MoreHorizontal className="w-4 h-4" />
                                   </button>
-                                  <button
-                                    onClick={(e) => handleDeleteClick(e, discussion)}
-                                    className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2 text-red-600"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                    Delete
-                                  </button>
+                                  {openMenuId === discussion.id && (
+                                    <div className="absolute right-0 bottom-full mb-1 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg shadow-lg py-1 min-w-[140px] z-50">
+                                      <button
+                                        onClick={(e) => handleEditClick(e, discussion.id)}
+                                        className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2 text-[var(--dash-text-secondary)]"
+                                      >
+                                        <Pencil className="w-4 h-4" />
+                                        Edit
+                                      </button>
+                                      <button
+                                        onClick={(e) => handleDeleteClick(e, discussion)}
+                                        className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2 text-red-600"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                        Delete
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
-                              )}
+                              ) : null}
                             </div>
-                          )}
+                          </div>
                         </div>
                       </Link>
                     );
