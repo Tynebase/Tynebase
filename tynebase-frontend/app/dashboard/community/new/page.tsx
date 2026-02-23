@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { Card, CardContent } from "@/components/ui/Card";
 import { SimpleRichTextEditor } from "@/components/editor/SimpleRichTextEditor";
 import { DashboardPageHeader } from "@/components/layout/DashboardPageHeader";
-import { createDiscussion } from "@/lib/api/discussions";
+import { createDiscussion, createDraftDiscussion, uploadDiscussionAsset, updateDiscussion } from "@/lib/api/discussions";
 import { listTemplates, Template } from "@/lib/api/templates";
 import { ArrowLeft, Plus, Send, Tag, Loader2, AlertCircle, BarChart3, X, FileText, Search, Quote } from "lucide-react";
 
@@ -32,6 +32,29 @@ export default function NewDiscussionPage() {
   const [hasPoll, setHasPoll] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [isCreatingDraft, setIsCreatingDraft] = useState(true);
+
+  // Create draft discussion on mount for asset uploads
+  useEffect(() => {
+    const initDraft = async () => {
+      try {
+        const response = await createDraftDiscussion();
+        setDraftId(response.discussion_id);
+      } catch (err) {
+        console.error("Failed to create draft discussion:", err);
+      } finally {
+        setIsCreatingDraft(false);
+      }
+    };
+    initDraft();
+  }, []);
+
+  // Upload handler for SimpleRichTextEditor
+  const handleUploadAsset = useCallback(async (file: File) => {
+    if (!draftId) throw new Error("Draft not ready");
+    return uploadDiscussionAsset(draftId, file);
+  }, [draftId]);
 
   // Template citation state
   const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -91,7 +114,7 @@ export default function NewDiscussionPage() {
   );
 
   const handleSubmit = async () => {
-    if (!isValid) return;
+    if (!isValid || !draftId) return;
 
     try {
       setIsSubmitting(true);
@@ -102,19 +125,31 @@ export default function NewDiscussionPage() {
         .map((t) => t.trim())
         .filter((t) => t.length > 0);
 
-      const response = await createDiscussion({
+      // Update the draft discussion with the full content
+      await updateDiscussion(draftId, {
         title: title.trim(),
         content: content.trim(),
         category,
         tags: parsedTags,
-        poll: hasPoll && isPollValid ? {
-          question: pollQuestion.trim(),
-          options: pollOptions.filter(o => o.trim().length > 0),
-        } : undefined,
       });
 
-      // Redirect to the new discussion on success
-      router.push(`/dashboard/community/${response.discussion.id}`);
+      // If there's a poll, we need to add it separately (poll creation is handled by createDiscussion)
+      // For now, if user wants a poll, we'll create a new discussion instead
+      if (hasPoll && isPollValid) {
+        const response = await createDiscussion({
+          title: title.trim(),
+          content: content.trim(),
+          category,
+          tags: parsedTags,
+          poll: {
+            question: pollQuestion.trim(),
+            options: pollOptions.filter(o => o.trim().length > 0),
+          },
+        });
+        router.push(`/dashboard/community/${response.discussion.id}`);
+      } else {
+        router.push(`/dashboard/community/${draftId}`);
+      }
     } catch (err) {
       console.error("Failed to create discussion:", err);
       setError(err instanceof Error ? err.message : "Failed to create discussion. Please try again.");
@@ -227,6 +262,8 @@ export default function NewDiscussionPage() {
                   onChange={setContent}
                   placeholder="Share your thoughts, add context and include any links or snippets your team might need."
                   minHeight="250px"
+                  discussionId={draftId || undefined}
+                  onUploadAsset={draftId ? handleUploadAsset : undefined}
                 />
               </div>
 

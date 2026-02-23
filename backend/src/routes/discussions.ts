@@ -18,6 +18,11 @@ const createDiscussionSchema = z.object({
   }).optional(),
 });
 
+const createDraftDiscussionSchema = z.object({
+  title: z.string().max(200).optional(),
+  category: z.enum(['Announcements', 'Questions', 'Ideas', 'General']).optional(),
+});
+
 const updateDiscussionSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   content: z.string().min(1).max(50000).optional(),
@@ -186,6 +191,47 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
           return reply.code(400).send({ error: { code: 'VALIDATION_ERROR', message: 'Invalid request data', details: error.errors } });
         }
         fastify.log.error({ error }, 'Unexpected error in POST /api/discussions');
+        return reply.code(500).send({ error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred', details: {} } });
+      }
+    }
+  );
+
+  /**
+   * POST /api/discussions/draft - Create a draft discussion (for asset uploads before full submission)
+   */
+  fastify.post(
+    '/api/discussions/draft',
+    { preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard] },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+        const body = createDraftDiscussionSchema.parse(request.body);
+
+        const { data: discussion, error } = await supabaseAdmin
+          .from('discussions')
+          .insert({
+            tenant_id: tenant.id,
+            author_id: user.id,
+            title: body.title || '',
+            content: '',
+            category: body.category || 'General',
+            tags: [],
+          })
+          .select('id')
+          .single();
+
+        if (error) {
+          fastify.log.error({ error }, 'Failed to create draft discussion');
+          return reply.code(500).send({ error: { code: 'CREATE_FAILED', message: 'Failed to create draft discussion', details: {} } });
+        }
+
+        return reply.code(201).send({ discussion_id: discussion.id });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({ error: { code: 'VALIDATION_ERROR', message: 'Invalid request data', details: error.errors } });
+        }
+        fastify.log.error({ error }, 'Unexpected error in POST /api/discussions/draft');
         return reply.code(500).send({ error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred', details: {} } });
       }
     }

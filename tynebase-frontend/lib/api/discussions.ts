@@ -302,6 +302,15 @@ export async function removePollVote(
 }
 
 /**
+ * Create a draft discussion (pre-creates ID for asset uploads)
+ */
+export async function createDraftDiscussion(
+  data?: { title?: string; category?: string }
+): Promise<{ discussion_id: string }> {
+  return apiPost<{ discussion_id: string }>('/api/discussions/draft', data || {});
+}
+
+/**
  * Upload an asset (image/video) for a discussion
  */
 export async function uploadDiscussionAsset(

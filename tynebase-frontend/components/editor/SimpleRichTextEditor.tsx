@@ -33,8 +33,11 @@ export function SimpleRichTextEditor({
 }: SimpleRichTextEditorProps) {
   const [showImageInput, setShowImageInput] = useState(false);
   const [showYoutubeInput, setShowYoutubeInput] = useState(false);
+  const [showLinkInput, setShowLinkInput] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkText, setLinkText] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const imageFileRef = useRef<HTMLInputElement>(null);
@@ -158,9 +161,20 @@ export function SimpleRichTextEditor({
   );
 
   const addLink = () => {
-    const url = window.prompt("Enter URL:");
-    if (url) {
-      editor.chain().focus().setLink({ href: url }).run();
+    if (linkUrl) {
+      if (linkText && !editor.state.selection.empty) {
+        // If there's selected text, just add the link
+        editor.chain().focus().setLink({ href: linkUrl }).run();
+      } else if (linkText) {
+        // Insert link with custom text
+        editor.chain().focus().insertContent(`<a href="${linkUrl}">${linkText}</a>`).run();
+      } else {
+        // Just set link on selection or insert URL as text
+        editor.chain().focus().setLink({ href: linkUrl }).run();
+      }
+      setLinkUrl("");
+      setLinkText("");
+      setShowLinkInput(false);
     }
   };
 
@@ -270,13 +284,51 @@ export function SimpleRichTextEditor({
 
         <div className="w-px h-5 bg-[var(--dash-border-subtle)] mx-1" />
 
-        <ToolbarButton
-          onClick={addLink}
-          isActive={editor.isActive("link")}
-          title="Add Link"
-        >
-          <LinkIcon className="w-4 h-4" />
-        </ToolbarButton>
+        {/* Link button */}
+        <div className="relative">
+          <ToolbarButton
+            onClick={() => setShowLinkInput(!showLinkInput)}
+            isActive={editor.isActive("link") || showLinkInput}
+            title="Add Link"
+          >
+            <LinkIcon className="w-4 h-4" />
+          </ToolbarButton>
+          {showLinkInput && (
+            <div className="absolute top-full left-0 mt-1 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg shadow-lg p-3 z-20 min-w-[280px]">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-[var(--dash-text-primary)]">Add Link</span>
+                <button onClick={() => setShowLinkInput(false)} className="text-[var(--dash-text-muted)] hover:text-[var(--dash-text-primary)]">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  placeholder="https://example.com"
+                  className="w-full px-3 py-1.5 text-sm bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded focus:outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                  onKeyDown={(e) => e.key === 'Enter' && addLink()}
+                />
+                <input
+                  type="text"
+                  value={linkText}
+                  onChange={(e) => setLinkText(e.target.value)}
+                  placeholder="Link text (optional)"
+                  className="w-full px-3 py-1.5 text-sm bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded focus:outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                  onKeyDown={(e) => e.key === 'Enter' && addLink()}
+                />
+                <button
+                  onClick={addLink}
+                  disabled={!linkUrl}
+                  className="w-full px-3 py-1.5 text-sm bg-[var(--brand)] text-white rounded hover:opacity-90 disabled:opacity-50"
+                >
+                  Add Link
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="w-px h-5 bg-[var(--dash-border-subtle)] mx-1" />
 
