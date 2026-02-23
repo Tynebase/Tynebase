@@ -357,8 +357,8 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
         }
 
         const isOwner = existing.author_id === user.id;
-        const isAdmin = ['admin', 'super_admin', 'editor'].includes(user.role);
-        if (!isOwner && !isAdmin) {
+        const isSuperAdmin = user.is_super_admin === true;
+        if (!isOwner && !isSuperAdmin) {
           return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'Not authorized to edit this discussion', details: {} } });
         }
 
@@ -407,8 +407,8 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
         }
 
         const isOwner = existing.author_id === user.id;
-        const isAdmin = ['admin', 'super_admin'].includes(user.role);
-        if (!isOwner && !isAdmin) {
+        const isSuperAdmin = user.is_super_admin === true;
+        if (!isOwner && !isSuperAdmin) {
           return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'Not authorized to delete this discussion', details: {} } });
         }
 

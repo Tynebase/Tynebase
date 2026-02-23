@@ -83,7 +83,8 @@ export default function DiscussionPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showActions]);
 
-  const isAdmin = user?.role === 'admin' || (user as { role?: string })?.role === 'super_admin';
+  const isSuperAdmin = (user as { is_super_admin?: boolean })?.is_super_admin === true;
+  const isAdmin = user?.role === 'admin' || isSuperAdmin;
   const isEditor = user?.role === 'editor';
   const canModerate = isAdmin || isEditor;
   const isAuthor = !!(user?.id && discussion?.author_id && user.id === discussion.author_id);
@@ -454,7 +455,7 @@ export default function DiscussionPage() {
                         {discussion.is_resolved ? "Mark Unresolved" : "Mark Resolved"}
                       </button>
                     )}
-                    {(isAdmin || isAuthor) && (
+                    {(isSuperAdmin || isAuthor) && (
                       <button onClick={() => { setShowDeleteModal(true); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2 text-red-600">
                         <Trash2 className="w-4 h-4" />
                         Delete
