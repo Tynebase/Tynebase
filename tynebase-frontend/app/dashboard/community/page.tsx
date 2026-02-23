@@ -294,7 +294,7 @@ export default function CommunityPage() {
                     <MessageSquare className="w-12 h-12 text-[var(--dash-text-muted)] mb-4" />
                     <h3 className="text-lg font-semibold text-[var(--dash-text-primary)]">No discussions yet</h3>
                     <p className="text-[var(--dash-text-tertiary)] mt-1">Be the first to start a conversation!</p>
-                    <Button variant="primary" size="md" className="mt-4" asChild>
+                    <Button variant="primary" size="md" className="mt-4 !text-[#ffffff]" asChild>
                       <Link href="/dashboard/community/new">
                         <Plus className="w-4 h-4 mr-2" />
                         New Discussion
