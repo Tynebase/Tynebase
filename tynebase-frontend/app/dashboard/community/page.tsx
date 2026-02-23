@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import {
   Plus, MessageSquare, Eye, Pin, Search, TrendingUp,
   CheckCircle2, HelpCircle, Bell, Award, BarChart3, Loader2,
-  MoreHorizontal, Pencil, Trash2, X, Lock
+  MoreHorizontal, Pencil, Trash2, X, Lock, ThumbsUp
 } from "lucide-react";
 import { listDiscussions, Discussion, deleteDiscussion } from "@/lib/api/discussions";
 import { useAuth } from "@/contexts/AuthContext";
@@ -284,10 +284,10 @@ export default function CommunityPage() {
                   {pagination.total} results
                 </span>
               </div>
-              <div className="hidden md:flex gap-6 text-xs text-[var(--dash-text-muted)] font-medium">
-                <span className="w-16 text-right">Replies</span>
-                <span className="w-16 text-right">Views</span>
-                <span className="w-10 text-right">Actions</span>
+              <div className="hidden md:flex gap-4 text-xs text-[var(--dash-text-muted)] font-medium mr-10">
+                <span className="w-14 text-center">Replies</span>
+                <span className="w-14 text-center">Views</span>
+                <span className="w-14 text-center">Likes</span>
               </div>
             </CardHeader>
             <CardContent className="p-0 flex-1 overflow-auto dashboard-scroll">
@@ -379,15 +379,16 @@ export default function CommunityPage() {
                             </div>
                           </div>
 
-                          <div className="hidden md:flex flex-col items-end justify-center h-full gap-1 min-w-[140px]">
-                            <div className="flex items-center justify-end w-full gap-6 text-sm text-[var(--dash-text-secondary)]">
-                              <span className="w-16 text-right flex items-center justify-end gap-1">
-                                {discussion.replies_count} <MessageSquare className="w-3.5 h-3.5 text-[var(--dash-text-muted)]" />
-                              </span>
-                              <span className="w-16 text-right flex items-center justify-end gap-1">
-                                {discussion.views_count} <Eye className="w-3.5 h-3.5 text-[var(--dash-text-muted)]" />
-                              </span>
-                            </div>
+                          <div className="hidden md:flex items-center justify-end gap-4 text-sm text-[var(--dash-text-secondary)]">
+                            <span className="w-14 text-center flex items-center justify-center gap-1">
+                              {discussion.replies_count} <MessageSquare className="w-3.5 h-3.5 text-[var(--dash-text-muted)]" />
+                            </span>
+                            <span className="w-14 text-center flex items-center justify-center gap-1">
+                              {discussion.views_count} <Eye className="w-3.5 h-3.5 text-[var(--dash-text-muted)]" />
+                            </span>
+                            <span className="w-14 text-center flex items-center justify-center gap-1">
+                              {discussion.likes_count} <ThumbsUp className="w-3.5 h-3.5 text-[var(--dash-text-muted)]" />
+                            </span>
                           </div>
 
                           {/* Actions menu for author only */}
