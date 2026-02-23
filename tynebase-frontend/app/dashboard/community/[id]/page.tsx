@@ -338,9 +338,10 @@ export default function DiscussionPage() {
                   </div>
                 </div>
 
-                <div className="text-[var(--dash-text-primary)] leading-relaxed whitespace-pre-wrap">
-                  {discussion.content}
-                </div>
+                <div 
+                  className="text-[var(--dash-text-primary)] leading-relaxed [&>p]:my-2 [&>p]:leading-relaxed [&>p:empty]:h-4 [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 [&>strong]:font-semibold [&>em]:italic [&>code]:bg-[var(--surface-ground)] [&>code]:px-1 [&>code]:py-0.5 [&>code]:rounded [&>code]:text-sm [&>a]:text-[var(--brand)] [&>a]:underline"
+                  dangerouslySetInnerHTML={{ __html: discussion.content }}
+                />
 
                 {discussion.poll && (
                   <PollDisplay
@@ -414,9 +415,10 @@ export default function DiscussionPage() {
                             </Button>
                           )}
                         </div>
-                        <div className="text-sm text-[var(--dash-text-tertiary)] mt-3 leading-relaxed whitespace-pre-wrap">
-                          {r.content}
-                        </div>
+                        <div 
+                          className="text-sm text-[var(--dash-text-tertiary)] mt-3 leading-relaxed [&>p]:my-1 [&>p]:leading-relaxed [&>p:empty]:h-2 [&>ul]:list-disc [&>ul]:pl-4 [&>ol]:list-decimal [&>ol]:pl-4 [&>strong]:font-semibold [&>em]:italic [&>code]:bg-[var(--surface-ground)] [&>code]:px-1 [&>code]:rounded [&>code]:text-xs [&>a]:text-[var(--brand)] [&>a]:underline"
+                          dangerouslySetInnerHTML={{ __html: r.content }}
+                        />
                         <div className="flex items-center gap-2 mt-3">
                           <Button 
                             variant={r.has_liked ? "primary" : "ghost"} 
