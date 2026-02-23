@@ -15,6 +15,8 @@ import {
   getDiscussion,
   getDiscussionReplies,
   createReply,
+  updateReply,
+  deleteReply,
   toggleDiscussionLike,
   toggleReplyLike,
   toggleDiscussionPin,
@@ -68,7 +70,12 @@ export default function DiscussionPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [nestedReply, setNestedReply] = useState("");
+  const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
+  const [editingReplyContent, setEditingReplyContent] = useState("");
+  const [deletingReplyId, setDeletingReplyId] = useState<string | null>(null);
+  const [replyActionId, setReplyActionId] = useState<string | null>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
+  const replyActionsRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -136,6 +143,37 @@ export default function DiscussionPage() {
     }
   };
 
+  const handleEditReply = async (replyId: string) => {
+    if (!editingReplyContent.trim() || submitting) return;
+    try {
+      setSubmitting(true);
+      const response = await updateReply(discussionId, replyId, { content: editingReplyContent.trim() });
+      setReplies(prev => prev.map(r => r.id === replyId ? response.reply : r));
+      setEditingReplyId(null);
+      setEditingReplyContent("");
+    } catch (err) {
+      console.error("Failed to edit reply:", err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteReply = async (replyId: string) => {
+    try {
+      setSubmitting(true);
+      await deleteReply(discussionId, replyId);
+      setReplies(prev => prev.filter(r => r.id !== replyId));
+      setDeletingReplyId(null);
+      if (discussion) {
+        setDiscussion({ ...discussion, replies_count: Math.max(0, discussion.replies_count - 1) });
+      }
+    } catch (err) {
+      console.error("Failed to delete reply:", err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   // Build nested reply tree
   const buildReplyTree = (replies: DiscussionReply[], parentId: string | null = null): DiscussionReply[] => {
     return replies
@@ -150,6 +188,8 @@ export default function DiscussionPage() {
     const replyInitials = replyAuthor.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
     const childReplies = buildReplyTree(replies, r.id);
     const maxDepth = 4; // Limit nesting depth
+    const isReplyAuthor = !!(user?.id && r.author?.id && user.id === r.author.id);
+    const canEditDeleteReply = isReplyAuthor || isSuperAdmin;
     
     return (
       <div key={r.id} className={depth > 0 ? "mt-3" : ""}>
@@ -180,16 +220,83 @@ export default function DiscussionPage() {
                 <div className="text-xs text-[var(--dash-text-muted)]">{formatDate(r.created_at)}</div>
               </div>
             </div>
-            {isAuthor && !r.is_accepted_answer && (
-              <Button variant="ghost" size="sm" onClick={() => handleAcceptAnswer(r.id)} className="text-xs">
-                <Check className="w-3 h-3 mr-1" /> Accept
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {isAuthor && !r.is_accepted_answer && (
+                <Button variant="ghost" size="sm" onClick={() => handleAcceptAnswer(r.id)} className="text-xs">
+                  <Check className="w-3 h-3 mr-1" /> Accept
+                </Button>
+              )}
+              {canEditDeleteReply && (
+                <div className="relative">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="px-2"
+                    onClick={() => setReplyActionId(replyActionId === r.id ? null : r.id)}
+                  >
+                    <MoreHorizontal className="w-4 h-4" />
+                  </Button>
+                  {replyActionId === r.id && (
+                    <div className="absolute right-0 top-full mt-1 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg shadow-lg py-1 min-w-[120px] z-20">
+                      <button 
+                        onClick={() => { 
+                          setEditingReplyId(r.id); 
+                          setEditingReplyContent(r.content); 
+                          setReplyActionId(null); 
+                        }} 
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2"
+                      >
+                        <MessageSquare className="w-3 h-3" />
+                        Edit
+                      </button>
+                      <button 
+                        onClick={() => { 
+                          setDeletingReplyId(r.id); 
+                          setReplyActionId(null); 
+                        }} 
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2 text-red-600"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-          <HtmlContent
-            className="text-sm text-[var(--dash-text-tertiary)] mt-3 leading-relaxed [&>p]:my-1 [&>p]:leading-relaxed [&>p:empty]:h-2 [&>ul]:list-disc [&>ul]:pl-4 [&>ol]:list-decimal [&>ol]:pl-4 [&>strong]:font-semibold [&>em]:italic [&>code]:bg-[var(--surface-ground)] [&>code]:px-1 [&>code]:rounded [&>code]:text-xs [&>a]:text-[var(--brand)] [&>a]:underline"
-            content={r.content}
-          />
+          
+          {/* Edit mode */}
+          {editingReplyId === r.id ? (
+            <div className="mt-3">
+              <textarea
+                value={editingReplyContent}
+                onChange={(e) => setEditingReplyContent(e.target.value)}
+                rows={4}
+                className="w-full px-3 py-2 text-sm bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-lg focus:outline-none focus:border-[var(--brand)] resize-none"
+              />
+              <div className="flex items-center justify-end gap-2 mt-2">
+                <Button variant="ghost" size="sm" onClick={() => { setEditingReplyId(null); setEditingReplyContent(""); }}>
+                  Cancel
+                </Button>
+                <Button 
+                  variant="primary" 
+                  size="sm" 
+                  disabled={!editingReplyContent.trim() || submitting}
+                  onClick={() => handleEditReply(r.id)}
+                >
+                  {submitting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                  Save
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <HtmlContent
+              className="text-sm text-[var(--dash-text-tertiary)] mt-3 leading-relaxed [&>p]:my-1 [&>p]:leading-relaxed [&>p:empty]:h-2 [&>ul]:list-disc [&>ul]:pl-4 [&>ol]:list-decimal [&>ol]:pl-4 [&>strong]:font-semibold [&>em]:italic [&>code]:bg-[var(--surface-ground)] [&>code]:px-1 [&>code]:rounded [&>code]:text-xs [&>a]:text-[var(--brand)] [&>a]:underline"
+              content={r.content}
+            />
+          )}
+          
           <div className="flex items-center gap-2 mt-3">
             <Button 
               variant={r.has_liked ? "primary" : "ghost"} 
@@ -638,6 +745,72 @@ export default function DiscussionPage() {
                 disabled={isDeleting}
               >
                 {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Reply Confirmation Modal */}
+      {deletingReplyId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => !submitting && setDeletingReplyId(null)}
+          />
+          <div className="relative w-full max-w-md bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl shadow-xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--dash-border-subtle)]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                  <Trash2 className="w-5 h-5 text-red-600" />
+                </div>
+                <h2 className="text-lg font-semibold text-[var(--dash-text-primary)]">
+                  Delete Reply
+                </h2>
+              </div>
+              <button
+                onClick={() => !submitting && setDeletingReplyId(null)}
+                disabled={submitting}
+                className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-[var(--dash-text-primary)] transition-colors disabled:opacity-50"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-4">
+              <p className="text-[var(--dash-text-secondary)]">
+                Are you sure you want to delete this reply?
+              </p>
+              <p className="text-sm text-[var(--dash-text-muted)] mt-2">
+                This action cannot be undone.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[var(--dash-border-subtle)] bg-[var(--surface-ground)]">
+              <Button
+                variant="ghost"
+                size="md"
+                onClick={() => setDeletingReplyId(null)}
+                disabled={submitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                className="bg-red-600 hover:bg-red-700"
+                onClick={() => handleDeleteReply(deletingReplyId)}
+                disabled={submitting}
+              >
+                {submitting ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />
                     Deleting...
