@@ -125,7 +125,7 @@ export function SimpleRichTextEditor({
     content: value,
     editorProps: {
       attributes: {
-        class: `prose prose-sm max-w-none focus:outline-none p-4 text-[var(--dash-text-primary)]`,
+        class: `prose prose-sm max-w-none focus:outline-none p-4 text-[var(--dash-text-primary)] [&_a]:text-[#f97316] [&_a]:underline [&_a]:hover:opacity-80`,
         style: `min-height: ${minHeight}`,
       },
       handleDrop: (view, event, _slice, moved) => {
