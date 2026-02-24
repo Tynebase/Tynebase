@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
@@ -39,7 +40,9 @@ export default function CommunityPage() {
   const [discussionToDelete, setDiscussionToDelete] = useState<Discussion | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -87,7 +90,18 @@ export default function CommunityPage() {
   const toggleMenu = (e: React.MouseEvent, discussionId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    setOpenMenuId(openMenuId === discussionId ? null : discussionId);
+    if (openMenuId === discussionId) {
+      setOpenMenuId(null);
+      setMenuPosition(null);
+    } else {
+      const button = e.currentTarget as HTMLButtonElement;
+      const rect = button.getBoundingClientRect();
+      setMenuPosition({
+        top: rect.bottom + window.scrollY + 4,
+        left: rect.right - 140 + window.scrollX, // 140px is min-width of menu
+      });
+      setOpenMenuId(discussionId);
+    }
   };
 
   const fetchDiscussions = useCallback(async (page = 1) => {
@@ -393,32 +407,12 @@ export default function CommunityPage() {
                             {/* Actions menu placeholder or actual menu */}
                             <div className="w-10 flex justify-center">
                               {user?.id && discussion.author_id && user.id === discussion.author_id ? (
-                                <div className="relative" ref={openMenuId === discussion.id ? menuRef : undefined}>
-                                  <button
-                                    onClick={(e) => toggleMenu(e, discussion.id)}
-                                    className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-[var(--dash-text-primary)] transition-colors"
-                                  >
-                                    <MoreHorizontal className="w-4 h-4" />
-                                  </button>
-                                  {openMenuId === discussion.id && (
-                                    <div className="absolute right-0 top-full mt-1 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg shadow-lg py-1 min-w-[140px] z-50">
-                                      <button
-                                        onClick={(e) => handleEditClick(e, discussion.id)}
-                                        className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2 text-[var(--dash-text-secondary)]"
-                                      >
-                                        <Pencil className="w-4 h-4" />
-                                        Edit
-                                      </button>
-                                      <button
-                                        onClick={(e) => handleDeleteClick(e, discussion)}
-                                        className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2 text-red-600"
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                        Delete
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
+                                <button
+                                  onClick={(e) => toggleMenu(e, discussion.id)}
+                                  className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-[var(--dash-text-primary)] transition-colors"
+                                >
+                                  <MoreHorizontal className="w-4 h-4" />
+                                </button>
                               ) : null}
                             </div>
                           </div>
@@ -578,6 +572,38 @@ export default function CommunityPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Portal-rendered dropdown menu for discussions */}
+      {openMenuId && menuPosition && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={menuRef}
+          className="fixed bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg shadow-lg py-1 min-w-[140px]"
+          style={{
+            top: menuPosition.top,
+            left: menuPosition.left,
+            zIndex: 9999,
+          }}
+        >
+          <button
+            onClick={(e) => handleEditClick(e, openMenuId)}
+            className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2 text-[var(--dash-text-secondary)]"
+          >
+            <Pencil className="w-4 h-4" />
+            Edit
+          </button>
+          <button
+            onClick={(e) => {
+              const discussion = discussions.find(d => d.id === openMenuId);
+              if (discussion) handleDeleteClick(e, discussion);
+            }}
+            className="w-full px-4 py-2 text-left text-sm hover:bg-[var(--surface-hover)] flex items-center gap-2 text-red-600"
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete
+          </button>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -173,7 +173,10 @@ export function SimpleRichTextEditor({
   }) => (
     <button
       type="button"
-      onClick={onClick}
+      onMouseDown={(e) => {
+        e.preventDefault();
+        onClick();
+      }}
       title={title}
       className={`p-1.5 rounded transition-colors ${
         isActive
