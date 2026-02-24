@@ -223,15 +223,15 @@ export function ResizableImageView({ node, updateAttributes, selected, editor, g
           <div style={handleStyle('w')} onMouseDown={(e) => startResize(e, 'w')} />
         </>
       )}
-      {/* Clickable area below image to move cursor after */}
+      {/* Clickable area below image to move cursor after - 60px for easier clicking */}
       <div 
         onClick={moveCursorAfterImage}
         style={{
           position: 'absolute',
-          bottom: -20,
-          left: 0,
-          right: 0,
-          height: 20,
+          bottom: -60,
+          left: -10,
+          right: -10,
+          height: 60,
           cursor: 'text',
         }}
         title="Click to continue writing below"
@@ -243,8 +243,8 @@ export function ResizableImageView({ node, updateAttributes, selected, editor, g
           style={{
             position: 'absolute',
             top: 0,
-            [alignment === 'left' ? 'right' : 'left']: -50,
-            width: 50,
+            [alignment === 'left' ? 'right' : 'left']: -60,
+            width: 60,
             height: '100%',
             cursor: 'text',
           }}

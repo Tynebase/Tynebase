@@ -90,6 +90,32 @@ export const ResizableImage = Image.extend<ResizableImageOptions>({
     };
   },
 
+  addKeyboardShortcuts() {
+    return {
+      ArrowDown: ({ editor }) => {
+        const { selection } = editor.state;
+        const node = selection.$anchor.parent;
+        
+        // Check if we're at or near an image node
+        if (selection.$anchor.nodeAfter?.type.name === 'resizableImage' ||
+            selection.$anchor.nodeBefore?.type.name === 'resizableImage') {
+          const pos = selection.$anchor.pos;
+          const docSize = editor.state.doc.content.size;
+          
+          // Move to end of current position and insert paragraph if needed
+          if (pos >= docSize - 2) {
+            editor.chain().focus().insertContentAt(docSize, { type: 'paragraph' }).run();
+          }
+          
+          // Move cursor forward
+          editor.commands.setTextSelection(Math.min(pos + 1, docSize));
+          return true;
+        }
+        return false;
+      },
+    };
+  },
+
   addNodeView() {
     return ReactNodeViewRenderer(ResizableImageView);
   },
