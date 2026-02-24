@@ -1460,21 +1460,23 @@ export default function KnowledgePage() {
       <Modal
         isOpen={deleteSuccessOpen}
         onClose={() => setDeleteSuccessOpen(false)}
-        title="Documents Deleted"
         size="sm"
       >
-        <div className="flex flex-col items-center gap-4 py-6">
-          <div className="w-12 h-12 rounded-full bg-[var(--status-success-bg)] flex items-center justify-center">
-            <CheckCircle className="w-6 h-6 text-[var(--status-success)]" />
+        <div className="flex flex-col items-center text-center px-2 py-4">
+          <div className="w-14 h-14 rounded-full bg-[var(--status-success-bg)] flex items-center justify-center mb-4">
+            <CheckCircle className="w-7 h-7 text-[var(--status-success)]" />
           </div>
-          <p className="text-sm text-[var(--dash-text-secondary)] text-center">
+          <h3 className="text-lg font-semibold text-[var(--dash-text-primary)] mb-2">
+            Successfully Deleted
+          </h3>
+          <p className="text-sm text-[var(--dash-text-secondary)] mb-6">
             {deleteSuccessMessage}
           </p>
           <button
             onClick={() => setDeleteSuccessOpen(false)}
-            className="mt-2 px-8 py-2.5 text-sm font-medium text-white bg-[var(--brand)] rounded-lg hover:bg-[var(--brand)]/90 transition-colors"
+            className="w-full max-w-[200px] px-6 py-2.5 text-sm font-medium text-white bg-[var(--brand)] rounded-lg hover:bg-[var(--brand)]/90 transition-colors"
           >
-            OK
+            Done
           </button>
         </div>
       </Modal>

@@ -93,9 +93,20 @@ export default function NewDiscussionPage() {
     }
   }, [wasPosted]);
 
-  // Cleanup on unmount (route change via Next.js)
+  // Cleanup on unmount (route change via Next.js) and browser back button
   useEffect(() => {
+    const handlePopState = () => {
+      // Browser back/forward button pressed
+      if (draftIdRef.current && !wasPostedRef.current) {
+        localStorage.setItem('pendingDraftDiscussion', draftIdRef.current);
+        deleteDiscussion(draftIdRef.current).catch(console.error);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    
     return () => {
+      window.removeEventListener('popstate', handlePopState);
       if (draftIdRef.current && !wasPostedRef.current) {
         // Mark for cleanup and attempt delete
         localStorage.setItem('pendingDraftDiscussion', draftIdRef.current);
