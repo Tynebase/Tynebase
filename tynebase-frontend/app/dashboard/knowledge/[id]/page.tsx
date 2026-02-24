@@ -43,6 +43,7 @@ import {
 } from "@/lib/api/documents";
 import { listCategories, type Category as APICategory } from "@/lib/api/folders";
 import { ShareModal } from "@/components/docs/ShareModal";
+import { listTags, createTag, addTagToDocuments, removeTagFromDocument, type Tag as APITag } from "@/lib/api/tags";
 
 function htmlToPlainText(html: string | null | undefined) {
   if (!html) return '';
@@ -117,6 +118,11 @@ export default function EditDocumentPage() {
   const [visibility, setVisibility] = useState<"public" | "private" | "team">("team");
   const [mode, setMode] = useState<"edit" | "read">("edit");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [documentTags, setDocumentTags] = useState<Array<{ id: string; name: string }>>([]);
+  const [availableTags, setAvailableTags] = useState<APITag[]>([]);
+  const [tagInput, setTagInput] = useState("");
+  const [showTagDropdown, setShowTagDropdown] = useState(false);
+  const [loadingTags, setLoadingTags] = useState(false);
   const [showCopyLinkModal, setShowCopyLinkModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(false);
@@ -203,6 +209,91 @@ export default function EditDocumentPage() {
     };
     fetchCategories();
   }, []);
+
+  // Fetch available tags on mount
+  useEffect(() => {
+    const fetchTags = async () => {
+      try {
+        const res = await listTags({ limit: 100 });
+        setAvailableTags(res.tags);
+      } catch (err) {
+        console.error('Failed to fetch tags:', err);
+      }
+    };
+    fetchTags();
+  }, []);
+
+  // Load document tags when document is fetched
+  useEffect(() => {
+    const fetchDocumentTags = async () => {
+      if (!documentId) return;
+      try {
+        const response = await getDocument(documentId, true);
+        if (response.document.tags) {
+          setDocumentTags(response.document.tags.map(t => ({ id: t.id, name: t.name })));
+        }
+      } catch (err) {
+        console.error('Failed to fetch document tags:', err);
+      }
+    };
+    fetchDocumentTags();
+  }, [documentId]);
+
+  // Handle adding a tag to the document
+  const handleAddTag = async (tag: APITag) => {
+    if (documentTags.some(t => t.id === tag.id)) return;
+    
+    setLoadingTags(true);
+    try {
+      await addTagToDocuments(tag.id, [documentId]);
+      setDocumentTags(prev => [...prev, { id: tag.id, name: tag.name }]);
+      setTagInput("");
+      setShowTagDropdown(false);
+    } catch (err) {
+      console.error('Failed to add tag:', err);
+    } finally {
+      setLoadingTags(false);
+    }
+  };
+
+  // Handle creating a new tag and adding it to the document
+  const handleCreateAndAddTag = async () => {
+    if (!tagInput.trim()) return;
+    
+    setLoadingTags(true);
+    try {
+      const res = await createTag({ name: tagInput.trim() });
+      await addTagToDocuments(res.tag.id, [documentId]);
+      setDocumentTags(prev => [...prev, { id: res.tag.id, name: res.tag.name }]);
+      setAvailableTags(prev => [...prev, res.tag]);
+      setTagInput("");
+      setShowTagDropdown(false);
+    } catch (err) {
+      console.error('Failed to create tag:', err);
+    } finally {
+      setLoadingTags(false);
+    }
+  };
+
+  // Handle removing a tag from the document
+  const handleRemoveTag = async (tagId: string) => {
+    setLoadingTags(true);
+    try {
+      await removeTagFromDocument(tagId, documentId);
+      setDocumentTags(prev => prev.filter(t => t.id !== tagId));
+    } catch (err) {
+      console.error('Failed to remove tag:', err);
+    } finally {
+      setLoadingTags(false);
+    }
+  };
+
+  // Filter available tags based on input
+  const filteredTags = availableTags.filter(
+    tag => 
+      tag.name.toLowerCase().includes(tagInput.toLowerCase()) &&
+      !documentTags.some(dt => dt.id === tag.id)
+  );
 
   // Update category when selection changes
   const handleCategoryChange = async (categoryId: string | null) => {
@@ -706,11 +797,79 @@ export default function EditDocumentPage() {
                       <Tag className="w-4 h-4" />
                       Tags
                     </label>
-                    <input
-                      type="text"
-                      placeholder="Add tags..."
-                      className="w-full px-3 py-2 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)]"
-                    />
+                    
+                    {/* Current tags */}
+                    {documentTags.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {documentTags.map(tag => (
+                          <span
+                            key={tag.id}
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-[var(--brand)]/10 text-[var(--brand)] rounded-md text-xs font-medium"
+                          >
+                            # {tag.name}
+                            <button
+                              onClick={() => handleRemoveTag(tag.id)}
+                              className="hover:text-red-500 transition-colors"
+                              disabled={loadingTags}
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Tag input with dropdown */}
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={tagInput}
+                        onChange={(e) => {
+                          setTagInput(e.target.value);
+                          setShowTagDropdown(true);
+                        }}
+                        onFocus={() => setShowTagDropdown(true)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && tagInput.trim()) {
+                            e.preventDefault();
+                            const existingTag = filteredTags.find(
+                              t => t.name.toLowerCase() === tagInput.toLowerCase()
+                            );
+                            if (existingTag) {
+                              handleAddTag(existingTag);
+                            } else {
+                              handleCreateAndAddTag();
+                            }
+                          }
+                        }}
+                        placeholder="Add more tags..."
+                        className="w-full px-3 py-2 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)]"
+                      />
+                      
+                      {showTagDropdown && (tagInput || filteredTags.length > 0) && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                          {filteredTags.map(tag => (
+                            <button
+                              key={tag.id}
+                              onClick={() => handleAddTag(tag)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-[var(--surface-hover)] text-sm"
+                            >
+                              <span className="text-[var(--dash-text-tertiary)]">#</span>
+                              <span className="text-[var(--dash-text-primary)]">{tag.name}</span>
+                            </button>
+                          ))}
+                          {tagInput.trim() && !filteredTags.some(t => t.name.toLowerCase() === tagInput.toLowerCase()) && (
+                            <button
+                              onClick={handleCreateAndAddTag}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-[var(--surface-hover)] text-sm border-t border-[var(--dash-border-subtle)]"
+                            >
+                              <span className="text-[var(--brand)]">+</span>
+                              <span className="text-[var(--dash-text-primary)]">Create &quot;{tagInput}&quot;</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Document Info */}
