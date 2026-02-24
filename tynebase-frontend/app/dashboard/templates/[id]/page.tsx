@@ -150,7 +150,7 @@ export default function TemplateDetailPage() {
         <div className="flex flex-col items-center gap-4 text-center">
           <AlertCircle className="w-8 h-8 text-[var(--status-error)]" />
           <p className="text-sm text-[var(--dash-text-primary)] font-medium">{fetchError}</p>
-          <Button variant="ghost" onClick={() => router.push('/dashboard/templates')}>Back to Templates</Button>
+          <Button variant="ghost" onClick={() => router.back()}>Go Back</Button>
         </div>
       </div>
     );
@@ -163,11 +163,11 @@ export default function TemplateDetailPage() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => router.push('/dashboard/templates')}
+          onClick={() => router.back()}
           className="gap-2"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Templates
+          Back
         </Button>
         <div className="flex items-center gap-2">
           {isTenantTemplate && !isEditing && (
