@@ -65,10 +65,10 @@ export const ResizableImage = Image.extend<ResizableImageOptions>({
         },
       },
       alignment: {
-        default: 'center',
-        parseHTML: element => element.getAttribute('data-alignment') || 'center',
+        default: 'left',
+        parseHTML: element => element.getAttribute('data-alignment') || 'left',
         renderHTML: attributes => {
-          return { 'data-alignment': attributes.alignment || 'center' };
+          return { 'data-alignment': attributes.alignment || 'left' };
         },
       },
     };

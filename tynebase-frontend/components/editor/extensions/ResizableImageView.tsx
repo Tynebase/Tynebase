@@ -136,7 +136,6 @@ export function ResizableImageView({ node, updateAttributes, selected, editor, g
           display: 'inline-block',
         };
       case 'center':
-      default:
         return {
           ...base,
           display: 'table',
@@ -144,6 +143,15 @@ export function ResizableImageView({ node, updateAttributes, selected, editor, g
           marginRight: 'auto',
           float: 'none',
           clear: 'both',
+        };
+      default:
+        // Default to left alignment
+        return {
+          ...base,
+          float: 'left',
+          marginRight: '1rem',
+          marginBottom: '0.5rem',
+          display: 'inline-block',
         };
     }
   };
@@ -228,6 +236,21 @@ export function ResizableImageView({ node, updateAttributes, selected, editor, g
         }}
         title="Click to continue writing below"
       />
+      {/* Clickable area to the right of left-aligned images */}
+      {(alignment === 'left' || alignment === 'right') && (
+        <div 
+          onClick={moveCursorAfterImage}
+          style={{
+            position: 'absolute',
+            top: 0,
+            [alignment === 'left' ? 'right' : 'left']: -50,
+            width: 50,
+            height: '100%',
+            cursor: 'text',
+          }}
+          title="Click to write beside image"
+        />
+      )}
     </NodeViewWrapper>
   );
 }
