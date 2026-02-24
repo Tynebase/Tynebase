@@ -206,31 +206,23 @@ export function SimpleRichTextEditor({
   const addLink = () => {
     if (linkUrl) {
       const hasSelection = !editor.state.selection.empty;
+      const displayText = linkText || linkUrl;
       
       if (hasSelection) {
         // If there's selected text, apply link to it
         editor.chain().focus().setLink({ href: linkUrl }).run();
-      } else if (linkText) {
-        // Insert link with custom text
-        editor
-          .chain()
-          .focus()
-          .insertContent({
-            type: 'text',
-            text: linkText,
-            marks: [{ type: 'link', attrs: { href: linkUrl } }],
-          })
-          .run();
       } else {
-        // No selection and no link text - insert URL as the link text
+        // Insert text first, then select it and apply link
         editor
           .chain()
           .focus()
-          .insertContent({
-            type: 'text',
-            text: linkUrl,
-            marks: [{ type: 'link', attrs: { href: linkUrl } }],
+          .insertContent(displayText)
+          .setTextSelection({
+            from: editor.state.selection.from - displayText.length,
+            to: editor.state.selection.from,
           })
+          .setLink({ href: linkUrl })
+          .setTextSelection(editor.state.selection.to)
           .run();
       }
       setLinkUrl("");

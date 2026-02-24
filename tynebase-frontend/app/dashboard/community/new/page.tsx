@@ -35,6 +35,9 @@ export default function NewDiscussionPage() {
   const [draftId, setDraftId] = useState<string | null>(null);
   const [isCreatingDraft, setIsCreatingDraft] = useState(true);
 
+  // Track if the discussion was successfully posted
+  const [wasPosted, setWasPosted] = useState(false);
+
   // Create draft discussion on mount for asset uploads
   useEffect(() => {
     const initDraft = async () => {
@@ -49,6 +52,19 @@ export default function NewDiscussionPage() {
     };
     initDraft();
   }, []);
+
+  // Cleanup draft on unmount if not posted
+  useEffect(() => {
+    return () => {
+      // Only cleanup if we have a draft and it wasn't posted
+      if (draftId && !wasPosted) {
+        // Fire and forget - delete the draft
+        deleteDiscussion(draftId).catch((err) => {
+          console.error("Failed to cleanup draft discussion:", err);
+        });
+      }
+    };
+  }, [draftId, wasPosted]);
 
   // Upload handler for SimpleRichTextEditor
   const handleUploadAsset = useCallback(async (file: File) => {
@@ -124,6 +140,9 @@ export default function NewDiscussionPage() {
         .split(",")
         .map((t) => t.trim())
         .filter((t) => t.length > 0);
+
+      // Mark as posted so cleanup effect doesn't delete it
+      setWasPosted(true);
 
       // If there's a poll, delete the draft and create a fresh discussion with poll
       if (hasPoll && isPollValid) {
