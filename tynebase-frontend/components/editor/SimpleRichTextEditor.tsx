@@ -212,17 +212,11 @@ export function SimpleRichTextEditor({
         // If there's selected text, apply link to it
         editor.chain().focus().setLink({ href: linkUrl }).run();
       } else {
-        // Insert text first, then select it and apply link
+        // Insert as HTML anchor tag directly
         editor
           .chain()
           .focus()
-          .insertContent(displayText)
-          .setTextSelection({
-            from: editor.state.selection.from - displayText.length,
-            to: editor.state.selection.from,
-          })
-          .setLink({ href: linkUrl })
-          .setTextSelection(editor.state.selection.to)
+          .insertContent(`<a href="${linkUrl}">${displayText}</a> `)
           .run();
       }
       setLinkUrl("");
