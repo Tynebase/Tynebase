@@ -53,18 +53,17 @@ export default function NewDiscussionPage() {
     initDraft();
   }, []);
 
-  // Cleanup draft on unmount if not posted
-  useEffect(() => {
-    return () => {
-      // Only cleanup if we have a draft and it wasn't posted
-      if (draftId && !wasPosted) {
-        // Fire and forget - delete the draft
-        deleteDiscussion(draftId).catch((err) => {
-          console.error("Failed to cleanup draft discussion:", err);
-        });
+  // Handle back/cancel - delete draft before navigating
+  const handleCancel = useCallback(async () => {
+    if (draftId && !wasPosted) {
+      try {
+        await deleteDiscussion(draftId);
+      } catch (err) {
+        console.error("Failed to cleanup draft discussion:", err);
       }
-    };
-  }, [draftId, wasPosted]);
+    }
+    router.push('/dashboard/community');
+  }, [draftId, wasPosted, router]);
 
   // Upload handler for SimpleRichTextEditor
   const handleUploadAsset = useCallback(async (file: File) => {
@@ -198,11 +197,9 @@ export default function NewDiscussionPage() {
       )}
       <DashboardPageHeader
         left={
-          <Button variant="ghost" size="md" className="px-3" asChild>
-            <Link href="/dashboard/community">
-              <ArrowLeft className="w-4 h-4" />
-              Back
-            </Link>
+          <Button variant="ghost" size="md" className="px-3" onClick={handleCancel}>
+            <ArrowLeft className="w-4 h-4" />
+            Back
           </Button>
         }
         title={<h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">New Discussion</h1>}
