@@ -7,7 +7,7 @@ import Link from "@tiptap/extension-link";
 import { ResizableImage } from "./extensions/ResizableImage";
 import Youtube from "@tiptap/extension-youtube";
 import Placeholder from "@tiptap/extension-placeholder";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useLayoutEffect } from "react";
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   List, ListOrdered, Quote, Code, Link as LinkIcon,
@@ -34,30 +34,45 @@ export function SimpleRichTextEditor({
   const [showImageInput, setShowImageInput] = useState(false);
   const [showYoutubeInput, setShowYoutubeInput] = useState(false);
   const [showLinkInput, setShowLinkInput] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close all dropdowns helper
-  const closeAllDropdowns = () => {
+  const closeAllDropdowns = useCallback(() => {
     setShowImageInput(false);
     setShowYoutubeInput(false);
     setShowLinkInput(false);
-  };
+  }, []);
+
+  // Click outside to close dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        closeAllDropdowns();
+      }
+    };
+    
+    if (showImageInput || showYoutubeInput || showLinkInput) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showImageInput, showYoutubeInput, showLinkInput, closeAllDropdowns]);
 
   const toggleLinkInput = () => {
-    const newState = !showLinkInput;
-    closeAllDropdowns();
-    setShowLinkInput(newState);
+    setShowImageInput(false);
+    setShowYoutubeInput(false);
+    setShowLinkInput(!showLinkInput);
   };
 
   const toggleImageInput = () => {
-    const newState = !showImageInput;
-    closeAllDropdowns();
-    setShowImageInput(newState);
+    setShowLinkInput(false);
+    setShowYoutubeInput(false);
+    setShowImageInput(!showImageInput);
   };
 
   const toggleYoutubeInput = () => {
-    const newState = !showYoutubeInput;
-    closeAllDropdowns();
-    setShowYoutubeInput(newState);
+    setShowLinkInput(false);
+    setShowImageInput(false);
+    setShowYoutubeInput(!showYoutubeInput);
   };
   const [imageUrl, setImageUrl] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
@@ -190,15 +205,33 @@ export function SimpleRichTextEditor({
 
   const addLink = () => {
     if (linkUrl) {
-      if (linkText && !editor.state.selection.empty) {
-        // If there's selected text, just add the link
+      const hasSelection = !editor.state.selection.empty;
+      
+      if (hasSelection) {
+        // If there's selected text, apply link to it
         editor.chain().focus().setLink({ href: linkUrl }).run();
       } else if (linkText) {
         // Insert link with custom text
-        editor.chain().focus().insertContent(`<a href="${linkUrl}">${linkText}</a>`).run();
+        editor
+          .chain()
+          .focus()
+          .insertContent({
+            type: 'text',
+            text: linkText,
+            marks: [{ type: 'link', attrs: { href: linkUrl } }],
+          })
+          .run();
       } else {
-        // Just set link on selection or insert URL as text
-        editor.chain().focus().setLink({ href: linkUrl }).run();
+        // No selection and no link text - insert URL as the link text
+        editor
+          .chain()
+          .focus()
+          .insertContent({
+            type: 'text',
+            text: linkUrl,
+            marks: [{ type: 'link', attrs: { href: linkUrl } }],
+          })
+          .run();
       }
       setLinkUrl("");
       setLinkText("");
@@ -249,7 +282,7 @@ export function SimpleRichTextEditor({
         className="hidden"
       />
 
-      <div className="flex items-center gap-0.5 p-2 border-b border-[var(--dash-border-subtle)] bg-[var(--surface-ground)] flex-wrap">
+      <div ref={dropdownRef} className="flex items-center gap-0.5 p-2 border-b border-[var(--dash-border-subtle)] bg-[var(--surface-ground)] flex-wrap">
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBold().run()}
           isActive={editor.isActive("bold")}
