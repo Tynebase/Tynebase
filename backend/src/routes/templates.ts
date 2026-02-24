@@ -123,12 +123,11 @@ export default async function templateRoutes(fastify: FastifyInstance) {
           .order('created_at', { ascending: false })
           .range(offset, offset + limit - 1);
 
-        // Apply filters for global approved templates OR tenant's templates OR public templates from any tenant
+        // Apply filters for global approved templates OR tenant's own templates only
         // Using OR logic: 
         // - (tenant_id IS NULL AND is_approved = TRUE) - global approved templates
         // - (tenant_id = tenant.id) - current tenant's templates
-        // - (visibility = 'public') - public templates from any tenant
-        dbQuery = dbQuery.or(`and(tenant_id.is.null,is_approved.eq.true),tenant_id.eq.${tenant.id},visibility.eq.public`);
+        dbQuery = dbQuery.or(`and(tenant_id.is.null,is_approved.eq.true),tenant_id.eq.${tenant.id}`);
 
         // Apply optional category filter
         if (category !== undefined) {
@@ -356,6 +355,78 @@ export default async function templateRoutes(fastify: FastifyInstance) {
   );
 
   /**
+   * GET /api/templates/public
+   * Lists all public templates from any tenant (for community shared-documents)
+   * NOTE: Must be registered BEFORE /api/templates/:id to avoid 'public' matching as :id
+   */
+  fastify.get(
+    '/api/templates/public',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const query = listTemplatesQuerySchema.parse(request.query);
+        const { page, limit } = query;
+        const offset = (page - 1) * limit;
+
+        const { data: templates, error, count } = await supabaseAdmin
+          .from('templates')
+          .select(`
+            id,
+            tenant_id,
+            title,
+            description,
+            content,
+            category,
+            visibility,
+            is_approved,
+            created_by,
+            created_at,
+            updated_at,
+            users:created_by (
+              id,
+              email,
+              full_name
+            )
+          `, { count: 'exact' })
+          .eq('visibility', 'public')
+          .order('created_at', { ascending: false })
+          .range(offset, offset + limit - 1);
+
+        if (error) {
+          fastify.log.error({ error }, 'Failed to fetch public templates');
+          return reply.code(500).send({
+            error: { code: 'FETCH_FAILED', message: 'Failed to fetch public templates', details: {} },
+          });
+        }
+
+        const totalPages = count ? Math.ceil(count / limit) : 0;
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            templates: templates || [],
+            pagination: {
+              page,
+              limit,
+              total: count || 0,
+              totalPages,
+              hasNextPage: page < totalPages,
+              hasPrevPage: page > 1,
+            },
+          },
+        });
+      } catch (error) {
+        fastify.log.error({ error }, 'Unexpected error in GET /api/templates/public');
+        return reply.code(500).send({
+          error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred', details: {} },
+        });
+      }
+    }
+  );
+
+  /**
    * GET /api/templates/:id
    * Fetches a single template by ID for preview
    */
@@ -404,11 +475,12 @@ export default async function templateRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Verify access: global approved template OR tenant's own template
+        // Verify access: global approved template OR tenant's own template OR public template
         const isGlobalApproved = template.tenant_id === null && template.is_approved === true;
         const isTenantTemplate = template.tenant_id === tenant.id;
+        const isPublicTemplate = template.visibility === 'public';
 
-        if (!isGlobalApproved && !isTenantTemplate) {
+        if (!isGlobalApproved && !isTenantTemplate && !isPublicTemplate) {
           return reply.code(403).send({
             error: {
               code: 'FORBIDDEN',
@@ -422,6 +494,7 @@ export default async function templateRoutes(fastify: FastifyInstance) {
           success: true,
           data: {
             template,
+            is_read_only: !isTenantTemplate && !isGlobalApproved,
           },
         });
       } catch (error) {
@@ -881,6 +954,76 @@ export default async function templateRoutes(fastify: FastifyInstance) {
             message: 'An unexpected error occurred',
             details: {},
           },
+        });
+      }
+    }
+  );
+
+  /**
+   * POST /api/templates/:id/clone
+   * Clone a public template to the current tenant's templates
+   */
+  fastify.post(
+    '/api/templates/:id/clone',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+        const params = useTemplateParamsSchema.parse(request.params);
+        const { id: templateId } = params;
+
+        // Fetch the source template
+        const { data: sourceTemplate, error: fetchError } = await supabaseAdmin
+          .from('templates')
+          .select('title, description, content, category')
+          .eq('id', templateId)
+          .single();
+
+        if (fetchError || !sourceTemplate) {
+          return reply.code(404).send({
+            error: { code: 'TEMPLATE_NOT_FOUND', message: 'Template not found', details: {} },
+          });
+        }
+
+        // Create a clone for the current tenant
+        const { data: cloned, error: createError } = await supabaseAdmin
+          .from('templates')
+          .insert({
+            tenant_id: tenant.id,
+            title: sourceTemplate.title,
+            description: sourceTemplate.description,
+            content: sourceTemplate.content,
+            category: sourceTemplate.category,
+            visibility: 'internal',
+            is_approved: false,
+            created_by: user.id,
+          })
+          .select('id, title')
+          .single();
+
+        if (createError || !cloned) {
+          fastify.log.error({ error: createError }, 'Failed to clone template');
+          return reply.code(500).send({
+            error: { code: 'CLONE_FAILED', message: 'Failed to save template', details: {} },
+          });
+        }
+
+        fastify.log.info(
+          { sourceTemplateId: templateId, clonedTemplateId: cloned.id, tenantId: tenant.id },
+          'Template cloned successfully'
+        );
+
+        return reply.code(201).send({
+          success: true,
+          data: { template: cloned },
+        });
+      } catch (error) {
+        fastify.log.error({ error }, 'Unexpected error in POST /api/templates/:id/clone');
+        return reply.code(500).send({
+          error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred', details: {} },
         });
       }
     }

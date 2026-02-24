@@ -184,3 +184,26 @@ export async function deleteTemplate(
 ): Promise<void> {
   return apiDelete<void>(`/api/templates/${templateId}`);
 }
+
+/**
+ * List public templates from all tenants (for community shared-documents)
+ */
+export async function listPublicTemplates(
+  params?: { page?: number; limit?: number }
+): Promise<TemplateListResponse> {
+  const queryParams = new URLSearchParams();
+  if (params?.page !== undefined) queryParams.append('page', params.page.toString());
+  if (params?.limit !== undefined) queryParams.append('limit', params.limit.toString());
+  const queryString = queryParams.toString();
+  const endpoint = queryString ? `/api/templates/public?${queryString}` : '/api/templates/public';
+  return apiGet<TemplateListResponse>(endpoint);
+}
+
+/**
+ * Clone a public template to the current tenant's templates
+ */
+export async function cloneTemplate(
+  templateId: string
+): Promise<TemplateResponse> {
+  return apiPost<TemplateResponse>(`/api/templates/${templateId}/clone`);
+}

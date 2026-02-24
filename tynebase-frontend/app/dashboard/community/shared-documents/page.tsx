@@ -9,7 +9,7 @@ import {
   FileText, Search, Eye, Clock, User, Loader2, FolderOpen, BookOpen
 } from "lucide-react";
 import { listSharedDocuments, Document } from "@/lib/api/documents";
-import { listTemplates, Template } from "@/lib/api/templates";
+import { listPublicTemplates, Template } from "@/lib/api/templates";
 
 // Strip markdown/HTML for plain text preview
 const stripMarkdown = (text: string): string => {
@@ -75,7 +75,7 @@ export default function SharedDocumentsPage() {
     try {
       setLoading(true);
       setError(null);
-      const response = await listTemplates({ visibility: "public", page, limit: 20 });
+      const response = await listPublicTemplates({ page, limit: 20 });
       setTemplates(response.templates);
       setPagination({
         page: response.pagination.page,

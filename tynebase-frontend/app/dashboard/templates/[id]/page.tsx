@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, FileText, User, Globe, Lock, Loader2, AlertCircle, CheckCircle, Tag, Pencil, Trash2, Save, X } from "lucide-react";
+import { ArrowLeft, FileText, User, Globe, Lock, Loader2, AlertCircle, CheckCircle, Tag, Pencil, Trash2, Save, X, Copy } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { getTemplate, useTemplate, updateTemplate, deleteTemplate, type Template } from "@/lib/api/templates";
+import { getTemplate, useTemplate, updateTemplate, deleteTemplate, cloneTemplate, type Template } from "@/lib/api/templates";
 import { MarkdownReader } from "@/components/ui/MarkdownReader";
 
 export default function TemplateDetailPage() {
@@ -31,6 +31,11 @@ export default function TemplateDetailPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Read-only state (public template from another tenant)
+  const [isReadOnly, setIsReadOnly] = useState(false);
+  const [isCloning, setIsCloning] = useState(false);
+  const [cloneSuccess, setCloneSuccess] = useState(false);
+
   useEffect(() => {
     async function loadTemplate() {
       try {
@@ -38,6 +43,7 @@ export default function TemplateDetailPage() {
         setFetchError(null);
         const response = await getTemplate(templateId);
         setTemplate(response.template);
+        setIsReadOnly(!!(response as any).is_read_only);
       } catch (err: any) {
         console.error('Failed to fetch template:', err);
         setFetchError(err.message || 'Failed to load template');
@@ -131,7 +137,22 @@ export default function TemplateDetailPage() {
   }
 
   // Check if this is a tenant-owned template (editable)
-  const isTenantTemplate = template?.tenant_id !== null;
+  const isTenantTemplate = template?.tenant_id !== null && !isReadOnly;
+
+  async function handleClone() {
+    try {
+      setIsCloning(true);
+      setError(null);
+      await cloneTemplate(templateId);
+      setCloneSuccess(true);
+      setTimeout(() => setCloneSuccess(false), 3000);
+    } catch (err: any) {
+      console.error('Failed to clone template:', err);
+      setError(err.message || 'Failed to save template');
+    } finally {
+      setIsCloning(false);
+    }
+  }
 
   if (fetchLoading) {
     return (
@@ -170,6 +191,24 @@ export default function TemplateDetailPage() {
           Back
         </Button>
         <div className="flex items-center gap-2">
+          {isReadOnly && !cloneSuccess && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleClone}
+              disabled={isCloning}
+              className="gap-2"
+            >
+              <Copy className="w-4 h-4" />
+              {isCloning ? 'Saving...' : 'Save to My Templates'}
+            </Button>
+          )}
+          {cloneSuccess && (
+            <span className="flex items-center gap-1.5 text-sm text-[var(--status-success)] font-medium">
+              <CheckCircle className="w-4 h-4" />
+              Saved!
+            </span>
+          )}
           {isTenantTemplate && !isEditing && (
             <>
               <Button
