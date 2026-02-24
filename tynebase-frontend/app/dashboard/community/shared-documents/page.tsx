@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import {
@@ -34,7 +35,16 @@ const stripMarkdown = (text: string): string => {
 type TabType = "documents" | "templates";
 
 export default function SharedDocumentsPage() {
-  const [activeTab, setActiveTab] = useState<TabType>("documents");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabFromUrl = searchParams.get('tab') as TabType | null;
+  const [activeTab, setActiveTab] = useState<TabType>(tabFromUrl === 'templates' ? 'templates' : 'documents');
+
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    // Update URL to preserve tab state in browser history
+    router.replace(`/dashboard/community/shared-documents${tab === 'templates' ? '?tab=templates' : ''}`, { scroll: false });
+  };
   const [searchQuery, setSearchQuery] = useState("");
   const [documents, setDocuments] = useState<Document[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -125,7 +135,7 @@ export default function SharedDocumentsPage() {
       {/* Tab Navigation */}
       <div className="flex gap-2 flex-shrink-0">
         <button
-          onClick={() => setActiveTab("documents")}
+          onClick={() => handleTabChange("documents")}
           className={`
             inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all
             ${activeTab === "documents"
@@ -138,7 +148,7 @@ export default function SharedDocumentsPage() {
           Documents
         </button>
         <button
-          onClick={() => setActiveTab("templates")}
+          onClick={() => handleTabChange("templates")}
           className={`
             inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all
             ${activeTab === "templates"
