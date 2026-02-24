@@ -213,11 +213,14 @@ export function SimpleRichTextEditor({
         // If there's selected text, apply link to it
         editor.chain().focus().setLink({ href: linkUrl }).run();
       } else {
-        // Insert as HTML anchor tag directly
+        // Insert link then a space after (space is outside the link)
         editor
           .chain()
           .focus()
-          .insertContent(`<a href="${linkUrl}">${displayText}</a> `)
+          .insertContent([
+            { type: 'text', marks: [{ type: 'link', attrs: { href: linkUrl } }], text: displayText },
+            { type: 'text', text: ' ' }
+          ])
           .run();
       }
       setLinkUrl("");

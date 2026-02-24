@@ -123,9 +123,12 @@ export default async function templateRoutes(fastify: FastifyInstance) {
           .order('created_at', { ascending: false })
           .range(offset, offset + limit - 1);
 
-        // Apply filters for global approved templates OR tenant's templates
-        // Using OR logic: (tenant_id IS NULL AND is_approved = TRUE) OR (tenant_id = tenant.id)
-        dbQuery = dbQuery.or(`and(tenant_id.is.null,is_approved.eq.true),tenant_id.eq.${tenant.id}`);
+        // Apply filters for global approved templates OR tenant's templates OR public templates from any tenant
+        // Using OR logic: 
+        // - (tenant_id IS NULL AND is_approved = TRUE) - global approved templates
+        // - (tenant_id = tenant.id) - current tenant's templates
+        // - (visibility = 'public') - public templates from any tenant
+        dbQuery = dbQuery.or(`and(tenant_id.is.null,is_approved.eq.true),tenant_id.eq.${tenant.id},visibility.eq.public`);
 
         // Apply optional category filter
         if (category !== undefined) {
