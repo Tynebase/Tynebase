@@ -808,8 +808,8 @@ export default function EditDocumentPage() {
               <MarkdownReader content={htmlToPlainText(content)} title={title} />
             </div>
             <div className="col-span-12 xl:col-span-4 space-y-4">
-              {/* Version Control Panel */}
-              <Card>
+              {/* Version Control Panel - hide for read-only cross-tenant docs */}
+              {!isReadOnly && <Card>
                 <CardHeader className="pb-4 border-b border-[var(--dash-border-subtle)] bg-[var(--surface-ground)] rounded-t-[var(--radius-lg)]">
                   <div className="flex items-center gap-2">
                     <History className="w-4 h-4 text-[var(--brand)]" />
@@ -887,7 +887,7 @@ export default function EditDocumentPage() {
                     View Full History
                   </button>
                 </CardContent>
-              </Card>
+              </Card>}
             </div>
         </div>
       </div>
