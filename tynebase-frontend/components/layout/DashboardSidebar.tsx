@@ -34,7 +34,7 @@ import {
   HelpCircle,
   X
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { createPortal } from "react-dom";
 
 interface NavItem {
@@ -334,11 +334,24 @@ export function DashboardSidebar({ mobile }: { mobile?: boolean }) {
     onHelpClick?: () => void;
   }) => {
     const isOpen = openSections[id];
+    const sectionRef = useRef<HTMLDivElement>(null);
+
+    const handleToggle = () => {
+      const wasOpen = openSections[id];
+      toggleSection(id);
+      
+      // If opening, scroll the section header into view after animation
+      if (!wasOpen && sectionRef.current) {
+        setTimeout(() => {
+          sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 50);
+      }
+    };
 
     return (
-      <div className="space-y-1">
+      <div ref={sectionRef} className="space-y-1">
         <button
-          onClick={() => toggleSection(id)}
+          onClick={handleToggle}
           className="w-full flex items-center justify-between group px-2 py-1.5 rounded-lg text-xs font-semibold text-[var(--dash-text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--dash-text-primary)] transition-all text-left"
         >
           <div className="flex items-center gap-1.5">

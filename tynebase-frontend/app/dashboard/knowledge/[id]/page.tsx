@@ -567,7 +567,7 @@ export default function EditDocumentPage() {
 
           {/* Preview - hidden on mobile and for read-only docs */}
           {!isReadOnly && (
-            <Button variant="ghost" className="gap-2 hidden md:flex" onClick={() => handleModeSwitch(mode === "edit" ? "read" : "edit")}>
+            <Button variant="ghost" className="gap-1 sm:gap-2 px-2 sm:px-3 hidden md:flex" onClick={() => handleModeSwitch(mode === "edit" ? "read" : "edit")}>
               <Eye className="w-4 h-4" />
               {mode === "edit" ? "Preview" : "Back to editor"}
             </Button>
