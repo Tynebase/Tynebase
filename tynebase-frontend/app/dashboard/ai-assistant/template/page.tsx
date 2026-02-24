@@ -180,11 +180,19 @@ Generate ONLY the template content in markdown format, no explanations or meta-c
         
         // Extract title from content if user didn't provide one
         let templateTitle = title.trim();
+        let cleanedContent = generatedContent.trim();
         if (!templateTitle) {
-          // Try to extract from first heading
-          const firstLine = generatedContent.split('\n')[0]?.trim() || '';
+          // Try to extract from first heading and strip it from content
+          const lines = cleanedContent.split('\n');
+          const firstLine = lines[0]?.trim() || '';
           if (firstLine.startsWith('#')) {
             templateTitle = firstLine.replace(/^#+\s*/, '').trim();
+            // Remove the title line (and any blank line after it) from content
+            lines.shift();
+            while (lines.length > 0 && lines[0].trim() === '') {
+              lines.shift();
+            }
+            cleanedContent = lines.join('\n').trim();
           }
           // Fallback to prompt-based title
           if (!templateTitle) {
@@ -198,7 +206,7 @@ Generate ONLY the template content in markdown format, no explanations or meta-c
         const templateResponse = await createTemplate({
           title: templateTitle,
           description: description.trim() || undefined,
-          content: generatedContent.trim(),
+          content: cleanedContent,
           category: categoryLabel,
           visibility,
         });
