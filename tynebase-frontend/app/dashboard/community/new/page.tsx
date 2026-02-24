@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useMemo, useState, useEffect, useCallback, useRef } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -53,6 +53,18 @@ export default function NewDiscussionPage() {
     initDraft();
   }, []);
 
+  // Store refs for cleanup to avoid stale closures
+  const draftIdRef = useRef<string | null>(null);
+  const wasPostedRef = useRef(false);
+  
+  useEffect(() => {
+    draftIdRef.current = draftId;
+  }, [draftId]);
+  
+  useEffect(() => {
+    wasPostedRef.current = wasPosted;
+  }, [wasPosted]);
+
   // Handle back/cancel - delete draft before navigating
   const handleCancel = useCallback(async () => {
     if (draftId && !wasPosted) {
@@ -64,6 +76,26 @@ export default function NewDiscussionPage() {
     }
     router.push('/dashboard/community');
   }, [draftId, wasPosted, router]);
+
+  // Cleanup draft on page unload (browser close, refresh, or any navigation)
+  useEffect(() => {
+    const cleanup = () => {
+      if (draftIdRef.current && !wasPostedRef.current) {
+        // Use sendBeacon for reliable cleanup on page unload
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+        navigator.sendBeacon(`${apiUrl}/api/discussions/${draftIdRef.current}/delete-beacon`);
+      }
+    };
+
+    window.addEventListener('beforeunload', cleanup);
+    return () => {
+      window.removeEventListener('beforeunload', cleanup);
+      // Also cleanup on unmount (route change via Next.js)
+      if (draftIdRef.current && !wasPostedRef.current) {
+        deleteDiscussion(draftIdRef.current).catch(console.error);
+      }
+    };
+  }, []);
 
   // Upload handler for SimpleRichTextEditor
   const handleUploadAsset = useCallback(async (file: File) => {
