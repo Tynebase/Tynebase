@@ -9,6 +9,32 @@ import { dispatchJob } from '../utils/dispatchJob';
 import { writeAuditLog, getClientIp } from '../lib/auditLog';
 
 /**
+ * Rewrites Supabase signed URLs in document content to use the public asset proxy.
+ * This allows cross-tenant users to view images in public documents.
+ * 
+ * Matches URLs like:
+ * - https://xxx.supabase.co/storage/v1/object/sign/tenant-documents/tenant-{id}/documents/{docId}/{filename}?token=...
+ * 
+ * Rewrites to:
+ * - /api/documents/{docId}/assets/public/{filename}
+ */
+function rewriteAssetUrlsForPublicAccess(content: string, documentId: string, apiBaseUrl: string): string {
+  if (!content) return content;
+  
+  // Match Supabase signed URLs for tenant-documents bucket
+  // Pattern: https://xxx.supabase.co/storage/v1/object/sign/tenant-documents/tenant-{tenantId}/documents/{docId}/{filename}?token=...
+  const supabaseUrlPattern = /https?:\/\/[^"'\s]+\.supabase\.co\/storage\/v1\/object\/sign\/tenant-documents\/tenant-[^/]+\/documents\/([^/]+)\/([^"'\s?]+)[^"'\s]*/g;
+  
+  return content.replace(supabaseUrlPattern, (match, docIdFromUrl, filename) => {
+    // Only rewrite URLs for this document
+    if (docIdFromUrl === documentId) {
+      return `${apiBaseUrl}/api/documents/${documentId}/assets/public/${filename}`;
+    }
+    return match;
+  });
+}
+
+/**
  * Zod schema for GET /api/documents query parameters
  */
 const listDocumentsQuerySchema = z.object({
@@ -489,10 +515,24 @@ export default async function documentRoutes(fastify: FastifyInstance) {
           }
         }
 
+        // For cross-tenant access, rewrite asset URLs to use the public proxy
+        let responseDocument = document;
+        if (isCrossTenant && document) {
+          const apiBaseUrl = process.env.API_BASE_URL || 'https://tynebase-app.fly.dev';
+          responseDocument = {
+            ...document,
+            content: rewriteAssetUrlsForPublicAccess(document.content || '', id, apiBaseUrl),
+          };
+          fastify.log.info(
+            { documentId: id, isCrossTenant },
+            'Rewrote asset URLs for cross-tenant public access'
+          );
+        }
+
         return reply.code(200).send({
           success: true,
           data: {
-            document,
+            document: responseDocument,
             // Flag to indicate cross-tenant access (read-only mode)
             is_read_only: isCrossTenant,
           },

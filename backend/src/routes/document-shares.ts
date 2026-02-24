@@ -7,6 +7,23 @@ import { membershipGuard } from '../middleware/membershipGuard';
 import { rateLimitMiddleware } from '../middleware/rateLimit';
 import crypto from 'crypto';
 
+/**
+ * Rewrites Supabase signed URLs in document content to use the public asset proxy.
+ * This allows cross-tenant users to view images in public documents.
+ */
+function rewriteAssetUrlsForPublicAccess(content: string, documentId: string, apiBaseUrl: string): string {
+  if (!content) return content;
+  
+  const supabaseUrlPattern = /https?:\/\/[^"'\s]+\.supabase\.co\/storage\/v1\/object\/sign\/tenant-documents\/tenant-[^/]+\/documents\/([^/]+)\/([^"'\s?]+)[^"'\s]*/g;
+  
+  return content.replace(supabaseUrlPattern, (match, docIdFromUrl, filename) => {
+    if (docIdFromUrl === documentId) {
+      return `${apiBaseUrl}/api/documents/${documentId}/assets/public/${filename}`;
+    }
+    return match;
+  });
+}
+
 const documentIdParamsSchema = z.object({
   id: z.string().uuid(),
 });
@@ -542,10 +559,17 @@ export default async function documentShareRoutes(fastify: FastifyInstance) {
 
         const totalPages = count ? Math.ceil(count / query.limit) : 0;
 
+        // Rewrite asset URLs for all public documents to use the public proxy
+        const apiBaseUrl = process.env.API_BASE_URL || 'https://tynebase-app.fly.dev';
+        const documentsWithRewrittenUrls = (documents || []).map((doc: any) => ({
+          ...doc,
+          content: rewriteAssetUrlsForPublicAccess(doc.content || '', doc.id, apiBaseUrl),
+        }));
+
         return reply.code(200).send({
           success: true,
           data: {
-            documents: documents || [],
+            documents: documentsWithRewrittenUrls,
             pagination: {
               page: query.page,
               limit: query.limit,

@@ -724,4 +724,122 @@ export default async function documentAssetRoutes(fastify: FastifyInstance) {
       }
     }
   );
+
+  /**
+   * GET /api/documents/:id/assets/public/:assetPath
+   * Serves an asset for a PUBLIC document without tenant authentication
+   * This allows cross-tenant access to images in public documents
+   * 
+   * Path Parameters:
+   * - id: Document UUID
+   * - assetPath: The asset filename (URL encoded)
+   * 
+   * Security:
+   * - Only works for documents with visibility='public' AND status='published'
+   * - Returns a redirect to a fresh signed URL
+   * 
+   * Response:
+   * - 302: Redirect to signed URL
+   * - 404: Document not found or not public
+   * - 500: Failed to generate URL
+   */
+  fastify.get(
+    '/api/documents/:id/assets/public/*',
+    {
+      preHandler: [rateLimitMiddleware],
+    },
+    async (request, reply) => {
+      try {
+        const params = request.params as { id: string; '*': string };
+        const documentId = params.id;
+        const assetPath = params['*'];
+
+        if (!documentId || !assetPath) {
+          return reply.code(400).send({
+            error: {
+              code: 'INVALID_PARAMS',
+              message: 'Missing document ID or asset path',
+              details: {},
+            },
+          });
+        }
+
+        // Verify document exists and is public + published
+        const { data: document, error: docError } = await supabaseAdmin
+          .from('documents')
+          .select('id, tenant_id, visibility, status')
+          .eq('id', documentId)
+          .single();
+
+        if (docError || !document) {
+          fastify.log.warn(
+            { documentId, assetPath },
+            'Document not found for public asset access'
+          );
+          return reply.code(404).send({
+            error: {
+              code: 'DOCUMENT_NOT_FOUND',
+              message: 'Document not found',
+              details: {},
+            },
+          });
+        }
+
+        // Only allow access to public published documents
+        if (document.visibility !== 'public' || document.status !== 'published') {
+          fastify.log.warn(
+            { documentId, visibility: document.visibility, status: document.status },
+            'Attempted public asset access on non-public document'
+          );
+          return reply.code(404).send({
+            error: {
+              code: 'DOCUMENT_NOT_PUBLIC',
+              message: 'Document is not publicly accessible',
+              details: {},
+            },
+          });
+        }
+
+        // Construct the storage path
+        const storagePath = `tenant-${document.tenant_id}/documents/${documentId}/${assetPath}`;
+
+        fastify.log.info(
+          { documentId, assetPath, storagePath },
+          'Generating signed URL for public document asset'
+        );
+
+        // Generate a fresh signed URL
+        const { data: signedUrlData, error: signedUrlError } = await supabaseAdmin
+          .storage
+          .from('tenant-documents')
+          .createSignedUrl(storagePath, 3600);
+
+        if (signedUrlError || !signedUrlData?.signedUrl) {
+          fastify.log.error(
+            { storagePath, documentId, error: signedUrlError?.message },
+            'Failed to generate signed URL for public asset'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'SIGNED_URL_FAILED',
+              message: 'Failed to generate asset URL',
+              details: {},
+            },
+          });
+        }
+
+        // Redirect to the signed URL
+        return reply.redirect(302, signedUrlData.signedUrl);
+      } catch (error) {
+        fastify.log.error({ error }, 'Unexpected error in GET /api/documents/:id/assets/public/*');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
 }
