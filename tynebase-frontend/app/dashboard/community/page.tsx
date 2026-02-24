@@ -44,6 +44,18 @@ export default function CommunityPage() {
   const menuRef = useRef<HTMLDivElement>(null);
   const menuButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
+  // Cleanup any pending draft discussions from abandoned new discussion pages
+  useEffect(() => {
+    const pendingDraftId = localStorage.getItem('pendingDraftDiscussion');
+    if (pendingDraftId) {
+      localStorage.removeItem('pendingDraftDiscussion');
+      // Delete the abandoned draft
+      deleteDiscussion(pendingDraftId).catch((err) => {
+        console.error('Failed to cleanup pending draft:', err);
+      });
+    }
+  }, []);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

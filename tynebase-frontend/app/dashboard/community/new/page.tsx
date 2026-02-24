@@ -78,21 +78,27 @@ export default function NewDiscussionPage() {
     router.push('/dashboard/community');
   }, [draftId, wasPosted, router]);
 
-  // Cleanup draft on page unload (browser close, refresh, or any navigation)
+  // Store draft ID for cleanup - will be cleaned up by community page or on next visit
   useEffect(() => {
-    const cleanup = () => {
-      if (draftIdRef.current && !wasPostedRef.current) {
-        // Use sendBeacon for reliable cleanup on page unload
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-        navigator.sendBeacon(`${apiUrl}/api/discussions/${draftIdRef.current}/delete-beacon`);
-      }
-    };
+    if (draftId) {
+      // Store in localStorage for cleanup if navigation happens before we can delete
+      localStorage.setItem('pendingDraftDiscussion', draftId);
+    }
+  }, [draftId]);
 
-    window.addEventListener('beforeunload', cleanup);
+  // Clear the pending draft marker when successfully posted
+  useEffect(() => {
+    if (wasPosted) {
+      localStorage.removeItem('pendingDraftDiscussion');
+    }
+  }, [wasPosted]);
+
+  // Cleanup on unmount (route change via Next.js)
+  useEffect(() => {
     return () => {
-      window.removeEventListener('beforeunload', cleanup);
-      // Also cleanup on unmount (route change via Next.js)
       if (draftIdRef.current && !wasPostedRef.current) {
+        // Mark for cleanup and attempt delete
+        localStorage.setItem('pendingDraftDiscussion', draftIdRef.current);
         deleteDiscussion(draftIdRef.current).catch(console.error);
       }
     };
