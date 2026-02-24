@@ -803,7 +803,7 @@ export default function EditDocumentPage() {
         </div>
 
         {/* Preview Mode - Always mounted to avoid re-fetching */}
-        <div className={mode === "read" ? "grid grid-cols-12 gap-6 items-start" : "hidden"}>
+        <div className={mode === "read" ? "grid grid-cols-12 gap-6 items-start h-full overflow-y-auto p-4" : "hidden"}>
             <div className="col-span-12 xl:col-span-8">
               <MarkdownReader content={htmlToPlainText(content)} title={title} />
             </div>
