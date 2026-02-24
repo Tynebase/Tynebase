@@ -437,6 +437,58 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
   );
 
   /**
+   * POST /api/discussions/:id/delete-beacon - Delete discussion via sendBeacon (for page unload)
+   * This endpoint accepts POST with no body since sendBeacon sends POST requests
+   */
+  fastify.post(
+    '/api/discussions/:id/delete-beacon',
+    { preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard] },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+        const { id } = request.params as { id: string };
+
+        const { data: existing } = await supabaseAdmin
+          .from('discussions')
+          .select('id, author_id, title')
+          .eq('id', id)
+          .single();
+
+        if (!existing) {
+          // Already deleted or doesn't exist - that's fine for beacon cleanup
+          return reply.code(200).send({ success: true });
+        }
+
+        const isOwner = existing.author_id === user.id;
+        const isSuperAdmin = user.is_super_admin === true;
+        if (!isOwner && !isSuperAdmin) {
+          // Not authorized - silently ignore for beacon
+          return reply.code(200).send({ success: true });
+        }
+
+        await supabaseAdmin.from('discussions').delete().eq('id', id);
+
+        writeAuditLog({
+          tenantId: tenant.id,
+          actorId: user.id,
+          action: 'discussion.deleted',
+          actionType: 'document',
+          targetName: existing.title || 'Draft',
+          ipAddress: getClientIp(request),
+          metadata: { discussion_id: id, via: 'beacon' },
+        });
+
+        return reply.code(200).send({ success: true });
+      } catch (error) {
+        fastify.log.error({ error }, 'Unexpected error in POST /api/discussions/:id/delete-beacon');
+        // Always return 200 for beacon - browser doesn't care about response
+        return reply.code(200).send({ success: false });
+      }
+    }
+  );
+
+  /**
    * POST /api/discussions/:id/like - Toggle like
    */
   fastify.post(

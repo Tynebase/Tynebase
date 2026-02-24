@@ -196,16 +196,29 @@ export interface SearchRequest {
 }
 
 export interface SearchResult {
-  chunk_id: string;
-  document_id: string;
-  chunk_text: string;
-  similarity_score: number;
+  id: string;
+  documentId: string;
+  chunkIndex: number;
+  chunkContent: string;
   metadata: Record<string, unknown>;
+  createdAt: string;
+  similarityScore: number;
+  textRankScore: number;
+  combinedScore: number;
+  rerankScore?: number;
 }
 
 export interface SearchResponse {
   results: SearchResult[];
-  total: number;
+  count: number;
+  query: string;
+}
+
+export interface SemanticDocumentSearchResult {
+  documentId: string;
+  title: string;
+  bestScore: number;
+  matchCount: number;
 }
 
 // ============================================================================
@@ -383,6 +396,35 @@ export async function chatStream(
  */
 export async function search(data: SearchRequest): Promise<SearchResponse> {
   return apiPost<SearchResponse>('/api/rag/search', data);
+}
+
+/**
+ * Search for documents semantically and return unique document IDs
+ * 
+ * Groups chunk results by document and returns the best score per document.
+ * Useful for finding relevant documents based on semantic similarity.
+ * 
+ * @param query - Search query
+ * @param limit - Maximum chunks to search (default: 50)
+ * @returns Array of unique document IDs sorted by relevance
+ */
+export async function searchDocumentIds(query: string, limit: number = 50): Promise<string[]> {
+  const response = await search({ query, limit, use_reranking: true, rerank_top_n: 20 });
+  
+  // Group by document and get best score
+  const docScores = new Map<string, number>();
+  for (const result of response.results) {
+    const score = result.rerankScore ?? result.combinedScore ?? result.similarityScore;
+    const existing = docScores.get(result.documentId);
+    if (!existing || score > existing) {
+      docScores.set(result.documentId, score);
+    }
+  }
+  
+  // Sort by score descending and return document IDs
+  return Array.from(docScores.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([docId]) => docId);
 }
 
 // ============================================================================

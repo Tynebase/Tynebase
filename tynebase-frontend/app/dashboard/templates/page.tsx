@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Code, Users, BookOpen, Rocket, Shield, Settings, Zap, Search, Plus, Star, Clock, ArrowRight, AlertCircle, Pencil, Trash2, Loader2, MoreVertical, Share2, Globe } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Code, Users, BookOpen, Rocket, Shield, Settings, Zap, Plus, Star, Clock, ArrowRight, AlertCircle, Pencil, Trash2, Loader2, MoreVertical, Share2, Globe } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { DashboardPageHeader } from "@/components/layout/DashboardPageHeader";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { listTemplates, deleteTemplate, updateTemplate, Template } from "@/lib/api/templates";
+import { search } from "@/lib/api/ai";
+import { SemanticSearchInput } from "@/components/ui/SemanticSearchInput";
 import { useRouter } from "next/navigation";
 
 const categoryIcons: Record<string, any> = {
@@ -37,6 +39,8 @@ export default function TemplatesPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [sharingId, setSharingId] = useState<string | null>(null);
+  const [isSemanticSearching, setIsSemanticSearching] = useState(false);
+  const [semanticDocIds, setSemanticDocIds] = useState<string[] | null>(null);
 
   useEffect(() => {
     async function fetchTemplates() {
@@ -129,9 +133,61 @@ export default function TemplatesPage() {
     }
   }
 
+  const handleSemanticSearch = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setSemanticDocIds(null);
+      return;
+    }
+    
+    try {
+      setIsSemanticSearching(true);
+      const response = await search({ query, limit: 50, use_reranking: true, rerank_top_n: 20 });
+      
+      // Group by document and get best score
+      const docScores = new Map<string, number>();
+      for (const result of response.results) {
+        const score = result.rerankScore ?? result.combinedScore ?? result.similarityScore;
+        const existing = docScores.get(result.documentId);
+        if (!existing || score > existing) {
+          docScores.set(result.documentId, score);
+        }
+      }
+      
+      // Sort by score descending and return document IDs
+      const sortedIds = Array.from(docScores.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([docId]) => docId);
+      
+      setSemanticDocIds(sortedIds);
+    } catch (err) {
+      console.error('Semantic search failed:', err);
+      setSemanticDocIds(null);
+    } finally {
+      setIsSemanticSearching(false);
+    }
+  }, []);
+
+  // Clear semantic results when search query is cleared
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSemanticDocIds(null);
+    }
+  }, [searchQuery]);
+
   const filteredTemplates = templates.filter(t => {
     const matchesCategory = activeCategory === 'all' || t.category === activeCategory;
-    const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    
+    // If we have semantic search results, use them; otherwise fall back to text search
+    if (semanticDocIds !== null && searchQuery.trim()) {
+      // Templates don't have document IDs in RAG, so we still use text matching
+      // but semantic search is for the knowledge base. For templates, keep text search.
+      const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (t.description || '').toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesCategory && matchesSearch;
+    }
+    
+    const matchesSearch = !searchQuery.trim() || 
+      t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (t.description || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
@@ -260,16 +316,15 @@ export default function TemplatesPage() {
             <Card className="flex-1 flex flex-col min-h-0">
               <CardContent className="p-6 flex flex-col gap-6 h-full min-h-0">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
-                  <div className="relative flex-1 w-full lg:max-w-md">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--dash-text-muted)]" />
-                    <input
-                      type="text"
-                      placeholder="Give a brief description of what this template is for..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full h-12 leading-none pl-10 pr-4 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
-                    />
-                  </div>
+                  <SemanticSearchInput
+                    value={searchQuery}
+                    onChange={setSearchQuery}
+                    onSemanticSearch={handleSemanticSearch}
+                    isSearching={isSemanticSearching}
+                    inputSize="lg"
+                    placeholder="Give a brief description of what this template is for..."
+                    className="flex-1 w-full lg:max-w-md"
+                  />
                   <div className="flex flex-wrap items-center gap-2.5 max-w-full">
                     {templateCategories.map((cat) => (
                       <div key={cat.id} className="inline-flex items-stretch">
@@ -367,7 +422,7 @@ export default function TemplatesPage() {
                                       <MoreVertical className="w-4 h-4 text-[var(--dash-text-muted)]" />
                                     </button>
                                     {openMenuId === template.id && (
-                                      <div className="absolute right-0 top-8 z-20 w-44 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg shadow-lg py-1">
+                                      <div className="absolute right-0 top-8 z-20 w-52 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg shadow-lg py-1">
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation();

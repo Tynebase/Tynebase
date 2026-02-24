@@ -238,6 +238,7 @@ function buildSystemPrompt(
       return `You are a professional content summarizer. Your task is to generate a concise, well-structured summary based on the user's request.
 
 ${baseRules}
+- ALWAYS start with a single H1 heading (# Title) that is a concise, descriptive title for the document (NOT the user's prompt verbatim). This title should capture the essence of the content.
 - Focus on key points, main themes, and critical takeaways.
 - Organize the summary into clear sections with headings.
 - Use Markdown formatting: headings (##, ###), bullet points, **bold** for emphasis.
@@ -248,6 +249,7 @@ ${baseRules}
       return `You are a professional document planner. Your task is to generate a detailed hierarchical outline based on the user's request.
 
 ${baseRules}
+- ALWAYS start with a single H1 heading (# Title) that is a concise, descriptive title for the document (NOT the user's prompt verbatim). This title should capture the essence of the content.
 - Create a structured outline with main topics as top-level headings.
 - Use nested bullet points for sub-topics and key details.
 - Include brief annotations or notes under each section describing what should be covered.
@@ -258,6 +260,7 @@ ${baseRules}
       return `You are a professional document writer. Your task is to generate complete document content by following the provided template structure.
 
 ${baseRules}
+- ALWAYS start with a single H1 heading (# Title) that is a concise, descriptive title for the document (NOT the user's prompt verbatim). This title should capture the essence of the content.
 - You MUST follow the template structure provided below. Use its headings, sections, and organization as your guide.
 - Fill in every section of the template with substantive, relevant content based on the user's request.
 - Replace any placeholder text (e.g., [brackets]) with actual professional content.
@@ -270,6 +273,7 @@ ${templateContent ? `\nTEMPLATE STRUCTURE TO FOLLOW:\n\n${templateContent}` : ''
       return `You are a professional document writer. Your task is to generate complete, well-structured document content based on the user's request.
 
 ${baseRules}
+- ALWAYS start with a single H1 heading (# Title) that is a concise, descriptive title for the document (NOT the user's prompt verbatim). This title should capture the essence of the content.
 - Use Markdown formatting: headings (#, ##, ###), bullet points, numbered lists, bold, italic, etc.
 - Create a comprehensive, publication-ready document with a clear introduction, well-organized body sections, and a conclusion if appropriate.
 - The output should be a complete, ready-to-use document.`;

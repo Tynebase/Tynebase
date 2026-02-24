@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from "rea
 import Link from "next/link";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
-  Plus, Search, Filter, Grid, List, MoreHorizontal, FileText,
+  Plus, Filter, Grid, List, MoreHorizontal, FileText,
   Clock, Users, Star, Eye, Sparkles,
   TrendingUp, GitBranch, MessageSquare, Share2, Download,
   Copy, ChevronDown, SortAsc,
@@ -13,6 +13,8 @@ import {
   Loader2, AlertTriangle, Trash2, Square, CheckSquare, Minus,
   FolderInput, Tag as TagIcon, Library, X, RotateCcw
 } from "lucide-react";
+import { search } from "@/lib/api/ai";
+import { SemanticSearchInput } from "@/components/ui/SemanticSearchInput";
 import { listDocuments, deleteDocument, updateDocument, type Document } from "@/lib/api/documents";
 import { listCategories, type Category } from "@/lib/api/folders";
 import { listCollections, addDocumentsToCollection, type Collection } from "@/lib/api/collections";
@@ -97,6 +99,8 @@ export default function KnowledgePage() {
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [showTagFilterDropdown, setShowTagFilterDropdown] = useState(false);
+  const [isSemanticSearching, setIsSemanticSearching] = useState(false);
+  const [semanticDocIds, setSemanticDocIds] = useState<string[] | null>(null);
 
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -561,22 +565,78 @@ export default function KnowledgePage() {
     }))
   ];
 
-  const filteredDocs = useMemo(() => documents
-    .filter(doc => {
-      if (searchQuery && !doc.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-      return true;
-    })
-    .sort((a, b) => {
+  const handleSemanticSearch = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setSemanticDocIds(null);
+      return;
+    }
+    
+    try {
+      setIsSemanticSearching(true);
+      const response = await search({ query, limit: 50, use_reranking: true, rerank_top_n: 20 });
+      
+      // Group by document and get best score
+      const docScores = new Map<string, number>();
+      for (const result of response.results) {
+        const score = result.rerankScore ?? result.combinedScore ?? result.similarityScore;
+        const existing = docScores.get(result.documentId);
+        if (!existing || score > existing) {
+          docScores.set(result.documentId, score);
+        }
+      }
+      
+      // Sort by score descending and return document IDs
+      const sortedIds = Array.from(docScores.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([docId]) => docId);
+      
+      setSemanticDocIds(sortedIds);
+    } catch (err) {
+      console.error('Semantic search failed:', err);
+      setSemanticDocIds(null);
+    } finally {
+      setIsSemanticSearching(false);
+    }
+  }, []);
+
+  // Clear semantic results when search query is cleared
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSemanticDocIds(null);
+    }
+  }, [searchQuery]);
+
+  const filteredDocs = useMemo(() => {
+    let filtered = documents;
+    
+    // If we have semantic search results, filter and sort by them
+    if (semanticDocIds !== null && searchQuery.trim()) {
+      const idSet = new Set(semanticDocIds);
+      filtered = documents.filter(doc => idSet.has(doc.id));
+      // Sort by semantic relevance (order in semanticDocIds)
+      const idOrder = new Map(semanticDocIds.map((id, idx) => [id, idx]));
+      filtered.sort((a, b) => (idOrder.get(a.id) ?? 999) - (idOrder.get(b.id) ?? 999));
+      return filtered;
+    }
+    
+    // Fall back to text search
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(doc => 
+        doc.title.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    
+    // Apply sorting
+    return filtered.sort((a, b) => {
       let comparison = 0;
       if (sortBy === 'title') {
         comparison = a.title.localeCompare(b.title);
       } else {
-        // For 'updated' and 'created', we compare the updatedAt string
-        // Since it's relative time, we'll just use the original order from API
         comparison = 0;
       }
       return sortOrder === 'asc' ? comparison : -comparison;
-    }), [documents, searchQuery, sortBy, sortOrder]);
+    });
+  }, [documents, searchQuery, sortBy, sortOrder, semanticDocIds]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -839,16 +899,15 @@ export default function KnowledgePage() {
 
       {/* Search, Sort, and View Controls */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--dash-text-muted)]" />
-          <input
-            type="text"
-            placeholder="Search by title, content or author..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 transition-all"
-          />
-        </div>
+        <SemanticSearchInput
+          value={searchQuery}
+          onChange={setSearchQuery}
+          onSemanticSearch={handleSemanticSearch}
+          isSearching={isSemanticSearching}
+          inputSize="lg"
+          placeholder="Search by title, content or author..."
+          className="flex-1"
+        />
         <div className="flex items-center gap-2">
           {/* Sort Dropdown */}
           <div className="relative">

@@ -10,7 +10,7 @@ import { SimpleRichTextEditor } from "@/components/editor/SimpleRichTextEditor";
 import { DashboardPageHeader } from "@/components/layout/DashboardPageHeader";
 import { getDiscussion, updateDiscussion, uploadDiscussionAsset } from "@/lib/api/discussions";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, Save, Loader2, AlertCircle, Tag } from "lucide-react";
+import { ArrowLeft, Save, Loader2, AlertCircle, Tag, X } from "lucide-react";
 
 const categories = [
   { id: "Announcements", label: "Announcements", color: "#ef4444" },
@@ -30,7 +30,8 @@ export default function EditDiscussionPage() {
   const [category, setCategory] = useState<CategoryId>("General");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [tags, setTags] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +54,7 @@ export default function EditDiscussionPage() {
         setTitle(discussion.title);
         setContent(discussion.content);
         setCategory(discussion.category as CategoryId);
-        setTags((discussion.tags || []).join(", "));
+        setTags(discussion.tags || []);
       } catch (err) {
         console.error("Failed to fetch discussion:", err);
         setError("Failed to load discussion. It may have been deleted.");
@@ -82,10 +83,7 @@ export default function EditDiscussionPage() {
       setIsSubmitting(true);
       setError(null);
 
-      const parsedTags = tags
-        .split(",")
-        .map((t) => t.trim())
-        .filter((t) => t.length > 0);
+      const parsedTags = tags;
 
       await updateDiscussion(discussionId, {
         title: title.trim(),
@@ -277,13 +275,60 @@ export default function EditDiscussionPage() {
                 />
               </div>
 
-              <Input
-                label="Tags"
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-                placeholder="e.g. webhooks, integrations, best-practices"
-                className="h-12 px-4"
-              />
+              <div>
+                <label className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-2">Tags</label>
+                <div className="flex flex-wrap gap-2 p-3 min-h-[48px] rounded-lg border border-[var(--dash-border-subtle)] bg-[var(--surface-card)] focus-within:border-[var(--brand)] transition-colors">
+                  {tags.map((tag, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[var(--brand)]/10 text-[var(--brand)] text-sm font-medium"
+                    >
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() => setTags(tags.filter((_, i) => i !== index))}
+                        className="ml-0.5 hover:text-red-500 transition-colors"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </span>
+                  ))}
+                  <input
+                    type="text"
+                    value={tagInput}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value.includes(",")) {
+                        const newTags = value
+                          .split(",")
+                          .map((t) => t.trim().toLowerCase())
+                          .filter((t) => t.length > 0 && !tags.includes(t));
+                        if (newTags.length > 0) {
+                          setTags([...tags, ...newTags]);
+                        }
+                        setTagInput("");
+                      } else {
+                        setTagInput(value);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const trimmed = tagInput.trim().toLowerCase();
+                        if (trimmed && !tags.includes(trimmed)) {
+                          setTags([...tags, trimmed]);
+                          setTagInput("");
+                        }
+                      } else if (e.key === "Backspace" && !tagInput && tags.length > 0) {
+                        setTags(tags.slice(0, -1));
+                      }
+                    }}
+                    placeholder={tags.length === 0 ? "Type a tag and press Enter, or separate with commas" : "Add another tag..."}
+                    className="flex-1 min-w-[150px] h-8 bg-transparent text-sm text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none"
+                  />
+                </div>
+                <p className="text-xs text-[var(--dash-text-muted)] mt-1.5">Press Enter or use commas to add tags</p>
+              </div>
             </CardContent>
           </Card>
         </div>
