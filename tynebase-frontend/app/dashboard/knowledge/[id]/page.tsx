@@ -119,6 +119,7 @@ export default function EditDocumentPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCopyLinkModal, setShowCopyLinkModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [isReadOnly, setIsReadOnly] = useState(false);
   const hasFetched = useRef(false);
 
   // Refetch content when switching to read mode to get latest saved content
@@ -156,9 +157,13 @@ export default function EditDocumentPage() {
         const response = await getDocument(documentId);
         const uiDoc = mapDocumentToUI(response.document);
         
+        // Check if this is a cross-tenant read-only document
+        const readOnly = response.is_read_only || false;
+        setIsReadOnly(readOnly);
+        
         setDocument(uiDoc);
-        // For published docs with draft, load the draft content for editing
-        if (uiDoc.status === 'published' && uiDoc.hasDraft && uiDoc.draftContent) {
+        // For published docs with draft, load the draft content for editing (only if not read-only)
+        if (!readOnly && uiDoc.status === 'published' && uiDoc.hasDraft && uiDoc.draftContent) {
           setTitle(uiDoc.draftTitle || uiDoc.title);
           setContent(uiDoc.draftContent);
         } else {
@@ -168,6 +173,11 @@ export default function EditDocumentPage() {
         setStatus(uiDoc.status);
         setSelectedCategoryId(response.document.category_id || null);
         setVisibility(uiDoc.visibility);
+        
+        // Force read mode for cross-tenant documents
+        if (readOnly) {
+          setMode('read');
+        }
       } catch (err) {
         console.error('Failed to fetch document:', err);
         setError(err instanceof Error ? err.message : 'Failed to load document');
@@ -411,109 +421,128 @@ export default function EditDocumentPage() {
 
         {/* Bottom row: Controls */}
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-          {/* Edit/Reader Toggle */}
-          <div className="flex items-center p-1 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl">
-            <button
-              onClick={() => handleModeSwitch("edit")}
-              className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors ${mode === "edit"
-                ? "bg-[var(--surface-card)] text-[var(--dash-text-primary)]"
-                : "text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)]"
-                }`}
+          {/* Edit/Reader Toggle - hide Edit option for read-only docs */}
+          {isReadOnly ? (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 text-amber-600 rounded-lg text-xs sm:text-sm font-medium">
+              <Eye className="w-4 h-4" />
+              <span>View Only</span>
+            </div>
+          ) : (
+            <div className="flex items-center p-1 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl">
+              <button
+                onClick={() => handleModeSwitch("edit")}
+                className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors ${mode === "edit"
+                  ? "bg-[var(--surface-card)] text-[var(--dash-text-primary)]"
+                  : "text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)]"
+                  }`}
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => handleModeSwitch("read")}
+                className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors ${mode === "read"
+                  ? "bg-[var(--surface-card)] text-[var(--dash-text-primary)]"
+                  : "text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)]"
+                  }`}
+              >
+                Reader
+              </button>
+            </div>
+          )}
+
+          {/* Share Button - only for own documents */}
+          {!isReadOnly && (
+            <Button
+              variant="ghost"
+              className="gap-1 sm:gap-2 px-2 sm:px-3"
+              onClick={() => setShowShareModal(true)}
             >
-              Edit
-            </button>
-            <button
-              onClick={() => handleModeSwitch("read")}
-              className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors ${mode === "read"
-                ? "bg-[var(--surface-card)] text-[var(--dash-text-primary)]"
-                : "text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)]"
-                }`}
+              <Share2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Share</span>
+            </Button>
+          )}
+
+          {/* Version History - only for own documents */}
+          {!isReadOnly && (
+            <Button
+              variant="ghost"
+              className="gap-1 sm:gap-2 px-2 sm:px-3"
+              onClick={() => setShowHistory(!showHistory)}
             >
-              Reader
-            </button>
-          </div>
+              <History className="w-4 h-4" />
+              <span className="hidden sm:inline">History</span>
+            </Button>
+          )}
 
-          {/* Share Button */}
-          <Button
-            variant="ghost"
-            className="gap-1 sm:gap-2 px-2 sm:px-3"
-            onClick={() => setShowShareModal(true)}
-          >
-            <Share2 className="w-4 h-4" />
-            <span className="hidden sm:inline">Share</span>
-          </Button>
-
-          {/* Version History */}
-          <Button
-            variant="ghost"
-            className="gap-1 sm:gap-2 px-2 sm:px-3"
-            onClick={() => setShowHistory(!showHistory)}
-          >
-            <History className="w-4 h-4" />
-            <span className="hidden sm:inline">History</span>
-          </Button>
-
-          {/* Preview - hidden on mobile since Edit/Reader toggle serves same purpose */}
-          <Button variant="ghost" className="gap-2 hidden md:flex" onClick={() => handleModeSwitch(mode === "edit" ? "read" : "edit")}>
-            <Eye className="w-4 h-4" />
-            {mode === "edit" ? "Preview" : "Back to editor"}
-          </Button>
+          {/* Preview - hidden on mobile and for read-only docs */}
+          {!isReadOnly && (
+            <Button variant="ghost" className="gap-2 hidden md:flex" onClick={() => handleModeSwitch(mode === "edit" ? "read" : "edit")}>
+              <Eye className="w-4 h-4" />
+              {mode === "edit" ? "Preview" : "Back to editor"}
+            </Button>
+          )}
 
           {/* Spacer to push actions to the right on larger screens */}
           <div className="flex-1 hidden lg:block" />
 
-          {/* Save as Draft - always visible */}
-          <Button
-            variant="outline"
-            onClick={handleSaveDraft}
-            disabled={isSaving}
-            className="px-2 sm:px-3"
-            title={status === 'published' ? 'Save as draft and unpublish' : 'Save as draft'}
-          >
-            {isSaving ? (
-              <Loader2 className="w-4 h-4 sm:mr-2 animate-spin" />
-            ) : (
-              <Clock className="w-4 h-4 sm:mr-2" />
-            )}
-            <span className="hidden sm:inline">
-              {isSaving ? 'Saving...' : (status === 'published' ? 'Save as Draft' : 'Save Draft')}
-            </span>
-          </Button>
-
-          {/* Save and Publish - always visible */}
-          <Button
-            variant="primary"
-            onClick={handleSaveAndPublish}
-            disabled={isSaving}
-            className="px-2 sm:px-3 group/publish"
-            title={status === 'published' ? 'Save & Publish to overwrite' : 'Save & Publish'}
-          >
-            {isSaving ? (
-              <Loader2 className="w-4 h-4 sm:mr-2 animate-spin" />
-            ) : status === 'published' && !document?.hasDraft ? (
-              <>
-                <CheckCircle className="w-4 h-4 sm:mr-2 group-hover/publish:hidden" />
-                <Globe className="w-4 h-4 sm:mr-2 hidden group-hover/publish:block" />
-              </>
-            ) : (
-              <Globe className="w-4 h-4 sm:mr-2" />
-            )}
-            <span className="hidden sm:inline">
-              {isSaving ? 'Publishing...' : status === 'published' && !document?.hasDraft ? (
-                <>
-                  <span className="group-hover/publish:hidden">Published</span>
-                  <span className="hidden group-hover/publish:inline">Save &amp; Publish</span>
-                </>
-              ) : 'Save & Publish'}
-            </span>
-          </Button>
-
-          {/* More Options */}
-          <div className="relative">
-            <Button variant="ghost" className="px-2" onClick={() => setShowSettings(!showSettings)}>
-              <MoreHorizontal className="w-4 h-4" />
+          {/* Save as Draft - only for own documents */}
+          {!isReadOnly && (
+            <Button
+              variant="outline"
+              onClick={handleSaveDraft}
+              disabled={isSaving}
+              className="px-2 sm:px-3"
+              title={status === 'published' ? 'Save as draft and unpublish' : 'Save as draft'}
+            >
+              {isSaving ? (
+                <Loader2 className="w-4 h-4 sm:mr-2 animate-spin" />
+              ) : (
+                <Clock className="w-4 h-4 sm:mr-2" />
+              )}
+              <span className="hidden sm:inline">
+                {isSaving ? 'Saving...' : (status === 'published' ? 'Save as Draft' : 'Save Draft')}
+              </span>
             </Button>
-          </div>
+          )}
+
+          {/* Save and Publish - only for own documents */}
+          {!isReadOnly && (
+            <Button
+              variant="primary"
+              onClick={handleSaveAndPublish}
+              disabled={isSaving}
+              className="px-2 sm:px-3 group/publish"
+              title={status === 'published' ? 'Save & Publish to overwrite' : 'Save & Publish'}
+            >
+              {isSaving ? (
+                <Loader2 className="w-4 h-4 sm:mr-2 animate-spin" />
+              ) : status === 'published' && !document?.hasDraft ? (
+                <>
+                  <CheckCircle className="w-4 h-4 sm:mr-2 group-hover/publish:hidden" />
+                  <Globe className="w-4 h-4 sm:mr-2 hidden group-hover/publish:block" />
+                </>
+              ) : (
+                <Globe className="w-4 h-4 sm:mr-2" />
+              )}
+              <span className="hidden sm:inline">
+                {isSaving ? 'Publishing...' : status === 'published' && !document?.hasDraft ? (
+                  <>
+                    <span className="group-hover/publish:hidden">Published</span>
+                    <span className="hidden group-hover/publish:inline">Save &amp; Publish</span>
+                  </>
+                ) : 'Save & Publish'}
+              </span>
+            </Button>
+          )}
+
+          {/* More Options - only for own documents */}
+          {!isReadOnly && (
+            <div className="relative">
+              <Button variant="ghost" className="px-2" onClick={() => setShowSettings(!showSettings)}>
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 

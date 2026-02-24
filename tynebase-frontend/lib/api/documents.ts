@@ -208,9 +208,9 @@ export async function listDocuments(
  * @param skipViewIncrement - If true, don't increment view count (for refetches)
  * @returns Document details
  */
-export async function getDocument(id: string, skipViewIncrement?: boolean): Promise<{ document: Document }> {
+export async function getDocument(id: string, skipViewIncrement?: boolean): Promise<{ document: Document; is_read_only?: boolean }> {
   const queryParams = skipViewIncrement ? '?skip_view_increment=true' : '';
-  return apiGet<{ document: Document }>(`/api/documents/${id}${queryParams}`);
+  return apiGet<{ document: Document; is_read_only?: boolean }>(`/api/documents/${id}${queryParams}`);
 }
 
 /**

@@ -637,7 +637,7 @@ const server = new Server({
 
       const { data: document, error: docError } = await supabase
         .from('documents')
-        .select('id, tenant_id')
+        .select('id, tenant_id, visibility, status')
         .eq('id', documentName)
         .single();
 
@@ -657,20 +657,27 @@ const server = new Server({
         throw new Error('User not found');
       }
 
-      if (userRecord.tenant_id !== document.tenant_id) {
+      // Check tenant access - allow cross-tenant for public published documents (read-only)
+      const isSameTenant = userRecord.tenant_id === document.tenant_id;
+      const isPublicDocument = document.visibility === 'public' && document.status === 'published';
+      
+      if (!isSameTenant && !isPublicDocument) {
         console.error(`[Collab] Authentication failed: User ${user.id} tenant ${userRecord.tenant_id} does not match document tenant ${document.tenant_id}`);
         throw new Error('Unauthorized access to document');
       }
 
       // Use full_name if available, otherwise fall back to email
       const displayName = userRecord.full_name || userRecord.email || user.email || 'Anonymous';
-      console.log(`[Collab] User ${user.id} (${displayName}) authenticated for document ${documentName}`);
+      const accessMode = isSameTenant ? 'full' : 'readonly';
+      console.log(`[Collab] User ${user.id} (${displayName}) authenticated for document ${documentName} (${accessMode} access)`);
       
       return {
         user: {
           id: user.id,
           name: displayName,
         },
+        // Pass access mode for use in other hooks
+        readOnly: !isSameTenant,
       };
     } catch (error: any) {
       console.error('[Collab] Authentication error:', error.message);

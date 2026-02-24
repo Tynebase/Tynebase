@@ -367,8 +367,8 @@ export default async function documentRoutes(fastify: FastifyInstance) {
         const params = getDocumentParamsSchema.parse(request.params);
         const { id } = params;
 
-        // Fetch document with tenant isolation - include draft fields
-        const { data: document, error } = await supabaseAdmin
+        // First try to fetch document from user's tenant (full access with drafts)
+        let { data: document, error } = await supabaseAdmin
           .from('documents')
           .select(`
             id,
@@ -380,6 +380,7 @@ export default async function documentRoutes(fastify: FastifyInstance) {
             draft_updated_at,
             parent_id,
             category_id,
+            tenant_id,
             visibility,
             status,
             author_id,
@@ -396,9 +397,54 @@ export default async function documentRoutes(fastify: FastifyInstance) {
           .eq('tenant_id', tenant.id)
           .single();
 
+        // If not found in user's tenant, check if it's a public document from another tenant
+        if (error && error.code === 'PGRST116') {
+          const { data: publicDoc, error: publicError } = await supabaseAdmin
+            .from('documents')
+            .select(`
+              id,
+              title,
+              content,
+              parent_id,
+              category_id,
+              tenant_id,
+              visibility,
+              status,
+              author_id,
+              published_at,
+              created_at,
+              updated_at,
+              users:author_id (
+                id,
+                email,
+                full_name
+              )
+            `)
+            .eq('id', id)
+            .eq('visibility', 'public')
+            .eq('status', 'published')
+            .single();
+
+          if (!publicError && publicDoc) {
+            // Found a public document from another tenant - return it (read-only, no draft fields)
+            document = {
+              ...publicDoc,
+              draft_content: null,
+              draft_title: null,
+              has_draft: false,
+              draft_updated_at: null,
+            } as typeof document;
+            error = null;
+            fastify.log.info(
+              { documentId: id, tenantId: publicDoc.tenant_id, requestingTenantId: tenant.id, userId: user.id },
+              'Cross-tenant public document accessed'
+            );
+          }
+        }
+
         if (error) {
           if (error.code === 'PGRST116') {
-            // No rows returned - document not found or wrong tenant
+            // No rows returned - document not found or not accessible
             fastify.log.warn(
               { documentId: id, tenantId: tenant.id, userId: user.id },
               'Document not found or access denied'
@@ -425,8 +471,11 @@ export default async function documentRoutes(fastify: FastifyInstance) {
           });
         }
 
+        // Determine if this is a cross-tenant access (read-only)
+        const isCrossTenant = document!.tenant_id !== tenant.id;
+        
         fastify.log.info(
-          { documentId: id, tenantId: tenant.id, userId: user.id },
+          { documentId: id, tenantId: tenant.id, userId: user.id, isCrossTenant },
           'Document fetched successfully'
         );
 
@@ -444,6 +493,8 @@ export default async function documentRoutes(fastify: FastifyInstance) {
           success: true,
           data: {
             document,
+            // Flag to indicate cross-tenant access (read-only mode)
+            is_read_only: isCrossTenant,
           },
         });
       } catch (error) {

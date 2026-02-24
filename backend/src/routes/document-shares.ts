@@ -490,8 +490,6 @@ export default async function documentShareRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       try {
-        const tenant = (request as any).tenant;
-
         const querySchema = z.object({
           page: z.coerce.number().int().min(1).default(1),
           limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -501,7 +499,7 @@ export default async function documentShareRoutes(fastify: FastifyInstance) {
         const query = querySchema.parse(request.query);
         const offset = (query.page - 1) * query.limit;
 
-        // Fetch public documents from the tenant
+        // Fetch ALL public documents from ALL tenants (community-wide)
         let dbQuery = supabaseAdmin
           .from('documents')
           .select(`
@@ -509,6 +507,7 @@ export default async function documentShareRoutes(fastify: FastifyInstance) {
             title,
             content,
             category_id,
+            tenant_id,
             visibility,
             status,
             author_id,
@@ -522,7 +521,6 @@ export default async function documentShareRoutes(fastify: FastifyInstance) {
               full_name
             )
           `, { count: 'exact' })
-          .eq('tenant_id', tenant.id)
           .eq('visibility', 'public')
           .eq('status', 'published')
           .not('content', 'like', '__CATEGORY__%')
