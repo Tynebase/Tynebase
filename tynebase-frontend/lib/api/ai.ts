@@ -36,6 +36,7 @@ export interface GenerateRequest {
   max_tokens?: number;
   output_types?: ('full_article' | 'summary' | 'outline' | 'with_template')[];
   template_content?: string;
+  skip_document_creation?: boolean;
 }
 
 export interface GenerateResponse {

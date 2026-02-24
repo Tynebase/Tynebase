@@ -44,16 +44,24 @@ export default function CommunityPage() {
   const menuRef = useRef<HTMLDivElement>(null);
   const menuButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
+  const [cleanupDone, setCleanupDone] = useState(false);
+
   // Cleanup any pending draft discussions from abandoned new discussion pages
+  // This MUST complete before we fetch discussions to avoid showing the ghost draft
   useEffect(() => {
-    const pendingDraftId = localStorage.getItem('pendingDraftDiscussion');
-    if (pendingDraftId) {
-      localStorage.removeItem('pendingDraftDiscussion');
-      // Delete the abandoned draft
-      deleteDiscussion(pendingDraftId).catch((err) => {
-        console.error('Failed to cleanup pending draft:', err);
-      });
-    }
+    const cleanup = async () => {
+      const pendingDraftId = localStorage.getItem('pendingDraftDiscussion');
+      if (pendingDraftId) {
+        localStorage.removeItem('pendingDraftDiscussion');
+        try {
+          await deleteDiscussion(pendingDraftId);
+        } catch (err) {
+          console.error('Failed to cleanup pending draft:', err);
+        }
+      }
+      setCleanupDone(true);
+    };
+    cleanup();
   }, []);
 
   // Close dropdown when clicking outside
@@ -140,9 +148,12 @@ export default function CommunityPage() {
     }
   }, [activeCategory, sortBy]);
 
+  // Only fetch discussions after cleanup is done
   useEffect(() => {
-    fetchDiscussions(1);
-  }, [fetchDiscussions]);
+    if (cleanupDone) {
+      fetchDiscussions(1);
+    }
+  }, [cleanupDone, fetchDiscussions]);
 
   // Filter by search query (client-side for now)
   const filteredDiscussions = discussions.filter((d) => {

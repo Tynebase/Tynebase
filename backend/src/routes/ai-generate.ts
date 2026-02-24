@@ -37,6 +37,9 @@ const GenerateRequestSchema = z.object({
   template_content: z.string()
     .max(50000)
     .optional(),
+  skip_document_creation: z.boolean()
+    .optional()
+    .default(false),
 });
 
 type GenerateRequest = z.infer<typeof GenerateRequestSchema>;
@@ -188,6 +191,7 @@ export default async function aiGenerateRoutes(fastify: FastifyInstance) {
             template_content: validated.template_content,
             user_id: user.id,
             estimated_credits: creditsToDeduct,
+            skip_document_creation: validated.skip_document_creation,
           },
         });
 

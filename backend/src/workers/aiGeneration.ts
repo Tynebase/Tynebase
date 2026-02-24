@@ -31,6 +31,7 @@ const AIGenerationPayloadSchema = z.object({
   template_content: z.string().optional(),
   user_id: z.string().uuid(),
   estimated_credits: z.number().int().positive(),
+  skip_document_creation: z.boolean().optional().default(false),
 });
 
 type AIGenerationPayload = z.infer<typeof AIGenerationPayloadSchema>;
@@ -56,8 +57,9 @@ export async function processAIGenerationJob(job: Job): Promise<void> {
   try {
     const validated = AIGenerationPayloadSchema.parse(job.payload);
     const outputTypes = validated.output_types || ['full_article'];
+    const skipDocumentCreation = validated.skip_document_creation || false;
 
-    console.log(`[Worker ${workerId}] Generating ${outputTypes.length} output(s): ${outputTypes.join(', ')}`);
+    console.log(`[Worker ${workerId}] Generating ${outputTypes.length} output(s): ${outputTypes.join(', ')}${skipDocumentCreation ? ' (content only, no document)' : ''}`);
 
     const OUTPUT_TYPE_LABELS: Record<string, string> = {
       full_article: 'Article',
@@ -67,6 +69,7 @@ export async function processAIGenerationJob(job: Job): Promise<void> {
     };
 
     const documentIds: string[] = [];
+    const generatedContents: string[] = [];
     let firstDocId: string | null = null;
     let firstTitle: string | null = null;
     let totalTokensInput = 0;
@@ -88,6 +91,19 @@ export async function processAIGenerationJob(job: Job): Promise<void> {
       console.log(`[Worker ${workerId}] AI generation completed for ${outputType}. Content length: ${generatedContent.content?.length || 0}`);
 
       const sanitizedContent = sanitizeAIOutput(generatedContent.content);
+      generatedContents.push(sanitizedContent);
+      
+      totalTokensInput += generatedContent.tokensInput;
+      totalTokensOutput += generatedContent.tokensOutput;
+      lastProvider = generatedContent.provider;
+      lastModel = generatedContent.model;
+
+      // Skip document creation if flag is set (e.g., for template content generation)
+      if (skipDocumentCreation) {
+        console.log(`[Worker ${workerId}] Skipping document creation for ${outputType} (content-only mode)`);
+        continue;
+      }
+
       const baseTitle = generateDocumentTitle(validated.prompt, sanitizedContent);
       const documentTitle = outputTypes.length > 1
         ? `${baseTitle} — ${OUTPUT_TYPE_LABELS[outputType] || outputType}`
@@ -122,11 +138,6 @@ export async function processAIGenerationJob(job: Job): Promise<void> {
         firstTitle = document.title;
       }
 
-      totalTokensInput += generatedContent.tokensInput;
-      totalTokensOutput += generatedContent.tokensOutput;
-      lastProvider = generatedContent.provider;
-      lastModel = generatedContent.model;
-
       const { error: lineageError } = await supabaseAdmin
         .from('document_lineage')
         .insert({
@@ -147,7 +158,8 @@ export async function processAIGenerationJob(job: Job): Promise<void> {
       }
     }
 
-    if (documentIds.length === 0) {
+    // For content-only mode, we don't require documents to be created
+    if (!skipDocumentCreation && documentIds.length === 0) {
       await failJob({
         jobId: job.id,
         error: 'Failed to create any documents',
@@ -171,6 +183,7 @@ export async function processAIGenerationJob(job: Job): Promise<void> {
           job_id: job.id,
           document_ids: documentIds,
           output_types: outputTypes,
+          content_only: skipDocumentCreation,
         },
       });
 
@@ -192,10 +205,13 @@ export async function processAIGenerationJob(job: Job): Promise<void> {
         tokens_output: totalTokensOutput,
         model: lastModel,
         provider: lastProvider,
+        // Include generated content when in content-only mode
+        content: skipDocumentCreation ? generatedContents[0] : undefined,
+        contents: skipDocumentCreation && generatedContents.length > 1 ? generatedContents : undefined,
       },
     });
 
-    console.log(`[Worker ${workerId}] Job ${job.id} completed successfully — ${documentIds.length} document(s) created`);
+    console.log(`[Worker ${workerId}] Job ${job.id} completed successfully${skipDocumentCreation ? ' (content only)' : ` — ${documentIds.length} document(s) created`}`);
   } catch (error) {
     console.error(`[Worker ${workerId}] Error processing AI generation job:`, error);
 

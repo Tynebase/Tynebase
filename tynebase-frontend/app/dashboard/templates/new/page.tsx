@@ -243,6 +243,7 @@ export default function NewTemplatePage() {
         prompt: fullPrompt,
         model: aiModel,
         max_tokens: 3000,
+        skip_document_creation: true,
       });
 
       // Poll for job completion

@@ -177,6 +177,13 @@ const aiNavigation: NavItem[] = [
     color: "#f59e0b",
   },
   {
+    id: "ai-template",
+    label: "Template",
+    icon: FileText,
+    href: "/dashboard/ai-assistant/template",
+    color: "#f97316",
+  },
+  {
     id: "ai-enhance",
     label: "Enhance",
     icon: Wand2,
