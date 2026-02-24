@@ -962,13 +962,13 @@ export default function EditDocumentPage() {
         </div>
 
         {/* Preview Mode - Always mounted to avoid re-fetching */}
-        <div className={mode === "read" ? "grid grid-cols-12 gap-6 items-start h-full overflow-y-auto p-4" : "hidden"}>
-            <div className="col-span-12 xl:col-span-8">
+        <div className={mode === "read" ? `h-full overflow-y-auto p-4 ${isReadOnly ? "flex justify-center" : "grid grid-cols-12 gap-6 items-start"}` : "hidden"}>
+            <div className={isReadOnly ? "w-full max-w-4xl" : "col-span-12 xl:col-span-8"}>
               <MarkdownReader content={htmlToPlainText(content)} title={title} />
             </div>
-            <div className="col-span-12 xl:col-span-4 space-y-4">
-              {/* Version Control Panel - hide for read-only cross-tenant docs */}
-              {!isReadOnly && <Card>
+            {!isReadOnly && <div className="col-span-12 xl:col-span-4 space-y-4">
+              {/* Version Control Panel */}
+              <Card>
                 <CardHeader className="pb-4 border-b border-[var(--dash-border-subtle)] bg-[var(--surface-ground)] rounded-t-[var(--radius-lg)]">
                   <div className="flex items-center gap-2">
                     <History className="w-4 h-4 text-[var(--brand)]" />
@@ -1046,8 +1046,8 @@ export default function EditDocumentPage() {
                     View Full History
                   </button>
                 </CardContent>
-              </Card>}
-            </div>
+              </Card>
+            </div>}
         </div>
       </div>
 

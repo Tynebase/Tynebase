@@ -3,7 +3,7 @@
 import { NodeViewWrapper, NodeViewProps } from '@tiptap/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-export function ResizableImageView({ node, updateAttributes, selected }: NodeViewProps) {
+export function ResizableImageView({ node, updateAttributes, selected, editor, getPos }: NodeViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = useState(false);
   const [initialWidth, setInitialWidth] = useState(0);
@@ -13,6 +13,33 @@ export function ResizableImageView({ node, updateAttributes, selected }: NodeVie
   const [resizeDirection, setResizeDirection] = useState<string>('');
 
   const { src, alt, title, width, height, alignment } = node.attrs;
+
+  // Move cursor after the image (to the next line/paragraph)
+  const moveCursorAfterImage = useCallback(() => {
+    if (!editor || typeof getPos !== 'function') return;
+    
+    const pos = getPos();
+    const nodeSize = node.nodeSize;
+    const endPos = pos + nodeSize;
+    
+    // Set cursor position right after the image
+    editor.chain().focus().setTextSelection(endPos).run();
+    
+    // If there's no content after, insert a paragraph
+    const docSize = editor.state.doc.content.size;
+    if (endPos >= docSize - 1) {
+      editor.chain().focus().insertContentAt(endPos, { type: 'paragraph' }).run();
+    }
+  }, [editor, getPos, node.nodeSize]);
+
+  // Handle keyboard navigation
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Tab' || e.key === 'ArrowDown' || e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      moveCursorAfterImage();
+    }
+  }, [moveCursorAfterImage]);
 
   const startResize = useCallback((e: React.MouseEvent, direction: string) => {
     e.preventDefault();
@@ -159,6 +186,8 @@ export function ResizableImageView({ node, updateAttributes, selected }: NodeVie
       style={containerStyle}
       className={`resizable-image-wrapper ${selected ? 'selected' : ''}`}
       data-drag-handle
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
     >
       <img 
         src={src} 
@@ -186,6 +215,19 @@ export function ResizableImageView({ node, updateAttributes, selected }: NodeVie
           <div style={handleStyle('w')} onMouseDown={(e) => startResize(e, 'w')} />
         </>
       )}
+      {/* Clickable area below image to move cursor after */}
+      <div 
+        onClick={moveCursorAfterImage}
+        style={{
+          position: 'absolute',
+          bottom: -20,
+          left: 0,
+          right: 0,
+          height: 20,
+          cursor: 'text',
+        }}
+        title="Click to continue writing below"
+      />
     </NodeViewWrapper>
   );
 }
