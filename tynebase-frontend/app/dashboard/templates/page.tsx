@@ -322,7 +322,7 @@ export default function TemplatesPage() {
                     onSemanticSearch={handleSemanticSearch}
                     isSearching={isSemanticSearching}
                     inputSize="lg"
-                    placeholder="Give a brief description of what this template is for..."
+                    placeholder="Search for a template..."
                     className="flex-1 w-full lg:max-w-md"
                   />
                   <div className="flex flex-wrap items-center gap-2.5 max-w-full">

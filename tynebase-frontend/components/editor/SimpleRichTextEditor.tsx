@@ -105,7 +105,8 @@ export function SimpleRichTextEditor({
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
-          class: "text-[var(--brand)] underline",
+          class: "link-styled",
+          style: "color: #f97316; text-decoration: underline;",
         },
       }),
       ResizableImage.configure({
