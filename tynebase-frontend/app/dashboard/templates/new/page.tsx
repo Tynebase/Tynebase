@@ -35,8 +35,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { createTemplate } from "@/lib/api/templates";
-import { generate, pollJobUntilComplete, Job } from "@/lib/api/ai";
-import { useCredits } from "@/contexts/CreditsContext";
 import { listCategories, createCategory, Category } from "@/lib/api/folders";
 import { Card, CardContent } from "@/components/ui/Card";
 
@@ -106,7 +104,6 @@ function DynamicIcon({ name, className, style }: { name: string; className?: str
 
 export default function NewTemplatePage() {
   const router = useRouter();
-  const { decrementCredits, refreshCredits } = useCredits();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [content, setContent] = useState("");
@@ -123,13 +120,6 @@ export default function NewTemplatePage() {
   const [newCategoryIcon, setNewCategoryIcon] = useState("folder");
   const [newCategoryColor, setNewCategoryColor] = useState("#3b82f6");
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
-  
-  // AI generation state
-  const [useAI, setUseAI] = useState(false);
-  const [aiPrompt, setAiPrompt] = useState("");
-  const [aiModel, setAiModel] = useState<"deepseek" | "claude" | "gemini">("deepseek");
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generationProgress, setGenerationProgress] = useState(0);
 
   // Fetch categories on mount
   useEffect(() => {
@@ -223,82 +213,6 @@ export default function NewTemplatePage() {
   };
 
   const selectedCategory = categories.find(c => c.id === category);
-  const selectedCategoryLabel = selectedCategory?.name || 'General';
-
-  const handleAIGenerate = async () => {
-    if (!aiPrompt.trim()) {
-      setError("Please describe the template you want to create");
-      return;
-    }
-
-    try {
-      setIsGenerating(true);
-      setError(null);
-      setGenerationProgress(0);
-
-      // Build a detailed prompt for template generation
-      const fullPrompt = `Create a professional documentation template for the following purpose:\n\n${aiPrompt.trim()}\n\nCategory: ${selectedCategoryLabel}\n\nRequirements:\n- Use clear markdown formatting with headers, lists, and sections\n- Include placeholder text in [brackets] where users should fill in their own content\n- Make it comprehensive but not overly long\n- Include helpful guidance comments\n- Structure it logically for the intended use case\n\nGenerate ONLY the template content in markdown format, no explanations or meta-commentary.`;
-
-      const response = await generate({
-        prompt: fullPrompt,
-        model: aiModel,
-        max_tokens: 3000,
-        skip_document_creation: true,
-      });
-
-      // Poll for job completion
-      const completedJob = await pollJobUntilComplete(
-        response.job.id,
-        (job: Job) => {
-          setGenerationProgress(job.progress || 0);
-        },
-        1500,
-        60
-      );
-
-      if (completedJob.status === "failed") {
-        throw new Error(completedJob.error_message || "AI generation failed");
-      }
-
-      // Extract generated content from job result
-      const generatedContent = (completedJob.result as any)?.content || 
-                               (completedJob.result as any)?.generated_content ||
-                               (completedJob.result as any)?.text || "";
-      
-      if (!generatedContent) {
-        throw new Error("No content was generated");
-      }
-
-      setContent(generatedContent);
-      
-      // Auto-fill title if empty
-      if (!title.trim()) {
-        // Extract a title from the prompt or first line
-        const suggestedTitle = aiPrompt.trim().slice(0, 60) + (aiPrompt.length > 60 ? "..." : "");
-        setTitle(suggestedTitle);
-      }
-
-      // Collapse AI section after successful generation
-      setUseAI(false);
-
-      // Update credits based on model cost
-      const modelCost = modelOptions.find(m => m.id === aiModel)?.credits || 1;
-      decrementCredits(modelCost);
-      refreshCredits();
-    } catch (err) {
-      console.error("AI generation failed:", err);
-      setError(err instanceof Error ? err.message : "Failed to generate template with AI");
-    } finally {
-      setIsGenerating(false);
-      setGenerationProgress(0);
-    }
-  };
-
-  const modelOptions = [
-    { id: "deepseek", label: "DeepSeek", description: "Fast & economical", credits: 1 },
-    { id: "claude", label: "Claude", description: "Highest quality", credits: 5 },
-    { id: "gemini", label: "Gemini", description: "Balanced", credits: 2 },
-  ] as const;
 
   return (
     <div className="h-full w-full min-h-0 flex flex-col gap-6">
@@ -574,116 +488,29 @@ export default function NewTemplatePage() {
               </div>
             </div>
 
-            {/* AI Generation Toggle */}
-            <div className="border border-[var(--dash-border-subtle)] rounded-lg overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setUseAI(!useAI)}
-                className={`w-full flex items-center justify-between p-4 transition-colors ${
-                  useAI 
-                    ? "bg-gradient-to-r from-purple-500/10 to-blue-500/10 border-b border-[var(--dash-border-subtle)]" 
-                    : "hover:bg-[var(--surface-elevated)]"
-                }`}
-              >
+            {/* AI Generation Link */}
+            <Link
+              href="/dashboard/ai-assistant/template"
+              className="block border border-[var(--dash-border-subtle)] rounded-lg overflow-hidden hover:border-[var(--brand)] transition-colors group"
+            >
+              <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-500/5 to-blue-500/5 group-hover:from-purple-500/10 group-hover:to-blue-500/10 transition-colors">
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                    useAI 
-                      ? "bg-gradient-to-br from-purple-500 to-blue-500" 
-                      : "bg-[var(--surface-elevated)]"
-                  }`}>
-                    <Sparkles className={`w-5 h-5 ${useAI ? "text-white" : "text-[var(--dash-text-tertiary)]"}`} />
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-gradient-to-br from-purple-500 to-blue-500">
+                    <Sparkles className="w-5 h-5 text-white" />
                   </div>
                   <div className="text-left">
                     <p className="text-sm font-medium text-[var(--dash-text-primary)]">Generate with AI</p>
                     <p className="text-xs text-[var(--dash-text-tertiary)]">
-                      Describe what you need and let AI create the template
+                      Describe what you need and let AI create the template for you
                     </p>
                   </div>
                 </div>
-                <div className={`w-11 h-6 rounded-full transition-colors ${
-                  useAI ? "bg-[var(--brand)]" : "bg-[var(--dash-border-default)]"
-                }`}>
-                  <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform mt-0.5 ${
-                    useAI ? "translate-x-5 ml-0.5" : "translate-x-0.5"
-                  }`} />
+                <div className="flex items-center gap-2 text-[var(--brand)]">
+                  <span className="text-sm font-medium hidden sm:inline">Open AI Generator</span>
+                  <Wand2 className="w-5 h-5" />
                 </div>
-              </button>
-
-              {/* AI Generation Form */}
-              {useAI && (
-                <div className="p-4 space-y-4 bg-[var(--surface-ground)]">
-                  {/* AI Prompt */}
-                  <div>
-                    <label htmlFor="aiPrompt" className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-2">
-                      Describe your template
-                    </label>
-                    <textarea
-                      id="aiPrompt"
-                      value={aiPrompt}
-                      onChange={(e) => setAiPrompt(e.target.value)}
-                      placeholder="e.g. A technical RFC document for proposing new features, with sections for problem statement, proposed solution, alternatives considered and implementation plan..."
-                      rows={3}
-                      disabled={isGenerating}
-                      className="w-full px-4 py-3 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 resize-none disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                  </div>
-
-                  {/* Model Selection */}
-                  <div>
-                    <label className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-2">
-                      AI Model
-                    </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {modelOptions.map((model) => (
-                        <button
-                          key={model.id}
-                          type="button"
-                          onClick={() => setAiModel(model.id)}
-                          disabled={isGenerating}
-                          className={`p-3 rounded-lg border transition-all text-center disabled:opacity-50 disabled:cursor-not-allowed ${
-                            aiModel === model.id
-                              ? "border-[var(--brand)] bg-[var(--brand)]/5"
-                              : "border-[var(--dash-border-subtle)] hover:border-[var(--dash-border-default)]"
-                          }`}
-                        >
-                          <p className={`text-sm font-medium ${
-                            aiModel === model.id 
-                              ? "text-[var(--brand)]" 
-                              : "text-[var(--dash-text-primary)]"
-                          }`}>
-                            {model.label}
-                          </p>
-                          <p className="text-xs text-[var(--dash-text-tertiary)] mt-0.5">
-                            {model.description}
-                          </p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Generate Button */}
-                  <Button
-                    type="button"
-                    variant="primary"
-                    onClick={handleAIGenerate}
-                    disabled={isGenerating || !aiPrompt.trim()}
-                    className="w-full gap-2"
-                  >
-                    {isGenerating ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Generating{generationProgress > 0 ? ` (${generationProgress}%)` : "..."}
-                      </>
-                    ) : (
-                      <>
-                        <Wand2 className="w-4 h-4" />
-                        Generate Template
-                      </>
-                    )}
-                  </Button>
-                </div>
-              )}
-            </div>
+              </div>
+            </Link>
 
             {/* Content */}
             <div className="flex-1 flex flex-col min-h-0">
