@@ -515,17 +515,19 @@ export default async function documentRoutes(fastify: FastifyInstance) {
           }
         }
 
-        // For cross-tenant access, rewrite asset URLs to use the public proxy
+        // For public documents, always rewrite asset URLs to use the public proxy
+        // This ensures images work for both cross-tenant access AND when signed URLs expire
         let responseDocument = document;
-        if (isCrossTenant && document) {
-          const apiBaseUrl = process.env.API_BASE_URL || 'https://tynebase-app.fly.dev';
+        const isPublicDocument = document?.visibility === 'public' && document?.status === 'published';
+        if ((isCrossTenant || isPublicDocument) && document) {
+          const apiBaseUrl = process.env.API_BASE_URL || 'https://tynebase-backend.fly.dev';
           responseDocument = {
             ...document,
             content: rewriteAssetUrlsForPublicAccess(document.content || '', id, apiBaseUrl),
           };
           fastify.log.info(
-            { documentId: id, isCrossTenant },
-            'Rewrote asset URLs for cross-tenant public access'
+            { documentId: id, isCrossTenant, isPublicDocument },
+            'Rewrote asset URLs for public access'
           );
         }
 

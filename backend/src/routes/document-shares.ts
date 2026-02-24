@@ -560,7 +560,7 @@ export default async function documentShareRoutes(fastify: FastifyInstance) {
         const totalPages = count ? Math.ceil(count / query.limit) : 0;
 
         // Rewrite asset URLs for all public documents to use the public proxy
-        const apiBaseUrl = process.env.API_BASE_URL || 'https://tynebase-app.fly.dev';
+        const apiBaseUrl = process.env.API_BASE_URL || 'https://tynebase-backend.fly.dev';
         const documentsWithRewrittenUrls = (documents || []).map((doc: any) => ({
           ...doc,
           content: rewriteAssetUrlsForPublicAccess(doc.content || '', doc.id, apiBaseUrl),
