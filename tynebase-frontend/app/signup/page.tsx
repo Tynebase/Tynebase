@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useToast } from "@/components/ui/Toast";
@@ -8,378 +8,353 @@ import { signup } from "@/lib/api/auth";
 import { validateSubdomain } from "@/lib/utils";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
-import { TIER_CONFIG, TierType } from "@/types/api";
-import { ArrowRight, Check, Eye, EyeOff, Sparkles, Building2, Crown, Zap, X } from "lucide-react";
+import { TierType } from "@/types/api";
+import { createClient } from "@/lib/supabase/client";
+import { ArrowRight, Check, Eye, EyeOff, Building2, Crown, User, Users, Zap, ArrowLeft } from "lucide-react";
 
-// Tier display info for signup
-const TIER_DISPLAY = {
+const PLANS = {
   free: {
     name: "Free",
     price: "£0",
-    period: "/month",
-    description: "For individuals getting started",
+    period: "/mo",
+    tagline: "Get started",
+    features: ["1 user", "10 AI credits/mo", "500MB storage"],
     highlight: false,
-    features: [
-      "10 AI credits/month",
-      "500MB storage",
-      "2 team members",
-      "Basic features",
-    ],
-    limitations: [
-      "No white-label branding",
-      "No custom domain",
-    ],
   },
   base: {
     name: "Base",
     price: "£29",
-    period: "/month",
-    description: "For small teams",
+    period: "/mo",
+    tagline: "Small teams",
+    features: ["10 users", "100 AI credits/mo", "5GB storage", "Collaboration"],
     highlight: false,
-    features: [
-      "100 AI credits/month",
-      "5GB storage",
-      "10 team members",
-      "Real-time collaboration",
-    ],
-    limitations: [
-      "No white-label branding",
-      "No custom domain",
-    ],
   },
   pro: {
     name: "Pro",
     price: "£99",
-    period: "/month",
-    description: "For growing businesses",
+    period: "/mo",
+    tagline: "Scale up",
+    features: ["50 users", "500 AI credits/mo", "50GB storage", "White-label", "Branded subdomain", "Priority support"],
     highlight: true,
-    features: [
-      "500 AI credits/month",
-      "50GB storage",
-      "50 team members",
-      "White-label branding",
-      "Custom domain",
-      "Priority support",
-    ],
-    limitations: [],
-  },
-  enterprise: {
-    name: "Enterprise",
-    price: "Custom",
-    period: "",
-    description: "For large organizations",
-    highlight: false,
-    features: [
-      "1000+ AI credits/month",
-      "Unlimited storage",
-      "Unlimited team members",
-      "Full white-label",
-      "Dedicated support",
-      "Custom integrations",
-    ],
-    limitations: [],
   },
 };
 
 export default function SignupPage() {
   const router = useRouter();
   const { addToast } = useToast();
+
+  // Flow state
   const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState({
-    fullName: "",
-    email: "",
-    password: "",
-    accountType: "user", // 'user' or 'company'
-    companyName: "",
-    subdomain: "",
-    tier: "free" as TierType,
-  });
+  const [accountType, setAccountType] = useState<"individual" | "company">("individual");
+
+  // Form fields
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [workspaceName, setWorkspaceName] = useState(""); // Space name or Company name
+  const [tier, setTier] = useState<TierType>("free");
+  const [subdomain, setSubdomain] = useState("");
+
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    
-    if (name === "companyName") {
-      const slug = value.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
-      setFormData((prev) => ({ ...prev, subdomain: slug }));
+  // Auto-generate subdomain from workspace name
+  useEffect(() => {
+    if (workspaceName) {
+      const slug = workspaceName.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+      setSubdomain(slug);
     }
-    
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: "" }));
-    }
+  }, [workspaceName]);
+
+  const clearError = (field: string) => {
+    if (errors[field]) setErrors(prev => ({ ...prev, [field]: "" }));
   };
 
   const validateStep1 = () => {
-    const newErrors: Record<string, string> = {};
-    if (formData.fullName.length < 2) newErrors.fullName = "Name must be at least 2 characters";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = "Invalid email address";
-    if (formData.password.length < 8) newErrors.password = "Password must be at least 8 characters";
-    if (!formData.accountType) newErrors.accountType = "Please select an account type";
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const e: Record<string, string> = {};
+    if (workspaceName.length < 2) e.workspaceName = accountType === "company" ? "Company name is required" : "Space name is required";
+    if (fullName.length < 2) e.fullName = "Full name is required";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = "Valid email is required";
+    if (password.length < 8) e.password = "At least 8 characters";
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
   const validateStep2 = () => {
-    const newErrors: Record<string, string> = {};
-    if (formData.accountType === 'company' && formData.companyName.length < 2) newErrors.companyName = "Company name is required";
-    // Only validate subdomain for Pro/Enterprise (white-label tiers)
-    if (formData.accountType === 'company' && (formData.tier === 'pro' || formData.tier === 'enterprise') && !validateSubdomain(formData.subdomain)) {
-      newErrors.subdomain = "Invalid subdomain format";
+    const e: Record<string, string> = {};
+    if (tier === "pro" && !validateSubdomain(subdomain)) {
+      e.subdomain = "Letters, numbers and hyphens only (3-63 chars)";
     }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
-  const handleNext = () => {
-    if (validateStep1()) {
-      // Go to tier selection for company accounts, or step 3 for individual
-      if (formData.accountType === 'user') {
-        handleSubmit();
-      } else {
-        setStep(2); // Tier selection
-      }
+  // Step 1 → next
+  const handleStep1Next = () => {
+    if (!validateStep1()) return;
+
+    if (accountType === "individual") {
+      // Individuals go straight to submit (free tier)
+      doSignup("free");
+    } else {
+      // Companies choose a plan
+      setStep(2);
     }
   };
 
-  const handleTierSelect = (tier: TierType) => {
-    setFormData(prev => ({ ...prev, tier }));
-    if (tier === 'enterprise') {
-      // For enterprise, redirect to contact page
-      addToast({
-        type: "info",
-        title: "Contact Sales",
-        description: "Please contact our sales team for enterprise pricing.",
-      });
+  // Plan selected → submit or subdomain step
+  const handlePlanSelect = (selectedTier: TierType) => {
+    setTier(selectedTier);
+    if (selectedTier === "enterprise") {
+      addToast({ type: "info", title: "Enterprise", description: "Contact sales@tynebase.com for custom enterprise pricing." });
       return;
     }
-    
-    // All company accounts need to provide company name
-    // Pro tier also needs custom subdomain (white-label)
-    setStep(3);
+    if (selectedTier === "pro") {
+      setStep(3); // Need subdomain
+    } else {
+      doSignup(selectedTier);
+    }
   };
 
-  const handleSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    
-    // Validate based on account type
-    const isValid = formData.accountType === 'user' ? validateStep1() : validateStep2();
-    if (!isValid) return;
-    
-    setIsLoading(true);
+  // Step 3 (Pro subdomain) → submit
+  const handleStep3Submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateStep2()) return;
+    doSignup(tier);
+  };
 
+  const doSignup = async (selectedTier: TierType) => {
+    setIsLoading(true);
     try {
-      // Determine tenant name
-      const tenantName = formData.accountType === 'company' 
-        ? formData.companyName 
-        : formData.fullName || formData.email.split('@')[0];
-      
-      // Subdomain logic:
-      // - Pro/Enterprise with company account: use custom subdomain (white-label)
-      // - Free/Base or individual: auto-generate from email
-      let subdomain: string;
-      if (formData.accountType === 'company' && (formData.tier === 'pro' || formData.tier === 'enterprise') && formData.subdomain) {
-        subdomain = formData.subdomain;
+      // Subdomain: use custom for Pro, auto-generate for others
+      let finalSubdomain: string;
+      if (selectedTier === "pro" && subdomain) {
+        finalSubdomain = subdomain;
       } else {
-        // Auto-generate subdomain from email for non-white-label tiers
-        subdomain = formData.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-');
+        finalSubdomain = email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/^-|-$/g, "") || "workspace";
       }
 
-      const response = await signup({
-        email: formData.email,
-        password: formData.password,
-        tenant_name: tenantName,
-        subdomain: subdomain,
-        full_name: formData.fullName,
-        tier: formData.tier,
+      await signup({
+        email,
+        password,
+        tenant_name: workspaceName,
+        subdomain: finalSubdomain,
+        full_name: fullName,
+        tier: selectedTier,
       });
 
-      addToast({
-        type: "success",
-        title: "Account created!",
-        description: `Welcome to TyneBase! Redirecting to dashboard...`,
-      });
-      
-      // Small delay to ensure tokens are stored before redirect
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Redirect to dashboard after successful signup
+      addToast({ type: "success", title: "Welcome to TyneBase!", description: "Redirecting to your dashboard..." });
+      await new Promise(r => setTimeout(r, 400));
       window.location.href = "/dashboard";
     } catch (error) {
       addToast({
         type: "error",
         title: "Signup failed",
-        description: error instanceof Error ? error.message : "Failed to create account. Please try again.",
+        description: error instanceof Error ? error.message : "Please try again.",
       });
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Google OAuth — store pending signup data, then redirect to Google
   const handleGoogleSignup = async () => {
-    // TODO: Implement Google OAuth through backend API
-    addToast({ 
-      type: "info", 
-      title: "Coming soon", 
-      description: "Google sign-up will be available soon. Please use email signup for now." 
+    // Validate workspace name before redirecting
+    if (workspaceName.length < 2) {
+      setErrors({ workspaceName: accountType === "company" ? "Enter your company name first" : "Enter your space name first" });
+      return;
+    }
+
+    // Store signup context in localStorage so we can complete after OAuth callback
+    const pendingSignup = {
+      accountType,
+      workspaceName,
+      tier: accountType === "individual" ? "free" : tier,
+      subdomain,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem("pending_signup", JSON.stringify(pendingSignup));
+
+    // Redirect to Supabase Google OAuth
+    const supabase = createClient();
+    if (!supabase) {
+      addToast({ type: "error", title: "Configuration error", description: "Authentication is not configured." });
+      localStorage.removeItem("pending_signup");
+      return;
+    }
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?redirect=/auth/complete-signup`,
+        queryParams: {
+          access_type: "offline",
+          prompt: "consent",
+        },
+      },
     });
+
+    if (error) {
+      addToast({ type: "error", title: "Google sign-in failed", description: error.message });
+      localStorage.removeItem("pending_signup");
+    }
   };
 
-  const inputStyle = {
-    width: '100%',
-    padding: '14px 16px',
-    background: 'var(--bg-secondary)',
-    border: '1px solid var(--border-subtle)',
-    borderRadius: '12px',
-    fontSize: '15px',
-    color: 'var(--text-primary)',
-    outline: 'none',
-    transition: 'border-color 0.2s, box-shadow 0.2s'
-  };
+  const inputClasses = "w-full px-4 py-3.5 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-xl text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none transition-all focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/10";
+
+  // Total steps for progress bar
+  const totalSteps = accountType === "individual" ? 1 : tier === "pro" ? 3 : 2;
 
   return (
     <div className="min-h-screen relative flex flex-col">
       <div className="hero-gradient" />
-
       <SiteNavbar currentPage="other" />
 
-      {/* Centered Modal Container */}
-      <div className="flex-1 flex items-center justify-center px-6 py-12" style={{ marginTop: '80px', marginBottom: '80px' }}>
-        <div className="w-full max-w-md">
-          {/* Modal Card */}
-          <div style={{ 
-            background: 'var(--bg-elevated)', 
-            border: '1px solid var(--border-subtle)', 
-            borderRadius: '20px', 
-            padding: '48px 40px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+      <div className="flex-1 flex items-center justify-center px-4 py-12" style={{ marginTop: '80px', marginBottom: '80px' }}>
+        <div className="w-full max-w-[460px]">
+          <div style={{
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: '24px',
+            padding: '44px 36px',
+            boxShadow: '0 25px 60px -12px rgba(0, 0, 0, 0.3)',
           }}>
-            {/* Progress */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '32px' }}>
-              <div style={{ flex: 1, height: '4px', borderRadius: '2px', background: step >= 1 ? 'var(--brand)' : 'var(--bg-tertiary)' }} />
-              <div style={{ flex: 1, height: '4px', borderRadius: '2px', background: step >= 2 ? 'var(--brand)' : 'var(--bg-tertiary)' }} />
-              {formData.accountType === 'company' && (
-                <div style={{ flex: 1, height: '4px', borderRadius: '2px', background: step >= 3 ? 'var(--brand)' : 'var(--bg-tertiary)' }} />
-              )}
+
+            {/* Progress bar */}
+            <div className="flex gap-2 mb-8">
+              {Array.from({ length: totalSteps }).map((_, i) => (
+                <div key={i} className="flex-1 h-1 rounded-full transition-all duration-300" style={{ background: i < step ? 'var(--brand)' : 'var(--bg-tertiary)' }} />
+              ))}
             </div>
 
-            <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-              <h1 style={{ fontSize: '28px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
-                {step === 1 ? "Create your account" : step === 2 ? "Choose your plan" : "Set up your workspace"}
-              </h1>
-              <p style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
-                {step === 1 
-                  ? (formData.accountType === 'company' ? "Start building with your team" : "Start with a free account") 
-                  : step === 2 
-                    ? "Select the plan that fits your needs" 
-                    : "Where your team will collaborate"}
-              </p>
-            </div>
-
-            {step === 1 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Account type</label>
-                  <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
-                    <button
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, accountType: 'user' }))}
-                      style={{
-                        flex: 1,
-                        padding: '12px 16px',
-                        background: formData.accountType === 'user' ? 'var(--brand)' : 'var(--bg-secondary)',
-                        border: '1px solid var(--border-subtle)',
-                        borderRadius: '12px',
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        color: formData.accountType === 'user' ? 'white' : 'var(--text-primary)',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      Individual
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, accountType: 'company' }))}
-                      style={{
-                        flex: 1,
-                        padding: '12px 16px',
-                        background: formData.accountType === 'company' ? 'var(--brand)' : 'var(--bg-secondary)',
-                        border: '1px solid var(--border-subtle)',
-                        borderRadius: '12px',
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        color: formData.accountType === 'company' ? 'white' : 'var(--text-primary)',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      Company
-                    </button>
-                  </div>
-                  {errors.accountType && <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px' }}>{errors.accountType}</p>}
+            {/* ===== STEP 1: Account details ===== */}
+            {step === 1 && (
+              <div className="flex flex-col gap-5">
+                <div className="text-center mb-2">
+                  <h1 className="text-[26px] font-semibold text-[var(--text-primary)] mb-1">Create your account</h1>
+                  <p className="text-sm text-[var(--text-secondary)]">Start managing knowledge in minutes</p>
                 </div>
+
+                {/* Account type toggle */}
+                <div className="flex bg-[var(--bg-secondary)] rounded-xl p-1 border border-[var(--border-subtle)]">
+                  <button
+                    type="button"
+                    onClick={() => { setAccountType("individual"); setTier("free"); clearError("workspaceName"); }}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all"
+                    style={{
+                      background: accountType === "individual" ? "var(--brand)" : "transparent",
+                      color: accountType === "individual" ? "white" : "var(--text-secondary)",
+                    }}
+                  >
+                    <User className="w-4 h-4" />
+                    Individual
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setAccountType("company"); clearError("workspaceName"); }}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all"
+                    style={{
+                      background: accountType === "company" ? "var(--brand)" : "transparent",
+                      color: accountType === "company" ? "white" : "var(--text-secondary)",
+                    }}
+                  >
+                    <Building2 className="w-4 h-4" />
+                    Company
+                  </button>
+                </div>
+
+                {/* Workspace name — contextual label */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Full name</label>
+                  <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">
+                    {accountType === "company" ? "Company name" : "Space name"}
+                  </label>
                   <input
                     type="text"
-                    name="fullName"
-                    placeholder="First&Last name"
-                    value={formData.fullName}
-                    onChange={handleChange}
-                    style={inputStyle}
-                    onFocus={(e) => { e.target.style.borderColor = 'var(--brand)'; e.target.style.boxShadow = '0 0 0 3px rgba(255, 77, 0, 0.1)'; }}
-                    onBlur={(e) => { e.target.style.borderColor = 'var(--border-subtle)'; e.target.style.boxShadow = 'none'; }}
+                    value={workspaceName}
+                    onChange={(e) => { setWorkspaceName(e.target.value); clearError("workspaceName"); }}
+                    className={inputClasses}
+                    placeholder={accountType === "company" ? "Acme Inc" : "My Knowledge Base"}
                   />
-                  {errors.fullName && <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px' }}>{errors.fullName}</p>}
+                  {errors.workspaceName && <p className="text-xs text-red-500 mt-1">{errors.workspaceName}</p>}
+                  <p className="text-[11px] text-[var(--text-muted)] mt-1">
+                    {accountType === "company"
+                      ? "Your team workspace will be named after your company"
+                      : "A personal space for organising your knowledge"}
+                  </p>
                 </div>
+
+                {/* Full name */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Work email</label>
+                  <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Full name</label>
+                  <input
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => { setFullName(e.target.value); clearError("fullName"); }}
+                    className={inputClasses}
+                    placeholder="Jane Smith"
+                  />
+                  {errors.fullName && <p className="text-xs text-red-500 mt-1">{errors.fullName}</p>}
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Email</label>
                   <input
                     type="email"
-                    name="email"
-                    placeholder="you@company.com"
-                    value={formData.email}
-                    onChange={handleChange}
-                    style={inputStyle}
-                    onFocus={(e) => { e.target.style.borderColor = 'var(--brand)'; e.target.style.boxShadow = '0 0 0 3px rgba(255, 77, 0, 0.1)'; }}
-                    onBlur={(e) => { e.target.style.borderColor = 'var(--border-subtle)'; e.target.style.boxShadow = 'none'; }}
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); clearError("email"); }}
+                    className={inputClasses}
+                    placeholder={accountType === "company" ? "you@company.com" : "you@email.com"}
                   />
-                  {errors.email && <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px' }}>{errors.email}</p>}
+                  {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
                 </div>
+
+                {/* Password */}
                 <div>
-                  <label style={{ display: '14px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Password</label>
-                  <div style={{ position: 'relative' }}>
+                  <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Password</label>
+                  <div className="relative">
                     <input
                       type={showPassword ? "text" : "password"}
-                      name="password"
-                      placeholder="••••••••••••"
-                      value={formData.password}
-                      onChange={handleChange}
-                      style={{ ...inputStyle, paddingRight: '48px' }}
-                      onFocus={(e) => { e.target.style.borderColor = 'var(--brand)'; e.target.style.boxShadow = '0 0 0 3px rgba(255, 77, 0, 0.1)'; }}
-                      onBlur={(e) => { e.target.style.borderColor = 'var(--border-subtle)'; e.target.style.boxShadow = 'none'; }}
+                      value={password}
+                      onChange={(e) => { setPassword(e.target.value); clearError("password"); }}
+                      className={`${inputClasses} pr-12`}
+                      placeholder="Min. 8 characters"
                     />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px' }}>
-                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
                     </button>
                   </div>
-                  {errors.password && <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px' }}>{errors.password}</p>}
+                  {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
                 </div>
-                <button type="button" onClick={handleNext} className="btn btn-primary" style={{ width: '100%', padding: '14px 24px', fontSize: '15px', fontWeight: 600, marginTop: '8px' }}>
-                  Continue <ArrowRight className="w-5 h-5" />
+
+                {/* Submit */}
+                <button
+                  type="button"
+                  onClick={handleStep1Next}
+                  disabled={isLoading}
+                  className="btn btn-primary w-full py-3.5 text-[15px] font-semibold mt-1"
+                >
+                  {isLoading ? "Creating account..." : accountType === "individual" ? "Create free account" : "Choose plan"}
+                  {!isLoading && <ArrowRight className="w-4.5 h-4.5 ml-1" />}
                 </button>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', margin: '8px 0' }}>
-                  <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Or</span>
-                  <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
+                {/* Divider */}
+                <div className="flex items-center gap-4 my-1">
+                  <div className="flex-1 h-px bg-[var(--border-subtle)]" />
+                  <span className="text-[11px] text-[var(--text-muted)] uppercase tracking-wider">or</span>
+                  <div className="flex-1 h-px bg-[var(--border-subtle)]" />
                 </div>
 
-                <button type="button" onClick={handleGoogleSignup} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '14px 24px', background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '12px', fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)', cursor: 'pointer' }}>
+                {/* Google */}
+                <button
+                  type="button"
+                  onClick={handleGoogleSignup}
+                  className="w-full flex items-center justify-center gap-3 py-3.5 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-xl text-[15px] font-medium text-[var(--text-primary)] hover:border-[var(--text-muted)] transition-all cursor-pointer"
+                >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -388,250 +363,171 @@ export default function SignupPage() {
                   </svg>
                   Continue with Google
                 </button>
+
+                {/* Individual: show what they get */}
+                {accountType === "individual" && (
+                  <div className="bg-[var(--bg-secondary)] rounded-xl p-3.5 border border-[var(--border-subtle)]">
+                    <p className="text-[11px] font-medium text-[var(--text-muted)] uppercase tracking-wider mb-2">Free plan includes</p>
+                    <div className="flex flex-wrap gap-2">
+                      {["1 user", "10 AI credits/mo", "500MB storage"].map(f => (
+                        <span key={f} className="inline-flex items-center gap-1 text-xs text-[var(--text-secondary)] bg-[var(--bg-tertiary)] px-2 py-1 rounded-md">
+                          <Check className="w-3 h-3 text-[var(--brand)]" />{f}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <p className="text-center text-sm text-[var(--text-secondary)]">
+                  Already have an account?{" "}
+                  <Link href="/login" className="text-[var(--brand)] font-medium hover:underline">Sign in</Link>
+                </p>
               </div>
-            ) : step === 2 ? (
-              /* Tier Selection Step */
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {(['free', 'base', 'pro'] as TierType[]).map((tier) => {
-                  const tierInfo = TIER_DISPLAY[tier];
-                  const isSelected = formData.tier === tier;
-                  const isHighlighted = tierInfo.highlight;
-                  
+            )}
+
+            {/* ===== STEP 2: Plan selection (Company only) ===== */}
+            {step === 2 && (
+              <div className="flex flex-col gap-4">
+                <div className="text-center mb-1">
+                  <h1 className="text-[26px] font-semibold text-[var(--text-primary)] mb-1">Choose your plan</h1>
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    For <span className="font-medium text-[var(--text-primary)]">{workspaceName}</span> — you can upgrade anytime
+                  </p>
+                </div>
+
+                {(["free", "base", "pro"] as TierType[]).map((t) => {
+                  const plan = PLANS[t as keyof typeof PLANS];
                   return (
                     <button
-                      key={tier}
+                      key={t}
                       type="button"
-                      onClick={() => handleTierSelect(tier)}
+                      onClick={() => handlePlanSelect(t)}
+                      className="relative text-left rounded-2xl p-5 border transition-all hover:border-[var(--brand)] cursor-pointer group"
                       style={{
-                        position: 'relative',
-                        padding: '20px',
-                        background: isSelected ? 'var(--brand)' : 'var(--bg-secondary)',
-                        border: isHighlighted ? '2px solid var(--brand)' : '1px solid var(--border-subtle)',
-                        borderRadius: '16px',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
+                        background: "var(--bg-secondary)",
+                        border: plan.highlight ? "2px solid var(--brand)" : "1px solid var(--border-subtle)",
                       }}
                     >
-                      {isHighlighted && (
-                        <span style={{
-                          position: 'absolute',
-                          top: '-10px',
-                          right: '16px',
-                          padding: '4px 12px',
-                          background: 'var(--brand)',
-                          borderRadius: '20px',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          color: 'white',
-                          textTransform: 'uppercase',
-                        }}>
-                          Most Popular
+                      {plan.highlight && (
+                        <span className="absolute -top-2.5 right-4 px-3 py-0.5 bg-[var(--brand)] text-white text-[10px] font-bold uppercase rounded-full tracking-wide">
+                          Recommended
                         </span>
                       )}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                      <div className="flex justify-between items-start mb-3">
                         <div>
-                          <h3 style={{ fontSize: '18px', fontWeight: 600, color: isSelected ? 'white' : 'var(--text-primary)', marginBottom: '4px' }}>
-                            {tierInfo.name}
+                          <h3 className="text-base font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                            {t === "pro" && <Zap className="w-4 h-4 text-[var(--brand)]" />}
+                            {plan.name}
                           </h3>
-                          <p style={{ fontSize: '13px', color: isSelected ? 'rgba(255,255,255,0.8)' : 'var(--text-secondary)' }}>
-                            {tierInfo.description}
-                          </p>
+                          <p className="text-xs text-[var(--text-muted)] mt-0.5">{plan.tagline}</p>
                         </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <span style={{ fontSize: '24px', fontWeight: 700, color: isSelected ? 'white' : 'var(--text-primary)' }}>
-                            {tierInfo.price}
-                          </span>
-                          <span style={{ fontSize: '13px', color: isSelected ? 'rgba(255,255,255,0.8)' : 'var(--text-muted)' }}>
-                            {tierInfo.period}
-                          </span>
+                        <div className="text-right">
+                          <span className="text-xl font-bold text-[var(--text-primary)]">{plan.price}</span>
+                          <span className="text-xs text-[var(--text-muted)]">{plan.period}</span>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                        {tierInfo.features.slice(0, 4).map((feature) => (
-                          <span key={feature} style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            padding: '4px 8px',
-                            background: isSelected ? 'rgba(255,255,255,0.2)' : 'var(--bg-tertiary)',
-                            borderRadius: '6px',
-                            fontSize: '12px',
-                            color: isSelected ? 'white' : 'var(--text-secondary)',
-                          }}>
-                            <Check className="w-3 h-3" />
-                            {feature}
+                      <div className="flex flex-wrap gap-1.5">
+                        {plan.features.map(f => (
+                          <span key={f} className="inline-flex items-center gap-1 text-[11px] text-[var(--text-secondary)] bg-[var(--bg-tertiary)] px-2 py-1 rounded-md">
+                            <Check className="w-3 h-3 text-emerald-400" />{f}
                           </span>
                         ))}
                       </div>
-                      {tierInfo.limitations.length > 0 && (
-                        <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                          {tierInfo.limitations.map((limitation) => (
-                            <span key={limitation} style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              padding: '4px 8px',
-                              background: isSelected ? 'rgba(255,255,255,0.1)' : 'var(--bg-tertiary)',
-                              borderRadius: '6px',
-                              fontSize: '12px',
-                              color: isSelected ? 'rgba(255,255,255,0.6)' : 'var(--text-muted)',
-                            }}>
-                              <X className="w-3 h-3" />
-                              {limitation}
-                            </span>
-                          ))}
-                        </div>
-                      )}
                     </button>
                   );
                 })}
 
+                {/* Enterprise */}
                 <button
                   type="button"
-                  onClick={() => handleTierSelect('enterprise')}
-                  style={{
-                    padding: '16px 20px',
-                    background: 'linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: '16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    cursor: 'pointer',
-                  }}
+                  onClick={() => handlePlanSelect("enterprise")}
+                  className="flex items-center justify-between px-5 py-4 rounded-2xl border border-[var(--border-subtle)] hover:border-[var(--brand)] transition-all cursor-pointer"
+                  style={{ background: "linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%)" }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <Crown className="w-5 h-5" style={{ color: 'var(--brand)' }} />
-                    <div style={{ textAlign: 'left' }}>
-                      <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>Enterprise</span>
-                      <span style={{ fontSize: '13px', color: 'var(--text-secondary)', marginLeft: '8px' }}>Custom pricing for large teams</span>
+                  <div className="flex items-center gap-3">
+                    <Crown className="w-5 h-5 text-[var(--brand)]" />
+                    <div className="text-left">
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">Enterprise</span>
+                      <p className="text-xs text-[var(--text-muted)]">Unlimited everything, custom pricing</p>
                     </div>
                   </div>
-                  <ArrowRight className="w-5 h-5" style={{ color: 'var(--text-muted)' }} />
+                  <ArrowRight className="w-4 h-4 text-[var(--text-muted)]" />
                 </button>
 
-                <button type="button" onClick={() => setStep(1)} style={{
-                  padding: '12px',
-                  background: 'transparent',
-                  border: 'none',
-                  fontSize: '14px',
-                  color: 'var(--text-secondary)',
-                  cursor: 'pointer',
-                }}>
-                  ← Back to account details
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="flex items-center justify-center gap-2 py-2.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                >
+                  <ArrowLeft className="w-4 h-4" /> Back
                 </button>
               </div>
-            ) : (
-              /* Step 3: Company Details */
-              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {/* Selected plan summary */}
-                <div style={{ 
-                  background: 'var(--bg-secondary)', 
-                  borderRadius: '12px', 
-                  padding: '16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}>
-                  <div>
-                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Selected Plan</p>
-                    <p style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {TIER_DISPLAY[formData.tier].name} - {TIER_DISPLAY[formData.tier].price}{TIER_DISPLAY[formData.tier].period}
-                    </p>
-                  </div>
-                  <button 
-                    type="button" 
-                    onClick={() => setStep(2)}
-                    style={{ fontSize: '14px', color: 'var(--brand)', background: 'none', border: 'none', cursor: 'pointer' }}
-                  >
-                    Change
-                  </button>
-                </div>
+            )}
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Company name</label>
-                  <input
-                    type="text"
-                    name="companyName"
-                    placeholder="Acme Inc"
-                    value={formData.companyName}
-                    onChange={handleChange}
-                    style={inputStyle}
-                    onFocus={(e) => { e.target.style.borderColor = 'var(--brand)'; e.target.style.boxShadow = '0 0 0 3px rgba(255, 77, 0, 0.1)'; }}
-                    onBlur={(e) => { e.target.style.borderColor = 'var(--border-subtle)'; e.target.style.boxShadow = 'none'; }}
-                  />
-                  {errors.companyName && <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px' }}>{errors.companyName}</p>}
-                </div>
-                {/* Only show subdomain field for Pro tier (white-label) */}
-                {formData.tier === 'pro' && (
-                  <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                      Custom Workspace URL
-                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '8px' }}>(White-label feature)</span>
-                    </label>
-                    <div style={{ display: 'flex', alignItems: 'stretch' }}>
-                      <input
-                        type="text"
-                        name="subdomain"
-                        placeholder="acme"
-                        value={formData.subdomain}
-                        onChange={handleChange}
-                        style={{ ...inputStyle, borderTopRightRadius: 0, borderBottomRightRadius: 0, flex: 1 }}
-                        onFocus={(e) => { e.target.style.borderColor = 'var(--brand)'; e.target.style.boxShadow = '0 0 0 3px rgba(255, 77, 0, 0.1)'; }}
-                        onBlur={(e) => { e.target.style.borderColor = 'var(--border-subtle)'; e.target.style.boxShadow = 'none'; }}
-                      />
-                      <span style={{ padding: '14px 16px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderLeft: 'none', borderTopRightRadius: '12px', borderBottomRightRadius: '12px', fontSize: '14px', color: 'var(--text-muted)' }}>.tynebase.com</span>
-                    </div>
-                    {errors.subdomain && <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px' }}>{errors.subdomain}</p>}
-                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px' }}>
-                      Your workspace will be accessible at this custom URL
-                    </p>
-                  </div>
-                )}
-                
-                {/* Info for Free/Base tiers */}
-                {(formData.tier === 'free' || formData.tier === 'base') && (
-                  <div style={{ 
-                    background: 'var(--bg-secondary)', 
-                    borderRadius: '12px', 
-                    padding: '12px 16px',
-                    border: '1px solid var(--border-subtle)',
-                  }}>
-                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                      <span style={{ fontWeight: 600 }}>Note:</span> Your workspace URL will be auto-generated. 
-                      Upgrade to Pro for custom domain and white-label branding.
-                    </p>
-                  </div>
-                )}
-
-                <div style={{ background: 'var(--bg-secondary)', borderRadius: '12px', padding: '16px' }}>
-                  <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '12px' }}>
-                    Your {TIER_DISPLAY[formData.tier].name} plan includes:
+            {/* ===== STEP 3: Custom subdomain (Pro only) ===== */}
+            {step === 3 && (
+              <form onSubmit={handleStep3Submit} className="flex flex-col gap-5">
+                <div className="text-center mb-1">
+                  <h1 className="text-[26px] font-semibold text-[var(--text-primary)] mb-1">Your branded URL</h1>
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    Where <span className="font-medium text-[var(--text-primary)]">{workspaceName}</span> lives on the web
                   </p>
-                  {TIER_DISPLAY[formData.tier].features.map((item) => (
-                    <div key={item} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                      <Check className="w-4 h-4" style={{ color: 'var(--brand)' }} />
-                      {item}
-                    </div>
-                  ))}
                 </div>
 
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <button type="button" onClick={() => setStep(2)} className="btn btn-secondary" style={{ flex: 1, padding: '14px 24px' }}>
+                {/* Selected plan badge */}
+                <div className="flex items-center justify-between bg-[var(--bg-secondary)] rounded-xl p-3.5 border border-[var(--border-subtle)]">
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-[var(--brand)]" />
+                    <span className="text-sm font-medium text-[var(--text-primary)]">Pro — {PLANS.pro.price}{PLANS.pro.period}</span>
+                  </div>
+                  <button type="button" onClick={() => setStep(2)} className="text-xs text-[var(--brand)] font-medium hover:underline cursor-pointer">Change</button>
+                </div>
+
+                {/* Subdomain input */}
+                <div>
+                  <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Workspace URL</label>
+                  <div className="flex items-stretch">
+                    <input
+                      type="text"
+                      value={subdomain}
+                      onChange={(e) => { setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "")); clearError("subdomain"); }}
+                      className={`${inputClasses} rounded-r-none flex-1`}
+                      placeholder="acme"
+                    />
+                    <span className="inline-flex items-center px-3.5 bg-[var(--bg-tertiary)] border border-l-0 border-[var(--border-subtle)] rounded-r-xl text-sm text-[var(--text-muted)] whitespace-nowrap">
+                      .tynebase.com
+                    </span>
+                  </div>
+                  {errors.subdomain && <p className="text-xs text-red-500 mt-1">{errors.subdomain}</p>}
+                  {subdomain && !errors.subdomain && (
+                    <p className="text-xs text-emerald-400 mt-1.5">
+                      Your app will be live at <span className="font-mono font-medium">{subdomain}.tynebase.com</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Features summary */}
+                <div className="bg-[var(--bg-secondary)] rounded-xl p-4 border border-[var(--border-subtle)]">
+                  <p className="text-[11px] font-medium text-[var(--text-muted)] uppercase tracking-wider mb-2.5">Pro includes</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {PLANS.pro.features.map(f => (
+                      <span key={f} className="inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
+                        <Check className="w-3.5 h-3.5 text-[var(--brand)]" />{f}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => setStep(2)} className="flex-1 py-3.5 rounded-xl text-sm font-medium text-[var(--text-secondary)] border border-[var(--border-subtle)] hover:border-[var(--text-muted)] transition-all cursor-pointer">
                     Back
                   </button>
-                  <button type="submit" disabled={isLoading} className="btn btn-primary" style={{ flex: 1, padding: '14px 24px' }}>
-                    {isLoading ? "Creating..." : "Create workspace"}
+                  <button type="submit" disabled={isLoading} className="btn btn-primary flex-1 py-3.5 text-[15px] font-semibold">
+                    {isLoading ? "Creating..." : "Launch workspace"}
                   </button>
                 </div>
               </form>
             )}
-
-            <p style={{ marginTop: '24px', textAlign: 'center', fontSize: '14px', color: 'var(--text-secondary)' }}>
-              Already have an account?{" "}
-              <Link href="/login" style={{ color: 'var(--brand)', fontWeight: 500 }}>Sign in</Link>
-            </p>
           </div>
         </div>
       </div>

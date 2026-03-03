@@ -26,7 +26,7 @@ export const TIER_CONFIG = {
     name: 'Free',
     price: 0,
     credits: 10,
-    maxUsers: 2,
+    maxUsers: 1,
     maxStorageMb: 500,
     whiteLabel: false,
     customDomain: false,

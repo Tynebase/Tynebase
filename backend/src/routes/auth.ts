@@ -292,6 +292,195 @@ export default async function authRoutes(fastify: FastifyInstance) {
   });
 
   /**
+   * POST /api/auth/complete-oauth-signup
+   * Completes signup for OAuth users (Google, etc.)
+   * The auth user already exists from OAuth — this creates the tenant + user record.
+   * Requires a valid JWT from the OAuth session.
+   */
+  fastify.post('/api/auth/complete-oauth-signup', async (request, reply) => {
+    try {
+      const oauthSignupSchema = z.object({
+        tenant_name: z.string().min(1, 'Workspace name is required'),
+        subdomain: z.string()
+          .min(3, 'Subdomain must be at least 3 characters')
+          .max(63)
+          .regex(/^[a-z0-9-]+$/, 'Subdomain must contain only lowercase letters, numbers, and hyphens')
+          .regex(/^[a-z0-9]/, 'Subdomain must start with a letter or number')
+          .regex(/[a-z0-9]$/, 'Subdomain must end with a letter or number'),
+        tier: z.enum(['free', 'base', 'pro', 'enterprise']).optional().default('free'),
+        full_name: z.string().optional(),
+      });
+
+      const body = oauthSignupSchema.parse(request.body);
+      const { tenant_name, subdomain, tier, full_name } = body;
+
+      // Verify JWT from OAuth session
+      const authHeader = request.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return reply.code(401).send({
+          error: { code: 'UNAUTHORIZED', message: 'Missing authorization header' },
+        });
+      }
+
+      const token = authHeader.substring(7);
+      const { data: { user: authUser }, error: authError } = await supabaseAdmin.auth.getUser(token);
+
+      if (authError || !authUser) {
+        return reply.code(401).send({
+          error: { code: 'INVALID_TOKEN', message: 'Invalid or expired token' },
+        });
+      }
+
+      const userId = authUser.id;
+      const email = authUser.email!;
+
+      fastify.log.info({ userId, email, subdomain }, 'Completing OAuth signup');
+
+      // Check if user already has a profile (already completed signup)
+      const { data: existingProfile } = await supabaseAdmin
+        .from('users')
+        .select('id, tenant_id')
+        .eq('id', userId)
+        .single();
+
+      if (existingProfile) {
+        // Already has a profile — fetch tenant and return
+        const { data: existingTenant } = await supabaseAdmin
+          .from('tenants')
+          .select('id, subdomain, name, tier')
+          .eq('id', existingProfile.tenant_id)
+          .single();
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            user: { id: userId, email, full_name, role: 'admin' },
+            tenant: existingTenant,
+          },
+          message: 'Signup already completed',
+        });
+      }
+
+      // Check subdomain availability
+      const { data: existingSubdomain } = await supabaseAdmin
+        .from('tenants')
+        .select('id')
+        .eq('subdomain', subdomain)
+        .single();
+
+      if (existingSubdomain) {
+        return reply.code(400).send({
+          error: { code: 'SUBDOMAIN_EXISTS', message: 'Subdomain already taken', details: { subdomain } },
+        });
+      }
+
+      // Get tier-specific limits
+      const tierCredits = TIER_CREDITS[tier] || TIER_CREDITS.free;
+      const tierStorage = TIER_STORAGE[tier] || TIER_STORAGE.free;
+
+      // Create tenant
+      const { data: tenant, error: tenantError } = await supabaseAdmin
+        .from('tenants')
+        .insert({
+          subdomain,
+          name: tenant_name,
+          tier,
+          settings: {},
+          storage_limit: tierStorage > 0 ? tierStorage : 107374182400,
+        })
+        .select()
+        .single();
+
+      if (tenantError || !tenant) {
+        fastify.log.error({ error: tenantError }, 'Failed to create tenant for OAuth user');
+        throw tenantError;
+      }
+
+      const tenantId = tenant.id;
+
+      // Update auth user metadata with full_name if provided
+      if (full_name) {
+        await supabaseAdmin.auth.admin.updateUserById(userId, {
+          user_metadata: { ...authUser.user_metadata, full_name },
+        });
+      }
+
+      // Create user profile
+      const { error: userError } = await supabaseAdmin
+        .from('users')
+        .insert({
+          id: userId,
+          tenant_id: tenantId,
+          email,
+          full_name: full_name || authUser.user_metadata?.full_name || authUser.user_metadata?.name || null,
+          role: 'admin',
+          is_super_admin: false,
+          status: 'active',
+        });
+
+      if (userError) {
+        fastify.log.error({ error: userError }, 'Failed to create user profile for OAuth user');
+        await supabaseAdmin.from('tenants').delete().eq('id', tenantId);
+        throw userError;
+      }
+
+      // Create storage buckets
+      for (const bucketName of [`tenant-${tenantId}-uploads`, `tenant-${tenantId}-documents`]) {
+        const { error: bucketError } = await supabaseAdmin.storage.createBucket(bucketName, { public: false });
+        if (bucketError && !bucketError.message?.includes('already exists')) {
+          fastify.log.error({ error: bucketError, bucketName }, 'Failed to create bucket');
+          await supabaseAdmin.from('users').delete().eq('id', userId);
+          await supabaseAdmin.from('tenants').delete().eq('id', tenantId);
+          throw bucketError;
+        }
+      }
+
+      // Create credit pool (non-critical)
+      try {
+        await supabaseAdmin.from('credit_pools').insert({
+          tenant_id: tenantId,
+          month_year: new Date().toISOString().slice(0, 7),
+          total_credits: tierCredits,
+          used_credits: 0,
+        });
+      } catch (creditErr) {
+        fastify.log.warn({ error: creditErr }, 'Credit pool creation failed (non-critical)');
+      }
+
+      fastify.log.info({ userId, tenantId, subdomain }, 'OAuth signup completed');
+
+      writeAuditLog({
+        tenantId,
+        actorId: userId,
+        action: 'auth.oauth_signup',
+        actionType: 'auth',
+        targetName: email,
+        ipAddress: getClientIp(request),
+        metadata: { provider: 'google', full_name: full_name || null },
+      });
+
+      return reply.code(201).send({
+        success: true,
+        data: {
+          user: { id: userId, email, full_name: full_name || null, role: 'admin' },
+          tenant: { id: tenantId, subdomain, name: tenant_name, tier },
+        },
+        message: 'Workspace created successfully',
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.code(400).send({
+          error: { code: 'VALIDATION_ERROR', message: 'Invalid input data', details: error.errors },
+        });
+      }
+      fastify.log.error({ error }, 'Unexpected error in complete-oauth-signup');
+      return reply.code(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred', details: {} },
+      });
+    }
+  });
+
+  /**
    * POST /api/auth/login
    * Authenticates user and returns JWT
    * Rate limited to 5 attempts per 15 minutes per IP
