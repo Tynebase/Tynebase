@@ -3,9 +3,11 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { User, Clock, Eye, ArrowLeft, Loader2, AlertCircle } from "lucide-react";
+import { User, Clock, Eye, ArrowLeft, Loader2, AlertCircle, Building2, Tag } from "lucide-react";
 import { getPublicDocument, Document } from "@/lib/api/documents";
 import { MarkdownReader } from "@/components/ui/MarkdownReader";
+import { SiteNavbar } from "@/components/layout/SiteNavbar";
+import { SiteFooter } from "@/components/layout/SiteFooter";
 
 export default function PublicDocumentPage() {
   const params = useParams();
@@ -69,7 +71,7 @@ export default function PublicDocumentPage() {
             {error || "This document doesn't exist or is not publicly accessible."}
           </p>
           <Link
-            href="/dashboard/community/shared-documents"
+            href="/public-documents"
             className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--brand)] text-white rounded-lg hover:bg-[var(--brand-dark)] transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -85,62 +87,64 @@ export default function PublicDocumentPage() {
   const categoryColor = (document as any).categories?.color || "#6b7280";
 
   return (
-    <div className="min-h-screen bg-[var(--surface-ground)]">
-      {/* Header */}
-      <header className="bg-[var(--surface-card)] border-b border-[var(--dash-border-subtle)] sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link
-            href="/dashboard/community/shared-documents"
-            className="inline-flex items-center gap-2 text-sm text-[var(--dash-text-secondary)] hover:text-[var(--dash-text-primary)] transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Documents
-          </Link>
-          <div className="flex items-center gap-2 text-sm text-[var(--dash-text-muted)]">
-            <Eye className="w-4 h-4" />
-            {document.view_count || 0} views
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen relative">
+      <div className="hero-gradient" />
+
+      <SiteNavbar currentPage="other" />
 
       {/* Content */}
-      <main className="max-w-4xl mx-auto px-4 py-8">
-        {/* Document Meta */}
-        <div className="mb-6 flex items-center gap-4 text-sm text-[var(--dash-text-muted)]">
-          {categoryName && (
-            <span
-              className="inline-block px-2 py-0.5 rounded text-xs font-medium"
-              style={{ backgroundColor: `${categoryColor}20`, color: categoryColor }}
-            >
-              {categoryName}
-            </span>
-          )}
-          <span className="flex items-center gap-1.5">
-            <User className="w-4 h-4" />
-            {authorName}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Clock className="w-4 h-4" />
-            {formatDate(document.created_at)}
-          </span>
-        </div>
+      <main style={{ paddingTop: '120px', paddingBottom: '60px' }}>
+        <div className="container" style={{ maxWidth: '860px' }}>
+          {/* Back link */}
+          <Link
+            href="/public-documents"
+            className="inline-flex items-center gap-2 text-sm mb-6 hover:underline"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Public Documents
+          </Link>
 
-        {/* Document Content - using same MarkdownReader as main app */}
-        <MarkdownReader 
-          content={document.content || "No content available."} 
-          title={document.title}
-        />
+          {/* Document Meta */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+            {categoryName && (
+              <span
+                style={{
+                  display: 'inline-block',
+                  padding: '3px 12px',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  backgroundColor: `${categoryColor}20`,
+                  color: categoryColor,
+                }}
+              >
+                {categoryName}
+              </span>
+            )}
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: 'var(--text-muted)' }}>
+              <User className="w-4 h-4" />
+              {authorName}
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: 'var(--text-muted)' }}>
+              <Clock className="w-4 h-4" />
+              {formatDate(document.created_at)}
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: 'var(--text-muted)' }}>
+              <Eye className="w-4 h-4" />
+              {document.view_count || 0} views
+            </span>
+          </div>
+
+          {/* Document Content - using same MarkdownReader as main app */}
+          <MarkdownReader 
+            content={document.content || "No content available."} 
+            title={document.title}
+          />
+        </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-[var(--dash-border-subtle)] mt-12 py-6">
-        <div className="max-w-4xl mx-auto px-4 text-center text-sm text-[var(--dash-text-muted)]">
-          Shared via{" "}
-          <Link href="/" className="text-[var(--brand)] hover:underline">
-            Tynebase
-          </Link>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

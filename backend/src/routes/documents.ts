@@ -593,6 +593,17 @@ export default async function documentRoutes(fastify: FastifyInstance) {
         const tenant = (request as any).tenant;
         const user = (request as any).user;
 
+        // Viewers cannot create documents (super admins bypass all role restrictions)
+        if (user.role === 'viewer' && !user.is_super_admin) {
+          return reply.code(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Viewers do not have permission to create documents',
+              details: {},
+            },
+          });
+        }
+
         // Validate request body
         const body = createDocumentBodySchema.parse(request.body);
         const { title, content, category_id, visibility } = body;
@@ -806,19 +817,35 @@ export default async function documentRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Verify ownership - only author can update
-        if (existingDoc.author_id !== user.id) {
-          fastify.log.warn(
-            { documentId: id, authorId: existingDoc.author_id, userId: user.id },
-            'User attempted to update document they do not own'
-          );
-          return reply.code(403).send({
-            error: {
-              code: 'FORBIDDEN',
-              message: 'Only the document author can update this document',
-              details: {},
-            },
-          });
+        // Role-based access control for document updates
+        // - Super admins: bypass all restrictions
+        // - Admins/Editors: can edit any document in the tenant
+        // - Members: can only edit their own documents
+        // - Viewers: cannot edit any document
+        if (!user.is_super_admin) {
+          if (user.role === 'viewer') {
+            return reply.code(403).send({
+              error: {
+                code: 'FORBIDDEN',
+                message: 'Viewers do not have permission to edit documents',
+                details: {},
+              },
+            });
+          }
+
+          if (user.role === 'member' && existingDoc.author_id !== user.id) {
+            fastify.log.warn(
+              { documentId: id, authorId: existingDoc.author_id, userId: user.id },
+              'Member attempted to update document they do not own'
+            );
+            return reply.code(403).send({
+              error: {
+                code: 'FORBIDDEN',
+                message: 'Members can only edit their own documents',
+                details: {},
+              },
+            });
+          }
         }
 
         // Build update object with only provided fields
@@ -1160,19 +1187,35 @@ export default async function documentRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Verify ownership - only author can delete
-        if (existingDoc.author_id !== user.id) {
-          fastify.log.warn(
-            { documentId: id, authorId: existingDoc.author_id, userId: user.id },
-            'User attempted to delete document they do not own'
-          );
-          return reply.code(403).send({
-            error: {
-              code: 'FORBIDDEN',
-              message: 'Only the document author can delete this document',
-              details: {},
-            },
-          });
+        // Role-based access control for document deletion
+        // - Super admins: bypass all restrictions (platform-level access)
+        // - Admins/Editors: can delete any document in the tenant
+        // - Members: can only delete their own documents
+        // - Viewers: cannot delete any document
+        if (!user.is_super_admin) {
+          if (user.role === 'viewer') {
+            return reply.code(403).send({
+              error: {
+                code: 'FORBIDDEN',
+                message: 'Viewers do not have permission to delete documents',
+                details: {},
+              },
+            });
+          }
+
+          if (user.role === 'member' && existingDoc.author_id !== user.id) {
+            fastify.log.warn(
+              { documentId: id, authorId: existingDoc.author_id, userId: user.id },
+              'Member attempted to delete document they do not own'
+            );
+            return reply.code(403).send({
+              error: {
+                code: 'FORBIDDEN',
+                message: 'Members can only delete their own documents',
+                details: {},
+              },
+            });
+          }
         }
 
         // Delete document (cascade deletes embeddings and lineage)
@@ -1288,8 +1331,8 @@ export default async function documentRoutes(fastify: FastifyInstance) {
         const params = publishDocumentParamsSchema.parse(request.params);
         const { id } = params;
 
-        // Check user has publish permission (admin or editor)
-        if (user.role !== 'admin' && user.role !== 'editor') {
+        // Check user has publish permission (admin, editor, or super admin)
+        if (!user.is_super_admin && user.role !== 'admin' && user.role !== 'editor') {
           fastify.log.warn(
             { documentId: id, userId: user.id, userRole: user.role, tenantId: tenant.id },
             'User attempted to publish document without permission'
@@ -2415,6 +2458,245 @@ export default async function documentRoutes(fastify: FastifyInstance) {
             message: 'Failed to start video ingestion',
             details: {},
           },
+        });
+      }
+    }
+  );
+
+  /**
+   * GET /api/public/documents - List public documents (no auth required)
+   * Returns documents with visibility='public' and status='published'
+   * Supports filtering by tenant_id, category_id, tag_id, and search query
+   */
+  fastify.get(
+    '/api/public/documents',
+    { preHandler: [rateLimitMiddleware] },
+    async (request, reply) => {
+      try {
+        const querySchema = z.object({
+          page: z.coerce.number().int().min(1).default(1),
+          limit: z.coerce.number().int().min(1).max(100).default(20),
+          tenant_id: z.string().uuid().optional(),
+          category_id: z.string().uuid().optional(),
+          tag_id: z.string().uuid().optional(),
+          search: z.string().max(200).optional(),
+        });
+
+        const query = querySchema.parse(request.query);
+        const offset = (query.page - 1) * query.limit;
+
+        // Build the base query for public + published documents
+        let dbQuery = supabaseAdmin
+          .from('documents')
+          .select(`
+            id,
+            title,
+            content,
+            category_id,
+            tenant_id,
+            visibility,
+            status,
+            author_id,
+            published_at,
+            created_at,
+            updated_at,
+            view_count,
+            users:author_id (
+              id,
+              full_name,
+              avatar_url
+            ),
+            categories:category_id (
+              id,
+              name,
+              color
+            ),
+            tenants:tenant_id (
+              id,
+              name,
+              subdomain
+            )
+          `, { count: 'exact' })
+          .eq('visibility', 'public')
+          .eq('status', 'published')
+          .not('content', 'like', '__CATEGORY__%')
+          .order('created_at', { ascending: false });
+
+        // Apply optional filters
+        if (query.tenant_id) {
+          dbQuery = dbQuery.eq('tenant_id', query.tenant_id);
+        }
+        if (query.category_id) {
+          dbQuery = dbQuery.eq('category_id', query.category_id);
+        }
+        if (query.search) {
+          dbQuery = dbQuery.ilike('title', `%${query.search}%`);
+        }
+
+        // If tag_id filter, first get tagged document IDs
+        if (query.tag_id) {
+          const { data: taggedDocs } = await supabaseAdmin
+            .from('document_tags')
+            .select('document_id')
+            .eq('tag_id', query.tag_id);
+
+          const taggedDocIds = taggedDocs?.map(td => td.document_id) || [];
+          if (taggedDocIds.length === 0) {
+            return reply.code(200).send({
+              success: true,
+              data: {
+                documents: [],
+                pagination: { page: query.page, limit: query.limit, total: 0, totalPages: 0, hasNextPage: false, hasPrevPage: false },
+                filters: { tenants: [], categories: [], tags: [] },
+              },
+            });
+          }
+          dbQuery = dbQuery.in('id', taggedDocIds);
+        }
+
+        // Apply pagination
+        dbQuery = dbQuery.range(offset, offset + query.limit - 1);
+
+        const { data: documents, error, count } = await dbQuery;
+
+        if (error) {
+          fastify.log.error({ error }, 'Failed to fetch public documents');
+          return reply.code(500).send({
+            error: { code: 'FETCH_FAILED', message: 'Failed to fetch public documents', details: {} },
+          });
+        }
+
+        const totalPages = count ? Math.ceil(count / query.limit) : 0;
+
+        // Rewrite asset URLs for public access
+        const apiBaseUrl = process.env.API_BASE_URL || 'https://tynebase-backend.fly.dev';
+        const documentsWithRewrittenUrls = (documents || []).map((doc: any) => ({
+          ...doc,
+          content: rewriteAssetUrlsForPublicAccess(doc.content || '', doc.id, apiBaseUrl),
+        }));
+
+        // Fetch tags for all returned documents
+        const docIds = (documents || []).map((d: any) => d.id);
+        let documentTags: Record<string, Array<{ id: string; name: string; description: string | null }>> = {};
+        if (docIds.length > 0) {
+          const { data: tagDocs } = await supabaseAdmin
+            .from('document_tags')
+            .select(`
+              document_id,
+              tags:tag_id (
+                id,
+                name,
+                description
+              )
+            `)
+            .in('document_id', docIds);
+
+          if (tagDocs) {
+            for (const td of tagDocs as any[]) {
+              if (!documentTags[td.document_id]) {
+                documentTags[td.document_id] = [];
+              }
+              if (td.tags) {
+                documentTags[td.document_id].push(td.tags);
+              }
+            }
+          }
+        }
+
+        // Attach tags to documents
+        const finalDocuments = documentsWithRewrittenUrls.map((doc: any) => ({
+          ...doc,
+          tags: documentTags[doc.id] || [],
+        }));
+
+        // Fetch available filter options (tenants, categories, tags that have public docs)
+        // Tenants that have public documents
+        const { data: tenantOptions } = await supabaseAdmin
+          .from('documents')
+          .select('tenant_id, tenants:tenant_id (id, name, subdomain)')
+          .eq('visibility', 'public')
+          .eq('status', 'published')
+          .not('content', 'like', '__CATEGORY__%');
+
+        const uniqueTenants = new Map<string, { id: string; name: string; subdomain: string }>();
+        if (tenantOptions) {
+          for (const d of tenantOptions as any[]) {
+            if (d.tenants && !uniqueTenants.has(d.tenant_id)) {
+              uniqueTenants.set(d.tenant_id, d.tenants);
+            }
+          }
+        }
+
+        // Categories that appear in public documents
+        const { data: categoryOptions } = await supabaseAdmin
+          .from('documents')
+          .select('category_id, categories:category_id (id, name, color)')
+          .eq('visibility', 'public')
+          .eq('status', 'published')
+          .not('category_id', 'is', null)
+          .not('content', 'like', '__CATEGORY__%');
+
+        const uniqueCategories = new Map<string, { id: string; name: string; color: string }>();
+        if (categoryOptions) {
+          for (const d of categoryOptions as any[]) {
+            if (d.categories && d.category_id && !uniqueCategories.has(d.category_id)) {
+              uniqueCategories.set(d.category_id, d.categories);
+            }
+          }
+        }
+
+        // Tags that appear on public documents
+        const { data: publicDocIds } = await supabaseAdmin
+          .from('documents')
+          .select('id')
+          .eq('visibility', 'public')
+          .eq('status', 'published')
+          .not('content', 'like', '__CATEGORY__%');
+
+        let uniqueTags = new Map<string, { id: string; name: string; description: string | null }>();
+        if (publicDocIds && publicDocIds.length > 0) {
+          const { data: tagOptions } = await supabaseAdmin
+            .from('document_tags')
+            .select('tag_id, tags:tag_id (id, name, description)')
+            .in('document_id', publicDocIds.map((d: any) => d.id));
+
+          if (tagOptions) {
+            for (const t of tagOptions as any[]) {
+              if (t.tags && !uniqueTags.has(t.tag_id)) {
+                uniqueTags.set(t.tag_id, t.tags);
+              }
+            }
+          }
+        }
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            documents: finalDocuments,
+            pagination: {
+              page: query.page,
+              limit: query.limit,
+              total: count || 0,
+              totalPages,
+              hasNextPage: query.page < totalPages,
+              hasPrevPage: query.page > 1,
+            },
+            filters: {
+              tenants: Array.from(uniqueTenants.values()),
+              categories: Array.from(uniqueCategories.values()),
+              tags: Array.from(uniqueTags.values()),
+            },
+          },
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: { code: 'VALIDATION_ERROR', message: 'Invalid parameters', details: error.errors },
+          });
+        }
+        fastify.log.error({ error }, 'Unexpected error in GET /api/public/documents');
+        return reply.code(500).send({
+          error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred', details: {} },
         });
       }
     }

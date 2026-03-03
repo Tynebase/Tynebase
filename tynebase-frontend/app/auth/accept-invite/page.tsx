@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Eye, EyeOff, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { acceptInvite } from "@/lib/api/invites";
 import { setAuthTokens, setTenantSubdomain } from "@/lib/api/client";
+import { createClient } from "@/lib/supabase/client";
 
 interface InviteData {
   userId: string;
@@ -33,22 +34,37 @@ function AcceptInviteContent() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (!dataParam) {
-      setStatus("invalid");
-      return;
-    }
-    
-    try {
-      const decoded = JSON.parse(decodeURIComponent(dataParam)) as InviteData;
-      if (!decoded.userId || !decoded.tenantId || !decoded.role) {
+    async function initInvite() {
+      if (!dataParam) {
         setStatus("invalid");
         return;
       }
-      setInvite(decoded);
-      setStatus("ready");
-    } catch {
-      setStatus("invalid");
+      
+      try {
+        const decoded = JSON.parse(decodeURIComponent(dataParam)) as InviteData;
+        if (!decoded.userId || !decoded.tenantId || !decoded.role) {
+          setStatus("invalid");
+          return;
+        }
+
+        // Bridge Supabase session tokens into localStorage for the API client.
+        // The auth callback exchanged the code server-side, so the session
+        // exists in Supabase cookies but NOT in localStorage where apiClient reads from.
+        const supabase = createClient();
+        if (supabase) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.access_token && session?.refresh_token) {
+            setAuthTokens(session.access_token, session.refresh_token);
+          }
+        }
+
+        setInvite(decoded);
+        setStatus("ready");
+      } catch {
+        setStatus("invalid");
+      }
     }
+    initInvite();
   }, [dataParam]);
 
   const handleSubmit = async (e: React.FormEvent) => {

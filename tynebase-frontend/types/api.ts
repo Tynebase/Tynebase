@@ -16,6 +16,8 @@ export interface Tenant {
   tier: 'free' | 'base' | 'pro' | 'enterprise';
   settings: TenantSettings;
   storage_limit: number;
+  custom_domain?: string | null;
+  custom_domain_verified?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -77,8 +79,11 @@ export type TierType = keyof typeof TIER_CONFIG;
 export interface TenantSettings {
   branding?: {
     logo_url?: string;
+    logo_dark_url?: string;
+    favicon_url?: string;
     primary_color?: string;
     secondary_color?: string;
+    company_name?: string;
   };
   ai_provider?: {
     default_text_model?: string;

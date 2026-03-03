@@ -560,6 +560,62 @@ export async function listSharedDocuments(
 }
 
 /**
+ * List public documents (no auth required)
+ * Returns documents with visibility='public' and status='published'
+ * Supports filtering by tenant_id, category_id, tag_id, and search
+ */
+export async function listPublicDocuments(
+  params?: {
+    page?: number;
+    limit?: number;
+    tenant_id?: string;
+    category_id?: string;
+    tag_id?: string;
+    search?: string;
+  }
+): Promise<{
+  documents: (Document & {
+    tags?: Array<{ id: string; name: string; description: string | null }>;
+    tenants?: { id: string; name: string; subdomain: string };
+  })[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  };
+  filters: {
+    tenants: Array<{ id: string; name: string; subdomain: string }>;
+    categories: Array<{ id: string; name: string; color: string }>;
+    tags: Array<{ id: string; name: string; description: string | null }>;
+  };
+}> {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+  const queryParams = new URLSearchParams();
+  if (params?.page) queryParams.append('page', params.page.toString());
+  if (params?.limit) queryParams.append('limit', params.limit.toString());
+  if (params?.tenant_id) queryParams.append('tenant_id', params.tenant_id);
+  if (params?.category_id) queryParams.append('category_id', params.category_id);
+  if (params?.tag_id) queryParams.append('tag_id', params.tag_id);
+  if (params?.search) queryParams.append('search', params.search);
+
+  const queryString = queryParams.toString();
+  const url = `${baseUrl}/api/public/documents${queryString ? `?${queryString}` : ''}`;
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error?.error?.message || 'Failed to fetch public documents');
+  }
+
+  const data = await response.json();
+  // Backend wraps in { success, data }
+  return data.data || data;
+}
+
+/**
  * Get a public document (no auth required)
  * Only works for documents with visibility='public' and status='published'
  */

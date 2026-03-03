@@ -421,7 +421,7 @@ export default function UsersPage() {
     <div className="w-full h-full min-h-0 flex flex-col gap-8">
       <UsersPageHeader onInvite={() => setShowInviteModal(true)} onShowRoles={() => setShowRolesModal(true)} />
 
-      <UsersStats totalCount={users.length} activeCount={activeCount} pendingCount={suspendedCount} />
+      <UsersStats totalCount={users.length} activeCount={activeCount} pendingCount={pendingInvites.length} />
 
       <UsersFiltersBar
         searchQuery={searchQuery}
@@ -708,17 +708,22 @@ export default function UsersPage() {
             <div className="px-6 py-5 space-y-5">
               <div>
                 <h3 className="font-semibold text-[var(--text-primary)] text-sm">Admin</h3>
-                <p className="text-sm text-[var(--text-tertiary)] mt-1">Full access to all features including user management, billing, branding settings, and audit logs.</p>
+                <p className="text-sm text-[var(--text-tertiary)] mt-1">Full access to all features including user management, inviting members, billing, branding settings, and audit logs. Can create, edit, publish, and delete any document.</p>
               </div>
               <div className="h-px bg-[var(--border-subtle)]" />
               <div>
                 <h3 className="font-semibold text-[var(--text-primary)] text-sm">Editor</h3>
-                <p className="text-sm text-[var(--text-tertiary)] mt-1">Can create, edit, and publish content. Access to AI assistant and audit tools. No admin settings access.</p>
+                <p className="text-sm text-[var(--text-tertiary)] mt-1">Can create, edit, publish, and delete any document in the workspace. Access to AI assistant. No admin settings or user management access.</p>
+              </div>
+              <div className="h-px bg-[var(--border-subtle)]" />
+              <div>
+                <h3 className="font-semibold text-[var(--text-primary)] text-sm">Member</h3>
+                <p className="text-sm text-[var(--text-tertiary)] mt-1">Can create documents and edit or delete their own documents. Cannot modify other members' content or publish documents.</p>
               </div>
               <div className="h-px bg-[var(--border-subtle)]" />
               <div>
                 <h3 className="font-semibold text-[var(--text-primary)] text-sm">Viewer</h3>
-                <p className="text-sm text-[var(--text-tertiary)] mt-1">Read-only access to content. Can view documents and use AI chat but cannot create or edit content.</p>
+                <p className="text-sm text-[var(--text-tertiary)] mt-1">Read-only access. Can view documents and use AI chat but cannot create, edit, or delete any content.</p>
               </div>
             </div>
           </div>

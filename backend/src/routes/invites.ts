@@ -11,9 +11,9 @@ import { writeAuditLog, getClientIp } from '../lib/auditLog';
  * User limits per subscription tier
  */
 const TIER_USER_LIMITS: Record<string, number> = {
-  free: 1,
-  base: 5,
-  pro: 10,
+  free: 2,
+  base: 10,
+  pro: 50,
   enterprise: Infinity,
 };
 
@@ -71,8 +71,8 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
         const tenant = (request as any).tenant;
         const user = (request as any).user;
 
-        // Only admins can invite users
-        if (user.role !== 'admin') {
+        // Only admins (or super admins) can invite users
+        if (user.role !== 'admin' && !user.is_super_admin) {
           return reply.code(403).send({
             error: {
               code: 'FORBIDDEN',
@@ -496,8 +496,8 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
         const tenant = (request as any).tenant;
         const user = (request as any).user;
 
-        // Only admins can view pending invites
-        if (user.role !== 'admin') {
+        // Only admins (or super admins) can view pending invites
+        if (user.role !== 'admin' && !user.is_super_admin) {
           return reply.code(403).send({
             error: {
               code: 'FORBIDDEN',
@@ -576,8 +576,8 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
         const user = (request as any).user;
         const { id } = request.params as { id: string };
 
-        // Only admins can cancel invites
-        if (user.role !== 'admin') {
+        // Only admins (or super admins) can cancel invites
+        if (user.role !== 'admin' && !user.is_super_admin) {
           return reply.code(403).send({
             error: {
               code: 'FORBIDDEN',
@@ -690,8 +690,8 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
         const user = (request as any).user;
         const { id } = request.params as { id: string };
 
-        // Only admins can resend invites
-        if (user.role !== 'admin') {
+        // Only admins (or super admins) can resend invites
+        if (user.role !== 'admin' && !user.is_super_admin) {
           return reply.code(403).send({
             error: {
               code: 'FORBIDDEN',

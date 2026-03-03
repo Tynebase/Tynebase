@@ -8,7 +8,8 @@ import Link from "next/link";
 import { TIER_CONFIG, TierType } from "@/types/api";
 import { 
   Upload, Palette, Type, Globe, Eye, Check, Crown, Sparkles,
-  Monitor, Smartphone, Sun, Moon, RefreshCw, Save, ExternalLink
+  Monitor, Smartphone, Sun, Moon, RefreshCw, Save, ExternalLink,
+  CheckCircle2, AlertCircle, Loader2
 } from "lucide-react";
 import { Modal, ModalFooter } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -31,13 +32,16 @@ export default function BrandingPage() {
     logoLight: null as File | null,
     logoDark: null as File | null,
     favicon: null as File | null,
-    customDomain: "",
+    customDomain: (tenant as any)?.custom_domain || "",
     customCss: "",
     hideWatermark: true,
     customFonts: false,
     fontHeading: "Helvetica Neue",
     fontBody: "Inter",
   });
+  const [domainVerified, setDomainVerified] = useState((tenant as any)?.custom_domain_verified || false);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyMessage, setVerifyMessage] = useState("");
 
   // Get tier-based feature access from context
   const currentTier = tenant?.tier || 'free';
@@ -56,8 +60,8 @@ export default function BrandingPage() {
 
     setIsLoading(true);
     try {
-      // Call backend API to update tenant settings
-      await updateTenant(tenant.id, {
+      // Build update payload
+      const updatePayload: any = {
         name: brandSettings.companyName,
         settings: {
           branding: {
@@ -66,7 +70,15 @@ export default function BrandingPage() {
             company_name: brandSettings.companyName,
           },
         },
-      });
+      };
+
+      // Include custom domain if feature is available
+      if (canUseCustomDomain) {
+        updatePayload.custom_domain = brandSettings.customDomain.trim().toLowerCase() || null;
+      }
+
+      // Call backend API to update tenant settings
+      await updateTenant(tenant.id, updatePayload);
 
       // Apply branding CSS variable
       document.documentElement.style.setProperty("--brand", brandSettings.primaryColor);
@@ -297,24 +309,75 @@ export default function BrandingPage() {
                 <Globe className="w-5 h-5 text-[var(--brand)]" />
                 Custom Domain
               </h2>
-              {!canUseCustomDomain && (
+              {!canUseCustomDomain ? (
                 <span className="text-xs px-2 py-1 bg-[var(--accent-purple)]/10 text-[var(--accent-purple)] rounded-full font-medium">
                   Pro Feature
                 </span>
-              )}
+              ) : domainVerified ? (
+                <span className="text-xs px-2 py-1 bg-[var(--status-success-bg)] text-[var(--status-success)] rounded-full font-medium flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" /> Verified
+                </span>
+              ) : brandSettings.customDomain ? (
+                <span className="text-xs px-2 py-1 bg-amber-500/10 text-amber-500 rounded-full font-medium flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" /> Not verified
+                </span>
+              ) : null}
             </div>
-            <div className="p-7">
+            <div className="p-7 space-y-3">
               <input
                 type="text"
                 value={brandSettings.customDomain}
-                onChange={(e) => setBrandSettings({ ...brandSettings, customDomain: e.target.value })}
+                onChange={(e) => { setBrandSettings({ ...brandSettings, customDomain: e.target.value }); setDomainVerified(false); setVerifyMessage(""); }}
                 disabled={!canUseCustomDomain}
                 className="w-full px-4 py-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] disabled:cursor-not-allowed transition-all"
                 placeholder="docs.yourcompany.com"
               />
-              <p className="text-xs text-[var(--dash-text-muted)] mt-2">
-                Point your CNAME record to app.tynebase.com
-              </p>
+              <div className="bg-[var(--surface-ground)] rounded-xl p-4 text-xs space-y-2">
+                <p className="font-medium text-[var(--dash-text-secondary)]">Setup instructions:</p>
+                <ol className="list-decimal list-inside space-y-1 text-[var(--dash-text-muted)]">
+                  <li>Enter your domain above and save</li>
+                  <li>Add a CNAME record pointing to <code className="px-1.5 py-0.5 bg-[var(--surface-card)] rounded text-[var(--dash-text-secondary)]">cname.vercel-dns.com</code></li>
+                  <li>Click &quot;Verify Domain&quot; once DNS propagates (can take up to 24h)</li>
+                  <li>Your clients can then visit your domain to see your branded docs</li>
+                </ol>
+              </div>
+              {canUseCustomDomain && brandSettings.customDomain && (
+                <button
+                  onClick={async () => {
+                    if (!tenant?.id) return;
+                    setVerifying(true);
+                    setVerifyMessage("");
+                    try {
+                      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/tenants/${tenant.id}/verify-domain`, {
+                        method: 'POST',
+                        headers: {
+                          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                          'Content-Type': 'application/json',
+                        },
+                      });
+                      const data = await res.json();
+                      const result = data.data || data;
+                      setDomainVerified(result.verified);
+                      setVerifyMessage(result.message || (result.verified ? 'Verified!' : 'Not yet verified'));
+                    } catch {
+                      setVerifyMessage('Failed to verify domain');
+                    } finally {
+                      setVerifying(false);
+                    }
+                  }}
+                  disabled={verifying}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  style={{ background: 'var(--brand)', color: '#fff', opacity: verifying ? 0.6 : 1 }}
+                >
+                  {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
+                  Verify Domain
+                </button>
+              )}
+              {verifyMessage && (
+                <p className={`text-xs ${domainVerified ? 'text-[var(--status-success)]' : 'text-amber-500'}`}>
+                  {verifyMessage}
+                </p>
+              )}
             </div>
           </div>
 

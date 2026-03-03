@@ -180,7 +180,7 @@ export default async function usersRoutes(fastify: FastifyInstance) {
         const currentUser = (request as any).user;
         const { id } = request.params as { id: string };
 
-        if (currentUser.role !== 'admin') {
+        if (currentUser.role !== 'admin' && !currentUser.is_super_admin) {
           return reply.code(403).send({
             error: { code: 'FORBIDDEN', message: 'Only admins can update users' },
           });
@@ -261,7 +261,7 @@ export default async function usersRoutes(fastify: FastifyInstance) {
         const currentUser = (request as any).user;
         const { id } = request.params as { id: string };
 
-        if (currentUser.role !== 'admin') {
+        if (currentUser.role !== 'admin' && !currentUser.is_super_admin) {
           return reply.code(403).send({
             error: { code: 'FORBIDDEN', message: 'Only admins can remove users' },
           });

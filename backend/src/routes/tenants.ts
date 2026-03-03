@@ -2,7 +2,9 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { supabaseAdmin } from '../lib/supabase';
 import { authMiddleware } from '../middleware/auth';
+import { rateLimitMiddleware } from '../middleware/rateLimit';
 import { writeAuditLog, getClientIp } from '../lib/auditLog';
+import dns from 'dns/promises';
 
 /**
  * Zod schema for tenant settings validation
@@ -11,6 +13,8 @@ import { writeAuditLog, getClientIp } from '../lib/auditLog';
 const settingsSchema = z.object({
   branding: z.object({
     logo_url: z.string().url().optional(),
+    logo_dark_url: z.string().url().optional(),
+    favicon_url: z.string().url().optional(),
     primary_color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
     secondary_color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
     company_name: z.string().max(100).optional(),
@@ -37,8 +41,9 @@ const settingsSchema = z.object({
  */
 const updateTenantSchema = z.object({
   name: z.string().min(1).max(100).optional(),
+  custom_domain: z.string().max(253).regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/, 'Invalid domain format').optional().nullable(),
   settings: settingsSchema.optional(),
-}).strict();
+});
 
 export default async function tenantRoutes(fastify: FastifyInstance) {
   /**
@@ -79,7 +84,7 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
       const body = updateTenantSchema.parse(request.body);
 
       // Check if body is empty
-      if (!body.name && !body.settings) {
+      if (!body.name && !body.settings && body.custom_domain === undefined) {
         return reply.code(400).send({
           error: {
             code: 'EMPTY_UPDATE',
@@ -121,7 +126,7 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
       // Verify tenant exists
       const { data: existingTenant, error: fetchError } = await supabaseAdmin
         .from('tenants')
-        .select('id, name, settings')
+        .select('id, name, settings, tier, custom_domain')
         .eq('id', id)
         .single();
 
@@ -141,12 +146,56 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
       if (body.name !== undefined) {
         updateData.name = body.name;
       }
+      if (body.custom_domain !== undefined) {
+        // Check tier allows custom domain (pro or enterprise)
+        const tier = existingTenant.tier || 'free';
+        if (!user.is_super_admin && tier !== 'pro' && tier !== 'enterprise') {
+          return reply.code(403).send({
+            error: {
+              code: 'TIER_RESTRICTION',
+              message: 'Custom domains require Pro or Enterprise plan',
+              details: {},
+            },
+          });
+        }
+
+        if (body.custom_domain === null || body.custom_domain === '') {
+          // Remove custom domain
+          updateData.custom_domain = null;
+          updateData.custom_domain_verified = false;
+        } else {
+          // Check uniqueness
+          const { data: existing } = await supabaseAdmin
+            .from('tenants')
+            .select('id')
+            .eq('custom_domain', body.custom_domain)
+            .neq('id', id)
+            .single();
+
+          if (existing) {
+            return reply.code(409).send({
+              error: {
+                code: 'DOMAIN_TAKEN',
+                message: 'This domain is already in use by another workspace',
+                details: {},
+              },
+            });
+          }
+          updateData.custom_domain = body.custom_domain;
+          updateData.custom_domain_verified = false; // Reset until verified
+        }
+      }
       if (body.settings !== undefined) {
-        // Merge with existing settings to preserve unmodified fields
-        updateData.settings = {
-          ...(existingTenant.settings || {}),
-          ...body.settings,
-        };
+        // Deep merge branding to preserve unmodified fields
+        const existingSettings = existingTenant.settings || {};
+        updateData.settings = { ...existingSettings };
+        for (const [key, value] of Object.entries(body.settings)) {
+          if (value && typeof value === 'object' && !Array.isArray(value)) {
+            updateData.settings[key] = { ...(existingSettings[key] || {}), ...value };
+          } else {
+            updateData.settings[key] = value;
+          }
+        }
       }
 
       // Perform update
@@ -154,7 +203,7 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
         .from('tenants')
         .update(updateData)
         .eq('id', id)
-        .select('id, subdomain, name, tier, settings, storage_limit, created_at, updated_at')
+        .select('id, subdomain, name, tier, settings, storage_limit, custom_domain, custom_domain_verified, created_at, updated_at')
         .single();
 
       if (updateError || !updatedTenant) {
@@ -211,6 +260,181 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
           message: 'An unexpected error occurred',
           details: {},
         },
+      });
+    }
+  });
+
+  /**
+   * GET /api/public/tenant-by-domain
+   * Look up a tenant by custom domain (no auth required)
+   * Returns tenant info + branding for white-label public docs pages
+   */
+  fastify.get('/api/public/tenant-by-domain', {
+    preHandler: [rateLimitMiddleware],
+  }, async (request, reply) => {
+    try {
+      const { domain } = request.query as { domain?: string };
+
+      if (!domain) {
+        return reply.code(400).send({
+          error: { code: 'MISSING_DOMAIN', message: 'domain query parameter is required' },
+        });
+      }
+
+      const sanitized = domain.toLowerCase().trim();
+
+      const { data: tenant, error } = await supabaseAdmin
+        .from('tenants')
+        .select('id, subdomain, name, tier, settings, custom_domain, custom_domain_verified')
+        .eq('custom_domain', sanitized)
+        .single();
+
+      if (error || !tenant) {
+        return reply.code(404).send({
+          error: { code: 'TENANT_NOT_FOUND', message: 'No workspace found for this domain' },
+        });
+      }
+
+      return reply.code(200).send({
+        success: true,
+        data: {
+          tenant: {
+            id: tenant.id,
+            subdomain: tenant.subdomain,
+            name: tenant.name,
+            custom_domain: tenant.custom_domain,
+            custom_domain_verified: tenant.custom_domain_verified,
+            branding: tenant.settings?.branding || {},
+          },
+        },
+      });
+    } catch (error) {
+      fastify.log.error({ error }, 'Error in GET /api/public/tenant-by-domain');
+      return reply.code(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' },
+      });
+    }
+  });
+
+  /**
+   * POST /api/tenants/:id/verify-domain
+   * Verify custom domain ownership by checking DNS CNAME record
+   */
+  fastify.post('/api/tenants/:id/verify-domain', {
+    preHandler: authMiddleware,
+  }, async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const user = (request as any).user;
+
+      if (!user.is_super_admin && user.tenant_id !== id) {
+        return reply.code(403).send({
+          error: { code: 'FORBIDDEN', message: 'Cannot verify domain for another tenant' },
+        });
+      }
+      if (!user.is_super_admin && user.role !== 'admin') {
+        return reply.code(403).send({
+          error: { code: 'INSUFFICIENT_PERMISSIONS', message: 'Only admins can verify domains' },
+        });
+      }
+
+      const { data: tenant, error: fetchError } = await supabaseAdmin
+        .from('tenants')
+        .select('id, custom_domain, custom_domain_verified')
+        .eq('id', id)
+        .single();
+
+      if (fetchError || !tenant || !tenant.custom_domain) {
+        return reply.code(400).send({
+          error: { code: 'NO_CUSTOM_DOMAIN', message: 'No custom domain configured for this workspace' },
+        });
+      }
+
+      if (tenant.custom_domain_verified) {
+        return reply.code(200).send({
+          success: true,
+          data: { verified: true, domain: tenant.custom_domain },
+        });
+      }
+
+      // Check DNS CNAME record
+      let verified = false;
+      try {
+        const records = await dns.resolveCname(tenant.custom_domain);
+        // Accept if CNAME points to cname.vercel-dns.com or our app domain
+        verified = records.some(r =>
+          r.endsWith('.vercel-dns.com') ||
+          r.endsWith('.vercel.app') ||
+          r === 'app.tynebase.com'
+        );
+      } catch {
+        // DNS lookup failed - domain not configured
+        verified = false;
+      }
+
+      if (verified) {
+        await supabaseAdmin
+          .from('tenants')
+          .update({ custom_domain_verified: true })
+          .eq('id', id);
+      }
+
+      return reply.code(200).send({
+        success: true,
+        data: {
+          verified,
+          domain: tenant.custom_domain,
+          message: verified
+            ? 'Domain verified successfully'
+            : 'CNAME not found. Point your domain to cname.vercel-dns.com',
+        },
+      });
+    } catch (error) {
+      fastify.log.error({ error }, 'Error verifying domain');
+      return reply.code(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to verify domain' },
+      });
+    }
+  });
+
+  /**
+   * GET /api/public/tenant/:subdomain
+   * Get public tenant info by subdomain (no auth, for branded pages)
+   */
+  fastify.get('/api/public/tenant/:subdomain', {
+    preHandler: [rateLimitMiddleware],
+  }, async (request, reply) => {
+    try {
+      const { subdomain } = request.params as { subdomain: string };
+
+      const { data: tenant, error } = await supabaseAdmin
+        .from('tenants')
+        .select('id, subdomain, name, tier, settings, custom_domain, custom_domain_verified')
+        .eq('subdomain', subdomain.toLowerCase())
+        .single();
+
+      if (error || !tenant) {
+        return reply.code(404).send({
+          error: { code: 'TENANT_NOT_FOUND', message: 'Workspace not found' },
+        });
+      }
+
+      return reply.code(200).send({
+        success: true,
+        data: {
+          tenant: {
+            id: tenant.id,
+            subdomain: tenant.subdomain,
+            name: tenant.name,
+            custom_domain: tenant.custom_domain,
+            branding: tenant.settings?.branding || {},
+          },
+        },
+      });
+    } catch (error) {
+      fastify.log.error({ error }, 'Error in GET /api/public/tenant/:subdomain');
+      return reply.code(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' },
       });
     }
   });

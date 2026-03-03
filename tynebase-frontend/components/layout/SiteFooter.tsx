@@ -45,6 +45,7 @@ export function SiteFooter({ currentPage }: SiteFooterProps) {
               <li><Link href="/community" className="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">Community</Link></li>
               <li><Link href="/blog" className="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">Blog</Link></li>
               <li><Link href="/docs" className="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">Documentation</Link></li>
+              <li><Link href="/public-documents" className="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">Public Documents</Link></li>
             </ul>
           </div>
 

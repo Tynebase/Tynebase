@@ -48,9 +48,9 @@ export async function GET(request: Request) {
         .single();
       
       if (userData?.tenant_id && userData.tenants && typeof userData.tenants === 'object' && 'subdomain' in userData.tenants) {
-        // User has tenant - redirect to tenant subdomain
-        const tenantSubdomain = (userData.tenants as { subdomain: string }).subdomain;
-        return NextResponse.redirect(`http://${tenantSubdomain}.tynebase.com${redirect}`);
+        // User has tenant - redirect to dashboard on the current origin
+        // (subdomain routing is handled by the frontend tenant context, not DNS)
+        return NextResponse.redirect(`${origin}${redirect}`);
       } else {
         // Individual user without tenant - redirect to main site dashboard
         return NextResponse.redirect(`${origin}/dashboard`);
