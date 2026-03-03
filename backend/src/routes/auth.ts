@@ -39,6 +39,44 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+// Helper to find an available subdomain, auto-appending suffix if needed
+async function findAvailableSubdomain(baseSubdomain: string, tier: string): Promise<{ subdomain: string; wasModified: boolean } | null> {
+  // Check if base subdomain is available
+  const { data: existing } = await supabaseAdmin
+    .from('tenants')
+    .select('id')
+    .eq('subdomain', baseSubdomain)
+    .single();
+
+  if (!existing) {
+    return { subdomain: baseSubdomain, wasModified: false };
+  }
+
+  // For Pro/Enterprise, don't auto-modify — user chose this subdomain
+  if (tier === 'pro' || tier === 'enterprise') {
+    return null; // Signal that subdomain is taken
+  }
+
+  // For Free/Base, try appending random suffix
+  for (let i = 0; i < 5; i++) {
+    const suffix = Math.random().toString(36).substring(2, 6); // 4 random chars
+    const candidate = `${baseSubdomain}-${suffix}`;
+    const { data: check } = await supabaseAdmin
+      .from('tenants')
+      .select('id')
+      .eq('subdomain', candidate)
+      .single();
+
+    if (!check) {
+      return { subdomain: candidate, wasModified: true };
+    }
+  }
+
+  // Fallback: use timestamp
+  const fallback = `${baseSubdomain}-${Date.now().toString(36)}`;
+  return { subdomain: fallback, wasModified: true };
+}
+
 export default async function authRoutes(fastify: FastifyInstance) {
   /**
    * POST /api/auth/signup
@@ -51,26 +89,22 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
       fastify.log.info({ subdomain, email }, 'Starting signup process');
 
-      // Check if subdomain already exists
-      const { data: existingTenant, error: checkError } = await supabaseAdmin
-        .from('tenants')
-        .select('id')
-        .eq('subdomain', subdomain)
-        .single();
-
-      if (existingTenant) {
+      // Find available subdomain (auto-suffix for Free/Base if taken)
+      const subdomainResult = await findAvailableSubdomain(subdomain, tier);
+      if (!subdomainResult) {
+        // Pro/Enterprise: subdomain is taken and we don't auto-modify
         return reply.code(400).send({
           error: {
             code: 'SUBDOMAIN_EXISTS',
-            message: 'Subdomain already taken',
+            message: 'This subdomain is already taken. Please choose a different one.',
             details: { subdomain },
           },
         });
       }
 
-      if (checkError && checkError.code !== 'PGRST116') {
-        fastify.log.error({ error: checkError }, 'Error checking subdomain');
-        throw checkError;
+      const finalSubdomain = subdomainResult.subdomain;
+      if (subdomainResult.wasModified) {
+        fastify.log.info({ original: subdomain, final: finalSubdomain }, 'Subdomain was modified to avoid collision');
       }
 
       // Create user in auth.users using Supabase Auth
@@ -106,7 +140,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
         const { data: tenant, error: tenantError } = await supabaseAdmin
           .from('tenants')
           .insert({
-            subdomain,
+            subdomain: finalSubdomain,
             name: tenant_name,
             tier: tier,
             settings: {},
@@ -361,17 +395,18 @@ export default async function authRoutes(fastify: FastifyInstance) {
         });
       }
 
-      // Check subdomain availability
-      const { data: existingSubdomain } = await supabaseAdmin
-        .from('tenants')
-        .select('id')
-        .eq('subdomain', subdomain)
-        .single();
-
-      if (existingSubdomain) {
+      // Find available subdomain (auto-suffix for Free/Base if taken)
+      const subdomainResult = await findAvailableSubdomain(subdomain, tier);
+      if (!subdomainResult) {
+        // Pro/Enterprise: subdomain is taken and we don't auto-modify
         return reply.code(400).send({
-          error: { code: 'SUBDOMAIN_EXISTS', message: 'Subdomain already taken', details: { subdomain } },
+          error: { code: 'SUBDOMAIN_EXISTS', message: 'This subdomain is already taken. Please choose a different one.', details: { subdomain } },
         });
+      }
+
+      const finalSubdomain = subdomainResult.subdomain;
+      if (subdomainResult.wasModified) {
+        fastify.log.info({ original: subdomain, final: finalSubdomain }, 'OAuth signup: subdomain modified to avoid collision');
       }
 
       // Get tier-specific limits
@@ -382,7 +417,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
       const { data: tenant, error: tenantError } = await supabaseAdmin
         .from('tenants')
         .insert({
-          subdomain,
+          subdomain: finalSubdomain,
           name: tenant_name,
           tier,
           settings: {},
