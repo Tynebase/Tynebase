@@ -4,8 +4,10 @@ import type { NextRequest } from 'next/server';
 /**
  * Next.js Middleware for Custom Domain Detection
  * 
- * When a request comes in on a custom domain (e.g., docs.acme.com),
- * we rewrite the URL to /portal/[domain] so the branded docs page is served.
+ * When a request comes in on a custom domain (e.g., docs.acme.com):
+ * - Root path → rewrite to /portal?domain=docs.acme.com (branded docs listing)
+ * - /docs/[id] → pass through (the doc reader page works for any domain)
+ * - Everything else on custom domain → rewrite to /portal
  * 
  * Known hosts (tynebase.com, localhost, vercel.app) are passed through normally.
  */
@@ -18,9 +20,7 @@ const KNOWN_HOSTS = [
 ];
 
 function isKnownHost(hostname: string): boolean {
-  // Remove port if present
   const host = hostname.split(':')[0];
-  
   return KNOWN_HOSTS.some(known => {
     if (host === known) return true;
     if (host.endsWith(`.${known}`)) return true;
@@ -37,21 +37,25 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // This is a custom domain request — rewrite to the portal page
-  // which will look up the tenant by domain and serve branded public docs
   const url = request.nextUrl.clone();
-  
-  // Only rewrite the root and common paths — don't rewrite API calls or assets
+  const { pathname } = url;
+
+  // Never rewrite static assets, API routes, or Next.js internals
   if (
-    url.pathname.startsWith('/api') ||
-    url.pathname.startsWith('/_next') ||
-    url.pathname.startsWith('/favicon') ||
-    url.pathname.includes('.')
+    pathname.startsWith('/api') ||
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/favicon') ||
+    pathname.includes('.')
   ) {
     return NextResponse.next();
   }
 
-  // Rewrite to /portal with the domain as a search param
+  // Let /docs/[id] pass through — the document reader works on any domain
+  if (pathname.startsWith('/docs/')) {
+    return NextResponse.next();
+  }
+
+  // Everything else on the custom domain → branded portal
   url.pathname = '/portal';
   url.searchParams.set('domain', host);
   
@@ -59,7 +63,6 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Match all paths except static files and API routes
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],

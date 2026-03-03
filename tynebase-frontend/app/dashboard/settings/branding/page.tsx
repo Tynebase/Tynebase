@@ -9,7 +9,7 @@ import { TIER_CONFIG, TierType } from "@/types/api";
 import { 
   Upload, Palette, Type, Globe, Eye, Check, Crown, Sparkles,
   Monitor, Smartphone, Sun, Moon, RefreshCw, Save, ExternalLink,
-  CheckCircle2, AlertCircle, Loader2
+  CheckCircle2, AlertCircle, Loader2, X
 } from "lucide-react";
 import { Modal, ModalFooter } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -302,7 +302,7 @@ export default function BrandingPage() {
             </div>
           </div>
 
-          {/* Custom Domain (Pro feature) */}
+          {/* Custom Domain (Pro feature) — Fully Automated */}
           <div className={`bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl overflow-hidden ${!canUseCustomDomain ? 'opacity-60' : ''}`}>
             <div className="px-7 py-5 border-b border-[var(--dash-border-subtle)] flex items-center justify-between">
               <h2 className="font-semibold text-[var(--dash-text-primary)] flex items-center gap-2">
@@ -314,69 +314,174 @@ export default function BrandingPage() {
                   Pro Feature
                 </span>
               ) : domainVerified ? (
-                <span className="text-xs px-2 py-1 bg-[var(--status-success-bg)] text-[var(--status-success)] rounded-full font-medium flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" /> Verified
+                <span className="text-xs px-2 py-1 bg-emerald-500/15 text-emerald-400 rounded-full font-medium flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" /> Live
                 </span>
               ) : brandSettings.customDomain ? (
                 <span className="text-xs px-2 py-1 bg-amber-500/10 text-amber-500 rounded-full font-medium flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3" /> Not verified
+                  <Loader2 className="w-3 h-3 animate-spin" /> Pending DNS
                 </span>
               ) : null}
             </div>
-            <div className="p-7 space-y-3">
-              <input
-                type="text"
-                value={brandSettings.customDomain}
-                onChange={(e) => { setBrandSettings({ ...brandSettings, customDomain: e.target.value }); setDomainVerified(false); setVerifyMessage(""); }}
-                disabled={!canUseCustomDomain}
-                className="w-full px-4 py-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] disabled:cursor-not-allowed transition-all"
-                placeholder="docs.yourcompany.com"
-              />
-              <div className="bg-[var(--surface-ground)] rounded-xl p-4 text-xs space-y-2">
-                <p className="font-medium text-[var(--dash-text-secondary)]">Setup instructions:</p>
-                <ol className="list-decimal list-inside space-y-1 text-[var(--dash-text-muted)]">
-                  <li>Enter your domain above and save</li>
-                  <li>Add a CNAME record pointing to <code className="px-1.5 py-0.5 bg-[var(--surface-card)] rounded text-[var(--dash-text-secondary)]">cname.vercel-dns.com</code></li>
-                  <li>Click &quot;Verify Domain&quot; once DNS propagates (can take up to 24h)</li>
-                  <li>Your clients can then visit your domain to see your branded docs</li>
-                </ol>
+            <div className="p-7 space-y-4">
+              <div>
+                <label className="text-xs font-medium text-[var(--dash-text-secondary)] mb-1.5 block">Your domain</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={brandSettings.customDomain}
+                    onChange={(e) => { setBrandSettings({ ...brandSettings, customDomain: e.target.value.toLowerCase().replace(/[^a-z0-9.\-]/g, '') }); setDomainVerified(false); setVerifyMessage(""); }}
+                    disabled={!canUseCustomDomain}
+                    className="flex-1 px-4 py-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] disabled:cursor-not-allowed transition-all font-mono text-sm"
+                    placeholder="docs.yourcompany.com"
+                  />
+                  {canUseCustomDomain && brandSettings.customDomain && (
+                    <button
+                      onClick={() => { setBrandSettings({ ...brandSettings, customDomain: "" }); setDomainVerified(false); setVerifyMessage(""); }}
+                      className="px-3 py-2 rounded-xl text-[var(--dash-text-muted)] hover:text-red-400 hover:bg-red-500/10 transition-all text-sm"
+                      title="Remove domain"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {/* Automated provisioning status */}
               {canUseCustomDomain && brandSettings.customDomain && (
-                <button
-                  onClick={async () => {
-                    if (!tenant?.id) return;
-                    setVerifying(true);
-                    setVerifyMessage("");
-                    try {
-                      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/tenants/${tenant.id}/verify-domain`, {
-                        method: 'POST',
-                        headers: {
-                          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-                          'Content-Type': 'application/json',
-                        },
-                      });
-                      const data = await res.json();
-                      const result = data.data || data;
-                      setDomainVerified(result.verified);
-                      setVerifyMessage(result.message || (result.verified ? 'Verified!' : 'Not yet verified'));
-                    } catch {
-                      setVerifyMessage('Failed to verify domain');
-                    } finally {
-                      setVerifying(false);
-                    }
-                  }}
-                  disabled={verifying}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                  style={{ background: 'var(--brand)', color: '#fff', opacity: verifying ? 0.6 : 1 }}
-                >
-                  {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
-                  Verify Domain
-                </button>
+                <div className="bg-[var(--surface-ground)] rounded-xl p-4 space-y-3">
+                  <p className="text-xs font-semibold text-[var(--dash-text-secondary)] uppercase tracking-wider">Provisioning Status</p>
+                  
+                  {/* Step 1: Domain saved */}
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-[var(--dash-text-primary)] font-medium">Domain registered</p>
+                      <p className="text-xs text-[var(--dash-text-muted)]">
+                        <span className="font-mono text-[var(--brand)]">{brandSettings.customDomain}</span> will be auto-provisioned on save
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Step 2: DNS config */}
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5">
+                      {domainVerified ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 text-amber-500" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm text-[var(--dash-text-primary)] font-medium">
+                        {domainVerified ? 'DNS configured' : 'Configure DNS'}
+                      </p>
+                      {!domainVerified && (
+                        <div className="text-xs text-[var(--dash-text-muted)] mt-1 space-y-1">
+                          <p>Add this CNAME record at your DNS provider:</p>
+                          <div className="flex items-center gap-2 bg-[var(--surface-card)] rounded-lg px-3 py-2 font-mono text-[11px] mt-1">
+                            <span className="text-[var(--dash-text-muted)]">CNAME</span>
+                            <span className="text-[var(--dash-text-primary)]">{brandSettings.customDomain.split('.')[0]}</span>
+                            <span className="text-[var(--dash-text-muted)]">→</span>
+                            <span className="text-[var(--brand)]">cname.vercel-dns.com</span>
+                            <button
+                              onClick={() => { navigator.clipboard.writeText('cname.vercel-dns.com'); addToast({ type: 'success', title: 'Copied!', description: 'CNAME target copied to clipboard' }); }}
+                              className="ml-auto text-[var(--dash-text-muted)] hover:text-[var(--brand)] transition-colors"
+                            >
+                              <Save className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Step 3: SSL + Live */}
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5">
+                      {domainVerified ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      ) : (
+                        <div className="w-4 h-4 rounded-full border-2 border-[var(--dash-border-subtle)]" />
+                      )}
+                    </div>
+                    <div>
+                      <p className={`text-sm font-medium ${domainVerified ? 'text-[var(--dash-text-primary)]' : 'text-[var(--dash-text-muted)]'}`}>
+                        {domainVerified ? 'SSL provisioned & live' : 'SSL & go live'}
+                      </p>
+                      <p className="text-xs text-[var(--dash-text-muted)]">
+                        {domainVerified 
+                          ? 'Your branded docs page is live and serving traffic'
+                          : 'SSL auto-provisions once DNS propagates (up to 24h)'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Check status button */}
+                  {!domainVerified && (
+                    <button
+                      onClick={async () => {
+                        if (!tenant?.id) return;
+                        setVerifying(true);
+                        setVerifyMessage("");
+                        try {
+                          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/tenants/${tenant.id}/verify-domain`, {
+                            method: 'POST',
+                            headers: {
+                              'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                              'Content-Type': 'application/json',
+                            },
+                          });
+                          const data = await res.json();
+                          const result = data.data || data;
+                          setDomainVerified(result.verified || result.configured);
+                          setVerifyMessage(result.message || '');
+                        } catch {
+                          setVerifyMessage('Failed to check domain status');
+                        } finally {
+                          setVerifying(false);
+                        }
+                      }}
+                      disabled={verifying}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border border-[var(--dash-border-subtle)] hover:border-[var(--brand)] text-[var(--dash-text-secondary)] hover:text-[var(--brand)]"
+                    >
+                      {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                      Check DNS Status
+                    </button>
+                  )}
+
+                  {verifyMessage && (
+                    <p className={`text-xs ${domainVerified ? 'text-emerald-400' : 'text-amber-500'}`}>
+                      {verifyMessage}
+                    </p>
+                  )}
+
+                  {/* Live link */}
+                  {domainVerified && (
+                    <a
+                      href={`https://${brandSettings.customDomain}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-[var(--brand)] hover:underline"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Visit https://{brandSettings.customDomain}
+                    </a>
+                  )}
+                </div>
               )}
-              {verifyMessage && (
-                <p className={`text-xs ${domainVerified ? 'text-[var(--status-success)]' : 'text-amber-500'}`}>
-                  {verifyMessage}
-                </p>
+
+              {/* Empty state */}
+              {canUseCustomDomain && !brandSettings.customDomain && (
+                <div className="bg-[var(--surface-ground)] rounded-xl p-4 text-center">
+                  <Globe className="w-8 h-8 mx-auto mb-2 text-[var(--dash-text-muted)] opacity-40" />
+                  <p className="text-sm text-[var(--dash-text-muted)]">Enter a domain to get started</p>
+                  <p className="text-xs text-[var(--dash-text-muted)] mt-1 opacity-70">
+                    Your clients will see a branded documentation page at your domain
+                  </p>
+                </div>
               )}
             </div>
           </div>

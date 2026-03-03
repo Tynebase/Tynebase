@@ -4,7 +4,7 @@ import { supabaseAdmin } from '../lib/supabase';
 import { authMiddleware } from '../middleware/auth';
 import { rateLimitMiddleware } from '../middleware/rateLimit';
 import { writeAuditLog, getClientIp } from '../lib/auditLog';
-import dns from 'dns/promises';
+import { addDomainToVercel, removeDomainFromVercel, getDomainConfig, isVercelConfigured } from '../lib/vercelDomains';
 
 /**
  * Zod schema for tenant settings validation
@@ -160,7 +160,11 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
         }
 
         if (body.custom_domain === null || body.custom_domain === '') {
-          // Remove custom domain
+          // Remove custom domain — also remove from Vercel
+          if (existingTenant.custom_domain && isVercelConfigured()) {
+            const removeResult = await removeDomainFromVercel(existingTenant.custom_domain);
+            fastify.log.info({ domain: existingTenant.custom_domain, result: removeResult }, 'Removed domain from Vercel');
+          }
           updateData.custom_domain = null;
           updateData.custom_domain_verified = false;
         } else {
@@ -181,8 +185,24 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
               },
             });
           }
+
+          // Auto-provision on Vercel
+          if (isVercelConfigured()) {
+            // Remove old domain if changing
+            if (existingTenant.custom_domain && existingTenant.custom_domain !== body.custom_domain) {
+              await removeDomainFromVercel(existingTenant.custom_domain);
+            }
+            const addResult = await addDomainToVercel(body.custom_domain);
+            fastify.log.info({ domain: body.custom_domain, result: addResult }, 'Added domain to Vercel');
+
+            if (addResult.error) {
+              fastify.log.warn({ domain: body.custom_domain, error: addResult.error }, 'Vercel domain add warning');
+              // Don't block save — domain is stored, Vercel provisioning can be retried
+            }
+          }
+
           updateData.custom_domain = body.custom_domain;
-          updateData.custom_domain_verified = false; // Reset until verified
+          updateData.custom_domain_verified = false; // Will be verified once DNS propagates
         }
       }
       if (body.settings !== undefined) {
@@ -318,7 +338,7 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
 
   /**
    * POST /api/tenants/:id/verify-domain
-   * Verify custom domain ownership by checking DNS CNAME record
+   * Verify custom domain — checks Vercel config status (preferred) or falls back to DNS
    */
   fastify.post('/api/tenants/:id/verify-domain', {
     preHandler: authMiddleware,
@@ -353,23 +373,46 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
       if (tenant.custom_domain_verified) {
         return reply.code(200).send({
           success: true,
-          data: { verified: true, domain: tenant.custom_domain },
+          data: { verified: true, configured: true, domain: tenant.custom_domain, message: 'Domain is verified and active' },
         });
       }
 
-      // Check DNS CNAME record
       let verified = false;
-      try {
-        const records = await dns.resolveCname(tenant.custom_domain);
-        // Accept if CNAME points to cname.vercel-dns.com or our app domain
-        verified = records.some(r =>
-          r.endsWith('.vercel-dns.com') ||
-          r.endsWith('.vercel.app') ||
-          r === 'app.tynebase.com'
-        );
-      } catch {
-        // DNS lookup failed - domain not configured
-        verified = false;
+      let configured = false;
+      let message = '';
+
+      if (isVercelConfigured()) {
+        // Use Vercel API for comprehensive status
+        const config = await getDomainConfig(tenant.custom_domain);
+        verified = config.configured;
+        configured = config.configured;
+
+        if (config.error === 'Domain not found on Vercel project') {
+          // Domain was saved but not added to Vercel — try adding now
+          const addResult = await addDomainToVercel(tenant.custom_domain);
+          fastify.log.info({ domain: tenant.custom_domain, result: addResult }, 'Re-added domain to Vercel during verify');
+          message = 'Domain added to Vercel. Point your CNAME to cname.vercel-dns.com and check again in a few minutes.';
+        } else if (!configured) {
+          message = 'DNS not yet pointing to Vercel. Add a CNAME record pointing to cname.vercel-dns.com — it can take up to 24h to propagate.';
+        } else {
+          message = 'Domain verified and active! SSL certificate has been provisioned automatically.';
+        }
+      } else {
+        // Fallback: direct DNS check
+        try {
+          const dns = await import('dns/promises');
+          const records = await dns.resolveCname(tenant.custom_domain);
+          verified = records.some((r: string) =>
+            r.endsWith('.vercel-dns.com') ||
+            r.endsWith('.vercel.app') ||
+            r === 'app.tynebase.com'
+          );
+        } catch {
+          verified = false;
+        }
+        message = verified
+          ? 'Domain verified successfully'
+          : 'CNAME not found. Point your domain to cname.vercel-dns.com';
       }
 
       if (verified) {
@@ -381,13 +424,7 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
 
       return reply.code(200).send({
         success: true,
-        data: {
-          verified,
-          domain: tenant.custom_domain,
-          message: verified
-            ? 'Domain verified successfully'
-            : 'CNAME not found. Point your domain to cname.vercel-dns.com',
-        },
+        data: { verified, configured, domain: tenant.custom_domain, message },
       });
     } catch (error) {
       fastify.log.error({ error }, 'Error verifying domain');

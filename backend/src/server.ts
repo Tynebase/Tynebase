@@ -6,6 +6,42 @@ import { env, isDev } from './config/env';
 import { getLoggerConfig } from './config/logger';
 import { requestLoggerMiddleware } from './middleware/requestLogger';
 import { errorHandler } from './middleware/errorHandler';
+import { supabaseAdmin } from './lib/supabase';
+
+/**
+ * Dynamic CORS: cache verified custom domains so we don't query DB on every request.
+ * Cache refreshes every 5 minutes.
+ */
+let customDomainCache: Set<string> = new Set();
+let customDomainCacheTime = 0;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+async function refreshCustomDomainCache() {
+  try {
+    const { data } = await supabaseAdmin
+      .from('tenants')
+      .select('custom_domain')
+      .not('custom_domain', 'is', null)
+      .eq('custom_domain_verified', true);
+    if (data) {
+      customDomainCache = new Set(
+        data.map((t: any) => `https://${t.custom_domain}`).filter(Boolean)
+      );
+    }
+    customDomainCacheTime = Date.now();
+  } catch {
+    // Silently fail — keep old cache
+  }
+}
+
+async function isAllowedOrigin(origin: string, staticOrigins: string[]): Promise<boolean> {
+  if (staticOrigins.includes(origin)) return true;
+  // Refresh cache if stale
+  if (Date.now() - customDomainCacheTime > CACHE_TTL) {
+    await refreshCustomDomainCache();
+  }
+  return customDomainCache.has(origin);
+}
 
 const buildServer = () => {
   const fastify = Fastify({
@@ -36,15 +72,15 @@ const start = async () => {
       },
     });
 
-    const allowedOrigins = env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim());
+    const staticOrigins = env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim());
+    // Pre-load custom domain cache at startup
+    await refreshCustomDomainCache();
     
     await fastify.register(cors, {
-      origin: (origin, cb) => {
-        if (!origin || allowedOrigins.includes(origin)) {
-          cb(null, true);
-          return;
-        }
-        cb(new Error('Not allowed by CORS'), false);
+      origin: async (origin) => {
+        if (!origin) return true;
+        const allowed = await isAllowedOrigin(origin, staticOrigins);
+        return allowed;
       },
       credentials: true,
     });
