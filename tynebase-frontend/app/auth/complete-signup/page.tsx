@@ -148,18 +148,26 @@ export default function CompleteSignupPage() {
 
       // Call backend to complete the signup (create tenant + user record)
       const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
+      
+      // Build request body — only include subdomain for Pro/Enterprise
+      const requestBody: Record<string, string> = {
+        tenant_name: data.workspaceName,
+        tier: selectedTier,
+        full_name: user.user_metadata?.full_name || user.user_metadata?.name || "",
+      };
+      
+      // Only Pro/Enterprise get subdomains (white-label feature)
+      if ((selectedTier === "pro" || selectedTier === "enterprise") && selectedSubdomain) {
+        requestBody.subdomain = selectedSubdomain;
+      }
+
       const response = await fetch(`${apiBase}/api/auth/complete-oauth-signup`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.session.access_token}`,
         },
-        body: JSON.stringify({
-          tenant_name: data.workspaceName,
-          subdomain: selectedSubdomain || user.email?.split("@")[0]?.toLowerCase().replace(/[^a-z0-9]/g, "-") || "workspace",
-          tier: selectedTier,
-          full_name: user.user_metadata?.full_name || user.user_metadata?.name || "",
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const result = await response.json();

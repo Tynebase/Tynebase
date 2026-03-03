@@ -29,7 +29,8 @@ const signupSchema = z.object({
     .max(63, 'Subdomain must be at most 63 characters')
     .regex(/^[a-z0-9-]+$/, 'Subdomain must contain only lowercase letters, numbers, and hyphens')
     .regex(/^[a-z0-9]/, 'Subdomain must start with a letter or number')
-    .regex(/[a-z0-9]$/, 'Subdomain must end with a letter or number'),
+    .regex(/[a-z0-9]$/, 'Subdomain must end with a letter or number')
+    .optional(),
   full_name: z.string().optional(),
   tier: z.enum(['free', 'base', 'pro', 'enterprise']).optional().default('free'),
 });
@@ -39,42 +40,14 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
-// Helper to find an available subdomain, auto-appending suffix if needed
-async function findAvailableSubdomain(baseSubdomain: string, tier: string): Promise<{ subdomain: string; wasModified: boolean } | null> {
-  // Check if base subdomain is available
+// Check if subdomain is available (for Pro/Enterprise tiers only)
+async function checkSubdomainAvailable(subdomain: string): Promise<boolean> {
   const { data: existing } = await supabaseAdmin
     .from('tenants')
     .select('id')
-    .eq('subdomain', baseSubdomain)
+    .eq('subdomain', subdomain)
     .single();
-
-  if (!existing) {
-    return { subdomain: baseSubdomain, wasModified: false };
-  }
-
-  // For Pro/Enterprise, don't auto-modify — user chose this subdomain
-  if (tier === 'pro' || tier === 'enterprise') {
-    return null; // Signal that subdomain is taken
-  }
-
-  // For Free/Base, try appending random suffix
-  for (let i = 0; i < 5; i++) {
-    const suffix = Math.random().toString(36).substring(2, 6); // 4 random chars
-    const candidate = `${baseSubdomain}-${suffix}`;
-    const { data: check } = await supabaseAdmin
-      .from('tenants')
-      .select('id')
-      .eq('subdomain', candidate)
-      .single();
-
-    if (!check) {
-      return { subdomain: candidate, wasModified: true };
-    }
-  }
-
-  // Fallback: use timestamp
-  const fallback = `${baseSubdomain}-${Date.now().toString(36)}`;
-  return { subdomain: fallback, wasModified: true };
+  return !existing;
 }
 
 export default async function authRoutes(fastify: FastifyInstance) {
@@ -87,24 +60,34 @@ export default async function authRoutes(fastify: FastifyInstance) {
       const body = signupSchema.parse(request.body);
       const { email, password, tenant_name, subdomain, full_name, tier } = body;
 
-      fastify.log.info({ subdomain, email }, 'Starting signup process');
+      fastify.log.info({ subdomain, email, tier }, 'Starting signup process');
 
-      // Find available subdomain (auto-suffix for Free/Base if taken)
-      const subdomainResult = await findAvailableSubdomain(subdomain, tier);
-      if (!subdomainResult) {
-        // Pro/Enterprise: subdomain is taken and we don't auto-modify
-        return reply.code(400).send({
-          error: {
-            code: 'SUBDOMAIN_EXISTS',
-            message: 'This subdomain is already taken. Please choose a different one.',
-            details: { subdomain },
-          },
-        });
-      }
+      // Subdomain logic:
+      // - Free/Base: no subdomain (null) — users access via main app
+      // - Pro/Enterprise: custom subdomain required
+      let finalSubdomain: string | null = null;
 
-      const finalSubdomain = subdomainResult.subdomain;
-      if (subdomainResult.wasModified) {
-        fastify.log.info({ original: subdomain, final: finalSubdomain }, 'Subdomain was modified to avoid collision');
+      if (tier === 'pro' || tier === 'enterprise') {
+        if (!subdomain) {
+          return reply.code(400).send({
+            error: {
+              code: 'SUBDOMAIN_REQUIRED',
+              message: 'Pro and Enterprise plans require a custom subdomain.',
+              details: {},
+            },
+          });
+        }
+        const isAvailable = await checkSubdomainAvailable(subdomain);
+        if (!isAvailable) {
+          return reply.code(400).send({
+            error: {
+              code: 'SUBDOMAIN_EXISTS',
+              message: 'This subdomain is already taken. Please choose a different one.',
+              details: { subdomain },
+            },
+          });
+        }
+        finalSubdomain = subdomain;
       }
 
       // Create user in auth.users using Supabase Auth
@@ -340,7 +323,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
           .max(63)
           .regex(/^[a-z0-9-]+$/, 'Subdomain must contain only lowercase letters, numbers, and hyphens')
           .regex(/^[a-z0-9]/, 'Subdomain must start with a letter or number')
-          .regex(/[a-z0-9]$/, 'Subdomain must end with a letter or number'),
+          .regex(/[a-z0-9]$/, 'Subdomain must end with a letter or number')
+          .optional(), // Only required for Pro/Enterprise
         tier: z.enum(['free', 'base', 'pro', 'enterprise']).optional().default('free'),
         full_name: z.string().optional(),
       });
@@ -395,18 +379,24 @@ export default async function authRoutes(fastify: FastifyInstance) {
         });
       }
 
-      // Find available subdomain (auto-suffix for Free/Base if taken)
-      const subdomainResult = await findAvailableSubdomain(subdomain, tier);
-      if (!subdomainResult) {
-        // Pro/Enterprise: subdomain is taken and we don't auto-modify
-        return reply.code(400).send({
-          error: { code: 'SUBDOMAIN_EXISTS', message: 'This subdomain is already taken. Please choose a different one.', details: { subdomain } },
-        });
-      }
+      // Subdomain logic:
+      // - Free/Base: no subdomain (null) — users access via main app
+      // - Pro/Enterprise: custom subdomain required
+      let finalSubdomain: string | null = null;
 
-      const finalSubdomain = subdomainResult.subdomain;
-      if (subdomainResult.wasModified) {
-        fastify.log.info({ original: subdomain, final: finalSubdomain }, 'OAuth signup: subdomain modified to avoid collision');
+      if (tier === 'pro' || tier === 'enterprise') {
+        if (!subdomain) {
+          return reply.code(400).send({
+            error: { code: 'SUBDOMAIN_REQUIRED', message: 'Pro and Enterprise plans require a custom subdomain.', details: {} },
+          });
+        }
+        const isAvailable = await checkSubdomainAvailable(subdomain);
+        if (!isAvailable) {
+          return reply.code(400).send({
+            error: { code: 'SUBDOMAIN_EXISTS', message: 'This subdomain is already taken. Please choose a different one.', details: { subdomain } },
+          });
+        }
+        finalSubdomain = subdomain;
       }
 
       // Get tier-specific limits

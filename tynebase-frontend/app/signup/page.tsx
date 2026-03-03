@@ -127,22 +127,22 @@ export default function SignupPage() {
   const doSignup = async (selectedTier: TierType) => {
     setIsLoading(true);
     try {
-      // Subdomain: use custom for Pro, auto-generate for others
-      let finalSubdomain: string;
-      if (selectedTier === "pro" && subdomain) {
-        finalSubdomain = subdomain;
-      } else {
-        finalSubdomain = email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/^-|-$/g, "") || "workspace";
-      }
-
-      await signup({
+      // Subdomain: only for Pro/Enterprise (white-label feature)
+      // Free/Base users access via main app (no subdomain)
+      const signupData: Parameters<typeof signup>[0] = {
         email,
         password,
         tenant_name: workspaceName,
-        subdomain: finalSubdomain,
         full_name: fullName,
         tier: selectedTier,
-      });
+      };
+
+      // Only include subdomain for Pro/Enterprise
+      if ((selectedTier === "pro" || selectedTier === "enterprise") && subdomain) {
+        signupData.subdomain = subdomain;
+      }
+
+      await signup(signupData);
 
       addToast({ type: "success", title: "Welcome to TyneBase!", description: "Redirecting to your dashboard..." });
       await new Promise(r => setTimeout(r, 400));

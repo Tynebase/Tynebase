@@ -228,7 +228,7 @@ export interface SignupRequest {
   email: string;
   password: string;
   tenant_name: string;
-  subdomain: string;
+  subdomain?: string; // Only for Pro/Enterprise (white-label feature)
   full_name?: string;
   tier?: TierType;
 }
