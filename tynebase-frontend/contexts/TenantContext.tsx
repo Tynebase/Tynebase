@@ -28,7 +28,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [branding, setBranding] = useState<TenantBranding | null>(null);
   const [subdomain, setSubdomain] = useState<string | null>(null);
 
-  // Extract subdomain from hostname
+  // Extract subdomain from hostname or resolve from custom domain
   useEffect(() => {
     const hostname = window.location.hostname;
     const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || "tynebase.com";
@@ -44,6 +44,30 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     // Also check localStorage for subdomain (set during login/signup)
     if (!extractedSubdomain || extractedSubdomain === "www") {
       extractedSubdomain = localStorage.getItem("tenant_subdomain");
+    }
+
+    // Custom domain fallback: if no subdomain found, check cookie set by middleware
+    if (!extractedSubdomain) {
+      const cookies = document.cookie.split(";").map(c => c.trim());
+      const domainCookie = cookies.find(c => c.startsWith("x-custom-domain="));
+      if (domainCookie) {
+        const customDomain = domainCookie.split("=")[1];
+        if (customDomain) {
+          // Resolve tenant subdomain from custom domain via API
+          const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+          fetch(`${baseUrl}/api/public/tenant-by-domain?domain=${encodeURIComponent(customDomain)}`)
+            .then(res => res.ok ? res.json() : null)
+            .then(data => {
+              const resolved = data?.data?.tenant?.subdomain;
+              if (resolved) {
+                localStorage.setItem("tenant_subdomain", resolved);
+                setSubdomain(resolved);
+              }
+            })
+            .catch(() => {});
+          return; // Don't set subdomain yet — async resolution in progress
+        }
+      }
     }
     
     setSubdomain(extractedSubdomain);

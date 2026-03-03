@@ -6,9 +6,9 @@
  * SSL provisioning and routing automatically once the CNAME is pointed.
  * 
  * Required env vars:
- *   VERCEL_API_TOKEN   – personal or team token from vercel.com/account/tokens
+ *   VERCEL_API_TOKEN   – personal token from vercel.com/account/tokens
  *   VERCEL_PROJECT_ID  – project ID from Vercel dashboard → Settings → General
- *   VERCEL_TEAM_ID     – (optional) team/org ID if project belongs to a team
+ *   VERCEL_TEAM_ID     – (optional) only needed if project belongs to a Vercel team
  */
 
 const VERCEL_API = 'https://api.vercel.com';
