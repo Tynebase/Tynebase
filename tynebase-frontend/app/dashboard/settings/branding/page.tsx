@@ -9,7 +9,7 @@ import { TIER_CONFIG, TierType } from "@/types/api";
 import { 
   Upload, Palette, Type, Globe, Eye, Check, Crown, Sparkles,
   Monitor, Smartphone, Sun, Moon, RefreshCw, Save, ExternalLink,
-  CheckCircle2, AlertCircle, Loader2, X
+  CheckCircle2
 } from "lucide-react";
 import { Modal, ModalFooter } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -32,21 +32,15 @@ export default function BrandingPage() {
     logoLight: null as File | null,
     logoDark: null as File | null,
     favicon: null as File | null,
-    customDomain: (tenant as any)?.custom_domain || "",
     customCss: "",
     hideWatermark: true,
     customFonts: false,
     fontHeading: "Helvetica Neue",
     fontBody: "Inter",
   });
-  const [domainVerified, setDomainVerified] = useState((tenant as any)?.custom_domain_verified || false);
-  const [verifying, setVerifying] = useState(false);
-  const [verifyMessage, setVerifyMessage] = useState("");
-
   // Get tier-based feature access from context
   const currentTier = tenant?.tier || 'free';
   const canUseWhiteLabel = canUseFeature('whiteLabel');
-  const canUseCustomDomain = canUseFeature('customDomain');
 
   const handleSave = async () => {
     if (!tenant?.id) {
@@ -71,11 +65,6 @@ export default function BrandingPage() {
           },
         },
       };
-
-      // Include custom domain if feature is available
-      if (canUseCustomDomain) {
-        updatePayload.custom_domain = brandSettings.customDomain.trim().toLowerCase() || null;
-      }
 
       // Call backend API to update tenant settings
       await updateTenant(tenant.id, updatePayload);
@@ -302,187 +291,33 @@ export default function BrandingPage() {
             </div>
           </div>
 
-          {/* Custom Domain (Pro feature) — Fully Automated */}
-          <div className={`bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl overflow-hidden ${!canUseCustomDomain ? 'opacity-60' : ''}`}>
+          {/* Branded Subdomain (Pro/Enterprise) */}
+          <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl overflow-hidden">
             <div className="px-7 py-5 border-b border-[var(--dash-border-subtle)] flex items-center justify-between">
               <h2 className="font-semibold text-[var(--dash-text-primary)] flex items-center gap-2">
                 <Globe className="w-5 h-5 text-[var(--brand)]" />
-                Custom Domain
+                Your Branded URL
               </h2>
-              {!canUseCustomDomain ? (
-                <span className="text-xs px-2 py-1 bg-[var(--accent-purple)]/10 text-[var(--accent-purple)] rounded-full font-medium">
-                  Pro Feature
-                </span>
-              ) : domainVerified ? (
-                <span className="text-xs px-2 py-1 bg-emerald-500/15 text-emerald-400 rounded-full font-medium flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" /> Live
-                </span>
-              ) : brandSettings.customDomain ? (
-                <span className="text-xs px-2 py-1 bg-amber-500/10 text-amber-500 rounded-full font-medium flex items-center gap-1">
-                  <Loader2 className="w-3 h-3 animate-spin" /> Pending DNS
-                </span>
-              ) : null}
+              <span className="text-xs px-2 py-1 bg-emerald-500/15 text-emerald-400 rounded-full font-medium flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" /> Active
+              </span>
             </div>
             <div className="p-7 space-y-4">
-              <div>
-                <label className="text-xs font-medium text-[var(--dash-text-secondary)] mb-1.5 block">Your domain</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={brandSettings.customDomain}
-                    onChange={(e) => { setBrandSettings({ ...brandSettings, customDomain: e.target.value.toLowerCase().replace(/[^a-z0-9.\-]/g, '') }); setDomainVerified(false); setVerifyMessage(""); }}
-                    disabled={!canUseCustomDomain}
-                    className="flex-1 px-4 py-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] disabled:cursor-not-allowed transition-all font-mono text-sm"
-                    placeholder="docs.yourcompany.com"
-                  />
-                  {canUseCustomDomain && brandSettings.customDomain && (
-                    <button
-                      onClick={() => { setBrandSettings({ ...brandSettings, customDomain: "" }); setDomainVerified(false); setVerifyMessage(""); }}
-                      className="px-3 py-2 rounded-xl text-[var(--dash-text-muted)] hover:text-red-400 hover:bg-red-500/10 transition-all text-sm"
-                      title="Remove domain"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
+              <div className="bg-[var(--surface-ground)] rounded-xl p-4">
+                <p className="text-xs font-medium text-[var(--dash-text-secondary)] mb-2">Your workspace is live at:</p>
+                <a
+                  href={`https://${tenant?.subdomain}.tynebase.com`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-[var(--brand)] font-mono text-sm hover:underline"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  {tenant?.subdomain}.tynebase.com
+                </a>
               </div>
-
-              {/* Automated provisioning status */}
-              {canUseCustomDomain && brandSettings.customDomain && (
-                <div className="bg-[var(--surface-ground)] rounded-xl p-4 space-y-3">
-                  <p className="text-xs font-semibold text-[var(--dash-text-secondary)] uppercase tracking-wider">Provisioning Status</p>
-                  
-                  {/* Step 1: Domain saved */}
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-[var(--dash-text-primary)] font-medium">Domain registered</p>
-                      <p className="text-xs text-[var(--dash-text-muted)]">
-                        <span className="font-mono text-[var(--brand)]">{brandSettings.customDomain}</span> will be auto-provisioned on save
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Step 2: DNS config */}
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5">
-                      {domainVerified ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      ) : (
-                        <AlertCircle className="w-4 h-4 text-amber-500" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-sm text-[var(--dash-text-primary)] font-medium">
-                        {domainVerified ? 'DNS configured' : 'Configure DNS'}
-                      </p>
-                      {!domainVerified && (
-                        <div className="text-xs text-[var(--dash-text-muted)] mt-1 space-y-1">
-                          <p>Add this CNAME record at your DNS provider:</p>
-                          <div className="flex items-center gap-2 bg-[var(--surface-card)] rounded-lg px-3 py-2 font-mono text-[11px] mt-1">
-                            <span className="text-[var(--dash-text-muted)]">CNAME</span>
-                            <span className="text-[var(--dash-text-primary)]">{brandSettings.customDomain.split('.')[0]}</span>
-                            <span className="text-[var(--dash-text-muted)]">→</span>
-                            <span className="text-[var(--brand)]">cname.vercel-dns.com</span>
-                            <button
-                              onClick={() => { navigator.clipboard.writeText('cname.vercel-dns.com'); addToast({ type: 'success', title: 'Copied!', description: 'CNAME target copied to clipboard' }); }}
-                              className="ml-auto text-[var(--dash-text-muted)] hover:text-[var(--brand)] transition-colors"
-                            >
-                              <Save className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Step 3: SSL + Live */}
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5">
-                      {domainVerified ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      ) : (
-                        <div className="w-4 h-4 rounded-full border-2 border-[var(--dash-border-subtle)]" />
-                      )}
-                    </div>
-                    <div>
-                      <p className={`text-sm font-medium ${domainVerified ? 'text-[var(--dash-text-primary)]' : 'text-[var(--dash-text-muted)]'}`}>
-                        {domainVerified ? 'SSL provisioned & live' : 'SSL & go live'}
-                      </p>
-                      <p className="text-xs text-[var(--dash-text-muted)]">
-                        {domainVerified 
-                          ? 'Your branded docs page is live and serving traffic'
-                          : 'SSL auto-provisions once DNS propagates (up to 24h)'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Check status button */}
-                  {!domainVerified && (
-                    <button
-                      onClick={async () => {
-                        if (!tenant?.id) return;
-                        setVerifying(true);
-                        setVerifyMessage("");
-                        try {
-                          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/tenants/${tenant.id}/verify-domain`, {
-                            method: 'POST',
-                            headers: {
-                              'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-                              'Content-Type': 'application/json',
-                            },
-                          });
-                          const data = await res.json();
-                          const result = data.data || data;
-                          setDomainVerified(result.verified || result.configured);
-                          setVerifyMessage(result.message || '');
-                        } catch {
-                          setVerifyMessage('Failed to check domain status');
-                        } finally {
-                          setVerifying(false);
-                        }
-                      }}
-                      disabled={verifying}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border border-[var(--dash-border-subtle)] hover:border-[var(--brand)] text-[var(--dash-text-secondary)] hover:text-[var(--brand)]"
-                    >
-                      {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                      Check DNS Status
-                    </button>
-                  )}
-
-                  {verifyMessage && (
-                    <p className={`text-xs ${domainVerified ? 'text-emerald-400' : 'text-amber-500'}`}>
-                      {verifyMessage}
-                    </p>
-                  )}
-
-                  {/* Live link */}
-                  {domainVerified && (
-                    <a
-                      href={`https://${brandSettings.customDomain}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-sm text-[var(--brand)] hover:underline"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      Visit https://{brandSettings.customDomain}
-                    </a>
-                  )}
-                </div>
-              )}
-
-              {/* Empty state */}
-              {canUseCustomDomain && !brandSettings.customDomain && (
-                <div className="bg-[var(--surface-ground)] rounded-xl p-4 text-center">
-                  <Globe className="w-8 h-8 mx-auto mb-2 text-[var(--dash-text-muted)] opacity-40" />
-                  <p className="text-sm text-[var(--dash-text-muted)]">Enter a domain to get started</p>
-                  <p className="text-xs text-[var(--dash-text-muted)] mt-1 opacity-70">
-                    Your clients will see a branded documentation page at your domain
-                  </p>
-                </div>
-              )}
+              <p className="text-xs text-[var(--dash-text-muted)]">
+                All pages at this URL use your brand colours, logo and company name. Share this URL with your team and clients for a fully branded experience.
+              </p>
             </div>
           </div>
 

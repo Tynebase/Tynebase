@@ -16,8 +16,6 @@ export interface Tenant {
   tier: 'free' | 'base' | 'pro' | 'enterprise';
   settings: TenantSettings;
   storage_limit: number;
-  custom_domain?: string | null;
-  custom_domain_verified?: boolean;
   created_at: string;
   updated_at: string;
 }

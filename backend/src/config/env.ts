@@ -23,11 +23,6 @@ const envSchema = z.object({
   RATE_LIMIT_AI: z.string().default('10'),
   RATE_LIMIT_WINDOW_AI: z.string().default('60000'),
   
-  // Vercel Domains API (optional - for automated custom domain provisioning)
-  VERCEL_API_TOKEN: z.string().optional(),
-  VERCEL_PROJECT_ID: z.string().optional(),
-  VERCEL_TEAM_ID: z.string().optional(),
-  
   // Axiom logging configuration (optional)
   AXIOM_DATASET: z.string().optional(),
   AXIOM_TOKEN: z.string().optional(),
