@@ -711,7 +711,7 @@ export default function Home() {
               <div className="flex-1" style={{ display: 'flex', flexDirection: 'column' }}>
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
                   <ul className="space-y-3">
-                    {['1 solo account', '100 documents max', '10 AI queries per month', 'Basic search', 'Community support'].map((feature) => (
+                    {['1 solo account', '100 documents max', '10 AI credits per month', 'Basic search', 'Community support'].map((feature) => (
                       <li key={feature} className="flex items-center gap-3 text-sm text-[var(--text-secondary)]">
                         <Check className="w-4 h-4 text-[var(--brand)] flex-shrink-0" />
                         {feature}
@@ -749,7 +749,7 @@ export default function Home() {
               <div className="flex-1" style={{ display: 'flex', flexDirection: 'column' }}>
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
                   <ul className="space-y-3">
-                    {['Up to 5 users', 'Unlimited documents', '1GB Storage limit', '100 AI queries per month', 'Full AI capabilities', 'Version control'].map((feature) => (
+                    {['Up to 50 users', 'Unlimited documents', '1GB Storage limit', '100 AI credits per month', 'Full AI capabilities', 'Version control'].map((feature) => (
                       <li key={feature} className="flex items-center gap-3 text-sm text-[var(--text-secondary)]">
                         <Check className="w-4 h-4 text-[var(--brand)] flex-shrink-0" />
                         {feature}
@@ -784,7 +784,7 @@ export default function Home() {
               <div className="flex-1" style={{ display: 'flex', flexDirection: 'column' }}>
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
                   <ul className="space-y-3">
-                    {['Up to 10 users', 'Unlimited documents', '10GB Storage limit', '500 AI queries per month', 'White-label branding', 'Advanced analytics', 'Custom domain', 'Priority support', 'Audit logs'].map((feature) => (
+                    {['Up to 50 users', 'Unlimited documents', '10GB Storage limit', '500 AI credits per month', 'White-label branding', 'Advanced analytics', 'Custom domain', 'Priority support', 'Audit logs'].map((feature) => (
                       <li key={feature} className="flex items-center gap-3 text-sm text-[var(--text-secondary)]" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
                         <Check className="w-4 h-4 text-[var(--brand)] flex-shrink-0" />
                         {feature}

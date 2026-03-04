@@ -26,10 +26,14 @@ import {
   Trash2,
   AlertTriangle,
   Loader2,
-  ShieldOff
+  ShieldOff,
+  Crown,
+  ArrowRight
 } from "lucide-react";
 import { inviteUser, listPendingInvites, cancelInvite, resendInvite, PendingInvite } from "@/lib/api/invites";
 import { useToast } from "@/components/ui/Toast";
+import { TIER_CONFIG, TierType } from "@/types/api";
+import Link from "next/link";
 
 
 const roleColors: Record<string, string> = {
@@ -43,7 +47,7 @@ function getRoleBadgeClass(role: string) {
   return roleColors[role] ?? "bg-gray-500/10 text-gray-600";
 }
 
-function UsersPageHeader({ onInvite, onShowRoles }: { onInvite: () => void; onShowRoles: () => void }) {
+function UsersPageHeader({ onInvite, onShowRoles, canInvite, tier }: { onInvite: () => void; onShowRoles: () => void; canInvite: boolean; tier: string }) {
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
@@ -57,10 +61,19 @@ function UsersPageHeader({ onInvite, onShowRoles }: { onInvite: () => void; onSh
         </p>
       </div>
       <div className="flex items-center gap-3">
-        <Button variant="primary" className="gap-2 px-6" onClick={onInvite}>
-          <Plus className="w-4 h-4" />
-          Invite Member
-        </Button>
+        {canInvite ? (
+          <Button variant="primary" className="gap-2 px-6" onClick={onInvite}>
+            <Plus className="w-4 h-4" />
+            Invite Member
+          </Button>
+        ) : (
+          <Link href="/dashboard/settings/billing">
+            <Button variant="primary" className="gap-2 px-6">
+              <Crown className="w-4 h-4" />
+              Upgrade to Invite
+            </Button>
+          </Link>
+        )}
       </div>
     </div>
   );
@@ -213,7 +226,13 @@ function PendingInvitesCard({ children }: { children: React.ReactNode }) {
 
 export default function UsersPage() {
   const { addToast } = useToast();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, tenant } = useAuth();
+  
+  // Tier-based invite gating
+  const tenantTier = (tenant?.tier || 'free') as TierType;
+  const tierConfig = TIER_CONFIG[tenantTier];
+  const canInviteMembers = tierConfig.maxUsers > 1; // Free tier = 1 user, can't invite
+
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -419,7 +438,31 @@ export default function UsersPage() {
 
   return (
     <div className="w-full h-full min-h-0 flex flex-col gap-8">
-      <UsersPageHeader onInvite={() => setShowInviteModal(true)} onShowRoles={() => setShowRolesModal(true)} />
+      {/* Free tier upgrade banner */}
+      {tenantTier === 'free' && (
+        <div className="bg-gradient-to-r from-[#E85002] to-[#8b5cf6] rounded-xl p-6 text-white">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                <Users className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg">Free plan — 1 user only</h3>
+                <p className="text-white/80 text-sm mt-0.5">Upgrade to Base or Pro to invite team members and collaborate.</p>
+              </div>
+            </div>
+            <Link
+              href="/dashboard/settings/billing"
+              className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-[#E85002] rounded-xl font-semibold hover:bg-white/90 transition-colors shadow-md whitespace-nowrap"
+            >
+              Upgrade Plan
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      )}
+
+      <UsersPageHeader onInvite={() => setShowInviteModal(true)} onShowRoles={() => setShowRolesModal(true)} canInvite={canInviteMembers} tier={tenantTier} />
 
       <UsersStats totalCount={users.length} activeCount={activeCount} pendingCount={pendingInvites.length} />
 

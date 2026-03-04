@@ -11,7 +11,7 @@ import { writeAuditLog, getClientIp } from '../lib/auditLog';
  * User limits per subscription tier
  */
 const TIER_USER_LIMITS: Record<string, number> = {
-  free: 2,
+  free: 1,
   base: 10,
   pro: 50,
   enterprise: Infinity,

@@ -133,7 +133,7 @@ export default function BrandingPage() {
         </div>
       </div>
 
-      {/* Tier Upgrade Banner (shown for lower tiers) */}
+      {/* Tier Upgrade Banner (shown for non-Pro/Enterprise tiers) */}
       {!canUseWhiteLabel && (
         <div className="bg-gradient-to-r from-[#E85002] to-[#8b5cf6] rounded-xl p-7 sm:p-8 text-white">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
@@ -142,15 +142,15 @@ export default function BrandingPage() {
                 <Sparkles className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="font-semibold text-lg">Unlock Full White-Label Features</h3>
+                <h3 className="font-semibold text-lg">White-Label is a Pro Feature</h3>
                 <p className="text-white/80 text-sm mt-1">
-                  Upgrade to Pro to remove TyneBase branding, add custom domains, and fully customize your workspace.
+                  Upgrade to Pro to customise colours, logos, branded subdomain, and remove TyneBase branding entirely.
                 </p>
               </div>
             </div>
             <Link 
               href="/dashboard/settings/billing"
-              className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-[#E85002] rounded-xl font-semibold hover:bg-white/90 transition-colors shadow-md"
+              className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-[#E85002] rounded-xl font-semibold hover:bg-white/90 transition-colors shadow-md whitespace-nowrap"
               style={{ backgroundColor: '#ffffff', color: '#E85002' }}
             >
               Upgrade to Pro
@@ -160,7 +160,7 @@ export default function BrandingPage() {
         </div>
       )}
 
-      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-8 xl:gap-10 items-start">
+      <div className={`flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-8 xl:gap-10 items-start ${!canUseWhiteLabel ? 'opacity-50 pointer-events-none select-none' : ''}`}>
         {/* Settings Column */}
         <div className="min-h-0 space-y-8">
           {/* Company Name */}
@@ -169,6 +169,7 @@ export default function BrandingPage() {
               <h2 className="font-semibold text-[var(--dash-text-primary)] flex items-center gap-2">
                 <Type className="w-5 h-5 text-[var(--brand)]" />
                 Company Name
+                {!canUseWhiteLabel && <span className="text-xs px-2 py-0.5 bg-[var(--surface-ground)] text-[var(--dash-text-muted)] rounded-full ml-auto">Pro</span>}
               </h2>
             </div>
             <div className="p-7">
@@ -176,7 +177,8 @@ export default function BrandingPage() {
                 type="text"
                 value={brandSettings.companyName}
                 onChange={(e) => setBrandSettings({ ...brandSettings, companyName: e.target.value })}
-                className="w-full px-4 py-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 transition-all"
+                disabled={!canUseWhiteLabel}
+                className="w-full px-4 py-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 transition-all disabled:cursor-not-allowed"
                 placeholder="Your Company Name"
               />
             </div>
@@ -188,6 +190,7 @@ export default function BrandingPage() {
               <h2 className="font-semibold text-[var(--dash-text-primary)] flex items-center gap-2">
                 <Palette className="w-5 h-5 text-[var(--brand)]" />
                 Brand Colors
+                {!canUseWhiteLabel && <span className="text-xs px-2 py-0.5 bg-[var(--surface-ground)] text-[var(--dash-text-muted)] rounded-full ml-auto">Pro</span>}
               </h2>
             </div>
             <div className="p-7 space-y-6">
@@ -205,25 +208,29 @@ export default function BrandingPage() {
                       type="color"
                       value={brandSettings[color.key as keyof typeof brandSettings] as string}
                       onChange={(e) => setBrandSettings({ ...brandSettings, [color.key]: e.target.value })}
-                      className="h-12 w-16 rounded-lg border-2 border-[var(--dash-border-subtle)] cursor-pointer"
+                      disabled={!canUseWhiteLabel}
+                      className="h-12 w-16 rounded-lg border-2 border-[var(--dash-border-subtle)] cursor-pointer disabled:cursor-not-allowed"
                     />
                     <input
                       type="text"
                       value={brandSettings[color.key as keyof typeof brandSettings] as string}
                       onChange={(e) => setBrandSettings({ ...brandSettings, [color.key]: e.target.value })}
-                      className="flex-1 px-4 py-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] font-mono text-sm focus:outline-none focus:border-[var(--brand)]"
+                      disabled={!canUseWhiteLabel}
+                      className="flex-1 px-4 py-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] font-mono text-sm focus:outline-none focus:border-[var(--brand)] disabled:cursor-not-allowed"
                     />
                   </div>
                   <p className="text-xs text-[var(--dash-text-muted)] mt-1">{color.desc}</p>
                 </div>
               ))}
-              <button
-                onClick={handleResetClick}
-                className="flex items-center gap-2 text-sm text-[var(--dash-text-tertiary)] hover:text-[var(--brand)] transition-colors"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Reset to defaults
-              </button>
+              {canUseWhiteLabel && (
+                <button
+                  onClick={handleResetClick}
+                  className="flex items-center gap-2 text-sm text-[var(--dash-text-tertiary)] hover:text-[var(--brand)] transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Reset to defaults
+                </button>
+              )}
             </div>
           </div>
 
@@ -233,6 +240,7 @@ export default function BrandingPage() {
               <h2 className="font-semibold text-[var(--dash-text-primary)] flex items-center gap-2">
                 <Upload className="w-5 h-5 text-[var(--brand)]" />
                 Logo & Assets
+                {!canUseWhiteLabel && <span className="text-xs px-2 py-0.5 bg-[var(--surface-ground)] text-[var(--dash-text-muted)] rounded-full ml-auto">Pro</span>}
               </h2>
             </div>
             <div className="p-7 space-y-6">
@@ -243,7 +251,7 @@ export default function BrandingPage() {
                     Light Mode Logo
                   </label>
                   <input type="file" ref={logoLightRef} accept=".png,.svg" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setBrandSettings({ ...brandSettings, logoLight: f }); }} />
-                  <div onClick={() => logoLightRef.current?.click()} className="border-2 border-dashed border-[var(--dash-border-subtle)] rounded-xl p-6 text-center hover:border-[var(--brand)] transition-colors cursor-pointer group">
+                  <div onClick={() => canUseWhiteLabel && logoLightRef.current?.click()} className={`border-2 border-dashed border-[var(--dash-border-subtle)] rounded-xl p-6 text-center transition-colors group ${canUseWhiteLabel ? 'hover:border-[var(--brand)] cursor-pointer' : 'cursor-not-allowed'}`}>
                     {brandSettings.logoLight ? (
                       <p className="text-sm text-[var(--brand)] font-medium">{brandSettings.logoLight.name}</p>
                     ) : (
@@ -260,7 +268,7 @@ export default function BrandingPage() {
                     Dark Mode Logo
                   </label>
                   <input type="file" ref={logoDarkRef} accept=".png,.svg" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setBrandSettings({ ...brandSettings, logoDark: f }); }} />
-                  <div onClick={() => logoDarkRef.current?.click()} className="border-2 border-dashed border-[var(--dash-border-subtle)] rounded-xl p-6 text-center hover:border-[var(--brand)] transition-colors cursor-pointer group">
+                  <div onClick={() => canUseWhiteLabel && logoDarkRef.current?.click()} className={`border-2 border-dashed border-[var(--dash-border-subtle)] rounded-xl p-6 text-center transition-colors group ${canUseWhiteLabel ? 'hover:border-[var(--brand)] cursor-pointer' : 'cursor-not-allowed'}`}>
                     {brandSettings.logoDark ? (
                       <p className="text-sm text-[var(--brand)] font-medium">{brandSettings.logoDark.name}</p>
                     ) : (
@@ -277,7 +285,7 @@ export default function BrandingPage() {
                   Favicon
                 </label>
                 <input type="file" ref={faviconRef} accept=".ico,.png" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setBrandSettings({ ...brandSettings, favicon: f }); }} />
-                <div onClick={() => faviconRef.current?.click()} className="border-2 border-dashed border-[var(--dash-border-subtle)] rounded-xl p-6 text-center hover:border-[var(--brand)] transition-colors cursor-pointer group">
+                <div onClick={() => canUseWhiteLabel && faviconRef.current?.click()} className={`border-2 border-dashed border-[var(--dash-border-subtle)] rounded-xl p-6 text-center transition-colors group ${canUseWhiteLabel ? 'hover:border-[var(--brand)] cursor-pointer' : 'cursor-not-allowed'}`}>
                   {brandSettings.favicon ? (
                     <p className="text-sm text-[var(--brand)] font-medium">{brandSettings.favicon.name}</p>
                   ) : (
@@ -291,62 +299,66 @@ export default function BrandingPage() {
             </div>
           </div>
 
-          {/* Branded Subdomain (Pro/Enterprise) */}
-          <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl overflow-hidden">
-            <div className="px-7 py-5 border-b border-[var(--dash-border-subtle)] flex items-center justify-between">
-              <h2 className="font-semibold text-[var(--dash-text-primary)] flex items-center gap-2">
-                <Globe className="w-5 h-5 text-[var(--brand)]" />
-                Your Branded URL
-              </h2>
-              <span className="text-xs px-2 py-1 bg-emerald-500/15 text-emerald-400 rounded-full font-medium flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" /> Active
-              </span>
-            </div>
-            <div className="p-7 space-y-4">
-              <div className="bg-[var(--surface-ground)] rounded-xl p-4">
-                <p className="text-xs font-medium text-[var(--dash-text-secondary)] mb-2">Your workspace is live at:</p>
-                <a
-                  href={`https://${tenant?.subdomain}.tynebase.com`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-[var(--brand)] font-mono text-sm hover:underline"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  {tenant?.subdomain}.tynebase.com
-                </a>
+          {/* Branded Subdomain — only show for Pro/Enterprise with actual subdomain */}
+          {canUseWhiteLabel && tenant?.subdomain && (
+            <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl overflow-hidden">
+              <div className="px-7 py-5 border-b border-[var(--dash-border-subtle)] flex items-center justify-between">
+                <h2 className="font-semibold text-[var(--dash-text-primary)] flex items-center gap-2">
+                  <Globe className="w-5 h-5 text-[var(--brand)]" />
+                  Your Branded URL
+                </h2>
+                <span className="text-xs px-2 py-1 bg-emerald-500/15 text-emerald-400 rounded-full font-medium flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" /> Active
+                </span>
               </div>
-              <p className="text-xs text-[var(--dash-text-muted)]">
-                All pages at this URL use your brand colours, logo and company name. Share this URL with your team and clients for a fully branded experience.
-              </p>
+              <div className="p-7 space-y-4">
+                <div className="bg-[var(--surface-ground)] rounded-xl p-4">
+                  <p className="text-xs font-medium text-[var(--dash-text-secondary)] mb-2">Your workspace is live at:</p>
+                  <a
+                    href={`https://${tenant.subdomain}.tynebase.com`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-[var(--brand)] font-mono text-sm hover:underline"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    {tenant.subdomain}.tynebase.com
+                  </a>
+                </div>
+                <p className="text-xs text-[var(--dash-text-muted)]">
+                  All pages at this URL use your brand colours, logo and company name. Share this URL with your team and clients for a fully branded experience.
+                </p>
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Save Button */}
-          <div className="flex items-center justify-end gap-3 pt-2">
-            <button
-              onClick={handleResetClick}
-              className="px-6 py-3 rounded-xl text-[var(--dash-text-secondary)] hover:text-[var(--dash-text-primary)] font-medium transition-colors"
-            >
-              Reset All
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={isLoading}
-              className="flex items-center gap-2 px-7 py-3.5 bg-[var(--brand)] hover:bg-[var(--brand-dark)] disabled:opacity-50 text-white rounded-xl font-semibold transition-all hover:shadow-lg"
-            >
-              {isLoading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  Save Changes
-                </>
-              )}
-            </button>
-          </div>
+          {/* Save Button — only for Pro/Enterprise */}
+          {canUseWhiteLabel && (
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={handleResetClick}
+                className="px-6 py-3 rounded-xl text-[var(--dash-text-secondary)] hover:text-[var(--dash-text-primary)] font-medium transition-colors"
+              >
+                Reset All
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isLoading}
+                className="flex items-center gap-2 px-7 py-3.5 bg-[var(--brand)] hover:bg-[var(--brand-dark)] disabled:opacity-50 text-white rounded-xl font-semibold transition-all hover:shadow-lg"
+              >
+                {isLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Save Changes
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Live Preview Column */}

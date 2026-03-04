@@ -475,10 +475,21 @@ export default async function documentShareRoutes(fastify: FastifyInstance) {
           });
         }
 
+        // Rewrite asset URLs so images work via persistent proxy (not expiring signed URLs)
+        const doc = share.documents as any;
+        let rewrittenDoc = doc;
+        if (doc?.content && doc?.id) {
+          const apiBaseUrl = process.env.API_BASE_URL || 'https://tynebase-backend.fly.dev';
+          rewrittenDoc = {
+            ...doc,
+            content: rewriteAssetUrlsForPublicAccess(doc.content, doc.id, apiBaseUrl),
+          };
+        }
+
         return reply.code(200).send({
           success: true,
           data: {
-            document: share.documents,
+            document: rewrittenDoc,
             permission: share.permission,
           },
         });
