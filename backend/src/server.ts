@@ -34,6 +34,8 @@ const start = async () => {
           imgSrc: ["'self'", 'data:', 'https:'],
         },
       },
+      // Allow cross-origin resource loading for asset proxy endpoints
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
     });
 
     const allowedOrigins = env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim());
