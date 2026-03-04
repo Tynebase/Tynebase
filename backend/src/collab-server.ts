@@ -572,7 +572,8 @@ function convertYjsToMarkdown(state: Buffer): string | null {
               case 'youtube': {
                 const youtubeSrc = child.getAttribute('src') || '';
                 if (youtubeSrc) {
-                  markdown += `<iframe src="${youtubeSrc}" frameborder="0" allowfullscreen></iframe>\n\n`;
+                  // TipTap's YouTube extension parseHTML expects: div[data-youtube-video] iframe
+                  markdown += `<div data-youtube-video><iframe src="${youtubeSrc}" frameborder="0" allowfullscreen></iframe></div>\n\n`;
                 }
                 break;
               }

@@ -127,25 +127,15 @@ export default function EditDocumentPage() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(false);
   const hasFetched = useRef(false);
+  const editorRef = useRef<any>(null);
+  const [contentIsHtml, setContentIsHtml] = useState(false);
 
-  // Refetch content when switching to read mode to get latest saved content
-  // For published docs with draft, show the published content (not draft)
-  const refetchContent = async () => {
-    try {
-      const response = await getDocument(documentId, true);
-      const doc = response.document;
-      // In read mode, always show the published content
-      setContent(doc.content || '');
-      setTitle(doc.title);
-    } catch (err) {
-      console.error('Failed to refetch document content:', err);
-    }
-  };
-
-  // Handle mode switch - refetch content when switching to read mode
-  const handleModeSwitch = async (newMode: "edit" | "read") => {
-    if (newMode === "read") {
-      await refetchContent();
+  // Handle mode switch - get live content from editor for preview
+  const handleModeSwitch = (newMode: "edit" | "read") => {
+    if (newMode === "read" && editorRef.current && !editorRef.current.isDestroyed) {
+      // Get live HTML from the TipTap editor (reflects current Y.js state)
+      setContent(editorRef.current.getHTML());
+      setContentIsHtml(true);
     }
     setMode(newMode);
   };
@@ -629,6 +619,7 @@ export default function EditDocumentPage() {
               documentId={documentId}
               initialTitle={title}
               onTitleChange={setTitle}
+              onEditorReady={(editor) => { editorRef.current = editor; }}
               showVersionHistory={showHistory}
               onVersionHistoryToggle={() => setShowHistory(!showHistory)}
             />
@@ -947,7 +938,7 @@ export default function EditDocumentPage() {
         {/* Preview Mode - Always mounted to avoid re-fetching */}
         <div className={mode === "read" ? `h-full overflow-y-auto p-4 ${isReadOnly ? "flex justify-center" : "grid grid-cols-12 gap-6 items-start"}` : "hidden"}>
             <div className={isReadOnly ? "w-full max-w-4xl" : "col-span-12 xl:col-span-8"}>
-              <TiptapReader content={content} title={title} />
+              <TiptapReader content={content} title={title} isHtml={contentIsHtml} />
             </div>
             {!isReadOnly && <div className="col-span-12 xl:col-span-4 space-y-4">
               {/* Version Control Panel */}

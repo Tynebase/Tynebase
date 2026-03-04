@@ -36,6 +36,7 @@ interface TiptapReaderProps {
   content: string;
   title?: string;
   className?: string;
+  isHtml?: boolean;
 }
 
 /**
@@ -48,9 +49,15 @@ interface TiptapReaderProps {
  */
 function markdownToHtml(raw: string): string {
   if (!raw) return "";
-  // First convert any remaining Markdown image syntax to img tags
+  // Convert any remaining Markdown image syntax to img tags
   // (in case content was saved before the collab server fix)
   let processed = raw.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />');
+  // Wrap bare YouTube iframes with div[data-youtube-video] for TipTap's YouTube extension
+  // Matches <iframe> not already inside a div[data-youtube-video]
+  processed = processed.replace(
+    /(?<!<div data-youtube-video>)(<iframe\s[^>]*(?:youtube\.com|youtu\.be)[^>]*><\/iframe>)/g,
+    '<div data-youtube-video>$1</div>'
+  );
   // Convert Markdown to HTML using marked
   const html = marked.parse(processed);
   return typeof html === "string" ? html : "";
@@ -63,8 +70,8 @@ function markdownToHtml(raw: string): string {
  * Content is converted from Markdown to HTML before passing to TipTap
  * so native parseHTML rules handle all node types correctly.
  */
-export function TiptapReader({ content, title, className = "" }: TiptapReaderProps) {
-  const htmlContent = useMemo(() => markdownToHtml(content), [content]);
+export function TiptapReader({ content, title, className = "", isHtml = false }: TiptapReaderProps) {
+  const htmlContent = useMemo(() => isHtml ? (content || "") : markdownToHtml(content), [content, isHtml]);
 
   const extensions = [
     StarterKit.configure({ history: false, codeBlock: false }),

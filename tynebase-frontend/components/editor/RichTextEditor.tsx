@@ -56,6 +56,7 @@ interface RichTextEditorProps {
   initialTitle?: string;
   onTitleChange?: (title: string) => void;
   onSave?: (data: { title: string; content: string }) => void;
+  onEditorReady?: (editor: any) => void;
   readOnly?: boolean;
   showVersionHistory?: boolean;
   onVersionHistoryToggle?: () => void;
@@ -185,6 +186,7 @@ export function RichTextEditor({
   initialTitle = "",
   onTitleChange,
   onSave,
+  onEditorReady,
   readOnly = false,
   showVersionHistory = false,
   onVersionHistoryToggle,
@@ -541,13 +543,17 @@ export function RichTextEditor({
         return true;
       },
     },
-    onCreate: ({ editor }) => updateCounts(editor.getText()),
+    onCreate: ({ editor }) => {
+      updateCounts(editor.getText());
+      onEditorReady?.(editor);
+    },
     onUpdate: ({ editor }) => updateCounts(editor.getText()),
   }, [isReady]);
 
-  // Keep editor ref updated for drag-drop handlers
+  // Keep editor ref updated for drag-drop handlers and notify parent
   useEffect(() => {
     editorRefForDrag.current = editor;
+    if (editor) onEditorReady?.(editor);
   }, [editor]);
 
   // Update editable state when readOnly changes without recreating the editor

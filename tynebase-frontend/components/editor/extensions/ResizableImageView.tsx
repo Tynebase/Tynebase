@@ -21,14 +21,18 @@ export function ResizableImageView({ node, updateAttributes, selected, editor, g
     const pos = getPos();
     const nodeSize = node.nodeSize;
     const endPos = pos + nodeSize;
-    
-    // Set cursor position right after the image
-    editor.chain().focus().setTextSelection(endPos).run();
-    
-    // If there's no content after, insert a paragraph
     const docSize = editor.state.doc.content.size;
+    
     if (endPos >= docSize - 1) {
-      editor.chain().focus().insertContentAt(endPos, { type: 'paragraph' }).run();
+      // Image is at the end of the document - insert a paragraph and move cursor into it
+      editor.chain()
+        .focus()
+        .insertContentAt(endPos, { type: 'paragraph' })
+        .setTextSelection(endPos + 1)
+        .run();
+    } else {
+      // There's content after the image - move cursor there
+      editor.chain().focus().setTextSelection(endPos).run();
     }
   }, [editor, getPos, node.nodeSize]);
 
