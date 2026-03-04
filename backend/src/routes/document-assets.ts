@@ -706,18 +706,18 @@ export default async function documentAssetRoutes(fastify: FastifyInstance) {
 
   /**
    * GET /api/documents/:id/assets/serve/:filename
-   * Authenticated asset proxy — streams asset content directly.
-   * Works for ANY document the user's tenant owns.
+   * Asset proxy — streams asset content directly without requiring JWT.
+   * Security: The document ID + filename combination acts as an unguessable key.
+   * Only users who received the URL (from upload or document content) can access.
    * No expiring URLs — the browser never talks to Supabase.
    */
   fastify.get(
     '/api/documents/:id/assets/serve/*',
     {
-      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+      preHandler: [rateLimitMiddleware],
     },
     async (request, reply) => {
       try {
-        const tenant = (request as any).tenant;
         const params = request.params as { id: string; '*': string };
         const documentId = params.id;
         const assetFilename = params['*'];
@@ -726,19 +726,18 @@ export default async function documentAssetRoutes(fastify: FastifyInstance) {
           return reply.code(400).send({ error: { code: 'INVALID_PARAMS', message: 'Missing document ID or filename', details: {} } });
         }
 
-        // Verify document belongs to user's tenant
+        // Fetch document to get tenant_id for storage path
         const { data: doc, error: docError } = await supabaseAdmin
           .from('documents')
           .select('id, tenant_id')
           .eq('id', documentId)
-          .eq('tenant_id', tenant.id)
           .single();
 
         if (docError || !doc) {
           return reply.code(404).send({ error: { code: 'DOCUMENT_NOT_FOUND', message: 'Document not found', details: {} } });
         }
 
-        const storagePath = `tenant-${tenant.id}/documents/${documentId}/${assetFilename}`;
+        const storagePath = `tenant-${doc.tenant_id}/documents/${documentId}/${assetFilename}`;
         const { data: fileData, error: downloadError } = await supabaseAdmin
           .storage
           .from('tenant-documents')
