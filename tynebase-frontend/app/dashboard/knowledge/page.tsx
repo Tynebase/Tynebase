@@ -278,7 +278,7 @@ export default function KnowledgePage() {
     return {
       id: doc.id,
       title: doc.title,
-      description: (doc.content || '').slice(0, 150) || 'No description',
+      description: (doc.content || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 150) || 'No description',
       categoryId: doc.category_id,
       updatedAt: formatRelativeTime(doc.updated_at),
       author: authorName,
