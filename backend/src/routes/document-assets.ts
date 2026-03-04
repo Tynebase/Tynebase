@@ -763,6 +763,8 @@ export default async function documentAssetRoutes(fastify: FastifyInstance) {
           .code(200)
           .header('Content-Type', contentType)
           .header('Cache-Control', 'public, max-age=86400, immutable')
+          .header('Cross-Origin-Resource-Policy', 'cross-origin')
+          .header('Access-Control-Allow-Origin', '*')
           .header('Content-Length', buffer.length)
           .send(buffer);
       } catch (error) {
@@ -831,6 +833,8 @@ export default async function documentAssetRoutes(fastify: FastifyInstance) {
           .code(200)
           .header('Content-Type', contentType)
           .header('Cache-Control', 'public, max-age=86400, immutable')
+          .header('Cross-Origin-Resource-Policy', 'cross-origin')
+          .header('Access-Control-Allow-Origin', '*')
           .header('Content-Length', buffer.length)
           .send(buffer);
       } catch (error) {
