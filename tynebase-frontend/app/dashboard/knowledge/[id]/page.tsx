@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { RichTextEditor } from "@/components/editor/RichTextEditor";
 import { VersionHistoryPanel } from "@/components/editor/VersionHistoryPanel";
-import { MarkdownReader } from "@/components/ui/MarkdownReader";
+import { TiptapReader } from "@/components/ui/TiptapReader";
 import { Button } from "@/components/ui/Button";
 import { RainbowProgressBar } from "@/components/ui/RainbowProgressBar";
 import {
@@ -964,7 +964,7 @@ export default function EditDocumentPage() {
         {/* Preview Mode - Always mounted to avoid re-fetching */}
         <div className={mode === "read" ? `h-full overflow-y-auto p-4 ${isReadOnly ? "flex justify-center" : "grid grid-cols-12 gap-6 items-start"}` : "hidden"}>
             <div className={isReadOnly ? "w-full max-w-4xl" : "col-span-12 xl:col-span-8"}>
-              <MarkdownReader content={htmlToPlainText(content)} title={title} />
+              <TiptapReader content={content} title={title} />
             </div>
             {!isReadOnly && <div className="col-span-12 xl:col-span-4 space-y-4">
               {/* Version Control Panel */}
