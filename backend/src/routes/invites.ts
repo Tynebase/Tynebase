@@ -155,15 +155,20 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
             .maybeSingle();
 
           if (existingUserRecord && !lookupError) {
-            // User already belongs to a tenant - move them to the new one
-            // First, remove them from their old tenant
-            const { error: deleteError } = await supabaseAdmin
+            // User already belongs to a tenant - move them to the new one by updating tenant_id
+            const { data: movedUser, error: moveError } = await supabaseAdmin
               .from('users')
-              .delete()
-              .eq('id', existingAuthUser.id);
+              .update({
+                tenant_id: tenant.id,
+                role: role,
+                status: 'active',
+              })
+              .eq('id', existingAuthUser.id)
+              .select()
+              .single();
 
-            if (deleteError) {
-              fastify.log.error({ error: deleteError, userId: existingAuthUser.id }, 'Failed to remove user from old tenant');
+            if (moveError) {
+              fastify.log.error({ error: moveError, userId: existingAuthUser.id }, 'Failed to move user to new tenant');
               return reply.code(500).send({
                 error: {
                   code: 'MOVE_USER_FAILED',
@@ -174,9 +179,28 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
             }
 
             fastify.log.info(
-              { userId: existingAuthUser.id, oldTenantId: existingUserRecord.tenant_id, newTenantId: tenant.id },
-              'User removed from old tenant for transfer'
+              { userId: existingAuthUser.id, oldTenantId: existingUserRecord.tenant_id, newTenantId: tenant.id, addedBy: user.id },
+              'User moved from old tenant to new tenant'
             );
+
+            writeAuditLog({
+              tenantId: tenant.id,
+              actorId: user.id,
+              action: 'user.added',
+              actionType: 'user',
+              targetName: email,
+              ipAddress: getClientIp(request),
+              metadata: { role, moved_from_tenant: existingUserRecord.tenant_id },
+            });
+
+            return reply.code(200).send({
+              success: true,
+              data: {
+                message: 'User moved to workspace successfully',
+                added_email: email,
+                user: movedUser,
+              },
+            });
           }
 
           // User exists in Auth but not in any tenant - add them directly
