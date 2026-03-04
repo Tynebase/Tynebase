@@ -256,8 +256,8 @@ export async function deleteDocument(id: string): Promise<{ message: string; doc
  * @param id - Document UUID
  * @returns Published document details
  */
-export async function publishDocument(id: string): Promise<{ document: Document }> {
-  return apiPost<{ document: Document }>(`/api/documents/${id}/publish`);
+export async function publishDocument(id: string, visibility?: 'private' | 'team' | 'public'): Promise<{ document: Document }> {
+  return apiPost<{ document: Document }>(`/api/documents/${id}/publish`, visibility ? { visibility } : {});
 }
 
 /**

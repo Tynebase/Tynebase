@@ -121,6 +121,13 @@ const publishDocumentParamsSchema = z.object({
 });
 
 /**
+ * Zod schema for POST /api/documents/:id/publish request body
+ */
+const publishDocumentBodySchema = z.object({
+  visibility: z.enum(['private', 'team', 'public']).optional(),
+}).optional();
+
+/**
  * Zod schema for GET /api/documents/:id/normalized path parameters
  */
 const getNormalizedParamsSchema = z.object({
@@ -1404,23 +1411,12 @@ export default async function documentRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Check if document is already published
-        // If published with draft changes, we allow re-publishing (publishing the draft)
+        // Parse optional request body (visibility)
+        const body = publishDocumentBodySchema.parse(request.body || {});
+        const requestedVisibility = body?.visibility;
+
+        // Check if document has draft changes to merge
         const hasDraftChanges = existingDoc.has_draft && (existingDoc.draft_content || existingDoc.draft_title);
-        
-        if (existingDoc.status === 'published' && !hasDraftChanges) {
-          fastify.log.warn(
-            { documentId: id, tenantId: tenant.id, userId: user.id },
-            'Attempted to publish already published document with no draft changes'
-          );
-          return reply.code(400).send({
-            error: {
-              code: 'ALREADY_PUBLISHED',
-              message: 'Document is already published with no pending draft changes',
-              details: {},
-            },
-          });
-        }
 
         // Auto-create "Default" category if document has no category
         let categoryId = existingDoc.category_id;
@@ -1465,12 +1461,12 @@ export default async function documentRoutes(fastify: FastifyInstance) {
         }
 
         // Update document status to published and set published_at
-        // If there are draft changes, copy them to the published fields
-        const isRepublishingWithDraft = existingDoc.status === 'published' && hasDraftChanges;
-        
+        // The collab server continuously updates the `content` column via Y.js,
+        // so re-publishing always uses the latest content without needing draft workflow.
         const updateData: { 
           status: string; 
           published_at: string; 
+          visibility?: string;
           category_id?: string;
           title?: string;
           content?: string;
@@ -1483,20 +1479,26 @@ export default async function documentRoutes(fastify: FastifyInstance) {
           published_at: new Date().toISOString(),
         };
         
-        // If republishing with draft changes, copy draft to published
-        if (isRepublishingWithDraft) {
+        // Apply visibility if provided in request body
+        if (requestedVisibility) {
+          updateData.visibility = requestedVisibility;
+        }
+        
+        // If there are draft changes, merge them into published fields
+        if (hasDraftChanges) {
           if (existingDoc.draft_title) {
             updateData.title = existingDoc.draft_title;
           }
           if (existingDoc.draft_content) {
             updateData.content = existingDoc.draft_content;
           }
-          // Clear draft fields after publishing
-          updateData.has_draft = false;
-          updateData.draft_content = null;
-          updateData.draft_title = null;
-          updateData.draft_updated_at = null;
         }
+        
+        // Always clear draft fields on publish
+        updateData.has_draft = false;
+        updateData.draft_content = null;
+        updateData.draft_title = null;
+        updateData.draft_updated_at = null;
         
         if (categoryId && categoryId !== existingDoc.category_id) {
           updateData.category_id = categoryId;

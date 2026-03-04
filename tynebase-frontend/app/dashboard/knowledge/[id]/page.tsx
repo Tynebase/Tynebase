@@ -348,7 +348,6 @@ export default function EditDocumentPage() {
       
       const response = await updateDocument(documentId, {
         title,
-        content,
         visibility,
         save_as_draft: true,
         // If currently published, also change status to draft (unpublish)
@@ -383,33 +382,17 @@ export default function EditDocumentPage() {
     try {
       setIsSaving(true);
       
-      // First save the content
-      const isPublished = status === 'published';
+      // Save title and visibility metadata (not content - collab server keeps content updated via Y.js)
+      await updateDocument(documentId, {
+        title,
+        visibility,
+      });
       
-      // For published docs, we need to handle draft workflow
-      if (isPublished) {
-        // Save current content as draft first
-        await updateDocument(documentId, {
-          title,
-          content,
-          visibility,
-          save_as_draft: true,
-        });
-      } else {
-        // For draft docs, update the content directly (it will become published)
-        await updateDocument(documentId, {
-          title,
-          content,
-          visibility,
-        });
-      }
-      
-      // Then publish
-      const response = await publishDocument(documentId);
+      // Publish with visibility - the backend uses the latest content from the collab server
+      const response = await publishDocument(documentId, visibility);
       const updatedDoc = response.document;
       
       setStatus('published');
-      // Clear draft fields after publish
       setTitle(updatedDoc.title);
       setContent(updatedDoc.content);
       setDocument(prev => prev ? { 
