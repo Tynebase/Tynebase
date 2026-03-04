@@ -109,7 +109,21 @@ export function TiptapReader({ content, title, className = "" }: TiptapReaderPro
         className="w-full shadow-xl rounded-sm"
         style={{ backgroundColor: 'var(--surface-card)' }}
       >
-        <div className="px-8 md:px-16 py-8 md:py-12">
+        <div className="px-8 md:px-16 py-8 md:py-12 overflow-hidden">
+          <style>{`
+            .tiptap-reader .resizable-image-wrapper {
+              float: none !important;
+              display: block !important;
+              max-width: 100% !important;
+              margin: 1rem auto !important;
+              position: relative !important;
+            }
+            .tiptap-reader .resizable-image-wrapper img {
+              max-width: 100% !important;
+              height: auto !important;
+              border-radius: 0.5rem;
+            }
+          `}</style>
           {title && (
             <h1 
               className="text-3xl font-bold mb-8 pb-4 border-b" 
@@ -118,7 +132,9 @@ export function TiptapReader({ content, title, className = "" }: TiptapReaderPro
               {title}
             </h1>
           )}
-          <EditorContent editor={editor} />
+          <div className="tiptap-reader">
+            <EditorContent editor={editor} />
+          </div>
         </div>
       </div>
     </div>
