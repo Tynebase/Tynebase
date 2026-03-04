@@ -856,12 +856,12 @@ export default function Home() {
                 <div className="flex items-center gap-6">
                   <div className="text-center">
                     <p className="text-2xl font-bold text-[var(--text-primary)]">£9.99</p>
-                    <p className="text-xs text-[var(--text-muted)]">100 Queries</p>
+                    <p className="text-xs text-[var(--text-muted)]">100 Credits</p>
                   </div>
                   <div className="w-px h-8 bg-[var(--border-subtle)]" />
                   <div className="text-center">
                     <p className="text-2xl font-bold text-[var(--text-primary)]">£39.99</p>
-                    <p className="text-xs text-[var(--text-muted)]">500 Queries</p>
+                    <p className="text-xs text-[var(--text-muted)]">500 Credits</p>
                   </div>
                 </div>
               </div>
