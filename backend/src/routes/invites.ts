@@ -155,14 +155,28 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
             .single();
 
           if (existingUserRecord) {
-            // User already belongs to a tenant - they can only be in one
-            return reply.code(400).send({
-              error: {
-                code: 'USER_IN_OTHER_TENANT',
-                message: 'This user already belongs to another workspace. Users can only be members of one workspace at a time.',
-                details: {},
-              },
-            });
+            // User already belongs to a tenant - move them to the new one
+            // First, remove them from their old tenant
+            const { error: deleteError } = await supabaseAdmin
+              .from('users')
+              .delete()
+              .eq('id', existingAuthUser.id);
+
+            if (deleteError) {
+              fastify.log.error({ error: deleteError, userId: existingAuthUser.id }, 'Failed to remove user from old tenant');
+              return reply.code(500).send({
+                error: {
+                  code: 'MOVE_USER_FAILED',
+                  message: 'Failed to move user to new workspace',
+                  details: {},
+                },
+              });
+            }
+
+            fastify.log.info(
+              { userId: existingAuthUser.id, oldTenantId: existingUserRecord.tenant_id, newTenantId: tenant.id },
+              'User removed from old tenant for transfer'
+            );
           }
 
           // User exists in Auth but not in any tenant - add them directly
