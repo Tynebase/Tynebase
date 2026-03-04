@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { User, Clock, Eye, ArrowLeft, Loader2, AlertCircle, Building2, Tag } from "lucide-react";
 import { getPublicDocument, Document } from "@/lib/api/documents";
-import { MarkdownReader } from "@/components/ui/MarkdownReader";
+import { TiptapReader } from "@/components/ui/TiptapReader";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 
@@ -136,8 +136,8 @@ export default function PublicDocumentPage() {
             </span>
           </div>
 
-          {/* Document Content - using same MarkdownReader as main app */}
-          <MarkdownReader 
+          {/* Document Content - using TiptapReader for proper rendering of TipTap content */}
+          <TiptapReader 
             content={document.content || "No content available."} 
             title={document.title}
           />

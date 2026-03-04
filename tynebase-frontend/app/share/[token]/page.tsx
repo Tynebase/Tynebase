@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { MarkdownReader } from "@/components/ui/MarkdownReader";
+import { TiptapReader } from "@/components/ui/TiptapReader";
 import { Button } from "@/components/ui/Button";
 import { 
   FileText, 
@@ -164,7 +164,7 @@ export default function SharedDocumentPage() {
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="p-6 sm:p-8 lg:p-12">
-            <MarkdownReader content={document.content || ''} />
+            <TiptapReader content={document.content || ''} />
           </div>
         </div>
 

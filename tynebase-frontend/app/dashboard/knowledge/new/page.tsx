@@ -188,7 +188,7 @@ export default function NewDocumentPage() {
       if (!docId) {
         const response = await createDocument({
           title: title || "Untitled Document",
-          is_public: visibility === "public",
+          visibility: visibility,
         });
         docId = response.document.id;
         setDocumentId(docId);
@@ -196,7 +196,7 @@ export default function NewDocumentPage() {
         // Document exists, save title and visibility (content saved by collab server)
         await updateDocument(docId, {
           title: title || "Untitled Document",
-          is_public: visibility === "public",
+          visibility: visibility,
         });
       }
 
@@ -304,7 +304,7 @@ export default function NewDocumentPage() {
       if (!docId) {
         const response = await createDocument({
           title: title || "Untitled Document",
-          is_public: visibility === "public",
+          visibility: visibility,
         });
         docId = response.document.id;
         setDocumentId(docId);
@@ -312,7 +312,7 @@ export default function NewDocumentPage() {
         // Document exists, save title and visibility (content saved by collab server)
         await updateDocument(docId, {
           title: title || "Untitled Document",
-          is_public: visibility === "public",
+          visibility: visibility,
         });
       }
       
