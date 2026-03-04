@@ -250,7 +250,7 @@ export default function PublicDocumentPage() {
         <footer style={{ borderTop: '1px solid var(--border-subtle)', padding: '32px 0' }}>
           <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: '1200px', margin: '0 auto', padding: '0 24px' }}>
             <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-              \u00a9 {new Date().getFullYear()} {companyName}
+              © {new Date().getFullYear()} {companyName}
             </p>
             <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
               Powered by <span style={{ color: 'var(--text-secondary)' }}>TyneBase</span>
