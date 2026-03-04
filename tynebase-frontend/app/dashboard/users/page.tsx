@@ -513,8 +513,8 @@ export default function UsersPage() {
                 </div>
                 <div className="flex items-center gap-6">
                   <div className="text-left sm:text-right w-24">
-                    <p className="text-sm text-[var(--text-primary)]">{member.documents_count}</p>
-                    <p className="text-xs text-[var(--text-tertiary)]">documents</p>
+                    <p className="text-sm text-[var(--text-primary)]">{member.documents_count ?? 0}</p>
+                    <p className="text-xs text-[var(--text-tertiary)]">Documents</p>
                   </div>
                   <div className="text-left sm:text-right w-28">
                     <p className="text-sm text-[var(--text-secondary)]">{member.last_active_at ? new Date(member.last_active_at).toLocaleDateString() : 'Never'}</p>

@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { getMe, logout, isAuthenticated } from "@/lib/api/auth";
+import { setTenantSubdomain } from "@/lib/api/client";
 import type { User, Tenant } from "@/types/api";
 
 interface AuthContextType {
@@ -32,6 +33,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await getMe();
       setUser(response.user);
       setTenant(response.tenant);
+      
+      // Sync tenant_subdomain in localStorage if it changed (e.g. user moved to new tenant)
+      if (response.tenant?.subdomain) {
+        const storedSubdomain = localStorage.getItem('tenant_subdomain');
+        if (storedSubdomain !== response.tenant.subdomain) {
+          setTenantSubdomain(response.tenant.subdomain);
+        }
+      }
     } catch (error) {
       console.error("Failed to fetch user:", error);
       setUser(null);

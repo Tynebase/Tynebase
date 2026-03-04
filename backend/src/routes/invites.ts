@@ -178,6 +178,17 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
               });
             }
 
+            // Update Supabase Auth user_metadata with new tenant info
+            await supabaseAdmin.auth.admin.updateUserById(existingAuthUser.id, {
+              user_metadata: {
+                ...existingAuthUser.user_metadata,
+                tenant_id: tenant.id,
+                tenant_subdomain: tenant.subdomain,
+                tenant_name: tenant.name,
+                role: role,
+              },
+            });
+
             fastify.log.info(
               { userId: existingAuthUser.id, oldTenantId: existingUserRecord.tenant_id, newTenantId: tenant.id, addedBy: user.id },
               'User moved from old tenant to new tenant'
@@ -237,6 +248,17 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
               analytics_tracking: true,
               knowledge_indexing: true,
             });
+
+          // Update Supabase Auth user_metadata with new tenant info
+          await supabaseAdmin.auth.admin.updateUserById(existingAuthUser.id, {
+            user_metadata: {
+              ...existingAuthUser.user_metadata,
+              tenant_id: tenant.id,
+              tenant_subdomain: tenant.subdomain,
+              tenant_name: tenant.name,
+              role: role,
+            },
+          });
 
           fastify.log.info(
             { email, role, tenantId: tenant.id, userId: existingAuthUser.id, addedBy: user.id },
