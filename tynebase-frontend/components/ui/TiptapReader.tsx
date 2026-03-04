@@ -123,6 +123,13 @@ export function TiptapReader({ content, title, className = "" }: TiptapReaderPro
               height: auto !important;
               border-radius: 0.5rem;
             }
+            /* Hide resize handles and selection UI in read-only mode */
+            .tiptap-reader .resizable-image-wrapper > div {
+              display: none !important;
+            }
+            .tiptap-reader .resizable-image-wrapper.selected > div {
+              display: none !important;
+            }
           `}</style>
           {title && (
             <h1 
