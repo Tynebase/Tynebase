@@ -174,7 +174,14 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
         });
 
         if (inviteError) {
-          fastify.log.error({ error: inviteError, email, tenantId: tenant.id }, 'Failed to send invite');
+          fastify.log.error({ 
+            error: inviteError, 
+            errorMessage: inviteError.message,
+            errorStatus: (inviteError as any).status,
+            errorCode: (inviteError as any).code,
+            email, 
+            tenantId: tenant.id 
+          }, 'Failed to send invite');
           
           // Handle specific Supabase errors
           if (inviteError.message?.includes('already registered')) {
@@ -187,10 +194,21 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
             });
           }
 
+          // Handle rate limiting
+          if (inviteError.message?.includes('rate limit') || (inviteError as any).status === 429) {
+            return reply.code(429).send({
+              error: {
+                code: 'RATE_LIMITED',
+                message: 'Too many invite requests. Please wait a moment and try again.',
+                details: {},
+              },
+            });
+          }
+
           return reply.code(500).send({
             error: {
               code: 'INVITE_FAILED',
-              message: 'Failed to send invitation email',
+              message: inviteError.message || 'Failed to send invitation email',
               details: {},
             },
           });
