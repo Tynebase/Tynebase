@@ -548,8 +548,15 @@ function convertYjsToMarkdown(state: Buffer): string | null {
               case 'resizableimage': {
                 const src = child.getAttribute('src') || '';
                 const alt = child.getAttribute('alt') || 'image';
+                const width = child.getAttribute('width') || '';
+                const alignment = child.getAttribute('alignment') || '';
                 if (src) {
-                  markdown += `![${alt}](${src})\n\n`;
+                  // Use HTML img tag instead of Markdown ![alt](url) so TipTap's
+                  // parseHTML rules can create resizableImage nodes from the content
+                  let imgAttrs = `src="${src}" alt="${alt}"`;
+                  if (width) imgAttrs += ` width="${width}"`;
+                  if (alignment) imgAttrs += ` data-alignment="${alignment}"`;
+                  markdown += `<img ${imgAttrs} />\n\n`;
                 }
                 break;
               }
