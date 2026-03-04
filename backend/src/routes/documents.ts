@@ -35,6 +35,24 @@ function rewriteAssetUrlsForPublicAccess(content: string, documentId: string, ap
 }
 
 /**
+ * Rewrites Supabase signed URLs to the authenticated /serve/ proxy.
+ * Used for same-tenant (editor) access so images never expire and
+ * the browser never loads directly from Supabase (avoids Cloudflare cookie issues).
+ */
+function rewriteAssetUrlsForServe(content: string, documentId: string, apiBaseUrl: string): string {
+  if (!content) return content;
+  
+  const supabaseUrlPattern = /https?:\/\/[^"'\s]+\.supabase\.co\/storage\/v1\/object\/sign\/tenant-documents\/tenant-[^/]+\/documents\/([^/]+)\/([^"'\s?]+)[^"'\s]*/g;
+  
+  return content.replace(supabaseUrlPattern, (match, docIdFromUrl, filename) => {
+    if (docIdFromUrl === documentId) {
+      return `${apiBaseUrl}/api/documents/${documentId}/assets/serve/${filename}`;
+    }
+    return match;
+  });
+}
+
+/**
  * Zod schema for GET /api/documents query parameters
  */
 const listDocumentsQuerySchema = z.object({
@@ -515,20 +533,24 @@ export default async function documentRoutes(fastify: FastifyInstance) {
           }
         }
 
-        // For public documents, always rewrite asset URLs to use the public proxy
-        // This ensures images work for both cross-tenant access AND when signed URLs expire
+        // Always rewrite Supabase signed URLs in document content to use our proxy.
+        // - Cross-tenant / public docs → /assets/public/ (no auth needed)
+        // - Same-tenant docs → /assets/serve/ (auth required, for editor)
         let responseDocument = document;
         const isPublicDocument = document?.visibility === 'public' && document?.status === 'published';
-        if ((isCrossTenant || isPublicDocument) && document) {
+        if (document) {
           const apiBaseUrl = process.env.API_BASE_URL || 'https://tynebase-backend.fly.dev';
-          responseDocument = {
-            ...document,
-            content: rewriteAssetUrlsForPublicAccess(document.content || '', id, apiBaseUrl),
-          };
-          fastify.log.info(
-            { documentId: id, isCrossTenant, isPublicDocument },
-            'Rewrote asset URLs for public access'
-          );
+          if (isCrossTenant || isPublicDocument) {
+            responseDocument = {
+              ...document,
+              content: rewriteAssetUrlsForPublicAccess(document.content || '', id, apiBaseUrl),
+            };
+          } else {
+            responseDocument = {
+              ...document,
+              content: rewriteAssetUrlsForServe(document.content || '', id, apiBaseUrl),
+            };
+          }
         }
 
         return reply.code(200).send({

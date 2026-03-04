@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>You're Invited to TyneBase</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f8fafc; line-height: 1.6;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f8fafc;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 520px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08); overflow: hidden;">
+          
+          <!-- Header with gradient -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #E85002 0%, #8b5cf6 100%); padding: 40px 40px 32px; text-align: center;">
+              <img src="https://tynebase.com/logo-white.png" alt="TyneBase" width="140" style="display: block; margin: 0 auto 16px;" />
+              <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600; letter-spacing: -0.02em;">You're Invited!</h1>
+            </td>
+          </tr>
+          
+          <!-- Body -->
+          <tr>
+            <td style="padding: 40px;">
+              <p style="margin: 0 0 24px; color: #1e293b; font-size: 16px;">
+                Hi there,
+              </p>
+              <p style="margin: 0 0 24px; color: #475569; font-size: 15px;">
+                <strong style="color: #1e293b;">{{ .Data.invited_by_name }}</strong> has invited you to join <strong style="color: #1e293b;">{{ .Data.tenant_name }}</strong> on TyneBase — the AI-powered knowledge base for modern teams.
+              </p>
+              
+              <!-- Role badge -->
+              <div style="margin: 0 0 32px; padding: 16px 20px; background-color: #f1f5f9; border-radius: 12px; border-left: 4px solid #E85002;">
+                <p style="margin: 0; color: #64748b; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Your Role</p>
+                <p style="margin: 4px 0 0; color: #1e293b; font-size: 18px; font-weight: 600;">{{ .Data.role }}</p>
+              </div>
+              
+              <!-- CTA Button -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td align="center">
+                    <a href="{{ .ConfirmationURL }}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #E85002 0%, #d14701 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 12px; box-shadow: 0 4px 14px rgba(232, 80, 2, 0.35);">
+                      Accept Invitation
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              
+              <p style="margin: 32px 0 0; color: #94a3b8; font-size: 13px; text-align: center;">
+                This invitation link will expire in 24 hours.
+              </p>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 40px; background-color: #f8fafc; border-top: 1px solid #e2e8f0;">
+              <p style="margin: 0; color: #94a3b8; font-size: 12px; text-align: center;">
+                If you didn't expect this invitation, you can safely ignore this email.
+              </p>
+              <p style="margin: 16px 0 0; color: #94a3b8; font-size: 12px; text-align: center;">
+                © 2024 TyneBase · <a href="https://tynebase.com" style="color: #E85002; text-decoration: none;">tynebase.com</a>
+              </p>
+            </td>
+          </tr>
+          
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

@@ -255,29 +255,9 @@ export default async function documentAssetRoutes(fastify: FastifyInstance) {
           });
         }
 
-        const { data: signedUrlData, error: signedUrlError } = await supabaseAdmin
-          .storage
-          .from('tenant-documents')
-          .createSignedUrl(uploadData.path, 3600);
-
-        if (signedUrlError) {
-          fastify.log.error(
-            {
-              storagePath: uploadData.path,
-              documentId,
-              tenantId: tenant.id,
-              error: signedUrlError.message,
-            },
-            'Failed to generate signed URL for uploaded asset'
-          );
-          return reply.code(500).send({
-            error: {
-              code: 'SIGNED_URL_FAILED',
-              message: 'Failed to generate signed URL',
-              details: {},
-            },
-          });
-        }
+        // Build a persistent proxy URL instead of returning an expiring Supabase signed URL
+        const apiBaseUrl = process.env.API_BASE_URL || 'https://tynebase-backend.fly.dev';
+        const proxyUrl = `${apiBaseUrl}/api/documents/${documentId}/assets/serve/${encodeURIComponent(sanitizedFilename)}`;
 
         fastify.log.info(
           {
@@ -295,12 +275,11 @@ export default async function documentAssetRoutes(fastify: FastifyInstance) {
           success: true,
           data: {
             storage_path: uploadData.path,
-            signed_url: signedUrlData.signedUrl,
+            signed_url: proxyUrl,
             filename: sanitizedFilename,
             file_size: fileSize,
             mimetype: mimetype,
             asset_type: isImage ? 'image' : 'video',
-            expires_in: 3600,
           },
         });
       } catch (error) {
@@ -726,22 +705,77 @@ export default async function documentAssetRoutes(fastify: FastifyInstance) {
   );
 
   /**
+   * GET /api/documents/:id/assets/serve/:filename
+   * Authenticated asset proxy — streams asset content directly.
+   * Works for ANY document the user's tenant owns.
+   * No expiring URLs — the browser never talks to Supabase.
+   */
+  fastify.get(
+    '/api/documents/:id/assets/serve/*',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const params = request.params as { id: string; '*': string };
+        const documentId = params.id;
+        const assetFilename = params['*'];
+
+        if (!documentId || !assetFilename) {
+          return reply.code(400).send({ error: { code: 'INVALID_PARAMS', message: 'Missing document ID or filename', details: {} } });
+        }
+
+        // Verify document belongs to user's tenant
+        const { data: doc, error: docError } = await supabaseAdmin
+          .from('documents')
+          .select('id, tenant_id')
+          .eq('id', documentId)
+          .eq('tenant_id', tenant.id)
+          .single();
+
+        if (docError || !doc) {
+          return reply.code(404).send({ error: { code: 'DOCUMENT_NOT_FOUND', message: 'Document not found', details: {} } });
+        }
+
+        const storagePath = `tenant-${tenant.id}/documents/${documentId}/${assetFilename}`;
+        const { data: fileData, error: downloadError } = await supabaseAdmin
+          .storage
+          .from('tenant-documents')
+          .download(storagePath);
+
+        if (downloadError || !fileData) {
+          fastify.log.error({ storagePath, error: downloadError?.message }, 'Failed to download asset for serve');
+          return reply.code(404).send({ error: { code: 'ASSET_NOT_FOUND', message: 'Asset not found', details: {} } });
+        }
+
+        // Determine content type from extension
+        const ext = assetFilename.substring(assetFilename.lastIndexOf('.')).toLowerCase();
+        const mimeMap: Record<string, string> = {
+          '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+          '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml',
+          '.mp4': 'video/mp4', '.mov': 'video/quicktime', '.webm': 'video/webm',
+        };
+        const contentType = mimeMap[ext] || 'application/octet-stream';
+
+        const buffer = Buffer.from(await fileData.arrayBuffer());
+        return reply
+          .code(200)
+          .header('Content-Type', contentType)
+          .header('Cache-Control', 'public, max-age=86400, immutable')
+          .header('Content-Length', buffer.length)
+          .send(buffer);
+      } catch (error) {
+        fastify.log.error({ error }, 'Unexpected error in GET /api/documents/:id/assets/serve/*');
+        return reply.code(500).send({ error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred', details: {} } });
+      }
+    }
+  );
+
+  /**
    * GET /api/documents/:id/assets/public/:assetPath
-   * Serves an asset for a PUBLIC document without tenant authentication
-   * This allows cross-tenant access to images in public documents
-   * 
-   * Path Parameters:
-   * - id: Document UUID
-   * - assetPath: The asset filename (URL encoded)
-   * 
-   * Security:
-   * - Only works for documents with visibility='public' AND status='published'
-   * - Returns a redirect to a fresh signed URL
-   * 
-   * Response:
-   * - 302: Redirect to signed URL
-   * - 404: Document not found or not public
-   * - 500: Failed to generate URL
+   * Serves an asset for a PUBLIC document without tenant authentication.
+   * Streams the file directly — no redirect to Supabase.
    */
   fastify.get(
     '/api/documents/:id/assets/public/*',
@@ -755,13 +789,7 @@ export default async function documentAssetRoutes(fastify: FastifyInstance) {
         const assetPath = params['*'];
 
         if (!documentId || !assetPath) {
-          return reply.code(400).send({
-            error: {
-              code: 'INVALID_PARAMS',
-              message: 'Missing document ID or asset path',
-              details: {},
-            },
-          });
+          return reply.code(400).send({ error: { code: 'INVALID_PARAMS', message: 'Missing document ID or asset path', details: {} } });
         }
 
         // Verify document exists and is public + published
@@ -772,73 +800,42 @@ export default async function documentAssetRoutes(fastify: FastifyInstance) {
           .single();
 
         if (docError || !document) {
-          fastify.log.warn(
-            { documentId, assetPath },
-            'Document not found for public asset access'
-          );
-          return reply.code(404).send({
-            error: {
-              code: 'DOCUMENT_NOT_FOUND',
-              message: 'Document not found',
-              details: {},
-            },
-          });
+          return reply.code(404).send({ error: { code: 'DOCUMENT_NOT_FOUND', message: 'Document not found', details: {} } });
         }
 
-        // Only allow access to public published documents
         if (document.visibility !== 'public' || document.status !== 'published') {
-          fastify.log.warn(
-            { documentId, visibility: document.visibility, status: document.status },
-            'Attempted public asset access on non-public document'
-          );
-          return reply.code(404).send({
-            error: {
-              code: 'DOCUMENT_NOT_PUBLIC',
-              message: 'Document is not publicly accessible',
-              details: {},
-            },
-          });
+          return reply.code(404).send({ error: { code: 'DOCUMENT_NOT_PUBLIC', message: 'Document is not publicly accessible', details: {} } });
         }
 
-        // Construct the storage path
         const storagePath = `tenant-${document.tenant_id}/documents/${documentId}/${assetPath}`;
-
-        fastify.log.info(
-          { documentId, assetPath, storagePath },
-          'Generating signed URL for public document asset'
-        );
-
-        // Generate a fresh signed URL
-        const { data: signedUrlData, error: signedUrlError } = await supabaseAdmin
+        const { data: fileData, error: downloadError } = await supabaseAdmin
           .storage
           .from('tenant-documents')
-          .createSignedUrl(storagePath, 3600);
+          .download(storagePath);
 
-        if (signedUrlError || !signedUrlData?.signedUrl) {
-          fastify.log.error(
-            { storagePath, documentId, error: signedUrlError?.message },
-            'Failed to generate signed URL for public asset'
-          );
-          return reply.code(500).send({
-            error: {
-              code: 'SIGNED_URL_FAILED',
-              message: 'Failed to generate asset URL',
-              details: {},
-            },
-          });
+        if (downloadError || !fileData) {
+          fastify.log.error({ storagePath, documentId, error: downloadError?.message }, 'Failed to download public asset');
+          return reply.code(404).send({ error: { code: 'ASSET_NOT_FOUND', message: 'Asset not found', details: {} } });
         }
 
-        // Redirect to the signed URL
-        return reply.redirect(302, signedUrlData.signedUrl);
+        const ext = assetPath.substring(assetPath.lastIndexOf('.')).toLowerCase();
+        const mimeMap: Record<string, string> = {
+          '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+          '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml',
+          '.mp4': 'video/mp4', '.mov': 'video/quicktime', '.webm': 'video/webm',
+        };
+        const contentType = mimeMap[ext] || 'application/octet-stream';
+
+        const buffer = Buffer.from(await fileData.arrayBuffer());
+        return reply
+          .code(200)
+          .header('Content-Type', contentType)
+          .header('Cache-Control', 'public, max-age=86400, immutable')
+          .header('Content-Length', buffer.length)
+          .send(buffer);
       } catch (error) {
         fastify.log.error({ error }, 'Unexpected error in GET /api/documents/:id/assets/public/*');
-        return reply.code(500).send({
-          error: {
-            code: 'INTERNAL_ERROR',
-            message: 'An unexpected error occurred',
-            details: {},
-          },
-        });
+        return reply.code(500).send({ error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred', details: {} } });
       }
     }
   );
