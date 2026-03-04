@@ -739,14 +739,46 @@ export default async function documentAssetRoutes(fastify: FastifyInstance) {
           return reply.code(404).send({ error: { code: 'DOCUMENT_NOT_FOUND', message: 'Document not found', details: {} } });
         }
 
-        const storagePath = `tenant-${doc.tenant_id}/documents/${documentId}/${assetFilename}`;
-        const { data: fileData, error: downloadError } = await supabaseAdmin
+        const basePath = `tenant-${doc.tenant_id}/documents/${documentId}`;
+        let storagePath = `${basePath}/${assetFilename}`;
+        
+        // Try exact match first
+        let { data: fileData, error: downloadError } = await supabaseAdmin
           .storage
           .from('tenant-documents')
           .download(storagePath);
 
+        // If exact match fails, search for file with timestamp prefix (handles old URLs)
         if (downloadError || !fileData) {
-          fastify.log.error({ storagePath, error: downloadError?.message }, 'Failed to download asset for serve');
+          const { data: files } = await supabaseAdmin
+            .storage
+            .from('tenant-documents')
+            .list(basePath);
+          
+          if (files && files.length > 0) {
+            // Look for a file that ends with the requested filename (after timestamp prefix)
+            const matchingFile = files.find(f => {
+              // Match pattern: {timestamp}_{originalFilename} or exact match
+              const timestampPattern = /^\d+_(.+)$/;
+              const match = f.name.match(timestampPattern);
+              if (match && match[1] === assetFilename) return true;
+              return f.name === assetFilename;
+            });
+            
+            if (matchingFile) {
+              storagePath = `${basePath}/${matchingFile.name}`;
+              const retryResult = await supabaseAdmin
+                .storage
+                .from('tenant-documents')
+                .download(storagePath);
+              fileData = retryResult.data;
+              downloadError = retryResult.error;
+            }
+          }
+        }
+
+        if (downloadError || !fileData) {
+          fastify.log.error({ storagePath, assetFilename, error: downloadError?.message }, 'Failed to download asset for serve');
           return reply.code(404).send({ error: { code: 'ASSET_NOT_FOUND', message: 'Asset not found', details: {} } });
         }
 
@@ -810,14 +842,44 @@ export default async function documentAssetRoutes(fastify: FastifyInstance) {
           return reply.code(404).send({ error: { code: 'DOCUMENT_NOT_PUBLIC', message: 'Document is not publicly accessible', details: {} } });
         }
 
-        const storagePath = `tenant-${document.tenant_id}/documents/${documentId}/${assetPath}`;
-        const { data: fileData, error: downloadError } = await supabaseAdmin
+        const basePath = `tenant-${document.tenant_id}/documents/${documentId}`;
+        let storagePath = `${basePath}/${assetPath}`;
+        
+        // Try exact match first
+        let { data: fileData, error: downloadError } = await supabaseAdmin
           .storage
           .from('tenant-documents')
           .download(storagePath);
 
+        // If exact match fails, search for file with timestamp prefix (handles old URLs)
         if (downloadError || !fileData) {
-          fastify.log.error({ storagePath, documentId, error: downloadError?.message }, 'Failed to download public asset');
+          const { data: files } = await supabaseAdmin
+            .storage
+            .from('tenant-documents')
+            .list(basePath);
+          
+          if (files && files.length > 0) {
+            const matchingFile = files.find(f => {
+              const timestampPattern = /^\d+_(.+)$/;
+              const match = f.name.match(timestampPattern);
+              if (match && match[1] === assetPath) return true;
+              return f.name === assetPath;
+            });
+            
+            if (matchingFile) {
+              storagePath = `${basePath}/${matchingFile.name}`;
+              const retryResult = await supabaseAdmin
+                .storage
+                .from('tenant-documents')
+                .download(storagePath);
+              fileData = retryResult.data;
+              downloadError = retryResult.error;
+            }
+          }
+        }
+
+        if (downloadError || !fileData) {
+          fastify.log.error({ storagePath, assetPath, documentId, error: downloadError?.message }, 'Failed to download public asset');
           return reply.code(404).send({ error: { code: 'ASSET_NOT_FOUND', message: 'Asset not found', details: {} } });
         }
 
