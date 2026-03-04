@@ -319,7 +319,7 @@ export default function BillingPage() {
           <p className="text-xs text-[var(--dash-text-muted)] mt-2 flex items-center justify-between">
             <span>{usage.users.total === -1 ? 'Unlimited' : `${usage.users.total - usage.users.used} seats available`}</span>
             <Link 
-              href="/dashboard/settings/users"
+              href="/dashboard/users"
               className="text-[var(--brand)] hover:text-[var(--brand-dark)] font-medium flex items-center gap-1 transition-colors"
             >
               <UserPlus className="w-3 h-3" />
