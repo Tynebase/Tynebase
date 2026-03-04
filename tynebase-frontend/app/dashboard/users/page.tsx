@@ -313,13 +313,23 @@ export default function UsersPage() {
     if (!inviteEmail.trim()) return;
     try {
       setInviting(true);
-      await inviteUser({ email: inviteEmail.trim(), role: inviteRole as any });
-      addToast({ type: "success", title: "Invitation sent", description: `Invitation sent to ${inviteEmail}` });
+      const result = await inviteUser({ email: inviteEmail.trim(), role: inviteRole as any });
+      
+      // Check if user was added directly (existing user) or invited (new user)
+      if ((result as any).added_email) {
+        addToast({ type: "success", title: "User added", description: `${inviteEmail} has been added to the workspace` });
+        // Refresh users list since they were added directly
+        const usersResponse = await listUsers();
+        setUsers(usersResponse.users);
+      } else {
+        addToast({ type: "success", title: "Invitation sent", description: `Invitation sent to ${inviteEmail}` });
+        // Refresh pending invites
+        const response = await listPendingInvites();
+        setPendingInvites(response.invites);
+      }
+      
       setInviteEmail("");
       setShowInviteModal(false);
-      // Refresh pending invites
-      const response = await listPendingInvites();
-      setPendingInvites(response.invites);
     } catch (err: any) {
       console.error('Failed to send invite:', err);
       addToast({ type: "error", title: "Invitation failed", description: err.message || "Failed to send invitation. Please try again." });

@@ -141,13 +141,94 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Check if there's already a pending invite for this email to this tenant
+        // Check if user already exists in Supabase Auth
         const { data: allUsers } = await supabaseAdmin.auth.admin.listUsers();
-        const existingPendingInvite = allUsers?.users?.find(
-          u => u.email === email && 
-               u.user_metadata?.tenant_id === tenant.id && 
-               !u.email_confirmed_at
-        );
+        const existingAuthUser = allUsers?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase());
+
+        // If user exists in Auth and is confirmed, add them directly to this tenant
+        if (existingAuthUser && existingAuthUser.email_confirmed_at) {
+          // Check if they're already in another tenant's users table
+          const { data: existingUserRecord } = await supabaseAdmin
+            .from('users')
+            .select('id, tenant_id')
+            .eq('id', existingAuthUser.id)
+            .single();
+
+          if (existingUserRecord) {
+            // User already belongs to a tenant - they can only be in one
+            return reply.code(400).send({
+              error: {
+                code: 'USER_IN_OTHER_TENANT',
+                message: 'This user already belongs to another workspace. Users can only be members of one workspace at a time.',
+                details: {},
+              },
+            });
+          }
+
+          // User exists in Auth but not in any tenant - add them directly
+          const { data: newUser, error: createError } = await supabaseAdmin
+            .from('users')
+            .insert({
+              id: existingAuthUser.id,
+              tenant_id: tenant.id,
+              email: email,
+              full_name: existingAuthUser.user_metadata?.full_name || null,
+              role: role,
+              status: 'active',
+            })
+            .select()
+            .single();
+
+          if (createError) {
+            fastify.log.error({ error: createError, email, tenantId: tenant.id }, 'Failed to add existing user to tenant');
+            return reply.code(500).send({
+              error: {
+                code: 'ADD_USER_FAILED',
+                message: 'Failed to add user to workspace',
+                details: {},
+              },
+            });
+          }
+
+          // Create default user consents
+          await supabaseAdmin
+            .from('user_consents')
+            .insert({
+              user_id: existingAuthUser.id,
+              ai_processing: true,
+              analytics_tracking: true,
+              knowledge_indexing: true,
+            });
+
+          fastify.log.info(
+            { email, role, tenantId: tenant.id, userId: existingAuthUser.id, addedBy: user.id },
+            'Existing user added to tenant directly'
+          );
+
+          writeAuditLog({
+            tenantId: tenant.id,
+            actorId: user.id,
+            action: 'user.added',
+            actionType: 'user',
+            targetName: email,
+            ipAddress: getClientIp(request),
+            metadata: { role, existing_user: true },
+          });
+
+          return reply.code(200).send({
+            success: true,
+            data: {
+              message: 'User added to workspace successfully',
+              added_email: email,
+              user: newUser,
+            },
+          });
+        }
+
+        // Check if there's already a pending invite for this email to this tenant
+        const existingPendingInvite = existingAuthUser && 
+          existingAuthUser.user_metadata?.tenant_id === tenant.id && 
+          !existingAuthUser.email_confirmed_at;
 
         if (existingPendingInvite) {
           return reply.code(400).send({
@@ -159,7 +240,7 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Use Supabase's invite functionality
+        // Use Supabase's invite functionality for new users
         // This sends a magic link email to the user
         const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
           data: {
@@ -184,11 +265,12 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
           }, 'Failed to send invite');
           
           // Handle specific Supabase errors
-          if (inviteError.message?.includes('already registered')) {
+          const errMsg = inviteError.message?.toLowerCase() || '';
+          if (errMsg.includes('already registered') || errMsg.includes('already been registered') || errMsg.includes('user already exists') || errMsg.includes('email address already')) {
             return reply.code(400).send({
               error: {
                 code: 'EMAIL_EXISTS',
-                message: 'This email is already registered with another account. Users can only belong to one workspace. They would need to create a new account with a different email to join your workspace.',
+                message: 'This email is already registered. The user may already have a TyneBase account. They can log in and be added to your workspace, or use a different email address.',
                 details: {},
               },
             });
