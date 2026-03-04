@@ -5,6 +5,7 @@ import { useCredits } from "@/contexts/CreditsContext";
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { getDashboardStats, DashboardStats } from "@/lib/api/dashboard";
+import { upgradeTenantTier } from "@/lib/api/tenants";
 import Link from "next/link";
 import { TIER_CONFIG, TierType } from "@/types/api";
 import { 
@@ -53,6 +54,7 @@ const TIER_DISPLAY: Record<TierType, {
       "Real-time collaboration",
       "Email support",
       "Document templates",
+      "Custom subdomain",
     ],
   },
   pro: {
@@ -145,15 +147,26 @@ export default function BillingPage() {
     setSelectedTier(tier);
     setIsUpgrading(true);
 
-    // In production, this would redirect to Stripe checkout
-    addToast({
-      type: "info",
-      title: "Stripe Integration Coming Soon",
-      description: "Payment processing will be available soon. Your upgrade request has been noted.",
-    });
-
-    setIsUpgrading(false);
-    setSelectedTier(null);
+    try {
+      const result = await upgradeTenantTier(tier as 'base' | 'pro' | 'enterprise');
+      addToast({
+        type: "success",
+        title: "Plan Upgraded!",
+        description: result.message || `Successfully upgraded to ${tier}`,
+      });
+      // Reload the page to reflect the new tier
+      window.location.reload();
+    } catch (err: any) {
+      console.error('Failed to upgrade:', err);
+      addToast({
+        type: "error",
+        title: "Upgrade Failed",
+        description: err.message || "Failed to upgrade plan. Please try again.",
+      });
+    } finally {
+      setIsUpgrading(false);
+      setSelectedTier(null);
+    }
   };
 
   const handleManageBilling = () => {

@@ -41,7 +41,7 @@ export const TIER_CONFIG = {
     maxUsers: 10,
     maxStorageMb: 5120,
     whiteLabel: false,
-    customDomain: false,
+    customDomain: true,
     aiFeatures: true,
     collaboration: true,
     prioritySupport: false,

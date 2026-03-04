@@ -749,7 +749,7 @@ export default function Home() {
               <div className="flex-1" style={{ display: 'flex', flexDirection: 'column' }}>
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
                   <ul className="space-y-3">
-                    {['Up to 10 users', 'Unlimited documents', '1GB Storage limit', '100 AI credits per month', 'Full AI capabilities', 'Version control'].map((feature) => (
+                    {['Up to 10 users', 'Unlimited documents', '1GB Storage limit', '100 AI credits per month', 'Full AI capabilities', 'Version control', 'Custom subdomain'].map((feature) => (
                       <li key={feature} className="flex items-center gap-3 text-sm text-[var(--text-secondary)]">
                         <Check className="w-4 h-4 text-[var(--brand)] flex-shrink-0" />
                         {feature}

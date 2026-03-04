@@ -12,6 +12,7 @@ const PUBLIC_ROUTES = [
   "/auth/callback",
   "/auth/verify",
   "/auth/reset-password",
+  "/docs",
 ];
 
 const RESERVED_SUBDOMAINS = [
@@ -67,7 +68,7 @@ export async function proxy(request: NextRequest) {
   // This is a placeholder that allows all non-reserved subdomains
 
   // Public routes on tenant subdomains
-  if (PUBLIC_ROUTES.includes(pathname)) {
+  if (PUBLIC_ROUTES.includes(pathname) || pathname.startsWith("/docs")) {
     return NextResponse.next();
   }
 

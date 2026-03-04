@@ -87,13 +87,14 @@ When a Pro/Enterprise tenant customises their branding, these are applied on the
 | Tier       | Subdomain | Custom Branding |
 |------------|-----------|-----------------|
 | Free       | None      | No              |
-| Base       | None      | No              |
+| Base       | Custom    | No              |
 | Pro        | Custom    | Full            |
 | Enterprise | Custom    | Full            |
 
-- Free/Base tenants have `subdomain = null` in the database
-- Only Pro/Enterprise tenants can set a subdomain during signup
+- Free tenants have `subdomain = null` in the database
+- Base/Pro/Enterprise tenants can set a subdomain during signup
 - The branding page is locked (greyed out) for Free/Base tiers
+- Base tier gets a custom subdomain (companyname.tynebase.com/docs) but no white-label branding
 
 ---
 

@@ -131,6 +131,7 @@ const start = async () => {
     await fastify.register(import('./routes/discussions'), { prefix: '' });
     await fastify.register(import('./routes/discussion-assets'), { prefix: '' });
     await fastify.register(import('./routes/document-shares'), { prefix: '' });
+    await fastify.register(import('./routes/tier-upgrade'), { prefix: '' });
 
     const port = parseInt(env.PORT, 10);
     await fastify.listen({ port, host: '0.0.0.0' });

@@ -1,4 +1,4 @@
-import { apiPatch, apiGet } from './client';
+import { apiPatch, apiGet, apiPost } from './client';
 import type { Tenant, TenantSettings } from '@/types/api';
 
 export interface UpdateTenantRequest {
@@ -34,4 +34,17 @@ export async function getTenant(tenantId: string): Promise<{ tenant: Tenant }> {
     `/api/tenants/${tenantId}`
   );
   return response;
+}
+
+/**
+ * Upgrade tenant tier (mock - no payment required)
+ * Requires admin role
+ */
+export async function upgradeTenantTier(
+  targetTier: 'base' | 'pro' | 'enterprise'
+): Promise<{ message: string; tenant: Tenant }> {
+  return apiPost<{ message: string; tenant: Tenant }>(
+    '/api/tenants/upgrade',
+    { target_tier: targetTier }
+  );
 }
