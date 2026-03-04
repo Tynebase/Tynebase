@@ -256,8 +256,10 @@ export default async function documentAssetRoutes(fastify: FastifyInstance) {
         }
 
         // Build a persistent proxy URL instead of returning an expiring Supabase signed URL
+        // Use the full filename with timestamp prefix to match the storage path
         const apiBaseUrl = process.env.API_BASE_URL || 'https://tynebase-backend.fly.dev';
-        const proxyUrl = `${apiBaseUrl}/api/documents/${documentId}/assets/serve/${encodeURIComponent(sanitizedFilename)}`;
+        const fullFilename = `${timestamp}_${sanitizedFilename}`;
+        const proxyUrl = `${apiBaseUrl}/api/documents/${documentId}/assets/serve/${encodeURIComponent(fullFilename)}`;
 
         fastify.log.info(
           {
