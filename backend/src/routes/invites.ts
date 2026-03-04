@@ -148,13 +148,13 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
         // If user exists in Auth and is confirmed, add them directly to this tenant
         if (existingAuthUser && existingAuthUser.email_confirmed_at) {
           // Check if they're already in another tenant's users table
-          const { data: existingUserRecord } = await supabaseAdmin
+          const { data: existingUserRecord, error: lookupError } = await supabaseAdmin
             .from('users')
             .select('id, tenant_id')
             .eq('id', existingAuthUser.id)
-            .single();
+            .maybeSingle();
 
-          if (existingUserRecord) {
+          if (existingUserRecord && !lookupError) {
             // User already belongs to a tenant - move them to the new one
             // First, remove them from their old tenant
             const { error: deleteError } = await supabaseAdmin
