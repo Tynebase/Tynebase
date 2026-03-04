@@ -2661,8 +2661,9 @@ export default async function documentRoutes(fastify: FastifyInstance) {
         const uniqueCategories = new Map<string, { id: string; name: string; color: string }>();
         if (categoryOptions) {
           for (const d of categoryOptions as any[]) {
-            if (d.categories && d.category_id && !uniqueCategories.has(d.category_id)) {
-              uniqueCategories.set(d.category_id, d.categories);
+            // Deduplicate by category name (not ID) to merge same-named categories across tenants
+            if (d.categories && d.category_id && !uniqueCategories.has(d.categories.name)) {
+              uniqueCategories.set(d.categories.name, d.categories);
             }
           }
         }

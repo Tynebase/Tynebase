@@ -544,11 +544,28 @@ function convertYjsToMarkdown(state: Buffer): string | null {
                 break;
               }
               
-              case 'image': {
+              case 'image':
+              case 'resizableimage': {
                 const src = child.getAttribute('src') || '';
                 const alt = child.getAttribute('alt') || 'image';
                 if (src) {
                   markdown += `![${alt}](${src})\n\n`;
+                }
+                break;
+              }
+              
+              case 'video': {
+                const videoSrc = child.getAttribute('src') || '';
+                if (videoSrc) {
+                  markdown += `<video src="${videoSrc}" controls></video>\n\n`;
+                }
+                break;
+              }
+              
+              case 'youtube': {
+                const youtubeSrc = child.getAttribute('src') || '';
+                if (youtubeSrc) {
+                  markdown += `<iframe src="${youtubeSrc}" frameborder="0" allowfullscreen></iframe>\n\n`;
                 }
                 break;
               }
