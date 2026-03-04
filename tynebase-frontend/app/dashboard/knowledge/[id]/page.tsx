@@ -26,7 +26,8 @@ import {
   AlertTriangle,
   CheckCircle,
   X,
-  Share2
+  Share2,
+  BookOpen
 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/Card";
@@ -71,7 +72,7 @@ interface UIDocument {
   draftUpdatedAt?: string;
   folder: string;
   status: "draft" | "published";
-  visibility: "public" | "private" | "team";
+  visibility: "public" | "private" | "team" | "community";
   author: string;
   createdAt: string;
   updatedAt: string;
@@ -115,7 +116,7 @@ export default function EditDocumentPage() {
   const [categories, setCategories] = useState<APICategory[]>([]);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(true);
-  const [visibility, setVisibility] = useState<"public" | "private" | "team">("team");
+  const [visibility, setVisibility] = useState<"public" | "private" | "team" | "community">("team");
   const [mode, setMode] = useState<"edit" | "read">("edit");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [documentTags, setDocumentTags] = useState<Array<{ id: string; name: string }>>([]);
@@ -717,7 +718,8 @@ export default function EditDocumentPage() {
                     </label>
                     <div className="space-y-2">
                       {[
-                        { id: "public", label: "Public", desc: "Shared with community", icon: Globe, disabled: false },
+                        { id: "public", label: "Public", desc: "Visible on your knowledge base", icon: Globe, disabled: false },
+                        { id: "community", label: "Community", desc: "Shared on public hub", icon: BookOpen, disabled: false },
                         { id: "team", label: "Team Only", desc: "Workspace members", icon: Users, disabled: false },
                         { id: "private", label: "Private", desc: "Only you", icon: Lock, disabled: false },
                       ].map((option) => (
@@ -754,7 +756,7 @@ export default function EditDocumentPage() {
                               <p className="text-sm font-medium text-[var(--dash-text-primary)]">{option.label}</p>
                               {option.id === "public" && visibility === "public" && (
                                 <span className="px-1.5 py-0.5 text-[10px] font-medium bg-green-100 text-green-700 rounded">
-                                  Community
+                                  KB
                                 </span>
                               )}
                             </div>

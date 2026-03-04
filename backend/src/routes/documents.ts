@@ -78,7 +78,7 @@ const createDocumentBodySchema = z.object({
   content: z.string().optional(),
   category_id: z.string().uuid().nullable().optional(),
   is_public: z.boolean().default(false), // Deprecated, use visibility
-  visibility: z.enum(['private', 'team', 'public']).default('team'),
+  visibility: z.enum(['private', 'team', 'public', 'community']).default('team'),
 });
 
 /**
@@ -89,7 +89,7 @@ const updateDocumentBodySchema = z.object({
   content: z.string().max(10485760).optional(), // Max 10MB content
   yjs_state: z.string().optional(), // Base64 encoded binary state
   is_public: z.boolean().optional(), // Deprecated, use visibility
-  visibility: z.enum(['private', 'team', 'public']).optional(),
+  visibility: z.enum(['private', 'team', 'public', 'community']).optional(),
   status: z.enum(['draft', 'published']).optional(),
   category_id: z.string().uuid().nullable().optional(), // Category/folder ID
   draft_content: z.string().max(10485760).optional(), // Draft content for published docs
@@ -124,7 +124,7 @@ const publishDocumentParamsSchema = z.object({
  * Zod schema for POST /api/documents/:id/publish request body
  */
 const publishDocumentBodySchema = z.object({
-  visibility: z.enum(['private', 'team', 'public']).optional(),
+  visibility: z.enum(['private', 'team', 'public', 'community']).optional(),
 }).optional();
 
 /**
@@ -2541,7 +2541,7 @@ export default async function documentRoutes(fastify: FastifyInstance) {
               subdomain
             )
           `, { count: 'exact' })
-          .eq('visibility', 'public')
+          .in('visibility', ['public', 'community'])
           .eq('status', 'published')
           .not('content', 'like', '__CATEGORY__%')
           .order('created_at', { ascending: false });
@@ -2638,7 +2638,7 @@ export default async function documentRoutes(fastify: FastifyInstance) {
         const { data: tenantOptions } = await supabaseAdmin
           .from('documents')
           .select('tenant_id, tenants:tenant_id (id, name, subdomain)')
-          .eq('visibility', 'public')
+          .in('visibility', ['public', 'community'])
           .eq('status', 'published')
           .not('content', 'like', '__CATEGORY__%');
 
@@ -2655,7 +2655,7 @@ export default async function documentRoutes(fastify: FastifyInstance) {
         const { data: categoryOptions } = await supabaseAdmin
           .from('documents')
           .select('category_id, categories:category_id (id, name, color)')
-          .eq('visibility', 'public')
+          .in('visibility', ['public', 'community'])
           .eq('status', 'published')
           .not('category_id', 'is', null)
           .not('content', 'like', '__CATEGORY__%');
@@ -2674,7 +2674,7 @@ export default async function documentRoutes(fastify: FastifyInstance) {
         const { data: publicDocIds } = await supabaseAdmin
           .from('documents')
           .select('id')
-          .eq('visibility', 'public')
+          .in('visibility', ['public', 'community'])
           .eq('status', 'published')
           .not('content', 'like', '__CATEGORY__%');
 
@@ -2753,7 +2753,7 @@ export default async function documentRoutes(fastify: FastifyInstance) {
             categories:category_id (id, name, color)
           `)
           .eq('id', id)
-          .eq('visibility', 'public')
+          .in('visibility', ['public', 'community'])
           .eq('status', 'published')
           .single();
 

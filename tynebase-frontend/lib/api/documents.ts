@@ -34,7 +34,7 @@ export interface Document {
   parent_id: string | null;
   category_id: string | null;
   is_public: boolean;
-  visibility: 'private' | 'team' | 'public';
+  visibility: 'private' | 'team' | 'public' | 'community';
   status: 'draft' | 'published';
   author_id: string;
   published_at: string | null;
@@ -63,7 +63,7 @@ export interface CreateDocumentData {
   content?: string;
   category_id?: string;
   is_public?: boolean;
-  visibility?: 'private' | 'team' | 'public';
+  visibility?: 'private' | 'team' | 'public' | 'community';
 }
 
 export interface UpdateDocumentData {
@@ -71,7 +71,7 @@ export interface UpdateDocumentData {
   content?: string;
   yjs_state?: string;
   is_public?: boolean;
-  visibility?: 'private' | 'team' | 'public';
+  visibility?: 'private' | 'team' | 'public' | 'community';
   status?: 'draft' | 'published';
   category_id?: string | null;
   draft_content?: string;
@@ -122,7 +122,7 @@ export interface NormalizedDocument {
   title: string;
   normalizedMd: string;
   status: 'draft' | 'published';
-  visibility: 'private' | 'team' | 'public';
+  visibility: 'private' | 'team' | 'public' | 'community';
   createdAt: string;
   updatedAt: string;
 }
@@ -256,7 +256,7 @@ export async function deleteDocument(id: string): Promise<{ message: string; doc
  * @param id - Document UUID
  * @returns Published document details
  */
-export async function publishDocument(id: string, visibility?: 'private' | 'team' | 'public'): Promise<{ document: Document }> {
+export async function publishDocument(id: string, visibility?: 'private' | 'team' | 'public' | 'community'): Promise<{ document: Document }> {
   return apiPost<{ document: Document }>(`/api/documents/${id}/publish`, visibility ? { visibility } : {});
 }
 
