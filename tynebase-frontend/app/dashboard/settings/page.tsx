@@ -3,12 +3,15 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/contexts/TenantContext";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
+import { Modal } from "@/components/ui/Modal";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
-import { Users, Palette, Key, Webhook, FileDown, Shield, ClipboardList, ChevronRight, Lock } from "lucide-react";
-import { updateProfile } from "@/lib/api/auth";
+import { Users, Palette, Key, Webhook, FileDown, Shield, ClipboardList, ChevronRight, Lock, LogOut, AlertTriangle } from "lucide-react";
+import { updateProfile, logout } from "@/lib/api/auth";
 import { updateTenant } from "@/lib/api/tenants";
+import { apiDelete } from "@/lib/api/client";
 
 const settingsNav = [
   { label: "Privacy & Data", href: "/dashboard/settings/privacy", icon: Lock, description: "GDPR consents and data export" },
@@ -22,12 +25,47 @@ const settingsNav = [
 ];
 
 export default function SettingsPage() {
+  const router = useRouter();
   const { user, refreshUser } = useAuth();
   const { tenant } = useTenant();
   const { addToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [companyName, setCompanyName] = useState("");
   const [fullName, setFullName] = useState("");
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
+
+  // Check if user is admin (admins can't leave, they own the workspace)
+  const isAdmin = user?.role === 'admin' || user?.is_super_admin;
+
+  const handleLeaveWorkspace = async () => {
+    if (!user) return;
+    
+    setIsLeaving(true);
+    try {
+      // Call API to remove self from workspace
+      await apiDelete(`/api/users/${user.id}/leave`);
+      
+      addToast({
+        type: "success",
+        title: "Left workspace",
+        description: "You have successfully left this workspace.",
+      });
+      
+      // Log out and redirect to login
+      await logout();
+      router.push("/login");
+    } catch (error) {
+      addToast({
+        type: "error",
+        title: "Failed to leave",
+        description: error instanceof Error ? error.message : "Could not leave workspace. Please try again.",
+      });
+    } finally {
+      setIsLeaving(false);
+      setShowLeaveModal(false);
+    }
+  };
 
   // Initialize form values from user context
   useEffect(() => {
@@ -217,6 +255,74 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Leave Workspace - Only show for non-admin users */}
+      {!isAdmin && (
+        <div className="bg-[var(--surface-card)] border border-red-500/20 rounded-xl">
+          <div className="px-6 py-4 border-b border-red-500/20">
+            <h2 className="font-semibold text-red-500">Danger Zone</h2>
+            <p className="text-sm text-[var(--dash-text-tertiary)]">Irreversible actions</p>
+          </div>
+          <div className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-[var(--dash-text-primary)]">Leave Workspace</p>
+                <p className="text-sm text-[var(--dash-text-muted)]">
+                  Remove yourself from {tenant?.name || 'this workspace'}. You will lose access to all content.
+                </p>
+              </div>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowLeaveModal(true)}
+                className="border-red-500/50 text-red-500 hover:bg-red-500/10"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Leave
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Leave Workspace Confirmation Modal */}
+      <Modal
+        isOpen={showLeaveModal}
+        onClose={() => setShowLeaveModal(false)}
+        title="Leave Workspace"
+        size="sm"
+      >
+        <div className="p-6">
+          <div className="flex items-center justify-center mb-4">
+            <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center">
+              <AlertTriangle className="w-6 h-6 text-red-500" />
+            </div>
+          </div>
+          <p className="text-center text-[var(--dash-text-primary)] mb-2">
+            Are you sure you want to leave <strong>{tenant?.name || 'this workspace'}</strong>?
+          </p>
+          <p className="text-center text-sm text-[var(--dash-text-muted)] mb-6">
+            You will lose access to all documents and content. This action cannot be undone.
+          </p>
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setShowLeaveModal(false)}
+              disabled={isLeaving}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              className="flex-1 bg-red-500 hover:bg-red-600"
+              onClick={handleLeaveWorkspace}
+              disabled={isLeaving}
+            >
+              {isLeaving ? "Leaving..." : "Leave Workspace"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

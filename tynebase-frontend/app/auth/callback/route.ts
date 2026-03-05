@@ -6,16 +6,37 @@ export async function GET(request: Request) {
   const code = searchParams.get("code");
   const tenant = searchParams.get("tenant");
   const redirect = searchParams.get("redirect") || "/dashboard";
+  const errorParam = searchParams.get("error");
+  const errorDescription = searchParams.get("error_description");
+
+  // Handle Supabase error redirects (e.g., expired links)
+  if (errorParam) {
+    console.error('[Auth Callback] Supabase error:', errorParam, errorDescription);
+    return NextResponse.redirect(`${origin}/login?error=${errorParam}&message=${encodeURIComponent(errorDescription || 'Authentication failed')}`);
+  }
 
   if (code) {
     const supabase = await createClient();
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     
-    if (!error && data.user) {
+    if (error) {
+      console.error('[Auth Callback] Session exchange error:', error.message);
+      return NextResponse.redirect(`${origin}/login?error=session_error&message=${encodeURIComponent(error.message)}`);
+    }
+    
+    if (data.user) {
       // Check if this is an invited user (has invite metadata)
       const userMetadata = data.user.user_metadata;
       const inviteTenantId = userMetadata?.tenant_id;
       const inviteRole = userMetadata?.role;
+      
+      console.log('[Auth Callback] User metadata:', { 
+        userId: data.user.id, 
+        email: data.user.email,
+        inviteTenantId, 
+        inviteRole,
+        tenantName: userMetadata?.tenant_name 
+      });
       
       if (inviteTenantId && inviteRole) {
         // This is an invited user - check if user record exists
@@ -36,7 +57,10 @@ export async function GET(request: Request) {
             role: inviteRole,
             invitedBy: userMetadata?.invited_by_name,
           }));
+          console.log('[Auth Callback] Redirecting to accept-invite for new invited user');
           return NextResponse.redirect(`${origin}/auth/accept-invite?data=${inviteData}`);
+        } else {
+          console.log('[Auth Callback] Invited user already exists in users table');
         }
       }
       
@@ -58,5 +82,6 @@ export async function GET(request: Request) {
     }
   }
 
+  console.error('[Auth Callback] No code provided or unknown error');
   return NextResponse.redirect(`${origin}/login?error=auth_failed`);
 }

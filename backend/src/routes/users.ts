@@ -309,4 +309,60 @@ export default async function usersRoutes(fastify: FastifyInstance) {
       }
     }
   );
+
+  /**
+   * DELETE /api/users/:id/leave
+   * Allows a user to leave a workspace (remove themselves)
+   * Only works if the user is removing themselves and is not an admin
+   */
+  fastify.delete(
+    '/api/users/:id/leave',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const { id } = request.params as { id: string };
+        const tenant = (request as any).tenant;
+        const currentUser = (request as any).user;
+
+        // User can only remove themselves
+        if (id !== currentUser.id) {
+          return reply.code(403).send({
+            error: { code: 'FORBIDDEN', message: 'You can only remove yourself from a workspace' },
+          });
+        }
+
+        // Admins cannot leave - they own the workspace
+        if (currentUser.role === 'admin' || currentUser.is_super_admin) {
+          return reply.code(400).send({
+            error: { code: 'ADMIN_CANNOT_LEAVE', message: 'Admins cannot leave the workspace. Transfer ownership first or delete the workspace.' },
+          });
+        }
+
+        // Soft delete the user (set status to deleted)
+        const { error: deleteError } = await supabaseAdmin
+          .from('users')
+          .update({ status: 'deleted' })
+          .eq('id', id)
+          .eq('tenant_id', tenant.id);
+
+        if (deleteError) {
+          fastify.log.error({ error: deleteError, userId: id }, 'Failed to leave workspace');
+          return reply.code(500).send({
+            error: { code: 'LEAVE_FAILED', message: 'Failed to leave workspace' },
+          });
+        }
+
+        fastify.log.info({ userId: id, tenantId: tenant.id }, 'User left workspace');
+
+        return reply.code(200).send({ success: true, data: { message: 'Successfully left workspace' } });
+      } catch (error) {
+        fastify.log.error({ error }, 'Error in leave workspace endpoint');
+        return reply.code(500).send({
+          error: { code: 'INTERNAL_ERROR', message: 'An error occurred' },
+        });
+      }
+    }
+  );
 }
