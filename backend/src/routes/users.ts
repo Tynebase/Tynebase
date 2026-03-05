@@ -5,6 +5,7 @@ import { rateLimitMiddleware } from '../middleware/rateLimit';
 import { tenantContextMiddleware } from '../middleware/tenantContext';
 import { authMiddleware } from '../middleware/auth';
 import { membershipGuard } from '../middleware/membershipGuard';
+import { sendRoleChangeEmail, sendUserRemovedEmail } from '../services/email';
 
 /**
  * Zod schema for GET /api/users query parameters
@@ -193,7 +194,7 @@ export default async function usersRoutes(fastify: FastifyInstance) {
 
         const { data: targetUser, error: fetchError } = await supabaseAdmin
           .from('users')
-          .select('id')
+          .select('id, email, full_name, role')
           .eq('id', id)
           .eq('tenant_id', tenant.id)
           .single();
@@ -232,6 +233,20 @@ export default async function usersRoutes(fastify: FastifyInstance) {
         if (updateError) {
           return reply.code(500).send({
             error: { code: 'UPDATE_FAILED', message: 'Failed to update user' },
+          });
+        }
+
+        // Send email notification if role was changed
+        if (body.role && body.role !== targetUser.role) {
+          sendRoleChangeEmail({
+            to: updatedUser.email,
+            userName: updatedUser.full_name || updatedUser.email.split('@')[0],
+            tenantName: tenant.name,
+            oldRole: targetUser.role,
+            newRole: body.role,
+            changedBy: currentUser.full_name || currentUser.email,
+          }).catch(err => {
+            fastify.log.error({ error: err, userId: id }, 'Failed to send role change email');
           });
         }
 
@@ -278,7 +293,7 @@ export default async function usersRoutes(fastify: FastifyInstance) {
 
         const { data: targetUser, error: fetchError } = await supabaseAdmin
           .from('users')
-          .select('id')
+          .select('id, email, full_name')
           .eq('id', id)
           .eq('tenant_id', tenant.id)
           .single();
@@ -300,6 +315,16 @@ export default async function usersRoutes(fastify: FastifyInstance) {
             error: { code: 'DELETE_FAILED', message: 'Failed to remove user' },
           });
         }
+
+        // Send email notification to removed user
+        sendUserRemovedEmail({
+          to: targetUser.email,
+          userName: targetUser.full_name || targetUser.email.split('@')[0],
+          tenantName: tenant.name,
+          removedBy: currentUser.full_name || currentUser.email,
+        }).catch(err => {
+          fastify.log.error({ error: err, userId: id }, 'Failed to send user removed email');
+        });
 
         return reply.code(200).send({ success: true, data: { message: 'User removed' } });
       } catch (error) {

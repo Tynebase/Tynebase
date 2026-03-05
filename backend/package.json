@@ -46,6 +46,7 @@
     "prosemirror-markdown": "^1.13.3",
     "prosemirror-model": "^1.25.4",
     "prosemirror-state": "^1.4.4",
+    "resend": "^6.9.3",
     "tesseract.js": "^7.0.0",
     "tiktoken": "^1.0.22",
     "turndown": "^7.2.2",

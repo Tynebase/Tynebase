@@ -6,6 +6,7 @@ import { tenantContextMiddleware } from '../middleware/tenantContext';
 import { authMiddleware } from '../middleware/auth';
 import { membershipGuard } from '../middleware/membershipGuard';
 import { writeAuditLog, getClientIp } from '../lib/auditLog';
+import { sendWelcomeEmail } from '../services/email';
 
 /**
  * User limits per subscription tier
@@ -245,6 +246,18 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
               metadata: { role, moved_from_tenant: existingUserRecord.tenant_id },
             });
 
+            // Send welcome email to the moved user
+            sendWelcomeEmail({
+              to: email,
+              userName: movedUser.full_name || email.split('@')[0],
+              tenantName: tenant.name,
+              role: role,
+              addedBy: user.full_name || user.email,
+              loginUrl: `https://www.tynebase.com/login`,
+            }).catch(err => {
+              fastify.log.error({ error: err, email }, 'Failed to send welcome email');
+            });
+
             return reply.code(200).send({
               success: true,
               data: {
@@ -314,6 +327,18 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
             targetName: email,
             ipAddress: getClientIp(request),
             metadata: { role, existing_user: true },
+          });
+
+          // Send welcome email to the added user
+          sendWelcomeEmail({
+            to: email,
+            userName: newUser.full_name || email.split('@')[0],
+            tenantName: tenant.name,
+            role: role,
+            addedBy: user.full_name || user.email,
+            loginUrl: `https://www.tynebase.com/login`,
+          }).catch(err => {
+            fastify.log.error({ error: err, email }, 'Failed to send welcome email');
           });
 
           return reply.code(200).send({
