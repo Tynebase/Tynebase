@@ -25,8 +25,14 @@ function InviteCallbackContent() {
     if (handled.current) return;
     handled.current = true;
 
+    // Debug: log what we received
+    console.log('[InviteCallback] URL:', window.location.href);
+    console.log('[InviteCallback] Hash:', window.location.hash);
+    console.log('[InviteCallback] Search:', window.location.search);
+
     const supabase = createClient();
     if (!supabase) {
+      console.error('[InviteCallback] Supabase client not configured');
       window.location.href = "/login?error=config_error";
       return;
     }
@@ -53,6 +59,7 @@ function InviteCallbackContent() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('[InviteCallback] onAuthStateChange:', event, session?.user?.email);
       if (
         (event === "SIGNED_IN" || event === "INITIAL_SESSION") &&
         session?.user
@@ -61,6 +68,17 @@ function InviteCallbackContent() {
         await handleUser(session);
       }
     });
+
+    // If there's a hash fragment, Supabase should pick it up automatically
+    // But let's also try to get the session directly after a short delay
+    setTimeout(async () => {
+      const { data } = await supabase.auth.getSession();
+      console.log('[InviteCallback] getSession check:', data.session?.user?.email);
+      if (data.session?.user) {
+        clearTimeout(timeoutId);
+        await handleUser(data.session);
+      }
+    }, 500);
 
     // Also try explicit PKCE code exchange
     const code = searchParams.get("code");
