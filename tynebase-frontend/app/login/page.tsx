@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useToast } from "@/components/ui/Toast";
@@ -8,7 +8,7 @@ import { Modal } from "@/components/ui/Modal";
 import { login } from "@/lib/api/auth";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
-import { ArrowRight, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, AlertCircle, UserX, Plus } from "lucide-react";
 
 function LoginPageInner() {
   const router = useRouter();
@@ -20,8 +20,18 @@ function LoginPageInner() {
   const [isLoading, setIsLoading] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [showAccountDeletedModal, setShowAccountDeletedModal] = useState(false);
+  const [deletedEmail, setDeletedEmail] = useState("");
 
   const redirect = searchParams.get("redirect") || "/dashboard";
+  const errorParam = searchParams.get("error");
+
+  // Show account deleted modal if redirected with error param
+  useEffect(() => {
+    if (errorParam === 'account_deleted') {
+      setShowAccountDeletedModal(true);
+    }
+  }, [errorParam]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,11 +53,17 @@ function LoginPageInner() {
       // Redirect to dashboard - use window.location for hard redirect
       // The login() function already stored the JWT token and tenant subdomain
       window.location.href = redirect;
-    } catch (error) {
-      // Show error modal instead of toast
-      const message = error instanceof Error ? error.message : "Invalid email or password.";
-      setErrorMessage(message);
-      setShowErrorModal(true);
+    } catch (error: any) {
+      // Check if this is an account deleted error
+      if (error?.code === 'ACCOUNT_DELETED' || error?.message?.includes('removed from this workspace')) {
+        setDeletedEmail(email);
+        setShowAccountDeletedModal(true);
+      } else {
+        // Show error modal instead of toast
+        const message = error instanceof Error ? error.message : "Invalid email or password.";
+        setErrorMessage(message);
+        setShowErrorModal(true);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -239,6 +255,74 @@ function LoginPageInner() {
           >
             Try Again
           </button>
+        </div>
+      </Modal>
+
+      {/* Account Deleted Modal */}
+      <Modal
+        isOpen={showAccountDeletedModal}
+        onClose={() => setShowAccountDeletedModal(false)}
+        title="Account Removed"
+        size="sm"
+      >
+        <div style={{ textAlign: 'center', padding: '20px 0' }}>
+          <div style={{ 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            width: '56px',
+            height: '56px',
+            borderRadius: '50%',
+            background: 'rgba(239, 68, 68, 0.1)',
+            marginBottom: '16px'
+          }}>
+            <UserX className="w-7 h-7" style={{ color: '#ef4444' }} />
+          </div>
+          <p style={{ 
+            fontSize: '15px', 
+            color: 'var(--text-primary)', 
+            marginBottom: '8px',
+            fontWeight: 500
+          }}>
+            Your account has been removed
+          </p>
+          <p style={{ 
+            fontSize: '14px', 
+            color: 'var(--text-secondary)',
+            marginBottom: '24px',
+            lineHeight: '1.5'
+          }}>
+            You were removed from your previous workspace. You can create a new workspace to continue using TyneBase, or wait to be invited to another workspace.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <Link
+              href={`/signup?email=${encodeURIComponent(deletedEmail)}`}
+              className="btn btn-primary"
+              style={{ 
+                padding: '12px 32px',
+                fontSize: '14px',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+            >
+              <Plus className="w-4 h-4" />
+              Create New Workspace
+            </Link>
+            <button
+              onClick={() => setShowAccountDeletedModal(false)}
+              className="btn btn-secondary"
+              style={{ 
+                padding: '12px 32px',
+                fontSize: '14px',
+                fontWeight: 500
+              }}
+            >
+              Close
+            </button>
+          </div>
         </div>
       </Modal>
     </div>

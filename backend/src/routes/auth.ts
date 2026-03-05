@@ -582,6 +582,20 @@ export default async function authRoutes(fastify: FastifyInstance) {
         });
       }
 
+      // Check if user was deleted (left workspace or was removed)
+      if (userProfile.status === 'deleted') {
+        return reply.code(403).send({
+          error: {
+            code: 'ACCOUNT_DELETED',
+            message: 'Your account has been removed from this workspace. You can create a new workspace or wait to be invited to another one.',
+            details: {
+              can_create_workspace: true,
+              email: userProfile.email,
+            },
+          },
+        });
+      }
+
       fastify.log.info({ userId: data.user.id }, 'Login successful');
 
       writeAuditLog({
@@ -705,6 +719,20 @@ export default async function authRoutes(fastify: FastifyInstance) {
             code: 'USER_NOT_FOUND',
             message: 'User profile not found',
             details: {},
+          },
+        });
+      }
+
+      // Check if user was deleted
+      if (userProfile.status === 'deleted') {
+        return reply.code(403).send({
+          error: {
+            code: 'ACCOUNT_DELETED',
+            message: 'Your account has been removed from this workspace.',
+            details: {
+              can_create_workspace: true,
+              email: userProfile.email,
+            },
           },
         });
       }

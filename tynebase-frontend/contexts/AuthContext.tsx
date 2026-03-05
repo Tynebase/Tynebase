@@ -41,8 +41,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setTenantSubdomain(response.tenant.subdomain);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch user:", error);
+      
+      // If account was deleted, clear everything and redirect to login
+      if (error?.code === 'ACCOUNT_DELETED' || error?.message?.includes('removed from this workspace')) {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('tenant_subdomain');
+        document.cookie = 'tenant_subdomain=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        
+        // Redirect to login with a message
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+          window.location.href = '/login?error=account_deleted';
+        }
+      }
+      
       setUser(null);
       setTenant(null);
     } finally {
