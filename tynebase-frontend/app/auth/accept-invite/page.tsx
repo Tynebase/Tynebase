@@ -6,7 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useToast } from "@/components/ui/Toast";
 import { Button } from "@/components/ui/Button";
-import { Eye, EyeOff, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Eye, EyeOff, CheckCircle2, XCircle, Loader2, Shield, Users } from "lucide-react";
 import { acceptInvite } from "@/lib/api/invites";
 import { setAuthTokens, setTenantSubdomain } from "@/lib/api/client";
 import { createClient } from "@/lib/supabase/client";
@@ -27,9 +27,12 @@ function AcceptInviteContent() {
   const { addToast } = useToast();
   const dataParam = searchParams.get("data");
   
-  const [status, setStatus] = useState<"loading" | "valid" | "invalid" | "expired" | "ready" | "success">("loading");
+  const [status, setStatus] = useState<"loading" | "invalid" | "expired" | "no_session" | "ready" | "success">("loading");
   const [invite, setInvite] = useState<InviteData | null>(null);
   const [fullName, setFullName] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -48,18 +51,22 @@ function AcceptInviteContent() {
         }
 
         // Bridge Supabase session tokens into localStorage for the API client.
-        // The auth callback exchanged the code server-side, so the session
-        // exists in Supabase cookies but NOT in localStorage where apiClient reads from.
         const supabase = createClient();
         if (supabase) {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.access_token && session?.refresh_token) {
             setAuthTokens(session.access_token, session.refresh_token);
+            setInvite(decoded);
+            setStatus("ready");
+          } else {
+            // No session - token may have expired
+            setInvite(decoded);
+            setStatus("no_session");
           }
+        } else {
+          setInvite(decoded);
+          setStatus("no_session");
         }
-
-        setInvite(decoded);
-        setStatus("ready");
       } catch {
         setStatus("invalid");
       }
@@ -67,10 +74,28 @@ function AcceptInviteContent() {
     initInvite();
   }, [dataParam]);
 
+  const validate = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (password && password.length < 8) {
+      newErrors.password = "Password must be at least 8 characters";
+    }
+    if (password && confirmPassword && password !== confirmPassword) {
+      newErrors.confirmPassword = "Passwords do not match";
+    }
+    if (password && !confirmPassword) {
+      newErrors.confirmPassword = "Please confirm your password";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!invite) return;
+    if (!validate()) return;
     
     setIsSubmitting(true);
     setErrors({});
@@ -81,6 +106,7 @@ function AcceptInviteContent() {
         tenant_id: invite.tenantId,
         role: invite.role,
         full_name: fullName.trim() || undefined,
+        password: password || undefined,
       });
       
       // Set tenant subdomain for future API calls
@@ -96,20 +122,31 @@ function AcceptInviteContent() {
       
       // Redirect to dashboard after a short delay
       setTimeout(() => {
-        router.push("/dashboard");
+        window.location.href = "/dashboard";
       }, 2000);
     } catch (error: any) {
       console.error('Failed to accept invite:', error);
-      setErrors({ submit: error.message || 'Failed to accept invitation' });
-      addToast({
-        type: "error",
-        title: "Failed to accept invite",
-        description: error.message || "An error occurred",
-      });
+      
+      // Handle specific error codes
+      if (error.code === 'USER_EXISTS') {
+        // User already accepted - just redirect
+        if (invite.tenantSubdomain) {
+          setTenantSubdomain(invite.tenantSubdomain);
+        }
+        setStatus("success");
+        setTimeout(() => {
+          window.location.href = "/dashboard";
+        }, 1500);
+        return;
+      }
+      
+      setErrors({ submit: error.message || 'Failed to accept invitation. Please try again.' });
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const inputClasses = "w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 transition-all";
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--bg-primary)]">
@@ -148,39 +185,46 @@ function AcceptInviteContent() {
             </div>
           )}
 
-          {status === "expired" && (
+          {status === "no_session" && invite && (
             <div className="text-center py-8">
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-500/10 flex items-center justify-center">
-                <XCircle className="w-8 h-8 text-amber-500" />
+                <Shield className="w-8 h-8 text-amber-500" />
               </div>
               <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">
-                Invitation Expired
+                Session Expired
               </h2>
-              <p className="text-[var(--text-secondary)] mb-6">
-                This invitation has expired. Please request a new one from your administrator.
+              <p className="text-[var(--text-secondary)] mb-2">
+                Your invitation to <strong className="text-[var(--text-primary)]">{invite.tenantName}</strong> is valid, but your session has expired.
               </p>
-              <Link href="/login">
-                <Button variant="primary">Go to Login</Button>
-              </Link>
+              <p className="text-sm text-[var(--text-muted)] mb-6">
+                Please ask the workspace admin to resend the invitation, or log in if you already have an account.
+              </p>
+              <div className="flex flex-col gap-3">
+                <Link href="/login">
+                  <Button variant="primary" className="w-full">Go to Login</Button>
+                </Link>
+              </div>
             </div>
           )}
 
           {status === "ready" && invite && (
             <>
               <div className="text-center mb-6">
+                <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-[var(--brand)]/10 flex items-center justify-center">
+                  <Users className="w-7 h-7 text-[var(--brand)]" />
+                </div>
                 <h2 className="text-2xl font-semibold text-[var(--text-primary)] mb-2">
-                  You're Invited!
+                  Join {invite.tenantName}
                 </h2>
                 <p className="text-[var(--text-secondary)]">
-                  <span className="font-medium text-[var(--text-primary)]">{invite.invitedBy}</span> has invited you to join
+                  <span className="font-medium text-[var(--text-primary)]">{invite.invitedBy || 'A workspace admin'}</span> has invited you to collaborate
                 </p>
-                <p className="text-lg font-medium text-[var(--brand)] mt-1">{invite.tenantName}</p>
               </div>
 
               <div className="bg-[var(--bg-secondary)] rounded-xl p-4 mb-6">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-[var(--text-secondary)]">Email</span>
-                  <span className="text-[var(--text-primary)]">{invite.email}</span>
+                  <span className="text-[var(--text-primary)] font-medium">{invite.email}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm mt-2">
                   <span className="text-[var(--text-secondary)]">Role</span>
@@ -192,17 +236,58 @@ function AcceptInviteContent() {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-                    Your Name (optional)
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+                    Full Name
                   </label>
                   <input
                     type="text"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="John Doe"
-                    className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 transition-all"
+                    placeholder="Your name"
+                    className={inputClasses}
+                    autoFocus
                   />
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+                    Set Password
+                    <span className="text-[var(--text-muted)] font-normal ml-1">(for future logins)</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => { setPassword(e.target.value); setErrors(prev => ({ ...prev, password: '', confirmPassword: '' })); }}
+                      placeholder="At least 8 characters"
+                      className={`${inputClasses} pr-11 ${errors.password ? 'border-red-500' : ''}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                  {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
+                </div>
+
+                {password && (
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+                      Confirm Password
+                    </label>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={(e) => { setConfirmPassword(e.target.value); setErrors(prev => ({ ...prev, confirmPassword: '' })); }}
+                      placeholder="Confirm your password"
+                      className={`${inputClasses} ${errors.confirmPassword ? 'border-red-500' : ''}`}
+                    />
+                    {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>}
+                  </div>
+                )}
 
                 {errors.submit && (
                   <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-sm">
@@ -219,10 +304,10 @@ function AcceptInviteContent() {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Joining...
+                      Joining workspace...
                     </>
                   ) : (
-                    "Accept Invitation"
+                    "Accept & Join Workspace"
                   )}
                 </Button>
               </form>
@@ -245,11 +330,12 @@ function AcceptInviteContent() {
                 Welcome to the Team!
               </h2>
               <p className="text-[var(--text-secondary)] mb-4">
-                You've successfully joined {invite?.tenantName || 'the team'}
+                You've successfully joined {invite?.tenantName || 'the workspace'}
               </p>
-              <p className="text-sm text-[var(--text-muted)]">
+              <div className="flex items-center justify-center gap-2 text-sm text-[var(--text-muted)]">
+                <Loader2 className="w-4 h-4 animate-spin" />
                 Redirecting to dashboard...
-              </p>
+              </div>
             </div>
           )}
         </div>

@@ -34,6 +34,7 @@ export interface AcceptInviteRequest {
   tenant_id: string;
   role: 'admin' | 'editor' | 'member' | 'viewer';
   full_name?: string;
+  password?: string;
 }
 
 export interface AcceptInviteResponse {

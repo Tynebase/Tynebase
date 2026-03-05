@@ -41,6 +41,7 @@ const acceptInviteSchema = z.object({
   tenant_id: z.string().uuid(),
   role: z.enum(['admin', 'editor', 'member', 'viewer']),
   full_name: z.string().trim().max(100, 'Name must be 100 characters or less').optional(),
+  password: z.string().min(8, 'Password must be at least 8 characters').optional(),
 });
 
 /**
@@ -371,6 +372,10 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
 
         // Use Supabase's invite functionality for new users
         // This sends a magic link email to the user
+        const frontendUrl = process.env.FRONTEND_URL || 'https://www.tynebase.com';
+        const redirectTo = `${frontendUrl}/auth/callback?tenant=${tenant.subdomain}`;
+        fastify.log.info({ email, redirectTo, frontendUrl }, 'Sending invite with redirect URL');
+
         const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
           data: {
             tenant_id: tenant.id,
@@ -380,7 +385,7 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
             invited_by: user.id,
             invited_by_name: user.full_name || user.email,
           },
-          redirectTo: `${process.env.FRONTEND_URL || process.env.ALLOWED_ORIGINS?.split(',')[0]?.trim() || 'https://tynebase.vercel.app'}/auth/callback?tenant=${tenant.subdomain}`,
+          redirectTo,
         });
 
         if (inviteError) {
@@ -520,7 +525,7 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
 
         // Validate request body
         const body = acceptInviteSchema.parse(request.body);
-        const { user_id, tenant_id, role, full_name } = body;
+        const { user_id, tenant_id, role, full_name, password } = body;
 
         // Ensure the authenticated user matches the user_id in the request
         if (authUser.id !== user_id) {
@@ -643,6 +648,17 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
               details: {},
             },
           });
+        }
+
+        // Set password if provided so user can log in later
+        if (password) {
+          const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(user_id, {
+            password: password,
+          });
+          if (passwordError) {
+            fastify.log.error({ error: passwordError, userId: user_id }, 'Failed to set password for invited user');
+            // Non-fatal: user can still use "forgot password" later
+          }
         }
 
         // Create default user consents
@@ -976,6 +992,7 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
         }
 
         // Generate a new invite link
+        const frontendUrl = process.env.FRONTEND_URL || 'https://www.tynebase.com';
         const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
           data: {
             tenant_id: tenant.id,
@@ -985,7 +1002,7 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
             invited_by: user.id,
             invited_by_name: user.full_name || user.email,
           },
-          redirectTo: `${process.env.FRONTEND_URL || process.env.ALLOWED_ORIGINS?.split(',')[0]?.trim() || 'https://tynebase.vercel.app'}/auth/callback?tenant=${tenant.subdomain}`,
+          redirectTo: `${frontendUrl}/auth/callback?tenant=${tenant.subdomain}`,
         });
 
         if (inviteError) {

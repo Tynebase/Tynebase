@@ -577,7 +577,7 @@ export default function UsersPage() {
                     <div className="min-w-0">
                       <p className="font-medium text-[var(--text-primary)] truncate">{invite.email}</p>
                       <p className="text-sm text-[var(--text-tertiary)]">
-                        Invited as <span className={`font-medium ${getRoleBadgeClass(invite.role)} px-1.5 py-0.5 rounded text-xs`}>{invite.role}</span> by {invite.invited_by}
+                        Invited as <span className={`font-medium ${getRoleBadgeClass(invite.role)} px-1.5 py-0.5 rounded text-xs`}>{invite.role.charAt(0).toUpperCase() + invite.role.slice(1)}</span> by {invite.invited_by}
                       </p>
                     </div>
                   </div>

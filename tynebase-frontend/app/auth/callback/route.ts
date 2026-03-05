@@ -9,79 +9,119 @@ export async function GET(request: Request) {
   const errorParam = searchParams.get("error");
   const errorDescription = searchParams.get("error_description");
 
+  console.log('[Auth Callback] Params:', { code: code ? 'present' : 'missing', tenant, errorParam, errorDescription });
+
   // Handle Supabase error redirects (e.g., expired links)
   if (errorParam) {
     console.error('[Auth Callback] Supabase error:', errorParam, errorDescription);
-    return NextResponse.redirect(`${origin}/login?error=${errorParam}&message=${encodeURIComponent(errorDescription || 'Authentication failed')}`);
+
+    // Provide user-friendly messages for common errors
+    const isExpired = errorDescription?.includes('expired') || errorParam === 'access_denied';
+    if (isExpired) {
+      return NextResponse.redirect(
+        `${origin}/login?error=invite_expired&message=${encodeURIComponent('This invitation link has expired. Please ask the workspace admin to resend the invite.')}`
+      );
+    }
+
+    return NextResponse.redirect(
+      `${origin}/login?error=${errorParam}&message=${encodeURIComponent(errorDescription || 'Authentication failed. Please try again.')}`
+    );
   }
 
-  if (code) {
-    const supabase = await createClient();
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-    
-    if (error) {
-      console.error('[Auth Callback] Session exchange error:', error.message);
-      return NextResponse.redirect(`${origin}/login?error=session_error&message=${encodeURIComponent(error.message)}`);
+  if (!code) {
+    console.error('[Auth Callback] No code provided');
+    return NextResponse.redirect(`${origin}/login?error=auth_failed&message=${encodeURIComponent('No authentication code received. Please try the invite link again.')}`);
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+  if (error) {
+    console.error('[Auth Callback] Session exchange error:', error.message);
+
+    // Expired or invalid code
+    if (error.message.includes('expired') || error.message.includes('invalid')) {
+      return NextResponse.redirect(
+        `${origin}/login?error=invite_expired&message=${encodeURIComponent('This link has expired. Please ask the workspace admin to resend the invite.')}`
+      );
     }
-    
-    if (data.user) {
-      // Check if this is an invited user (has invite metadata)
-      const userMetadata = data.user.user_metadata;
-      const inviteTenantId = userMetadata?.tenant_id;
-      const inviteRole = userMetadata?.role;
-      
-      console.log('[Auth Callback] User metadata:', { 
-        userId: data.user.id, 
+
+    return NextResponse.redirect(
+      `${origin}/login?error=session_error&message=${encodeURIComponent(error.message)}`
+    );
+  }
+
+  if (!data.user) {
+    console.error('[Auth Callback] No user in session data');
+    return NextResponse.redirect(`${origin}/login?error=auth_failed`);
+  }
+
+  // Check if this is an invited user (has invite metadata)
+  const userMetadata = data.user.user_metadata;
+  const inviteTenantId = userMetadata?.tenant_id;
+  const inviteRole = userMetadata?.role;
+
+  console.log('[Auth Callback] User authenticated:', {
+    userId: data.user.id,
+    email: data.user.email,
+    hasInviteData: !!(inviteTenantId && inviteRole),
+    tenantName: userMetadata?.tenant_name,
+  });
+
+  if (inviteTenantId && inviteRole) {
+    // This is an invited user - check if user record already exists
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id, tenant_id, status')
+      .eq('id', data.user.id)
+      .maybeSingle();
+
+    if (!existingUser) {
+      // New user - redirect to accept-invite page to set name & password
+      const inviteData = encodeURIComponent(JSON.stringify({
+        userId: data.user.id,
         email: data.user.email,
-        inviteTenantId, 
-        inviteRole,
-        tenantName: userMetadata?.tenant_name 
-      });
-      
-      if (inviteTenantId && inviteRole) {
-        // This is an invited user - check if user record exists
-        const { data: existingUser } = await supabase
-          .from('users')
-          .select('id')
-          .eq('id', data.user.id)
-          .single();
-        
-        if (!existingUser) {
-          // Redirect to accept-invite page to complete profile setup
-          const inviteData = encodeURIComponent(JSON.stringify({
-            userId: data.user.id,
-            email: data.user.email,
-            tenantId: inviteTenantId,
-            tenantName: userMetadata?.tenant_name,
-            tenantSubdomain: userMetadata?.tenant_subdomain,
-            role: inviteRole,
-            invitedBy: userMetadata?.invited_by_name,
-          }));
-          console.log('[Auth Callback] Redirecting to accept-invite for new invited user');
-          return NextResponse.redirect(`${origin}/auth/accept-invite?data=${inviteData}`);
-        } else {
-          console.log('[Auth Callback] Invited user already exists in users table');
-        }
-      }
-      
-      // Fetch user's tenant context for proper redirect
-      const { data: userData } = await supabase
-        .from('users')
-        .select('tenant_id, tenants!inner(subdomain)')
-        .eq('id', data.user.id)
-        .single();
-      
-      if (userData?.tenant_id && userData.tenants && typeof userData.tenants === 'object' && 'subdomain' in userData.tenants) {
-        // User has tenant - redirect to dashboard on the current origin
-        // (subdomain routing is handled by the frontend tenant context, not DNS)
-        return NextResponse.redirect(`${origin}${redirect}`);
-      } else {
-        // Individual user without tenant - redirect to main site dashboard
-        return NextResponse.redirect(`${origin}/dashboard`);
-      }
+        tenantId: inviteTenantId,
+        tenantName: userMetadata?.tenant_name,
+        tenantSubdomain: userMetadata?.tenant_subdomain,
+        role: inviteRole,
+        invitedBy: userMetadata?.invited_by_name,
+      }));
+      console.log('[Auth Callback] New invited user → accept-invite page');
+      return NextResponse.redirect(`${origin}/auth/accept-invite?data=${inviteData}`);
+    }
+
+    // User record exists - they may have been moved to the new tenant already
+    // (this happens when an existing user is invited and the backend moved them)
+    console.log('[Auth Callback] Existing user with invite metadata, tenant_id:', existingUser.tenant_id);
+
+    if (existingUser.status === 'deleted') {
+      // User was previously deleted - redirect to login with message
+      return NextResponse.redirect(
+        `${origin}/login?error=account_deleted&message=${encodeURIComponent('Your account has been removed. You can create a new workspace or wait to be invited again.')}`
+      );
     }
   }
 
-  console.error('[Auth Callback] No code provided or unknown error');
-  return NextResponse.redirect(`${origin}/login?error=auth_failed`);
+  // Fetch user's tenant context for redirect
+  const { data: userData } = await supabase
+    .from('users')
+    .select('tenant_id, status, tenants!inner(subdomain)')
+    .eq('id', data.user.id)
+    .maybeSingle();
+
+  if (userData?.status === 'deleted') {
+    return NextResponse.redirect(
+      `${origin}/login?error=account_deleted&message=${encodeURIComponent('Your account has been removed from this workspace.')}`
+    );
+  }
+
+  if (userData?.tenant_id && userData.tenants && typeof userData.tenants === 'object' && 'subdomain' in userData.tenants) {
+    console.log('[Auth Callback] User has tenant, redirecting to dashboard');
+    return NextResponse.redirect(`${origin}${redirect}`);
+  }
+
+  // User exists in auth but has no tenant record - might need to complete signup
+  console.log('[Auth Callback] User has no tenant record, redirecting to dashboard');
+  return NextResponse.redirect(`${origin}/dashboard`);
 }

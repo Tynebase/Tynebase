@@ -25,13 +25,20 @@ function LoginPageInner() {
 
   const redirect = searchParams.get("redirect") || "/dashboard";
   const errorParam = searchParams.get("error");
+  const messageParam = searchParams.get("message");
 
-  // Show account deleted modal if redirected with error param
+  // Handle error redirects from auth callback
   useEffect(() => {
     if (errorParam === 'account_deleted') {
       setShowAccountDeletedModal(true);
+    } else if (errorParam === 'invite_expired') {
+      setErrorMessage(messageParam || 'This invitation link has expired. Please ask the workspace admin to resend the invite.');
+      setShowErrorModal(true);
+    } else if (errorParam && messageParam) {
+      setErrorMessage(decodeURIComponent(messageParam));
+      setShowErrorModal(true);
     }
-  }, [errorParam]);
+  }, [errorParam, messageParam]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,16 +58,19 @@ function LoginPageInner() {
       await new Promise(resolve => setTimeout(resolve, 500));
 
       // Redirect to dashboard - use window.location for hard redirect
-      // The login() function already stored the JWT token and tenant subdomain
       window.location.href = redirect;
     } catch (error: any) {
-      // Check if this is an account deleted error
-      if (error?.code === 'ACCOUNT_DELETED' || error?.message?.includes('removed from this workspace')) {
+      // Check for specific error codes from the API
+      const errorCode = error?.code;
+      
+      if (errorCode === 'ACCOUNT_DELETED') {
         setDeletedEmail(email);
         setShowAccountDeletedModal(true);
+      } else if (errorCode === 'ACCOUNT_SUSPENDED') {
+        setErrorMessage('Your account has been suspended. Please contact your workspace administrator.');
+        setShowErrorModal(true);
       } else {
-        // Show error modal instead of toast
-        const message = error instanceof Error ? error.message : "Invalid email or password.";
+        const message = error?.message || "Invalid email or password.";
         setErrorMessage(message);
         setShowErrorModal(true);
       }
