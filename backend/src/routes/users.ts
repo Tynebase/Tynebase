@@ -288,7 +288,7 @@ export default async function usersRoutes(fastify: FastifyInstance) {
 
         const { error: deleteError } = await supabaseAdmin
           .from('users')
-          .update({ status: 'deleted', deleted_at: new Date().toISOString() })
+          .update({ status: 'deleted' })
           .eq('id', id)
           .eq('tenant_id', tenant.id);
 
