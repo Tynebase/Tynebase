@@ -72,7 +72,7 @@ export async function authMiddleware(
 
     const { data: userData, error: dbError } = await supabaseAdmin
       .from('users')
-      .select('id, email, role, tenant_id, is_super_admin, status')
+      .select('id, email, full_name, role, tenant_id, is_super_admin, status')
       .eq('id', userId)
       .single();
 
@@ -141,6 +141,7 @@ export async function authMiddleware(
     (request as any).user = {
       id: userData.id,
       email: userData.email,
+      full_name: userData.full_name,
       role: userData.role,
       tenant_id: userData.tenant_id,
       is_super_admin: userData.is_super_admin || false,
