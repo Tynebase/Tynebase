@@ -71,9 +71,12 @@ export default async function usersRoutes(fastify: FastifyInstance) {
           .eq('tenant_id', tenant.id)
           .order('created_at', { ascending: false });
 
-        // Apply filters
+        // Apply filters - default to excluding deleted users
         if (status) {
           usersQuery = usersQuery.eq('status', status);
+        } else {
+          // By default, don't show deleted users
+          usersQuery = usersQuery.neq('status', 'deleted');
         }
         if (role) {
           usersQuery = usersQuery.eq('role', role);
