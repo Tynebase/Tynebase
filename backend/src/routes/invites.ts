@@ -373,7 +373,7 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
         // Use Supabase's invite functionality for new users
         // This sends a magic link email to the user
         const frontendUrl = process.env.FRONTEND_URL || 'https://www.tynebase.com';
-        const redirectTo = `${frontendUrl}/auth/callback?tenant=${tenant.subdomain}`;
+        const redirectTo = `${frontendUrl}/auth/invite-callback?tenant=${tenant.subdomain}`;
         fastify.log.info({ email, redirectTo, frontendUrl }, 'Sending invite with redirect URL');
 
         const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
@@ -1002,7 +1002,7 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
             invited_by: user.id,
             invited_by_name: user.full_name || user.email,
           },
-          redirectTo: `${frontendUrl}/auth/callback?tenant=${tenant.subdomain}`,
+          redirectTo: `${frontendUrl}/auth/invite-callback?tenant=${tenant.subdomain}`,
         });
 
         if (inviteError) {
