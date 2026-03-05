@@ -351,6 +351,8 @@ export default async function usersRoutes(fastify: FastifyInstance) {
         const tenant = (request as any).tenant;
         const currentUser = (request as any).user;
 
+        fastify.log.info({ userId: id, currentUserId: currentUser.id, tenantId: tenant.id, role: currentUser.role }, 'Leave workspace request received');
+
         // User can only remove themselves
         if (id !== currentUser.id) {
           return reply.code(403).send({

@@ -43,8 +43,10 @@ export default function SettingsPage() {
     
     setIsLeaving(true);
     try {
+      console.log('[Leave Workspace] Starting leave for user:', user.id);
       // Call API to remove self from workspace
-      await apiDelete(`/api/users/${user.id}/leave`);
+      const response = await apiDelete(`/api/users/${user.id}/leave`);
+      console.log('[Leave Workspace] API response:', response);
       
       addToast({
         type: "success",
@@ -52,10 +54,15 @@ export default function SettingsPage() {
         description: "You have successfully left this workspace.",
       });
       
+      // Clear local storage and log out
+      localStorage.removeItem('tenant_subdomain');
+      document.cookie = 'tenant_subdomain=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      
       // Log out and redirect to login
       await logout();
       router.push("/login");
     } catch (error) {
+      console.error('[Leave Workspace] Error:', error);
       addToast({
         type: "error",
         title: "Failed to leave",
