@@ -30,7 +30,7 @@ export async function GET(request: Request) {
 
   if (!code) {
     console.error('[Auth Callback] No code provided');
-    return NextResponse.redirect(`${origin}/login?error=auth_failed&message=${encodeURIComponent('No authentication code received. Please try the invite link again.')}`);
+    return NextResponse.redirect(`${origin}/login?error=auth_failed&message=${encodeURIComponent('No authentication code was received. Please try the invitation link again.')}`);
   }
 
   const supabase = await createClient();

@@ -223,35 +223,43 @@ function LoginPageInner() {
       <Modal
         isOpen={showErrorModal}
         onClose={() => setShowErrorModal(false)}
-        title="Login Failed"
         size="sm"
       >
         <div style={{ textAlign: 'center', padding: '20px 0' }}>
           <div style={{ 
-            display: 'inline-flex', 
+            display: 'flex', 
             alignItems: 'center', 
             justifyContent: 'center',
-            width: '56px',
-            height: '56px',
-            borderRadius: '50%',
-            background: 'var(--status-error-bg)',
+            gap: '12px',
             marginBottom: '16px'
           }}>
-            <AlertCircle className="w-7 h-7" style={{ color: 'var(--status-error)' }} />
+            <div style={{ 
+              display: 'inline-flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              background: 'var(--status-error-bg)',
+              flexShrink: 0
+            }}>
+              <AlertCircle className="w-5 h-5" style={{ color: 'var(--status-error)' }} />
+            </div>
+            <h3 style={{ 
+              fontSize: '18px', 
+              fontWeight: 600, 
+              color: 'var(--text-primary)',
+              margin: 0
+            }}>
+              Login Failed
+            </h3>
           </div>
           <p style={{ 
             fontSize: '15px', 
-            color: 'var(--text-primary)', 
-            marginBottom: '8px',
-            fontWeight: 500
+            color: 'var(--text-secondary)', 
+            lineHeight: 1.5
           }}>
             {errorMessage}
-          </p>
-          <p style={{ 
-            fontSize: '14px', 
-            color: 'var(--text-secondary)'
-          }}>
-            Please check your credentials and try again.
           </p>
           <button
             onClick={() => setShowErrorModal(false)}

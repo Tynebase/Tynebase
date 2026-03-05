@@ -93,7 +93,7 @@ function InviteCallbackContent() {
       window.location.href =
         "/login?error=auth_failed&message=" +
         encodeURIComponent(
-          "Could not establish a session. The invite link may have expired — please ask the workspace admin to resend it."
+          "No authentication code was received. Please try the invitation link again."
         );
     }, 8000);
 
