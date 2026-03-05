@@ -45,22 +45,39 @@ export default function SettingsPage() {
     try {
       console.log('[Leave Workspace] Starting leave for user:', user.id);
       // Call API to remove self from workspace
-      const response = await apiDelete(`/api/users/${user.id}/leave`);
+      const response = await apiDelete<{ success: boolean; data: { message: string; restored: boolean; tenant?: { id: string; subdomain: string; name: string } } }>(`/api/users/${user.id}/leave`);
       console.log('[Leave Workspace] API response:', response);
       
-      addToast({
-        type: "success",
-        title: "Left workspace",
-        description: "You have successfully left this workspace.",
-      });
-      
-      // Clear local storage and log out
-      localStorage.removeItem('tenant_subdomain');
-      document.cookie = 'tenant_subdomain=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-      
-      // Log out and redirect to login
-      await logout();
-      router.push("/login");
+      // Check if user was restored to their original workspace
+      if (response.data?.restored && response.data?.tenant) {
+        // Update tenant subdomain to the restored workspace
+        localStorage.setItem('tenant_subdomain', response.data.tenant.subdomain || '');
+        document.cookie = `tenant_subdomain=${response.data.tenant.subdomain || ''}; path=/; max-age=31536000`;
+        
+        addToast({
+          type: "success",
+          title: "Restored to original workspace",
+          description: `You have been restored to ${response.data.tenant.name}.`,
+        });
+        
+        // Hard refresh to reload with new tenant context
+        window.location.href = "/dashboard";
+      } else {
+        // No original workspace - user was soft deleted
+        addToast({
+          type: "success",
+          title: "Left workspace",
+          description: response.data?.message || "You have successfully left this workspace.",
+        });
+        
+        // Clear local storage and log out
+        localStorage.removeItem('tenant_subdomain');
+        document.cookie = 'tenant_subdomain=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        
+        // Log out and redirect to login
+        await logout();
+        router.push("/login");
+      }
     } catch (error) {
       console.error('[Leave Workspace] Error:', error);
       addToast({

@@ -192,18 +192,21 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
           // Check if they're already in another tenant's users table
           const { data: existingUserRecord, error: lookupError } = await supabaseAdmin
             .from('users')
-            .select('id, tenant_id')
+            .select('id, tenant_id, original_tenant_id')
             .eq('id', existingAuthUser.id)
             .maybeSingle();
 
           if (existingUserRecord && !lookupError) {
             // User already belongs to a tenant - move them to the new one by updating tenant_id
+            // Store their original tenant so they can return to it when they leave
             const { data: movedUser, error: moveError } = await supabaseAdmin
               .from('users')
               .update({
                 tenant_id: tenant.id,
                 role: role,
                 status: 'active',
+                // Only set original_tenant_id if not already set (preserve the true original)
+                original_tenant_id: existingUserRecord.original_tenant_id || existingUserRecord.tenant_id,
               })
               .eq('id', existingAuthUser.id)
               .select()

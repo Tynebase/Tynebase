@@ -367,7 +367,91 @@ export default async function usersRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Soft delete the user (set status to deleted)
+        // Get user's original tenant to restore them
+        const { data: userRecord, error: fetchError } = await supabaseAdmin
+          .from('users')
+          .select('id, original_tenant_id, tenant_id')
+          .eq('id', id)
+          .single();
+
+        if (fetchError || !userRecord) {
+          fastify.log.error({ error: fetchError, userId: id }, 'Failed to fetch user record');
+          return reply.code(500).send({
+            error: { code: 'LEAVE_FAILED', message: 'Failed to leave workspace' },
+          });
+        }
+
+        // If user has an original workspace, restore them to it
+        if (userRecord.original_tenant_id && userRecord.original_tenant_id !== tenant.id) {
+          // Get the original tenant info
+          const { data: originalTenant, error: tenantError } = await supabaseAdmin
+            .from('tenants')
+            .select('id, subdomain, name')
+            .eq('id', userRecord.original_tenant_id)
+            .single();
+
+          if (tenantError || !originalTenant) {
+            // Original tenant no longer exists - soft delete instead
+            fastify.log.warn({ userId: id, originalTenantId: userRecord.original_tenant_id }, 'Original tenant not found, soft deleting user');
+            await supabaseAdmin
+              .from('users')
+              .update({ status: 'deleted' })
+              .eq('id', id);
+
+            return reply.code(200).send({
+              success: true,
+              data: {
+                message: 'Left workspace. Your original workspace no longer exists.',
+                restored: false,
+              },
+            });
+          }
+
+          // Restore user to their original workspace
+          const { error: restoreError } = await supabaseAdmin
+            .from('users')
+            .update({
+              tenant_id: userRecord.original_tenant_id,
+              original_tenant_id: null, // Clear since they're back home
+              role: 'admin', // Restore as admin of their own workspace
+              status: 'active',
+            })
+            .eq('id', id);
+
+          if (restoreError) {
+            fastify.log.error({ error: restoreError, userId: id }, 'Failed to restore user to original workspace');
+            return reply.code(500).send({
+              error: { code: 'LEAVE_FAILED', message: 'Failed to leave workspace' },
+            });
+          }
+
+          // Update Supabase Auth user_metadata with restored tenant info
+          await supabaseAdmin.auth.admin.updateUserById(id, {
+            user_metadata: {
+              tenant_id: originalTenant.id,
+              tenant_subdomain: originalTenant.subdomain,
+              tenant_name: originalTenant.name,
+              role: 'admin',
+            },
+          });
+
+          fastify.log.info({ userId: id, fromTenantId: tenant.id, toTenantId: originalTenant.id }, 'User restored to original workspace');
+
+          return reply.code(200).send({
+            success: true,
+            data: {
+              message: `Successfully left workspace. You have been restored to your original workspace: ${originalTenant.name}`,
+              restored: true,
+              tenant: {
+                id: originalTenant.id,
+                subdomain: originalTenant.subdomain,
+                name: originalTenant.name,
+              },
+            },
+          });
+        }
+
+        // No original workspace - this is their home workspace, soft delete
         const { error: deleteError } = await supabaseAdmin
           .from('users')
           .update({ status: 'deleted' })
@@ -381,9 +465,15 @@ export default async function usersRoutes(fastify: FastifyInstance) {
           });
         }
 
-        fastify.log.info({ userId: id, tenantId: tenant.id }, 'User left workspace');
+        fastify.log.info({ userId: id, tenantId: tenant.id }, 'User left workspace (no original to restore)');
 
-        return reply.code(200).send({ success: true, data: { message: 'Successfully left workspace' } });
+        return reply.code(200).send({
+          success: true,
+          data: {
+            message: 'Successfully left workspace',
+            restored: false,
+          },
+        });
       } catch (error) {
         fastify.log.error({ error }, 'Error in leave workspace endpoint');
         return reply.code(500).send({
