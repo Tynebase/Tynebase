@@ -126,12 +126,53 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
         // Check if user already exists in tenant
         const { data: existingUser } = await supabaseAdmin
           .from('users')
-          .select('id, email')
+          .select('id, email, status')
           .eq('email', email)
           .eq('tenant_id', tenant.id)
-          .single();
+          .maybeSingle();
 
         if (existingUser) {
+          // If user was soft-deleted, reactivate them
+          if (existingUser.status === 'deleted') {
+            const { error: reactivateError } = await supabaseAdmin
+              .from('users')
+              .update({ status: 'active', role: role })
+              .eq('id', existingUser.id);
+
+            if (reactivateError) {
+              fastify.log.error({ error: reactivateError, userId: existingUser.id }, 'Failed to reactivate user');
+              return reply.code(500).send({
+                error: {
+                  code: 'REACTIVATE_FAILED',
+                  message: 'Failed to reactivate user',
+                  details: {},
+                },
+              });
+            }
+
+            fastify.log.info({ userId: existingUser.id, tenantId: tenant.id }, 'Soft-deleted user reactivated');
+
+            writeAuditLog({
+              tenantId: tenant.id,
+              actorId: user.id,
+              action: 'user.reactivated',
+              actionType: 'user',
+              targetName: email,
+              ipAddress: getClientIp(request),
+              metadata: { role },
+            });
+
+            return reply.code(200).send({
+              success: true,
+              data: {
+                message: 'User reactivated successfully',
+                added_email: email,
+                role: role,
+              },
+            });
+          }
+
+          // User exists and is active/suspended - can't re-invite
           return reply.code(400).send({
             error: {
               code: 'USER_EXISTS',
