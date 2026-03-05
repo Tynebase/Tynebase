@@ -4,6 +4,14 @@ import { tenantContextMiddleware } from '../middleware/tenantContext';
 import { authMiddleware } from '../middleware/auth';
 import { supabaseAdmin } from '../lib/supabase';
 
+// Tier credit allocations (must match auth.ts)
+const TIER_CREDITS: Record<string, number> = {
+  free: 10,
+  base: 100,
+  pro: 500,
+  enterprise: 2000,
+};
+
 /**
  * Dashboard stats endpoint
  * GET /api/dashboard/stats
@@ -86,14 +94,34 @@ export default async function dashboardRoutes(fastify: FastifyInstance) {
         }
 
         // Get credit usage for current month
-        const { data: creditPool, error: creditError } = await supabaseAdmin
+        let { data: creditPool, error: creditError } = await supabaseAdmin
           .from('credit_pools')
           .select('total_credits, used_credits')
           .eq('tenant_id', tenant.id)
           .eq('month_year', currentMonth)
           .single();
 
-        if (creditError && creditError.code !== 'PGRST116') {
+        // If credit pool doesn't exist for this month, create it
+        if (creditError && creditError.code === 'PGRST116') {
+          const tierCredits = TIER_CREDITS[tenant.tier] || TIER_CREDITS.free;
+          const { data: newPool, error: createError } = await supabaseAdmin
+            .from('credit_pools')
+            .insert({
+              tenant_id: tenant.id,
+              month_year: currentMonth,
+              total_credits: tierCredits,
+              used_credits: 0,
+            })
+            .select('total_credits, used_credits')
+            .single();
+
+          if (createError) {
+            request.log.error({ error: createError }, 'Failed to create credit pool');
+          } else {
+            creditPool = newPool;
+            creditError = null;
+          }
+        } else if (creditError) {
           request.log.error({ error: creditError }, 'Failed to fetch credit pool');
         }
 
