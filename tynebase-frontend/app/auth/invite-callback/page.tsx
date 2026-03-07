@@ -55,36 +55,63 @@ function InviteCallbackContent() {
     /* ---------- 2. Wait for session (hash-fragment or PKCE) ---------- */
 
     let timeoutId: ReturnType<typeof setTimeout>;
+    let settled = false;
+
+    function settle(session: any) {
+      if (settled) return false;
+      settled = true;
+      clearTimeout(timeoutId);
+      handleUser(session);
+      return true;
+    }
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('[InviteCallback] onAuthStateChange:', event, session?.user?.email);
       if (
-        (event === "SIGNED_IN" || event === "INITIAL_SESSION") &&
+        (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") &&
         session?.user
       ) {
-        clearTimeout(timeoutId);
-        await handleUser(session);
+        settle(session);
       }
     });
 
-    // If there's a hash fragment, Supabase should pick it up automatically
-    // But let's also try to get the session directly after a short delay
-    setTimeout(async () => {
-      const { data } = await supabase.auth.getSession();
-      console.log('[InviteCallback] getSession check:', data.session?.user?.email);
-      if (data.session?.user) {
-        clearTimeout(timeoutId);
-        await handleUser(data.session);
-      }
-    }, 500);
+    /* --- Explicitly consume hash-fragment tokens ---
+     * createBrowserClient (@supabase/ssr) does NOT auto-detect hash fragments
+     * the way the vanilla @supabase/auth-js client does.  We must parse and
+     * call setSession ourselves. */
+    const hash = window.location.hash;
+    if (hash && hash.includes("access_token")) {
+      const params = new URLSearchParams(hash.replace(/^#/, ""));
+      const accessToken = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
 
-    // Also try explicit PKCE code exchange
+      if (accessToken && refreshToken) {
+        console.log('[InviteCallback] Setting session from hash fragment tokens');
+        supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ data, error }) => {
+          if (error) {
+            console.error('[InviteCallback] setSession error:', error.message);
+            const isExpired = error.message.includes("expired") || error.message.includes("invalid");
+            window.location.href = `/login?error=${isExpired ? "invite_expired" : "session_error"}&message=${encodeURIComponent(
+              isExpired ? "This invitation link has expired. Please ask the workspace admin to resend the invite." : error.message
+            )}`;
+            return;
+          }
+          if (data.session?.user) {
+            settle(data.session);
+          }
+        });
+      }
+    }
+
+    // PKCE code exchange (server-side flow)
     const code = searchParams.get("code");
     if (code) {
-      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+      supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
         if (error) {
+          if (settled) return;
+          settled = true;
           clearTimeout(timeoutId);
           const isExpired =
             error.message.includes("expired") ||
@@ -95,25 +122,30 @@ function InviteCallbackContent() {
           window.location.href = `/login?error=${
             isExpired ? "invite_expired" : "session_error"
           }&message=${encodeURIComponent(msg)}`;
+          return;
         }
-        // onAuthStateChange will fire when the session is ready
+        if (data.session?.user) {
+          settle(data.session);
+        }
       });
     }
 
-    // Timeout: if no session after 8 seconds, bail
+    // Timeout: if no session after 10 seconds, bail
     timeoutId = setTimeout(async () => {
       // One last attempt
       const { data } = await supabase.auth.getSession();
       if (data.session?.user) {
-        await handleUser(data.session);
+        settle(data.session);
         return;
       }
+      if (settled) return;
+      settled = true;
       window.location.href =
         "/login?error=auth_failed&message=" +
         encodeURIComponent(
           "No authentication code was received. Please try the invitation link again."
         );
-    }, 8000);
+    }, 10000);
 
     async function handleUser(session: {
       user: any;

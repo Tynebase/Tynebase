@@ -32,6 +32,7 @@ CREATE INDEX IF NOT EXISTS idx_workspace_invites_auth_user_id ON public.workspac
 CREATE INDEX IF NOT EXISTS idx_workspace_invites_status ON public.workspace_invites(status);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_workspace_invites_pending_email ON public.workspace_invites(tenant_id, lower(email)) WHERE status = 'pending';
 
+DROP TRIGGER IF EXISTS update_workspace_invites_updated_at ON public.workspace_invites;
 CREATE TRIGGER update_workspace_invites_updated_at
     BEFORE UPDATE ON public.workspace_invites
     FOR EACH ROW
