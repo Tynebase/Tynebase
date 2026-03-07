@@ -35,11 +35,9 @@ import { useToast } from "@/components/ui/Toast";
 import { TIER_CONFIG, TierType } from "@/types/api";
 import Link from "next/link";
 
-
 const roleColors: Record<string, string> = {
   admin: "bg-purple-500/10 text-purple-600",
   editor: "bg-blue-500/10 text-blue-600",
-  member: "bg-green-500/10 text-green-600",
   viewer: "bg-gray-500/10 text-gray-600",
 };
 
@@ -128,7 +126,7 @@ function UsersStats({ totalCount, activeCount, pendingCount }: { totalCount: num
               <Shield className="w-5 h-5 text-purple-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-[var(--text-primary)]">4</p>
+              <p className="text-2xl font-bold text-[var(--text-primary)]">3</p>
               <p className="text-sm text-[var(--text-tertiary)]">Roles</p>
             </div>
           </div>
@@ -172,7 +170,6 @@ function UsersFiltersBar({
             <option value="all">All Roles</option>
             <option value="admin">Admin</option>
             <option value="editor">Editor</option>
-            <option value="member">Member</option>
             <option value="viewer">Viewer</option>
           </select>
         </div>
@@ -237,7 +234,7 @@ export default function UsersPage() {
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState("member");
+  const [inviteRole, setInviteRole] = useState<"admin" | "editor" | "viewer">("viewer");
   const [inviting, setInviting] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -247,7 +244,7 @@ export default function UsersPage() {
   
   // Role change modal state
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [editRole, setEditRole] = useState<"admin" | "editor" | "member" | "viewer">("member");
+  const [editRole, setEditRole] = useState<"admin" | "editor" | "viewer">("viewer");
   const [updating, setUpdating] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
   
@@ -313,20 +310,10 @@ export default function UsersPage() {
     if (!inviteEmail.trim()) return;
     try {
       setInviting(true);
-      const result = await inviteUser({ email: inviteEmail.trim(), role: inviteRole as any });
-      
-      // Check if user was added directly (existing user) or invited (new user)
-      if ((result as any).added_email) {
-        addToast({ type: "success", title: "User added", description: `${inviteEmail} has been added to the workspace` });
-        // Refresh users list since they were added directly
-        const usersResponse = await listUsers();
-        setUsers(usersResponse.users);
-      } else {
-        addToast({ type: "success", title: "Invitation sent", description: `Invitation sent to ${inviteEmail}` });
-        // Refresh pending invites
-        const response = await listPendingInvites();
-        setPendingInvites(response.invites);
-      }
+      await inviteUser({ email: inviteEmail.trim(), role: inviteRole });
+      addToast({ type: "success", title: "Invitation sent", description: `Invitation sent to ${inviteEmail}` });
+      const response = await listPendingInvites();
+      setPendingInvites(response.invites);
       
       setInviteEmail("");
       setShowInviteModal(false);
@@ -649,13 +636,12 @@ export default function UsersPage() {
             </label>
             <select
               value={inviteRole}
-              onChange={(e) => setInviteRole(e.target.value)}
+              onChange={(e) => setInviteRole(e.target.value as "admin" | "editor" | "viewer")}
               className="w-full px-4 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]"
             >
               <option value="viewer">Viewer - Read-only access</option>
-              <option value="member">Member - Can create & edit own docs</option>
-              <option value="editor">Editor - Can edit any document</option>
-              <option value="admin">Admin - Full access</option>
+              <option value="editor">Editor - Can create and edit workspace content</option>
+              <option value="admin">Admin - Can manage members and workspace settings</option>
             </select>
           </div>
 
@@ -690,13 +676,12 @@ export default function UsersPage() {
             </label>
             <select
               value={editRole}
-              onChange={(e) => setEditRole(e.target.value as any)}
+              onChange={(e) => setEditRole(e.target.value as "admin" | "editor" | "viewer")}
               className="w-full px-4 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]"
             >
               <option value="viewer">Viewer - Read-only access</option>
-              <option value="member">Member - Can create & edit own docs</option>
-              <option value="editor">Editor - Can edit any document</option>
-              <option value="admin">Admin - Full access</option>
+              <option value="editor">Editor - Can create and edit workspace content</option>
+              <option value="admin">Admin - Can manage members and workspace settings</option>
             </select>
           </div>
           {updateError && (
@@ -761,22 +746,17 @@ export default function UsersPage() {
             <div className="px-6 py-5 space-y-5">
               <div>
                 <h3 className="font-semibold text-[var(--text-primary)] text-sm">Admin</h3>
-                <p className="text-sm text-[var(--text-tertiary)] mt-1">Full access to all features including user management, inviting members, billing, branding settings, and audit logs. Can create, edit, publish, and delete any document.</p>
+                <p className="text-sm text-[var(--text-tertiary)] mt-1">Can manage members, invites, billing, branding settings, and the rest of the workspace while also creating and editing content.</p>
               </div>
               <div className="h-px bg-[var(--border-subtle)]" />
               <div>
                 <h3 className="font-semibold text-[var(--text-primary)] text-sm">Editor</h3>
-                <p className="text-sm text-[var(--text-tertiary)] mt-1">Can create, edit, publish, and delete any document in the workspace. Access to AI assistant. No admin settings or user management access.</p>
-              </div>
-              <div className="h-px bg-[var(--border-subtle)]" />
-              <div>
-                <h3 className="font-semibold text-[var(--text-primary)] text-sm">Member</h3>
-                <p className="text-sm text-[var(--text-tertiary)] mt-1">Can create documents and edit or delete their own documents. Cannot modify other members' content or publish documents.</p>
+                <p className="text-sm text-[var(--text-tertiary)] mt-1">Can create and edit documents, discussions, polls, tags, and other workspace content, but cannot manage members or workspace settings.</p>
               </div>
               <div className="h-px bg-[var(--border-subtle)]" />
               <div>
                 <h3 className="font-semibold text-[var(--text-primary)] text-sm">Viewer</h3>
-                <p className="text-sm text-[var(--text-tertiary)] mt-1">Read-only access. Can view documents and use AI chat but cannot create, edit, or delete any content.</p>
+                <p className="text-sm text-[var(--text-tertiary)] mt-1">Read-only access. Can view workspace content but cannot create, edit, vote, or delete anything.</p>
               </div>
             </div>
           </div>

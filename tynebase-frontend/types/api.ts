@@ -110,7 +110,7 @@ export interface User {
   };
   language?: string;
   timezone?: string;
-  role: 'admin' | 'editor' | 'member' | 'viewer';
+  role: 'admin' | 'editor' | 'viewer';
   is_super_admin: boolean;
   status: 'active' | 'suspended' | 'deleted';
   last_active_at: string | null;

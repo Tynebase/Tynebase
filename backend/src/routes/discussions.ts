@@ -6,6 +6,7 @@ import { tenantContextMiddleware } from '../middleware/tenantContext';
 import { authMiddleware } from '../middleware/auth';
 import { membershipGuard } from '../middleware/membershipGuard';
 import { writeAuditLog, getClientIp } from '../lib/auditLog';
+import { canWriteContent } from '../lib/roles';
 
 const createDiscussionSchema = z.object({
   title: z.string().min(1).max(200),
@@ -42,6 +43,10 @@ const updateReplySchema = z.object({
 const voteOnPollSchema = z.object({
   optionId: z.string().uuid(),
 });
+
+function rejectReadOnlyUser(reply: any, message: string) {
+  return reply.code(403).send({ error: { code: 'FORBIDDEN', message, details: {} } });
+}
 
 export default async function discussionsRoutes(fastify: FastifyInstance) {
   /**
@@ -129,6 +134,9 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
       try {
         const tenant = (request as any).tenant;
         const user = (request as any).user;
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return rejectReadOnlyUser(reply, 'Viewers do not have permission to create discussions');
+        }
         const body = createDiscussionSchema.parse(request.body);
 
         const { data: discussion, error } = await supabaseAdmin
@@ -206,6 +214,9 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
       try {
         const tenant = (request as any).tenant;
         const user = (request as any).user;
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return rejectReadOnlyUser(reply, 'Viewers do not have permission to create draft discussions');
+        }
         const body = createDraftDiscussionSchema.parse(request.body);
 
         const { data: discussion, error } = await supabaseAdmin
@@ -344,6 +355,9 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
       try {
         const user = (request as any).user;
         const { id } = request.params as { id: string };
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return rejectReadOnlyUser(reply, 'Viewers do not have permission to edit discussions');
+        }
         const body = updateDiscussionSchema.parse(request.body);
 
         const { data: existing } = await supabaseAdmin
@@ -395,6 +409,10 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
         const tenant = (request as any).tenant;
         const user = (request as any).user;
         const { id } = request.params as { id: string };
+
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return rejectReadOnlyUser(reply, 'Viewers do not have permission to delete discussions');
+        }
 
         const { data: existing } = await supabaseAdmin
           .from('discussions')
@@ -449,6 +467,10 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
         const user = (request as any).user;
         const { id } = request.params as { id: string };
 
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return reply.code(200).send({ success: true });
+        }
+
         const { data: existing } = await supabaseAdmin
           .from('discussions')
           .select('id, author_id, title')
@@ -498,6 +520,9 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
       try {
         const user = (request as any).user;
         const { id } = request.params as { id: string };
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return rejectReadOnlyUser(reply, 'Viewers do not have permission to like discussions');
+        }
 
         const { data: existing } = await supabaseAdmin
           .from('discussions')
@@ -540,6 +565,10 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
       try {
         const user = (request as any).user;
         const { id } = request.params as { id: string };
+
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return rejectReadOnlyUser(reply, 'Viewers do not have permission to pin discussions');
+        }
 
         const { data: existing } = await supabaseAdmin
           .from('discussions')
@@ -585,6 +614,10 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
         const user = (request as any).user;
         const { id } = request.params as { id: string };
 
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return rejectReadOnlyUser(reply, 'Viewers do not have permission to lock discussions');
+        }
+
         const { data: existing } = await supabaseAdmin
           .from('discussions')
           .select('id, is_locked, author_id')
@@ -628,6 +661,10 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
       try {
         const user = (request as any).user;
         const { id } = request.params as { id: string };
+
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return rejectReadOnlyUser(reply, 'Viewers do not have permission to resolve discussions');
+        }
 
         const { data: existing } = await supabaseAdmin
           .from('discussions')
@@ -741,6 +778,9 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
         const tenant = (request as any).tenant;
         const user = (request as any).user;
         const { id } = request.params as { id: string };
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return rejectReadOnlyUser(reply, 'Viewers do not have permission to create replies');
+        }
         const body = createReplySchema.parse(request.body);
 
         const { data: discussion } = await supabaseAdmin
@@ -797,6 +837,9 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
       try {
         const user = (request as any).user;
         const { rid } = request.params as { id: string; rid: string };
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return rejectReadOnlyUser(reply, 'Viewers do not have permission to edit replies');
+        }
         const body = updateReplySchema.parse(request.body);
 
         const { data: existing } = await supabaseAdmin
@@ -848,6 +891,10 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
         const user = (request as any).user;
         const { rid } = request.params as { id: string; rid: string };
 
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return rejectReadOnlyUser(reply, 'Viewers do not have permission to delete replies');
+        }
+
         const { data: existing } = await supabaseAdmin
           .from('discussion_replies')
           .select('id, author_id')
@@ -888,6 +935,10 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
       try {
         const user = (request as any).user;
         const { rid } = request.params as { id: string; rid: string };
+
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return rejectReadOnlyUser(reply, 'Viewers do not have permission to like replies');
+        }
 
         const { data: existing } = await supabaseAdmin
           .from('discussion_replies')
@@ -931,6 +982,10 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
         const user = (request as any).user;
         const { id, rid } = request.params as { id: string; rid: string };
 
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return rejectReadOnlyUser(reply, 'Viewers do not have permission to accept answers');
+        }
+
         const { data: discussion } = await supabaseAdmin
           .from('discussions')
           .select('id, author_id')
@@ -941,7 +996,7 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
           return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Discussion not found', details: {} } });
         }
 
-        if (discussion.author_id !== user.id && !['admin', 'super_admin'].includes(user.role)) {
+        if (discussion.author_id !== user.id && user.role !== 'admin' && !user.is_super_admin) {
           return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'Only the discussion author can accept answers', details: {} } });
         }
 
@@ -992,6 +1047,9 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
       try {
         const user = (request as any).user;
         const { id } = request.params as { id: string };
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return rejectReadOnlyUser(reply, 'Viewers do not have permission to vote in polls');
+        }
         const body = voteOnPollSchema.parse(request.body);
         const { optionId } = body;
 
@@ -1074,6 +1132,10 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
       try {
         const user = (request as any).user;
         const { id } = request.params as { id: string };
+
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return rejectReadOnlyUser(reply, 'Viewers do not have permission to remove poll votes');
+        }
 
         const { data: poll } = await supabaseAdmin
           .from('polls')

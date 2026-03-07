@@ -5,6 +5,7 @@ import { tenantContextMiddleware } from '../middleware/tenantContext';
 import { authMiddleware } from '../middleware/auth';
 import { membershipGuard } from '../middleware/membershipGuard';
 import { rateLimitMiddleware } from '../middleware/rateLimit';
+import { canWriteContent } from '../lib/roles';
 
 /**
  * Zod schema for GET /api/tags query parameters
@@ -158,6 +159,15 @@ export default async function tagRoutes(fastify: FastifyInstance) {
         const tenant = (request as any).tenant;
         const user = (request as any).user;
 
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return reply.status(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Viewers do not have permission to create tags',
+            },
+          });
+        }
+
         const body = createTagBodySchema.parse(request.body);
 
         const { data: tag, error: createError } = await supabaseAdmin
@@ -225,6 +235,16 @@ export default async function tagRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       try {
         const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return reply.status(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Viewers do not have permission to update tags',
+            },
+          });
+        }
 
         const params = tagIdParamsSchema.parse(request.params);
         const body = updateTagBodySchema.parse(request.body);
@@ -299,6 +319,17 @@ export default async function tagRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       try {
         const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return reply.status(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Viewers do not have permission to delete tags',
+            },
+          });
+        }
+
         const params = tagIdParamsSchema.parse(request.params);
 
         const { error: deleteError } = await supabaseAdmin
@@ -343,6 +374,17 @@ export default async function tagRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       try {
         const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return reply.status(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Viewers do not have permission to tag documents',
+            },
+          });
+        }
+
         const params = tagIdParamsSchema.parse(request.params);
         const body = tagDocumentsBodySchema.parse(request.body);
 
@@ -408,6 +450,17 @@ export default async function tagRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       try {
+        const user = (request as any).user;
+
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return reply.status(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Viewers do not have permission to remove document tags',
+            },
+          });
+        }
+
         const params = z.object({
           id: z.string().uuid(),
           documentId: z.string().uuid(),
@@ -447,6 +500,17 @@ export default async function tagRoutes(fastify: FastifyInstance) {
   }, async (request, reply) => {
     try {
       const tenant = (request as any).tenant;
+      const user = (request as any).user;
+
+      if (!canWriteContent(user.role, user.is_super_admin)) {
+        return reply.status(403).send({
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Viewers do not have permission to reorder tags',
+          },
+        });
+      }
+
       const body = reorderTagsBodySchema.parse(request.body);
       const { tag_ids } = body;
 

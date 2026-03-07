@@ -5,6 +5,7 @@ import { tenantContextMiddleware } from '../middleware/tenantContext';
 import { authMiddleware } from '../middleware/auth';
 import { membershipGuard } from '../middleware/membershipGuard';
 import { rateLimitMiddleware } from '../middleware/rateLimit';
+import { canWriteContent } from '../lib/roles';
 
 /**
  * Zod schema for GET /api/categories query parameters
@@ -316,6 +317,12 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
         const tenant = (request as any).tenant;
         const user = (request as any).user;
 
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return reply.code(403).send({
+            error: { code: 'FORBIDDEN', message: 'Viewers do not have permission to create categories', details: {} },
+          });
+        }
+
         const body = createCategoryBodySchema.parse(request.body);
         const { name, description, parent_id, color, icon } = body;
 
@@ -420,6 +427,12 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
         const tenant = (request as any).tenant;
         const user = (request as any).user;
         const { id } = request.params as { id: string };
+
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return reply.code(403).send({
+            error: { code: 'FORBIDDEN', message: 'Viewers do not have permission to update categories', details: {} },
+          });
+        }
 
         if (!z.string().uuid().safeParse(id).success) {
           return reply.code(400).send({
@@ -677,6 +690,12 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
         const { id } = request.params as { id: string };
         const query = deleteCategoryQuerySchema.parse(request.query);
         const { migrate_to_category_id } = query;
+
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return reply.code(403).send({
+            error: { code: 'FORBIDDEN', message: 'Viewers do not have permission to delete categories', details: {} },
+          });
+        }
 
         if (!z.string().uuid().safeParse(id).success) {
           return reply.code(400).send({

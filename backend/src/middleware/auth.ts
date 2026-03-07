@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { supabaseAdmin } from '../lib/supabase';
+import { normalizeWorkspaceRole } from '../lib/roles';
 
 /**
  * JWT Authentication Middleware
@@ -138,11 +139,13 @@ export async function authMiddleware(
       }
     }
 
+    const normalizedRole = normalizeWorkspaceRole(userData.role as any);
+
     (request as any).user = {
       id: userData.id,
       email: userData.email,
       full_name: userData.full_name,
-      role: userData.role,
+      role: normalizedRole,
       tenant_id: userData.tenant_id,
       is_super_admin: userData.is_super_admin || false,
     };
@@ -151,7 +154,7 @@ export async function authMiddleware(
       {
         userId: userData.id,
         tenantId: userData.tenant_id,
-        role: userData.role,
+        role: normalizedRole,
       },
       'User authenticated successfully'
     );

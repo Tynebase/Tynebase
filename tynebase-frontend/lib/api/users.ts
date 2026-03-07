@@ -15,7 +15,7 @@ export interface User {
   id: string;
   email: string;
   full_name: string | null;
-  role: 'admin' | 'editor' | 'member' | 'viewer';
+  role: 'admin' | 'editor' | 'viewer';
   status: 'active' | 'suspended' | 'deleted';
   created_at: string;
   last_active_at: string | null;
@@ -26,7 +26,7 @@ export interface UserListParams {
   page?: number;
   limit?: number;
   status?: 'active' | 'suspended' | 'deleted';
-  role?: 'admin' | 'editor' | 'member' | 'viewer';
+  role?: 'admin' | 'editor' | 'viewer';
 }
 
 export interface UserListResponse {
@@ -42,7 +42,7 @@ export interface UserListResponse {
 }
 
 export interface UpdateUserParams {
-  role?: 'admin' | 'editor' | 'member' | 'viewer';
+  role?: 'admin' | 'editor' | 'viewer';
   status?: 'active' | 'suspended';
   full_name?: string;
 }

@@ -212,3 +212,42 @@ export async function sendWelcomeEmail(params: {
     html: emailTemplate(content),
   });
 }
+
+/**
+ * Send workspace invite email
+ */
+export async function sendWorkspaceInviteEmail(params: {
+  to: string;
+  tenantName: string;
+  role: string;
+  invitedBy: string;
+  acceptUrl: string;
+}): Promise<boolean> {
+  const { to, tenantName, role, invitedBy, acceptUrl } = params;
+  
+  const content = `
+    <h2 style="margin: 0 0 16px; color: #1e293b; font-size: 22px; font-weight: 600;">
+      You're invited to join ${tenantName}
+    </h2>
+    <p style="margin: 0 0 24px; color: #64748b; font-size: 15px; line-height: 1.6;">
+      ${invitedBy} invited you to join <strong style="color: #1e293b;">${tenantName}</strong> as a <strong style="color: #E85002; text-transform: capitalize;">${role}</strong>.
+    </p>
+    <p style="margin: 0 0 24px; color: #64748b; font-size: 15px; line-height: 1.6;">
+      Review the invitation and accept it to join the workspace.
+    </p>
+    <div style="text-align: center; margin: 32px 0;">
+      <a href="${acceptUrl}" style="display: inline-block; padding: 14px 32px; background-color: #E85002; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 600; border-radius: 10px;">
+        Review Invitation
+      </a>
+    </div>
+    <p style="margin: 0; color: #64748b; font-size: 14px; line-height: 1.6;">
+      This invite was sent to ${to}. If you already have a TyneBase account, sign in first and then accept the workspace invite.
+    </p>
+  `;
+
+  return sendEmail({
+    to,
+    subject: `Join ${tenantName} on TyneBase`,
+    html: emailTemplate(content),
+  });
+}

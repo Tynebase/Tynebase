@@ -7,6 +7,7 @@ import { membershipGuard } from '../middleware/membershipGuard';
 import { rateLimitMiddleware } from '../middleware/rateLimit';
 import { dispatchJob } from '../utils/dispatchJob';
 import { writeAuditLog, getClientIp } from '../lib/auditLog';
+import { canWriteContent } from '../lib/roles';
 
 /**
  * Rewrites Supabase signed URLs in document content to use the public asset proxy.
@@ -782,11 +783,11 @@ export default async function documentRoutes(fastify: FastifyInstance) {
    * Authorization:
    * - Requires valid JWT
    * - User must be member of tenant
-   * - User must be the document author (ownership verification)
+   * - User must have write permission (admin, editor, or super admin)
    * 
    * Security:
    * - Enforces tenant isolation via explicit tenant_id filtering
-   * - Verifies document ownership (only author can update)
+   * - Verifies user has write permission (only admins, editors, and super admins can update)
    * - Validates content size to prevent resource exhaustion
    * - Validates all input with Zod schema
    * - Creates immutable lineage event for audit trail
@@ -846,35 +847,14 @@ export default async function documentRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Role-based access control for document updates
-        // - Super admins: bypass all restrictions
-        // - Admins/Editors: can edit any document in the tenant
-        // - Members: can only edit their own documents
-        // - Viewers: cannot edit any document
-        if (!user.is_super_admin) {
-          if (user.role === 'viewer') {
-            return reply.code(403).send({
-              error: {
-                code: 'FORBIDDEN',
-                message: 'Viewers do not have permission to edit documents',
-                details: {},
-              },
-            });
-          }
-
-          if (user.role === 'member' && existingDoc.author_id !== user.id) {
-            fastify.log.warn(
-              { documentId: id, authorId: existingDoc.author_id, userId: user.id },
-              'Member attempted to update document they do not own'
-            );
-            return reply.code(403).send({
-              error: {
-                code: 'FORBIDDEN',
-                message: 'Members can only edit their own documents',
-                details: {},
-              },
-            });
-          }
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return reply.code(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Viewers do not have permission to edit documents',
+              details: {},
+            },
+          });
         }
 
         // Build update object with only provided fields
@@ -1151,15 +1131,15 @@ export default async function documentRoutes(fastify: FastifyInstance) {
    * Authorization:
    * - Requires valid JWT
    * - User must be member of tenant
-   * - User must be the document author (ownership verification)
+   * - User must have write permission (admin, editor, or super admin)
    * 
    * Security:
    * - Enforces tenant isolation via explicit tenant_id filtering
-   * - Verifies document ownership (only author can delete)
+   * - Verifies user has write permission (only admins, editors, and super admins can delete)
    * - Validates UUID format with Zod
    * - Cascade deletes embeddings and lineage via database constraints
    * - Returns 404 if document not found or belongs to different tenant
-   * - Returns 403 if user is not the document author
+   * - Returns 403 if user doesn't have write permission
    * 
    * Database Behavior:
    * - Hard delete (no soft delete/deleted_at column)
@@ -1180,7 +1160,7 @@ export default async function documentRoutes(fastify: FastifyInstance) {
         const params = deleteDocumentParamsSchema.parse(request.params);
         const { id } = params;
 
-        // Fetch document to verify ownership and tenant
+        // Fetch document to verify it exists and belongs to tenant
         const { data: existingDoc, error: fetchError } = await supabaseAdmin
           .from('documents')
           .select('id, author_id, tenant_id, title')
@@ -1216,35 +1196,14 @@ export default async function documentRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Role-based access control for document deletion
-        // - Super admins: bypass all restrictions (platform-level access)
-        // - Admins/Editors: can delete any document in the tenant
-        // - Members: can only delete their own documents
-        // - Viewers: cannot delete any document
-        if (!user.is_super_admin) {
-          if (user.role === 'viewer') {
-            return reply.code(403).send({
-              error: {
-                code: 'FORBIDDEN',
-                message: 'Viewers do not have permission to delete documents',
-                details: {},
-              },
-            });
-          }
-
-          if (user.role === 'member' && existingDoc.author_id !== user.id) {
-            fastify.log.warn(
-              { documentId: id, authorId: existingDoc.author_id, userId: user.id },
-              'Member attempted to delete document they do not own'
-            );
-            return reply.code(403).send({
-              error: {
-                code: 'FORBIDDEN',
-                message: 'Members can only delete their own documents',
-                details: {},
-              },
-            });
-          }
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return reply.code(403).send({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Viewers do not have permission to delete documents',
+              details: {},
+            },
+          });
         }
 
         // Delete document (cascade deletes embeddings and lineage)

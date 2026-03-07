@@ -6,14 +6,17 @@
 
 import { apiPost, apiGet, apiDelete } from './client';
 
+export type WorkspaceRole = 'admin' | 'editor' | 'viewer';
+
 export interface InviteUserRequest {
   email: string;
-  role: 'admin' | 'editor' | 'member' | 'viewer';
+  role: WorkspaceRole;
 }
 
 export interface InviteUserResponse {
   message: string;
   invited_email: string;
+  invite_id?: string;
 }
 
 /**
@@ -29,13 +32,19 @@ export async function inviteUser(data: InviteUserRequest): Promise<InviteUserRes
   return apiPost<InviteUserResponse>('/api/invites', data);
 }
 
-export interface AcceptInviteRequest {
-  user_id: string;
-  tenant_id: string;
-  role: 'admin' | 'editor' | 'member' | 'viewer';
-  full_name?: string;
-  password?: string;
-}
+export type AcceptInviteRequest =
+  | {
+      invite_id: string;
+      full_name?: string;
+      password?: string;
+    }
+  | {
+      user_id: string;
+      tenant_id: string;
+      role: WorkspaceRole;
+      full_name?: string;
+      password?: string;
+    };
 
 export interface AcceptInviteResponse {
   message: string;
@@ -65,6 +74,25 @@ export async function acceptInvite(data: AcceptInviteRequest): Promise<AcceptInv
   return apiPost<AcceptInviteResponse>('/api/invites/accept', data);
 }
 
+export interface InviteDetailsResponse {
+  invite: {
+    id: string;
+    email: string;
+    role: WorkspaceRole;
+    invited_by: string;
+    created_at: string;
+    tenant: {
+      id: string;
+      name: string;
+      subdomain: string;
+    };
+  };
+}
+
+export async function getInvite(inviteId: string): Promise<InviteDetailsResponse> {
+  return apiGet<InviteDetailsResponse>(`/api/invites/${inviteId}`);
+}
+
 // ============================================================================
 // PENDING INVITES
 // ============================================================================
@@ -72,7 +100,7 @@ export async function acceptInvite(data: AcceptInviteRequest): Promise<AcceptInv
 export interface PendingInvite {
   id: string;
   email: string;
-  role: 'admin' | 'editor' | 'member' | 'viewer';
+  role: WorkspaceRole;
   invited_by: string;
   created_at: string;
 }

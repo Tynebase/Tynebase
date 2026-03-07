@@ -5,6 +5,7 @@ import { tenantContextMiddleware } from '../middleware/tenantContext';
 import { authMiddleware } from '../middleware/auth';
 import { membershipGuard } from '../middleware/membershipGuard';
 import { rateLimitMiddleware } from '../middleware/rateLimit';
+import { canWriteContent } from '../lib/roles';
 
 /**
  * Zod schema for GET /api/collections query parameters
@@ -308,6 +309,12 @@ export default async function collectionRoutes(fastify: FastifyInstance) {
         const tenant = (request as any).tenant;
         const user = (request as any).user;
 
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return reply.code(403).send({
+            error: { code: 'FORBIDDEN', message: 'Viewers do not have permission to create collections', details: {} },
+          });
+        }
+
         const body = createCollectionBodySchema.parse(request.body);
 
         const { data: collection, error: createError } = await supabaseAdmin
@@ -382,9 +389,9 @@ export default async function collectionRoutes(fastify: FastifyInstance) {
         const user = (request as any).user;
         const { id } = request.params as { id: string };
 
-        if (!z.string().uuid().safeParse(id).success) {
-          return reply.code(400).send({
-            error: { code: 'VALIDATION_ERROR', message: 'Invalid collection ID format', details: {} },
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return reply.code(403).send({
+            error: { code: 'FORBIDDEN', message: 'Viewers do not have permission to update collections', details: {} },
           });
         }
 
@@ -469,9 +476,9 @@ export default async function collectionRoutes(fastify: FastifyInstance) {
         const user = (request as any).user;
         const { id } = request.params as { id: string };
 
-        if (!z.string().uuid().safeParse(id).success) {
-          return reply.code(400).send({
-            error: { code: 'VALIDATION_ERROR', message: 'Invalid collection ID format', details: {} },
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return reply.code(403).send({
+            error: { code: 'FORBIDDEN', message: 'Viewers do not have permission to delete collections', details: {} },
           });
         }
 
@@ -539,9 +546,9 @@ export default async function collectionRoutes(fastify: FastifyInstance) {
         const user = (request as any).user;
         const { id } = request.params as { id: string };
 
-        if (!z.string().uuid().safeParse(id).success) {
-          return reply.code(400).send({
-            error: { code: 'VALIDATION_ERROR', message: 'Invalid collection ID format', details: {} },
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return reply.code(403).send({
+            error: { code: 'FORBIDDEN', message: 'Viewers do not have permission to modify collection documents', details: {} },
           });
         }
 
@@ -647,6 +654,12 @@ export default async function collectionRoutes(fastify: FastifyInstance) {
         const tenant = (request as any).tenant;
         const user = (request as any).user;
         const params = removeDocumentParamsSchema.parse(request.params);
+
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return reply.code(403).send({
+            error: { code: 'FORBIDDEN', message: 'Viewers do not have permission to modify collection documents', details: {} },
+          });
+        }
 
         // Verify ownership
         const { data: collection, error: fetchError } = await supabaseAdmin
@@ -797,6 +810,12 @@ export default async function collectionRoutes(fastify: FastifyInstance) {
         const user = (request as any).user;
         const { id } = request.params as { id: string };
 
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return reply.code(403).send({
+            error: { code: 'FORBIDDEN', message: 'Viewers do not have permission to manage collection members', details: {} },
+          });
+        }
+
         if (!z.string().uuid().safeParse(id).success) {
           return reply.code(400).send({
             error: { code: 'VALIDATION_ERROR', message: 'Invalid collection ID format', details: {} },
@@ -919,6 +938,12 @@ export default async function collectionRoutes(fastify: FastifyInstance) {
         const tenant = (request as any).tenant;
         const user = (request as any).user;
         const { id, memberId } = request.params as { id: string; memberId: string };
+
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return reply.code(403).send({
+            error: { code: 'FORBIDDEN', message: 'Viewers do not have permission to manage collection members', details: {} },
+          });
+        }
 
         if (!z.string().uuid().safeParse(id).success || !z.string().uuid().safeParse(memberId).success) {
           return reply.code(400).send({

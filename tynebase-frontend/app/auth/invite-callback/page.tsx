@@ -121,9 +121,15 @@ function InviteCallbackContent() {
       refresh_token: string;
     }) {
       const user = session.user;
+      const inviteId = searchParams.get("invite");
 
       // Store tokens so the API client can use them
       setAuthTokens(session.access_token, session.refresh_token);
+
+      if (inviteId) {
+        window.location.href = `/auth/accept-invite?invite=${encodeURIComponent(inviteId)}`;
+        return;
+      }
 
       const meta = user.user_metadata || {};
       const inviteTenantId = meta.tenant_id;

@@ -1,32 +1,41 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { useToast } from "@/components/ui/Toast";
 import { Button } from "@/components/ui/Button";
 import { Eye, EyeOff, CheckCircle2, XCircle, Loader2, Shield, Users } from "lucide-react";
-import { acceptInvite } from "@/lib/api/invites";
+import { acceptInvite, getInvite, WorkspaceRole } from "@/lib/api/invites";
 import { setAuthTokens, setTenantSubdomain } from "@/lib/api/client";
 import { createClient } from "@/lib/supabase/client";
 
 interface InviteData {
-  userId: string;
+  inviteId?: string;
+  userId?: string;
   email: string;
   tenantId: string;
   tenantName: string;
   tenantSubdomain: string;
-  role: 'admin' | 'editor' | 'member' | 'viewer';
+  role: WorkspaceRole;
   invitedBy: string;
 }
 
+function normalizeInviteRole(role?: string): WorkspaceRole {
+  if (role === "admin" || role === "editor" || role === "viewer") {
+    return role;
+  }
+
+  return role === "member" ? "editor" : "viewer";
+}
+
 function AcceptInviteContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { addToast } = useToast();
+  const inviteIdParam = searchParams.get("invite");
   const dataParam = searchParams.get("data");
-  
+
   const [status, setStatus] = useState<"loading" | "invalid" | "expired" | "no_session" | "ready" | "success">("loading");
   const [invite, setInvite] = useState<InviteData | null>(null);
   const [fullName, setFullName] = useState("");
@@ -38,33 +47,55 @@ function AcceptInviteContent() {
 
   useEffect(() => {
     async function initInvite() {
-      if (!dataParam) {
-        setStatus("invalid");
-        return;
-      }
-      
       try {
-        const decoded = JSON.parse(decodeURIComponent(dataParam)) as InviteData;
-        if (!decoded.userId || !decoded.tenantId || !decoded.role) {
+        let resolvedInvite: InviteData | null = null;
+
+        if (inviteIdParam) {
+          const response = await getInvite(inviteIdParam);
+          resolvedInvite = {
+            inviteId: response.invite.id,
+            email: response.invite.email,
+            tenantId: response.invite.tenant.id,
+            tenantName: response.invite.tenant.name,
+            tenantSubdomain: response.invite.tenant.subdomain,
+            role: response.invite.role,
+            invitedBy: response.invite.invited_by,
+          };
+        } else if (dataParam) {
+          const decoded = JSON.parse(decodeURIComponent(dataParam)) as Partial<InviteData> & { role?: string };
+          if (!decoded.userId || !decoded.tenantId || !decoded.role) {
+            setStatus("invalid");
+            return;
+          }
+
+          resolvedInvite = {
+            inviteId: decoded.inviteId,
+            userId: decoded.userId,
+            email: decoded.email || "",
+            tenantId: decoded.tenantId,
+            tenantName: decoded.tenantName || "Workspace",
+            tenantSubdomain: decoded.tenantSubdomain || "",
+            role: normalizeInviteRole(decoded.role),
+            invitedBy: decoded.invitedBy || "A workspace admin",
+          };
+        } else {
           setStatus("invalid");
           return;
         }
 
-        // Bridge Supabase session tokens into localStorage for the API client.
         const supabase = createClient();
         if (supabase) {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.access_token && session?.refresh_token) {
             setAuthTokens(session.access_token, session.refresh_token);
-            setInvite(decoded);
+            setInvite(resolvedInvite);
             setStatus("ready");
           } else {
-            // No session - token may have expired
-            setInvite(decoded);
+            setInvite(resolvedInvite);
             setStatus("no_session");
           }
         } else {
-          setInvite(decoded);
+          setInvite(resolvedInvite);
           setStatus("no_session");
         }
       } catch {
@@ -72,7 +103,7 @@ function AcceptInviteContent() {
       }
     }
     initInvite();
-  }, [dataParam]);
+  }, [dataParam, inviteIdParam]);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -93,40 +124,48 @@ function AcceptInviteContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!invite) return;
     if (!validate()) return;
-    
+
     setIsSubmitting(true);
     setErrors({});
-    
+
     try {
-      const response = await acceptInvite({
-        user_id: invite.userId,
-        tenant_id: invite.tenantId,
-        role: invite.role,
-        full_name: fullName.trim() || undefined,
-        password: password || undefined,
-      });
-      
+      const response = await acceptInvite(
+        invite.inviteId
+          ? {
+              invite_id: invite.inviteId,
+              full_name: fullName.trim() || undefined,
+              password: password || undefined,
+            }
+          : {
+              user_id: invite.userId!,
+              tenant_id: invite.tenantId,
+              role: invite.role,
+              full_name: fullName.trim() || undefined,
+              password: password || undefined,
+            }
+      );
+
       // Set tenant subdomain for future API calls
       setTenantSubdomain(response.tenant.subdomain);
-      
+
       addToast({
         type: "success",
         title: "Welcome to the team!",
         description: `You've joined ${response.tenant.name}`,
       });
-      
+
       setStatus("success");
-      
+
       // Redirect to dashboard after a short delay
       setTimeout(() => {
         window.location.href = "/dashboard";
       }, 2000);
     } catch (error: any) {
       console.error('Failed to accept invite:', error);
-      
+
       // Handle specific error codes
       if (error.code === 'USER_EXISTS') {
         // User already accepted - just redirect
@@ -197,10 +236,10 @@ function AcceptInviteContent() {
                 Your invitation to <strong className="text-[var(--text-primary)]">{invite.tenantName}</strong> is valid, but your session has expired.
               </p>
               <p className="text-sm text-[var(--text-muted)] mb-6">
-                Please ask the workspace admin to resend the invitation, or log in if you already have an account.
+                Please log in to the account that matches this invite to continue.
               </p>
               <div className="flex flex-col gap-3">
-                <Link href="/login">
+                <Link href={invite.inviteId ? `/login?redirect=${encodeURIComponent(`/auth/accept-invite?invite=${invite.inviteId}`)}` : "/login"}>
                   <Button variant="primary" className="w-full">Go to Login</Button>
                 </Link>
               </div>

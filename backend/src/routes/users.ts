@@ -6,6 +6,7 @@ import { tenantContextMiddleware } from '../middleware/tenantContext';
 import { authMiddleware } from '../middleware/auth';
 import { membershipGuard } from '../middleware/membershipGuard';
 import { sendRoleChangeEmail, sendUserRemovedEmail } from '../services/email';
+import { WORKSPACE_ROLE_INPUTS, normalizeWorkspaceRole } from '../lib/roles';
 
 /**
  * Zod schema for GET /api/users query parameters
@@ -14,14 +15,14 @@ const listUsersQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   status: z.enum(['active', 'suspended', 'deleted']).optional(),
-  role: z.enum(['admin', 'editor', 'member', 'viewer']).optional(),
+  role: z.enum(WORKSPACE_ROLE_INPUTS).optional().transform((role) => role ? normalizeWorkspaceRole(role) : undefined),
 });
 
 /**
  * Zod schema for PATCH /api/users/:id body parameters
  */
 const updateUserBodySchema = z.object({
-  role: z.enum(['admin', 'editor', 'member', 'viewer']).optional(),
+  role: z.enum(WORKSPACE_ROLE_INPUTS).optional().transform((role) => role ? normalizeWorkspaceRole(role) : undefined),
   status: z.enum(['active', 'suspended']).optional(),
   full_name: z.string().min(1).max(100).optional(),
 });
@@ -121,6 +122,7 @@ export default async function usersRoutes(fastify: FastifyInstance) {
         // Enrich users with document counts
         const enrichedUsers = users?.map(u => ({
           ...u,
+          role: normalizeWorkspaceRole(u.role as any),
           documents_count: documentCounts[u.id] || 0,
         })) || [];
 
@@ -242,15 +244,15 @@ export default async function usersRoutes(fastify: FastifyInstance) {
             to: updatedUser.email,
             userName: updatedUser.full_name || updatedUser.email.split('@')[0],
             tenantName: tenant.name,
-            oldRole: targetUser.role,
-            newRole: body.role,
+            oldRole: normalizeWorkspaceRole(targetUser.role as any),
+            newRole: normalizeWorkspaceRole(body.role as any),
             changedBy: currentUser.full_name || currentUser.email,
           }).catch(err => {
             fastify.log.error({ error: err, userId: id }, 'Failed to send role change email');
           });
         }
 
-        return reply.code(200).send({ success: true, data: { user: updatedUser } });
+        return reply.code(200).send({ success: true, data: { user: { ...updatedUser, role: normalizeWorkspaceRole(updatedUser.role as any) } } });
       } catch (error) {
         if (error instanceof z.ZodError) {
           return reply.code(400).send({
