@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useToast } from "@/components/ui/Toast";
 import {
     Send,
     Bot,
@@ -68,6 +69,7 @@ function generateTitle(firstMessage: string): string {
 }
 
 export default function ChatPage() {
+    const { addToast } = useToast();
     // State management
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
@@ -221,7 +223,7 @@ export default function ChatPage() {
 
         } catch (error) {
             console.error('Chat error:', error);
-            alert(error instanceof Error ? error.message : 'Failed to send message');
+            addToast({ type: 'error', title: 'Chat error', description: error instanceof Error ? error.message : 'Failed to send message' });
         } finally {
             setIsLoading(false);
         }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useToast } from "@/components/ui/Toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { useTenant } from "@/contexts/TenantContext";
@@ -106,6 +107,7 @@ const recentImports = [
 export default function ImportExportPage() {
   const { tenant } = useTenant();
   const { user } = useAuth();
+  const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState<"import" | "export">("import");
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
   const [selectedFormat, setSelectedFormat] = useState<string>("markdown");
@@ -252,7 +254,7 @@ export default function ImportExportPage() {
       setExportEnabled(enabled);
     } catch (err) {
       console.error('Failed to update export setting:', err);
-      alert('Failed to update setting. Please try again.');
+      addToast({ type: 'error', title: 'Save failed', description: 'Failed to update setting. Please try again.' });
     } finally {
       setIsSaving(false);
     }

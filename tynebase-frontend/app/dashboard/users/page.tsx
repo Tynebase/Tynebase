@@ -278,21 +278,26 @@ export default function UsersPage() {
     fetchUsers();
   }, []);
 
-  // Fetch pending invites
+  // Fetch pending invites (with periodic polling so inviter sees status changes)
   useEffect(() => {
-    async function fetchPendingInvites() {
-      if (!isAdmin) return;
+    if (!isAdmin) return;
+    let cancelled = false;
+
+    async function fetchPendingInvites(showLoading = true) {
       try {
-        setLoadingInvites(true);
+        if (showLoading) setLoadingInvites(true);
         const response = await listPendingInvites();
-        setPendingInvites(response.invites);
+        if (!cancelled) setPendingInvites(response.invites);
       } catch (err: any) {
         console.error('Failed to fetch pending invites:', err);
       } finally {
-        setLoadingInvites(false);
+        if (!cancelled) setLoadingInvites(false);
       }
     }
+
     fetchPendingInvites();
+    const interval = setInterval(() => fetchPendingInvites(false), 15000);
+    return () => { cancelled = true; clearInterval(interval); };
   }, [isAdmin]);
 
   const filteredMembers = users.filter((user) => {

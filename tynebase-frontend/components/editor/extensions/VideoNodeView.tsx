@@ -5,6 +5,7 @@ import { Sparkles, Loader2, Trash2, GripVertical, Save } from 'lucide-react';
 export default function VideoNodeView({ node, selected, deleteNode }: NodeViewProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [transcribeError, setTranscribeError] = useState<string | null>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showOptionsModal, setShowOptionsModal] = useState(false);
   const [outputOptions, setOutputOptions] = useState({
@@ -109,7 +110,7 @@ export default function VideoNodeView({ node, selected, deleteNode }: NodeViewPr
               console.error('Video transcription job failed:', errorMsg);
               setIsTranscribing(false);
               setShowMenu(false);
-              alert(`Video transcription failed: ${errorMsg}`);
+              setTranscribeError(`Video transcription failed: ${errorMsg}`);
             }
           }
         } catch (pollError) {
@@ -122,12 +123,12 @@ export default function VideoNodeView({ node, selected, deleteNode }: NodeViewPr
         clearInterval(pollInterval);
         setIsTranscribing(false);
         setShowMenu(false);
-        alert('Video transcription timed out. Please check the document and try again.');
+        setTranscribeError('Video transcription timed out. Please check the document and try again.');
       }, 120000);
       
     } catch (error) {
       console.error('Failed to transcribe video:', error);
-      alert(error instanceof Error ? error.message : 'Failed to transcribe video');
+      setTranscribeError(error instanceof Error ? error.message : 'Failed to transcribe video');
       setIsTranscribing(false);
       setShowMenu(false);
     }

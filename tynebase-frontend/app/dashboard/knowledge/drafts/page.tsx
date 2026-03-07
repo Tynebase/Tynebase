@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useToast } from "@/components/ui/Toast";
 import Link from "next/link";
 import {
   FileEdit,
@@ -82,6 +83,7 @@ function documentToDraft(doc: Document): Draft {
 }
 
 export default function DraftsPage() {
+  const { addToast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"recent" | "oldest" | "completeness">("recent");
   const [selectedDrafts, setSelectedDrafts] = useState<string[]>([]);
@@ -149,7 +151,7 @@ export default function DraftsPage() {
       setDraftToDelete(null);
     } catch (err) {
       console.error('Failed to delete draft:', err);
-      alert('Failed to delete draft');
+      addToast({ type: 'error', title: 'Delete failed', description: 'Failed to delete draft. Please try again.' });
     } finally {
       setDeleting(false);
     }
@@ -169,7 +171,7 @@ export default function DraftsPage() {
       setDeleteModalOpen(false);
     } catch (err) {
       console.error('Failed to delete drafts:', err);
-      alert('Failed to delete some drafts');
+      addToast({ type: 'error', title: 'Delete failed', description: 'Failed to delete some drafts. Please try again.' });
     } finally {
       setDeleting(false);
     }
@@ -190,7 +192,7 @@ export default function DraftsPage() {
       setSelectedDrafts([]);
     } catch (err) {
       console.error('Failed to move drafts to category:', err);
-      alert('Failed to move some drafts');
+      addToast({ type: 'error', title: 'Move failed', description: 'Failed to move some drafts. Please try again.' });
     } finally {
       setBulkActionLoading(false);
     }

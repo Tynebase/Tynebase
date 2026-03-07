@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useToast } from "@/components/ui/Toast";
 import Link from "next/link";
 import {
   FolderOpen,
@@ -70,6 +71,7 @@ function VisibilityIcon({ visibility }: { visibility: Visibility }) {
 }
 
 export default function CollectionsPage() {
+  const { addToast } = useToast();
   const [query, setQuery] = useState("");
   const [collections, setCollections] = useState<APICollection[]>([]);
   const [loading, setLoading] = useState(true);
@@ -162,7 +164,7 @@ export default function CollectionsPage() {
       setCollectionToDelete(null);
     } catch (err) {
       console.error('Failed to delete collection:', err);
-      alert(err instanceof Error ? err.message : 'Failed to delete collection');
+      addToast({ type: 'error', title: 'Delete failed', description: err instanceof Error ? err.message : 'Failed to delete collection' });
     } finally {
       setDeleting(null);
     }

@@ -414,9 +414,11 @@ export function EnhanceSuggestionsPanel({
 
       onApplySuggestion?.(suggestion);
     } else if (suggestion.action !== 'add') {
-      // Could not find the text in the document — alert user
+      // Could not find the text in the document — mark as failed
       console.warn(`[EnhanceSuggestionsPanel] Could not apply suggestion: "${suggestion.title}" — text not found in document`);
-      alert(`Could not apply this suggestion — the text was not found in the document. The document may have changed since the analysis.`);
+      setSuggestions(prev => prev.map(s =>
+        s.id === suggestion.id ? { ...s, status: "rejected" as SuggestionStatus } : s
+      ));
     }
   };
 

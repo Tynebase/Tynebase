@@ -673,7 +673,7 @@ const server = new Server({
 
       const { data: userRecord, error: userError } = await supabase
         .from('users')
-        .select('tenant_id, full_name, email')
+        .select('tenant_id, full_name, email, role')
         .eq('id', user.id)
         .single();
 
@@ -693,16 +693,17 @@ const server = new Server({
 
       // Use full_name if available, otherwise fall back to email
       const displayName = userRecord.full_name || userRecord.email || user.email || 'Anonymous';
-      const accessMode = isSameTenant ? 'full' : 'readonly';
-      console.log(`[Collab] User ${user.id} (${displayName}) authenticated for document ${documentName} (${accessMode} access)`);
+      const isViewer = userRecord.role === 'viewer';
+      const isReadOnly = !isSameTenant || isViewer;
+      const accessMode = isReadOnly ? 'readonly' : 'full';
+      console.log(`[Collab] User ${user.id} (${displayName}, role=${userRecord.role}) authenticated for document ${documentName} (${accessMode} access)`);
       
       return {
         user: {
           id: user.id,
           name: displayName,
         },
-        // Pass access mode for use in other hooks
-        readOnly: !isSameTenant,
+        readOnly: isReadOnly,
       };
     } catch (error: any) {
       console.error('[Collab] Authentication error:', error.message);

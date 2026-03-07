@@ -74,6 +74,20 @@ function AcceptInviteContent() {
 
     setTenantSubdomain(response.tenant.subdomain);
 
+    // If a password was set, sign in with it to establish a full cookie session
+    if (password && inviteToAccept.email) {
+      const supabase = createClient();
+      if (supabase) {
+        const { data: signInData } = await supabase.auth.signInWithPassword({
+          email: inviteToAccept.email,
+          password,
+        });
+        if (signInData?.session) {
+          setAuthTokens(signInData.session.access_token, signInData.session.refresh_token);
+        }
+      }
+    }
+
     addToast({
       type: "success",
       title: "Welcome to the team!",
@@ -84,7 +98,7 @@ function AcceptInviteContent() {
 
     setTimeout(() => {
       window.location.href = "/dashboard";
-    }, 2000);
+    }, 1500);
   };
 
   const handleAcceptError = (error: any, inviteToAccept: InviteData, fromAutoAccept = false) => {

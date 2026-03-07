@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useToast } from "@/components/ui/Toast";
 import { useRouter } from "next/navigation";
 import {
   HeartPulse,
@@ -54,6 +55,7 @@ const EVENT_STYLES: Record<string, { color: string; bg: string; icon: typeof Che
 
 export default function SourcesHealthPage() {
   const router = useRouter();
+  const { addToast } = useToast();
   const [data, setData] = useState<HealthData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -90,7 +92,7 @@ export default function SourcesHealthPage() {
       await fetchHealth(true);
     } catch (err) {
       console.error('Failed to retry:', err);
-      alert(err instanceof Error ? err.message : 'Failed to retry failed jobs');
+      addToast({ type: 'error', title: 'Retry failed', description: err instanceof Error ? err.message : 'Failed to retry failed jobs' });
     } finally {
       setRetrying(false);
     }

@@ -45,6 +45,8 @@ import {
 import { listCategories, type Category as APICategory } from "@/lib/api/folders";
 import { ShareModal } from "@/components/docs/ShareModal";
 import { listTags, createTag, addTagToDocuments, removeTagFromDocument, type Tag as APITag } from "@/lib/api/tags";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/components/ui/Toast";
 
 function htmlToPlainText(html: string | null | undefined) {
   if (!html) return '';
@@ -102,6 +104,9 @@ export default function EditDocumentPage() {
   const router = useRouter();
   const params = useParams();
   const documentId = params.id as string;
+  const { user } = useAuth();
+  const { addToast } = useToast();
+  const isViewer = user?.role === 'viewer' && !user?.is_super_admin;
 
   const [document, setDocument] = useState<UIDocument | null>(null);
   const [title, setTitle] = useState("");
@@ -154,9 +159,9 @@ export default function EditDocumentPage() {
         const response = await getDocument(documentId);
         const uiDoc = mapDocumentToUI(response.document);
         
-        // Check if this is a cross-tenant read-only document
+        // Check if this is a cross-tenant read-only document or viewer role
         const readOnly = response.is_read_only || false;
-        setIsReadOnly(readOnly);
+        setIsReadOnly(readOnly || isViewer);
         
         setDocument(uiDoc);
         // For published docs with draft, load the draft content for editing (only if not read-only)
@@ -363,7 +368,7 @@ export default function EditDocumentPage() {
       } : null);
     } catch (err) {
       console.error('Failed to save draft:', err);
-      alert('Failed to save draft. Please try again.');
+      addToast({ type: 'error', title: 'Save failed', description: err instanceof Error ? err.message : 'Failed to save draft. Please try again.' });
     } finally {
       setIsSaving(false);
     }
@@ -395,7 +400,7 @@ export default function EditDocumentPage() {
       } : null);
     } catch (err) {
       console.error('Failed to save and publish:', err);
-      alert('Failed to save and publish. Please try again.');
+      addToast({ type: 'error', title: 'Publish failed', description: err instanceof Error ? err.message : 'Failed to save and publish. Please try again.' });
     } finally {
       setIsSaving(false);
     }
@@ -418,7 +423,7 @@ export default function EditDocumentPage() {
       } : null);
     } catch (err) {
       console.error('Failed to discard draft:', err);
-      alert('Failed to discard draft changes. Please try again.');
+      addToast({ type: 'error', title: 'Discard failed', description: err instanceof Error ? err.message : 'Failed to discard draft changes. Please try again.' });
     } finally {
       setIsSaving(false);
     }
@@ -890,7 +895,7 @@ export default function EditDocumentPage() {
                         router.push(`/dashboard/knowledge/${response.document.id}`);
                       } catch (err) {
                         console.error('Failed to duplicate document:', err);
-                        alert('Failed to duplicate document. Please try again.');
+                        addToast({ type: 'error', title: 'Duplicate failed', description: err instanceof Error ? err.message : 'Failed to duplicate document. Please try again.' });
                       }
                     }}>
                       <Copy className="w-4 h-4" />

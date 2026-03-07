@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useToast } from "@/components/ui/Toast";
 import Link from "next/link";
 import { deleteJob } from "@/lib/api/ai";
 import {
@@ -123,6 +124,7 @@ function StatusBadge({ status }: { status: ImportStatus }) {
 }
 
 export default function ImportsPage() {
+  const { addToast } = useToast();
   const [query, setQuery] = useState("");
   const [jobs, setJobs] = useState<ImportJob[]>([]);
   const [loading, setLoading] = useState(true);
@@ -179,7 +181,7 @@ export default function ImportsPage() {
       setJobToDelete(null);
     } catch (err) {
       console.error('Failed to delete import job:', err);
-      alert(err instanceof Error ? err.message : 'Failed to delete import job');
+      addToast({ type: 'error', title: 'Delete failed', description: err instanceof Error ? err.message : 'Failed to delete import job' });
     } finally {
       setDeleting(false);
     }

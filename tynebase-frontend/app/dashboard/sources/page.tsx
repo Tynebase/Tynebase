@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
+import { useToast } from "@/components/ui/Toast";
 import Link from "next/link";
 import {
   Database,
@@ -116,6 +117,7 @@ function IndexingStatusBadge({ status }: { status: IndexingStatus }) {
 }
 
 export default function SourcesPage() {
+  const { addToast } = useToast();
   const [query, setQuery] = useState("");
   const [healthData, setHealthData] = useState<SourceHealthResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -194,7 +196,7 @@ export default function SourcesPage() {
       });
     } catch (err) {
       console.error('Failed to trigger re-index:', err);
-      alert(err instanceof Error ? err.message : 'Failed to trigger re-index');
+      addToast({ type: 'error', title: 'Re-index failed', description: err instanceof Error ? err.message : 'Failed to trigger re-index' });
     }
   };
 
@@ -208,7 +210,7 @@ export default function SourcesPage() {
       await fetchHealthData();
     } catch (err) {
       console.error('Failed to retry failed jobs:', err);
-      alert(err instanceof Error ? err.message : 'Failed to retry failed jobs');
+      addToast({ type: 'error', title: 'Retry failed', description: err instanceof Error ? err.message : 'Failed to retry failed jobs' });
     } finally {
       setRetryingFailed(false);
     }
@@ -222,7 +224,7 @@ export default function SourcesPage() {
       setNormalizedDocs(response.documents);
     } catch (err) {
       console.error('Failed to fetch normalized documents:', err);
-      alert(err instanceof Error ? err.message : 'Failed to fetch normalized documents');
+      addToast({ type: 'error', title: 'Fetch failed', description: err instanceof Error ? err.message : 'Failed to fetch normalized documents' });
       setShowNormalizedModal(false);
     } finally {
       setLoadingNormalized(false);

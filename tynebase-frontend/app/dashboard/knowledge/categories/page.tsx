@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
 import {
   FolderOpen,
@@ -110,6 +111,8 @@ const getIconComponent = (iconName: string): LucideIcon => {
 };
 
 export default function CategoriesPage() {
+  const { user } = useAuth();
+  const isViewer = user?.role === 'viewer' && !user?.is_super_admin;
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -338,7 +341,7 @@ export default function CategoriesPage() {
       // Modal stays open to show success - user clicks button to close
     } catch (err) {
       console.error('Failed to delete category:', err);
-      alert(err instanceof Error ? err.message : 'Failed to delete category');
+      setError(err instanceof Error ? err.message : 'Failed to delete category');
     } finally {
       setDeleting(null);
     }
@@ -362,13 +365,15 @@ export default function CategoriesPage() {
             Organise your documentation into logical groups
           </p>
         </div>
-        <button
-          onClick={openCreateModal}
-          className="flex items-center gap-2 h-10 px-6 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-lg text-sm font-medium transition-all"
-        >
-          <FolderPlus className="w-4 h-4" />
-          New Category
-        </button>
+        {!isViewer && (
+          <button
+            onClick={openCreateModal}
+            className="flex items-center gap-2 h-10 px-6 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-lg text-sm font-medium transition-all"
+          >
+            <FolderPlus className="w-4 h-4" />
+            New Category
+          </button>
+        )}
       </div>
 
       <div className="h-8" />
@@ -543,7 +548,7 @@ export default function CategoriesPage() {
               ? 'No categories found. Try adjusting your search query.' 
               : 'There are no categories yet, click + New Category to create one'}
           </p>
-          {!searchQuery && (
+          {!searchQuery && !isViewer && (
             <button
               onClick={openCreateModal}
               className="mt-4 flex items-center gap-2 px-4 py-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-lg text-sm font-medium"
@@ -638,32 +643,38 @@ export default function CategoriesPage() {
 
                       {/* Actions column */}
                       <div className="flex items-center gap-0.5 justify-end">
-                        <Link
-                          href={`/dashboard/ai-assistant?category=${category.id}&categoryName=${encodeURIComponent(category.name)}`}
-                          className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--brand)]"
-                          title="Generate content for this category"
-                        >
-                          <Sparkles className="w-4 h-4" />
-                        </Link>
-                        <button
-                          onClick={() => openEditModal(category)}
-                          className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)]"
-                          title="Edit category"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => openDeleteModal(category)}
-                          disabled={deleting === category.id || category.is_system}
-                          className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--status-error)] disabled:opacity-50"
-                          title={category.is_system ? 'System categories cannot be deleted' : 'Delete category'}
-                        >
-                          {deleting === category.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="w-4 h-4" />
-                          )}
-                        </button>
+                        {!isViewer && (
+                          <Link
+                            href={`/dashboard/ai-assistant?category=${category.id}&categoryName=${encodeURIComponent(category.name)}`}
+                            className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--brand)]"
+                            title="Generate content for this category"
+                          >
+                            <Sparkles className="w-4 h-4" />
+                          </Link>
+                        )}
+                        {!isViewer && (
+                          <button
+                            onClick={() => openEditModal(category)}
+                            className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)]"
+                            title="Edit category"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                        )}
+                        {!isViewer && (
+                          <button 
+                            onClick={() => openDeleteModal(category)}
+                            disabled={deleting === category.id || category.is_system}
+                            className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--status-error)] disabled:opacity-50"
+                            title={category.is_system ? 'System categories cannot be deleted' : 'Delete category'}
+                          >
+                            {deleting === category.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -706,35 +717,41 @@ export default function CategoriesPage() {
                             <FileText className="w-4 h-4" />
                             View
                           </Link>
-                          <Link
-                            href={`/dashboard/ai-assistant?category=${category.id}&categoryName=${encodeURIComponent(category.name)}`}
-                            className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-secondary)] text-sm"
-                            onClick={() => setMobileMenuOpen(null)}
-                          >
-                            <Sparkles className="w-4 h-4" />
-                            Generate
-                          </Link>
-                          <button
-                            onClick={() => {
-                              setMobileMenuOpen(null);
-                              openEditModal(category);
-                            }}
-                            className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-secondary)] text-sm"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                            Edit
-                          </button>
-                          <button 
-                            onClick={() => {
-                              setMobileMenuOpen(null);
-                              openDeleteModal(category);
-                            }}
-                            disabled={category.is_system}
-                            className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--status-error)] disabled:opacity-50 text-sm"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            Delete
-                          </button>
+                          {!isViewer && (
+                            <Link
+                              href={`/dashboard/ai-assistant?category=${category.id}&categoryName=${encodeURIComponent(category.name)}`}
+                              className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-secondary)] text-sm"
+                              onClick={() => setMobileMenuOpen(null)}
+                            >
+                              <Sparkles className="w-4 h-4" />
+                              Generate
+                            </Link>
+                          )}
+                          {!isViewer && (
+                            <button
+                              onClick={() => {
+                                setMobileMenuOpen(null);
+                                openEditModal(category);
+                              }}
+                              className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-secondary)] text-sm"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                              Edit
+                            </button>
+                          )}
+                          {!isViewer && (
+                            <button 
+                              onClick={() => {
+                                setMobileMenuOpen(null);
+                                openDeleteModal(category);
+                              }}
+                              disabled={category.is_system}
+                              className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--status-error)] disabled:opacity-50 text-sm"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Delete
+                            </button>
+                          )}
                         </div>
                       </div>
                     )}
