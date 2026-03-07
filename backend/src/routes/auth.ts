@@ -63,16 +63,16 @@ export default async function authRoutes(fastify: FastifyInstance) {
       fastify.log.info({ subdomain, email, tier }, 'Starting signup process');
 
       // Subdomain logic:
-      // - Free/Base: no subdomain (null) — users access via main app
-      // - Pro/Enterprise: custom subdomain required
-      let finalSubdomain: string | null = null;
+      // - Free: auto-generated subdomain (not displayed until upgrade)
+      // - Base/Pro/Enterprise: custom subdomain required
+      let finalSubdomain: string;
 
-      if (tier === 'pro' || tier === 'enterprise') {
+      if (tier === 'base' || tier === 'pro' || tier === 'enterprise') {
         if (!subdomain) {
           return reply.code(400).send({
             error: {
               code: 'SUBDOMAIN_REQUIRED',
-              message: 'Pro and Enterprise plans require a custom subdomain.',
+              message: 'Base, Pro, and Enterprise plans require a custom subdomain.',
               details: {},
             },
           });
@@ -88,6 +88,22 @@ export default async function authRoutes(fastify: FastifyInstance) {
           });
         }
         finalSubdomain = subdomain;
+      } else {
+        const baseSlug = tenant_name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'workspace';
+        let uniqueSubdomain = baseSlug;
+        let isAvailable = await checkSubdomainAvailable(uniqueSubdomain);
+        let counter = 1;
+        
+        while (!isAvailable) {
+          uniqueSubdomain = `${baseSlug}-${Math.random().toString(36).substring(2, 8)}`;
+          isAvailable = await checkSubdomainAvailable(uniqueSubdomain);
+          counter++;
+          if (counter > 10) {
+            uniqueSubdomain = `ws-${Math.random().toString(36).substring(2, 10)}`;
+            isAvailable = await checkSubdomainAvailable(uniqueSubdomain);
+          }
+        }
+        finalSubdomain = uniqueSubdomain;
       }
 
       // Create user in auth.users using Supabase Auth
@@ -380,14 +396,14 @@ export default async function authRoutes(fastify: FastifyInstance) {
       }
 
       // Subdomain logic:
-      // - Free/Base: no subdomain (null) — users access via main app
-      // - Pro/Enterprise: custom subdomain required
-      let finalSubdomain: string | null = null;
+      // - Free: auto-generated subdomain (not displayed until upgrade)
+      // - Base/Pro/Enterprise: custom subdomain required
+      let finalSubdomain: string;
 
-      if (tier === 'pro' || tier === 'enterprise') {
+      if (tier === 'base' || tier === 'pro' || tier === 'enterprise') {
         if (!subdomain) {
           return reply.code(400).send({
-            error: { code: 'SUBDOMAIN_REQUIRED', message: 'Pro and Enterprise plans require a custom subdomain.', details: {} },
+            error: { code: 'SUBDOMAIN_REQUIRED', message: 'Base, Pro, and Enterprise plans require a custom subdomain.', details: {} },
           });
         }
         const isAvailable = await checkSubdomainAvailable(subdomain);
@@ -397,6 +413,22 @@ export default async function authRoutes(fastify: FastifyInstance) {
           });
         }
         finalSubdomain = subdomain;
+      } else {
+        const baseSlug = tenant_name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'workspace';
+        let uniqueSubdomain = baseSlug;
+        let isAvailable = await checkSubdomainAvailable(uniqueSubdomain);
+        let counter = 1;
+        
+        while (!isAvailable) {
+          uniqueSubdomain = `${baseSlug}-${Math.random().toString(36).substring(2, 8)}`;
+          isAvailable = await checkSubdomainAvailable(uniqueSubdomain);
+          counter++;
+          if (counter > 10) {
+            uniqueSubdomain = `ws-${Math.random().toString(36).substring(2, 10)}`;
+            isAvailable = await checkSubdomainAvailable(uniqueSubdomain);
+          }
+        }
+        finalSubdomain = uniqueSubdomain;
       }
 
       // Get tier-specific limits
