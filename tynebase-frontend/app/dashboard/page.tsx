@@ -42,6 +42,7 @@ export default function DashboardPage() {
   const [recentDocs, setRecentDocs] = useState<RecentDocument[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const isViewer = user?.role === 'viewer' && !user?.is_super_admin;
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -142,12 +143,14 @@ export default function DashboardPage() {
           <p className="text-sm text-[var(--dash-text-tertiary)] mt-1">{welcomeSubtitle}</p>
         }
         right={
-          <Link href="/dashboard/knowledge/new">
-            <button className="flex items-center gap-2 h-9 px-5 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-lg text-sm font-medium transition-all">
-              <Plus className="w-4 h-4" />
-              New Document
-            </button>
-          </Link>
+          !isViewer && (
+            <Link href="/dashboard/knowledge/new">
+              <button className="flex items-center gap-2 h-9 px-5 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-lg text-sm font-medium transition-all">
+                <Plus className="w-4 h-4" />
+                New Document
+              </button>
+            </Link>
+          )
         }
       />
 
@@ -180,41 +183,45 @@ export default function DashboardPage() {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Link href="/dashboard/ai-assistant" className="group">
-            <Card className="hover:shadow-md hover:border-[var(--brand)] transition-all h-full">
-              <CardContent className="p-6 flex items-center gap-4">
-                <div className="p-3.5 rounded-lg bg-[var(--brand-primary-muted)]">
-                  <Sparkles className="w-6 h-6 text-[var(--brand)]" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-[var(--dash-text-primary)] group-hover:text-[var(--brand)]">
-                    AI Assistant
-                  </h3>
-                  <p className="text-sm text-[var(--dash-text-tertiary)]">Generate content with AI</p>
-                </div>
-                <ArrowRight className="w-5 h-5 text-[var(--dash-text-muted)] group-hover:text-[var(--brand)] group-hover:translate-x-1 transition-all" />
-              </CardContent>
-            </Card>
-          </Link>
+          {!isViewer && (
+            <Link href="/dashboard/ai-assistant" className="group">
+              <Card className="hover:shadow-md hover:border-[var(--brand)] transition-all h-full">
+                <CardContent className="p-6 flex items-center gap-4">
+                  <div className="p-3.5 rounded-lg bg-[var(--brand-primary-muted)]">
+                    <Sparkles className="w-6 h-6 text-[var(--brand)]" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-[var(--dash-text-primary)] group-hover:text-[var(--brand)]">
+                      AI Assistant
+                    </h3>
+                    <p className="text-sm text-[var(--dash-text-tertiary)]">Generate content with AI</p>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-[var(--dash-text-muted)] group-hover:text-[var(--brand)] group-hover:translate-x-1 transition-all" />
+                </CardContent>
+              </Card>
+            </Link>
+          )}
 
-          <Link href="/dashboard/templates" className="group">
-            <Card className="hover:shadow-md hover:border-[var(--accent-purple)] transition-all h-full">
-              <CardContent className="p-6 flex items-center gap-4">
-                <div className="p-3.5 rounded-lg bg-purple-50">
-                  <FileText className="w-6 h-6 text-[var(--accent-purple)]" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-[var(--dash-text-primary)] group-hover:text-[var(--accent-purple)]">
-                    Templates
-                  </h3>
-                  <p className="text-sm text-[var(--dash-text-tertiary)]">Browse template library</p>
-                </div>
-                <ArrowRight className="w-5 h-5 text-[var(--dash-text-muted)] group-hover:text-[var(--accent-purple)] group-hover:translate-x-1 transition-all" />
-              </CardContent>
-            </Card>
-          </Link>
+          {!isViewer && (
+            <Link href="/dashboard/templates" className="group">
+              <Card className="hover:shadow-md hover:border-[var(--accent-purple)] transition-all h-full">
+                <CardContent className="p-6 flex items-center gap-4">
+                  <div className="p-3.5 rounded-lg bg-purple-50">
+                    <FileText className="w-6 h-6 text-[var(--accent-purple)]" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-[var(--dash-text-primary)] group-hover:text-[var(--accent-purple)]">
+                      Templates
+                    </h3>
+                    <p className="text-sm text-[var(--dash-text-tertiary)]">Browse template library</p>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-[var(--dash-text-muted)] group-hover:text-[var(--accent-purple)] group-hover:translate-x-1 transition-all" />
+                </CardContent>
+              </Card>
+            </Link>
+          )}
 
-          <Link href="/dashboard/audit" className="group">
+          <Link href="/dashboard/audit" className={`group ${isViewer ? 'md:col-span-3' : ''}`}>
             <Card className="hover:shadow-md hover:border-[var(--accent-blue)] transition-all h-full">
               <CardContent className="p-6 flex items-center gap-4">
                 <div className="p-3.5 rounded-lg bg-blue-50">
