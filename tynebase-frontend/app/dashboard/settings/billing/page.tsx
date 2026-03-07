@@ -54,7 +54,7 @@ const TIER_DISPLAY: Record<TierType, {
       "Real-time collaboration",
       "Email support",
       "Document templates",
-      "Custom subdomain",
+      "Custom domain",
     ],
   },
   pro: {

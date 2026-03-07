@@ -83,7 +83,7 @@ export default function SignupPage() {
 
   const validateStep2 = () => {
     const e: Record<string, string> = {};
-    if (tier === "pro" && !validateSubdomain(subdomain)) {
+    if ((tier === "pro" || tier === "base") && !validateSubdomain(subdomain)) {
       e.subdomain = "Letters, numbers and hyphens only (3-63 chars)";
     }
     setErrors(e);
@@ -110,14 +110,14 @@ export default function SignupPage() {
       addToast({ type: "info", title: "Enterprise", description: "Contact sales@tynebase.com for custom enterprise pricing." });
       return;
     }
-    if (selectedTier === "pro") {
-      setStep(3); // Need subdomain
+    if (selectedTier === "pro" || selectedTier === "base") {
+      setStep(3); // Need subdomain for base and pro
     } else {
       doSignup(selectedTier);
     }
   };
 
-  // Step 3 (Pro subdomain) → submit
+  // Step 3 (Subdomain) → submit
   const handleStep3Submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateStep2()) return;
@@ -137,8 +137,8 @@ export default function SignupPage() {
         tier: selectedTier,
       };
 
-      // Only include subdomain for Pro/Enterprise
-      if ((selectedTier === "pro" || selectedTier === "enterprise") && subdomain) {
+      // Only include subdomain for Base/Pro/Enterprise
+      if ((selectedTier === "base" || selectedTier === "pro" || selectedTier === "enterprise") && subdomain) {
         signupData.subdomain = subdomain;
       }
 
@@ -203,7 +203,7 @@ export default function SignupPage() {
   const inputClasses = "w-full px-4 py-3.5 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-xl text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none transition-all focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/10";
 
   // Total steps for progress bar
-  const totalSteps = accountType === "individual" ? 1 : tier === "pro" ? 3 : 2;
+  const totalSteps = accountType === "individual" ? 1 : (tier === "pro" || tier === "base") ? 3 : 2;
 
   return (
     <div className="min-h-screen relative flex flex-col">
@@ -464,7 +464,7 @@ export default function SignupPage() {
               </div>
             )}
 
-            {/* ===== STEP 3: Custom subdomain (Pro only) ===== */}
+            {/* ===== STEP 3: Custom subdomain (Base/Pro only) ===== */}
             {step === 3 && (
               <form onSubmit={handleStep3Submit} className="flex flex-col gap-5">
                 <div className="text-center mb-1">
@@ -477,8 +477,8 @@ export default function SignupPage() {
                 {/* Selected plan badge */}
                 <div className="flex items-center justify-between bg-[var(--bg-secondary)] rounded-xl p-3.5 border border-[var(--border-subtle)]">
                   <div className="flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-[var(--brand)]" />
-                    <span className="text-sm font-medium text-[var(--text-primary)]">Pro — {PLANS.pro.price}{PLANS.pro.period}</span>
+                    {tier === "pro" ? <Zap className="w-4 h-4 text-[var(--brand)]" /> : <div className="w-4 h-4 rounded-full border-2 border-[var(--brand)]" />}
+                    <span className="text-sm font-medium text-[var(--text-primary)] capitalize">{tier} — {PLANS[tier as keyof typeof PLANS]?.price}{PLANS[tier as keyof typeof PLANS]?.period}</span>
                   </div>
                   <button type="button" onClick={() => setStep(2)} className="text-xs text-[var(--brand)] font-medium hover:underline cursor-pointer">Change</button>
                 </div>
@@ -508,9 +508,9 @@ export default function SignupPage() {
 
                 {/* Features summary */}
                 <div className="bg-[var(--bg-secondary)] rounded-xl p-4 border border-[var(--border-subtle)]">
-                  <p className="text-[11px] font-medium text-[var(--text-muted)] uppercase tracking-wider mb-2.5">Pro includes</p>
+                  <p className="text-[11px] font-medium text-[var(--text-muted)] uppercase tracking-wider mb-2.5 capitalize">{tier} includes</p>
                   <div className="grid grid-cols-2 gap-2">
-                    {PLANS.pro.features.map(f => (
+                    {PLANS[tier as keyof typeof PLANS]?.features.map(f => (
                       <span key={f} className="inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
                         <Check className="w-3.5 h-3.5 text-[var(--brand)]" />{f}
                       </span>

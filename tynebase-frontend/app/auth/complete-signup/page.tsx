@@ -84,11 +84,11 @@ export default function CompleteSignupPage() {
       } else if (data.tier && data.tier !== "free" && data.tier !== "base" && data.tier !== "pro") {
         // Unknown tier, show plan selection
         setStep("plan");
-      } else if (data.tier === "pro" && !data.subdomain) {
-        // Pro without subdomain, show subdomain step
+      } else if ((data.tier === "pro" || data.tier === "base") && !data.subdomain) {
+        // Pro/Base without subdomain, show subdomain step
         setStep("subdomain");
-      } else if (data.tier === "pro" && data.subdomain) {
-        // Pro with subdomain, auto-create
+      } else if ((data.tier === "pro" || data.tier === "base") && data.subdomain) {
+        // Pro/Base with subdomain, auto-create
         completeSignup(data, data.tier, data.subdomain);
       } else {
         // Company with free/base tier — show plan selection
@@ -106,7 +106,7 @@ export default function CompleteSignupPage() {
       addToast({ type: "info", title: "Enterprise", description: "Contact sales@tynebase.com for custom enterprise pricing." });
       return;
     }
-    if (selectedTier === "pro") {
+    if (selectedTier === "pro" || selectedTier === "base") {
       setStep("subdomain");
     } else {
       completeSignup(pending!, selectedTier, "");
@@ -156,8 +156,8 @@ export default function CompleteSignupPage() {
         full_name: user.user_metadata?.full_name || user.user_metadata?.name || "",
       };
       
-      // Only Pro/Enterprise get subdomains (white-label feature)
-      if ((selectedTier === "pro" || selectedTier === "enterprise") && selectedSubdomain) {
+      // Only Pro/Enterprise/Base get subdomains (white-label feature)
+      if ((selectedTier === "pro" || selectedTier === "enterprise" || selectedTier === "base") && selectedSubdomain) {
         requestBody.subdomain = selectedSubdomain;
       }
 
@@ -295,7 +295,7 @@ export default function CompleteSignupPage() {
               </div>
             )}
 
-            {/* Subdomain step (Pro) */}
+            {/* Subdomain step (Base/Pro) */}
             {step === "subdomain" && pending && (
               <form onSubmit={handleSubdomainSubmit} className="flex flex-col gap-5">
                 <div className="text-center mb-1">
@@ -307,8 +307,8 @@ export default function CompleteSignupPage() {
 
                 <div className="flex items-center justify-between bg-[var(--bg-secondary)] rounded-xl p-3.5 border border-[var(--border-subtle)]">
                   <div className="flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-[var(--brand)]" />
-                    <span className="text-sm font-medium text-[var(--text-primary)]">Pro — {PLANS.pro.price}{PLANS.pro.period}</span>
+                    {tier === "pro" ? <Zap className="w-4 h-4 text-[var(--brand)]" /> : <div className="w-4 h-4 rounded-full border-2 border-[var(--brand)]" />}
+                    <span className="text-sm font-medium text-[var(--text-primary)] capitalize">{tier} — {PLANS[tier as keyof typeof PLANS]?.price}{PLANS[tier as keyof typeof PLANS]?.period}</span>
                   </div>
                   <button type="button" onClick={() => setStep("plan")} className="text-xs text-[var(--brand)] font-medium hover:underline cursor-pointer">Change</button>
                 </div>
