@@ -257,8 +257,8 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Quick Links - hidden for viewers */}
-      {!isViewer && (
+      {/* Quick Links - only visible for admins */}
+      {isAdmin && (
         <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl">
           <div className="px-6 py-4 border-b border-[var(--dash-border-subtle)]">
             <h2 className="font-semibold text-[var(--dash-text-primary)]">Quick Settings</h2>

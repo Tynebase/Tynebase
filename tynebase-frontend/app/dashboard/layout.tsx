@@ -23,6 +23,20 @@ const VIEWER_BLOCKED_ROUTES = [
   "/dashboard/settings/permissions",
   "/dashboard/settings/audit-logs",
   "/dashboard/settings/privacy",
+  "/dashboard/settings/billing",
+];
+
+// Routes that editors are NOT allowed to access (admin-only pages)
+const EDITOR_BLOCKED_ROUTES = [
+  "/dashboard/settings/users",
+  "/dashboard/settings/team",
+  "/dashboard/settings/branding",
+  "/dashboard/settings/sso",
+  "/dashboard/settings/webhooks",
+  "/dashboard/settings/import-export",
+  "/dashboard/settings/permissions",
+  "/dashboard/settings/audit-logs",
+  "/dashboard/settings/billing",
 ];
 
 export default function DashboardLayout({
@@ -35,6 +49,8 @@ export default function DashboardLayout({
   const pathname = usePathname();
 
   const isViewer = user?.role === 'viewer' && !user?.is_super_admin;
+  const isEditor = user?.role === 'editor' && !user?.is_super_admin;
+  const isAdmin = user?.role === 'admin' || user?.is_super_admin;
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -52,6 +68,17 @@ export default function DashboardLayout({
       }
     }
   }, [isLoading, user, isViewer, pathname, router]);
+
+  // Redirect editors away from admin-only routes
+  useEffect(() => {
+    if (!isLoading && user && isEditor && pathname) {
+      const isBlocked = EDITOR_BLOCKED_ROUTES.some(route => pathname.startsWith(route));
+      if (isBlocked) {
+        console.log(`[EditorGuard] Blocked editor from accessing: ${pathname}`);
+        router.replace("/dashboard");
+      }
+    }
+  }, [isLoading, user, isEditor, pathname, router]);
 
   if (isLoading) {
     return (

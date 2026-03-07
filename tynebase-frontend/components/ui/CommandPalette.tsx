@@ -28,6 +28,7 @@ interface CommandItem {
   category: "navigation" | "actions" | "recent" | "documents";
   keywords?: string[];
   viewerHidden?: boolean;
+  adminOnly?: boolean;
 }
 
 interface CommandPaletteProps {
@@ -39,6 +40,8 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   const router = useRouter();
   const { user } = useAuth();
   const isViewer = user?.role === 'viewer' && !user?.is_super_admin;
+  const isEditor = user?.role === 'editor' && !user?.is_super_admin;
+  const isAdmin = user?.role === 'admin' || user?.is_super_admin;
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -124,6 +127,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
       category: "navigation",
       keywords: ["team", "members", "users", "invite"],
       viewerHidden: true,
+      adminOnly: true,
     },
     {
       id: "nav-permissions",
@@ -133,6 +137,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
       category: "navigation",
       keywords: ["permissions", "roles", "access", "rbac"],
       viewerHidden: true,
+      adminOnly: true,
     },
     // Recent Documents (mock)
     {
@@ -153,11 +158,16 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
     },
   ], [router]);
 
-  // Filter out viewer-hidden commands
+  // Filter out commands based on role
   const accessibleCommands = useMemo(() => {
-    if (!isViewer) return commands;
-    return commands.filter(cmd => !cmd.viewerHidden);
-  }, [commands, isViewer]);
+    return commands.filter(cmd => {
+      // Viewers can't see viewer-hidden commands
+      if (isViewer && cmd.viewerHidden) return false;
+      // Editors can't see admin-only commands
+      if (isEditor && cmd.adminOnly) return false;
+      return true;
+    });
+  }, [commands, isViewer, isEditor]);
 
   const filteredCommands = useMemo(() => {
     if (!query) return accessibleCommands;
