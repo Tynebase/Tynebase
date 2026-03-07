@@ -299,8 +299,8 @@ export default function BrandingPage() {
             </div>
           </div>
 
-          {/* Branded Subdomain — only show for Pro/Enterprise with actual subdomain */}
-          {canUseWhiteLabel && tenant?.subdomain && (
+          {/* Branded Subdomain — show if tenant has a subdomain (Base/Pro/Enterprise) but don't show for free tier until upgraded */}
+          {tenant?.subdomain && currentTier !== 'free' && (
             <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl overflow-hidden">
               <div className="px-7 py-5 border-b border-[var(--dash-border-subtle)] flex items-center justify-between">
                 <h2 className="font-semibold text-[var(--dash-text-primary)] flex items-center gap-2">
@@ -325,7 +325,9 @@ export default function BrandingPage() {
                   </a>
                 </div>
                 <p className="text-xs text-[var(--dash-text-muted)]">
-                  All pages at this URL use your brand colours, logo and company name. Share this URL with your team and clients for a fully branded experience.
+                  {canUseWhiteLabel 
+                    ? "All pages at this URL use your brand colours, logo and company name. Share this URL with your team and clients for a fully branded experience."
+                    : "Share this URL with your team for easy access to your workspace. Upgrade to Pro to add your own branding."}
                 </p>
               </div>
             </div>

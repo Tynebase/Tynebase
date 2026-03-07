@@ -205,19 +205,22 @@ export default function SettingsPage() {
                 className="w-full px-4 py-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-1.5">Subdomain</label>
-              <input
-                type="text"
-                value={tenant?.subdomain || ""}
-                placeholder="acme"
-                disabled
-                className="w-full px-4 py-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-muted)] cursor-not-allowed"
-              />
-              <p className="text-xs text-[var(--dash-text-muted)] mt-1.5">
-                Your workspace URL: {tenant?.subdomain || "your-workspace"}.tynebase.com
-              </p>
-            </div>
+            {/* Subdomain - only show if tenant has a subdomain (Base/Pro/Enterprise) but don't show for free tier until upgraded */}
+            {tenant?.subdomain && tenant?.tier !== 'free' && (
+              <div>
+                <label className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-1.5">Subdomain</label>
+                <input
+                  type="text"
+                  value={tenant?.subdomain || ""}
+                  placeholder="acme"
+                  disabled
+                  className="w-full px-4 py-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-muted)] cursor-not-allowed"
+                />
+                <p className="text-xs text-[var(--dash-text-muted)] mt-1.5">
+                  Your workspace URL: {tenant?.subdomain || "your-workspace"}.tynebase.com
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
