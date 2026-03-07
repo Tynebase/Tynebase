@@ -23,6 +23,7 @@ import { Modal, ModalFooter } from "@/components/ui/Modal";
 import { DeleteConfirmationModal } from "@/components/ui/DeleteConfirmationModal";
 import { DocumentImportModal } from "@/components/docs/DocumentImportModal";
 import { SortableCategories } from "@/components/ui/SortableCategories";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface DocumentCollectionInfo {
   id: string;
@@ -68,6 +69,8 @@ export default function KnowledgePage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const { user: authUser } = useAuth();
+  const isViewer = authUser?.role === 'viewer' && !authUser?.is_super_admin;
   const tagParam = searchParams.get('tag');
   const categoryParam = searchParams.get('category');
   const statusParam = searchParams.get('status') as 'all' | 'published' | 'draft' | null;
@@ -693,7 +696,7 @@ export default function KnowledgePage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {quickActions.map((action) => (
+          {!isViewer && quickActions.map((action) => (
             <Link key={action.label} href={action.href}>
               <button
                 className="flex items-center gap-2 h-10 px-5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-sm text-[var(--dash-text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)] transition-all"
@@ -705,21 +708,25 @@ export default function KnowledgePage() {
               </button>
             </Link>
           ))}
-          <button
-            onClick={() => setImportModalOpen(true)}
-            className="flex items-center gap-2 h-10 px-5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-sm text-[var(--dash-text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)] transition-all"
-          >
-            <span style={{ color: "#3b82f6" }}>
-              <Download className="w-4 h-4" />
-            </span>
-            Import
-          </button>
-          <Link href="/dashboard/knowledge/new">
-            <button className="flex items-center gap-2 h-10 px-6 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-xl text-sm font-medium transition-all">
-              <Plus className="w-4 h-4" />
-              New Document
+          {!isViewer && (
+            <button
+              onClick={() => setImportModalOpen(true)}
+              className="flex items-center gap-2 h-10 px-5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-sm text-[var(--dash-text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)] transition-all"
+            >
+              <span style={{ color: "#3b82f6" }}>
+                <Download className="w-4 h-4" />
+              </span>
+              Import
             </button>
-          </Link>
+          )}
+          {!isViewer && (
+            <Link href="/dashboard/knowledge/new">
+              <button className="flex items-center gap-2 h-10 px-6 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-xl text-sm font-medium transition-all">
+                <Plus className="w-4 h-4" />
+                New Document
+              </button>
+            </Link>
+          )}
         </div>
       </div>
 

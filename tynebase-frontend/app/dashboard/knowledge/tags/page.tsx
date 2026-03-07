@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect, useRef } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Hash, Plus, Search, Sparkles, FileText, ArrowRight, TrendingUp, Filter, Loader2, AlertCircle, Trash2, ChevronDown, RotateCcw, Pencil, Tag as TagIcon, X, CheckCircle, GripVertical } from "lucide-react";
@@ -187,6 +188,8 @@ function SortableTagCard({ tag, onEdit, onDelete, onAssign }: SortableTagCardPro
 }
 
 export default function TagsPage() {
+  const { user } = useAuth();
+  const isViewer = user?.role === 'viewer' && !user?.is_super_admin;
   const [query, setQuery] = useState("");
   const [showNewTagModal, setShowNewTagModal] = useState(false);
   const [newTagName, setNewTagName] = useState("");
@@ -489,13 +492,15 @@ export default function TagsPage() {
             <FileText className="w-4 h-4" />
             Browse Docs
           </Link>
-          <button 
-            onClick={() => setShowNewTagModal(true)}
-            className="inline-flex items-center gap-2 h-11 px-6 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-xl font-semibold transition-all shadow-sm hover:shadow-md"
-          >
-            <Plus className="w-4 h-4" />
-            New Tag
-          </button>
+          {!isViewer && (
+            <button 
+              onClick={() => setShowNewTagModal(true)}
+              className="inline-flex items-center gap-2 h-11 px-6 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-xl font-semibold transition-all shadow-sm hover:shadow-md"
+            >
+              <Plus className="w-4 h-4" />
+              New Tag
+            </button>
+          )}
         </div>
       </div>
 

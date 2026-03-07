@@ -37,6 +37,7 @@ export default function SettingsPage() {
 
   // Check if user is admin (admins can't leave, they own the workspace)
   const isAdmin = user?.role === 'admin' || user?.is_super_admin;
+  const isViewer = user?.role === 'viewer' && !user?.is_super_admin;
 
   const handleLeaveWorkspace = async () => {
     if (!user) return;
@@ -121,8 +122,8 @@ export default function SettingsPage() {
         profileUpdated = true;
       }
 
-      // Update tenant if company name changed
-      if (hasCompanyChanged) {
+      // Update tenant if company name changed (not allowed for viewers)
+      if (hasCompanyChanged && !isViewer) {
         await updateTenant(tenant.id, {
           name: companyName,
         });
@@ -202,7 +203,8 @@ export default function SettingsPage() {
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
                 placeholder="Acme Corp"
-                className="w-full px-4 py-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
+                disabled={isViewer}
+                className={`w-full px-4 py-3 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-lg placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 ${isViewer ? 'text-[var(--dash-text-muted)] cursor-not-allowed' : 'text-[var(--dash-text-primary)]'}`}
               />
             </div>
             {/* Subdomain - only show if tenant has a subdomain (Base/Pro/Enterprise) but don't show for free tier until upgraded */}
@@ -255,33 +257,35 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Quick Links */}
-      <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl">
-        <div className="px-6 py-4 border-b border-[var(--dash-border-subtle)]">
-          <h2 className="font-semibold text-[var(--dash-text-primary)]">Quick Settings</h2>
-          <p className="text-sm text-[var(--dash-text-tertiary)]">Access other configuration options</p>
-        </div>
-        <div className="p-2 sm:p-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {settingsNav.map((item) => (
-              <Link key={item.href} href={item.href} className="block">
-                <div className="h-full px-4 py-4 flex items-center justify-between rounded-lg hover:bg-[var(--surface-hover)] transition-colors group border border-transparent hover:border-[var(--dash-border-subtle)]">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-[var(--surface-ground)] flex items-center justify-center text-[var(--dash-text-tertiary)] group-hover:text-[var(--brand)] group-hover:bg-[var(--brand-primary-muted)] transition-colors">
-                      <item.icon className="w-5 h-5" />
+      {/* Quick Links - hidden for viewers */}
+      {!isViewer && (
+        <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl">
+          <div className="px-6 py-4 border-b border-[var(--dash-border-subtle)]">
+            <h2 className="font-semibold text-[var(--dash-text-primary)]">Quick Settings</h2>
+            <p className="text-sm text-[var(--dash-text-tertiary)]">Access other configuration options</p>
+          </div>
+          <div className="p-2 sm:p-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {settingsNav.map((item) => (
+                <Link key={item.href} href={item.href} className="block">
+                  <div className="h-full px-4 py-4 flex items-center justify-between rounded-lg hover:bg-[var(--surface-hover)] transition-colors group border border-transparent hover:border-[var(--dash-border-subtle)]">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-lg bg-[var(--surface-ground)] flex items-center justify-center text-[var(--dash-text-tertiary)] group-hover:text-[var(--brand)] group-hover:bg-[var(--brand-primary-muted)] transition-colors">
+                        <item.icon className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-[var(--dash-text-primary)] group-hover:text-[var(--brand)]">{item.label}</p>
+                        <p className="text-sm text-[var(--dash-text-muted)]">{item.description}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-[var(--dash-text-primary)] group-hover:text-[var(--brand)]">{item.label}</p>
-                      <p className="text-sm text-[var(--dash-text-muted)]">{item.description}</p>
-                    </div>
+                    <ChevronRight className="w-5 h-5 text-[var(--dash-text-muted)] group-hover:text-[var(--brand)]" />
                   </div>
-                  <ChevronRight className="w-5 h-5 text-[var(--dash-text-muted)] group-hover:text-[var(--brand)]" />
-                </div>
-              </Link>
-            ))}
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Leave Workspace - Only show for non-admin users */}
       {!isAdmin && (

@@ -99,6 +99,7 @@ const knowledgeNavigation: NavItem[] = [
     icon: Download,
     href: "/dashboard/knowledge/imports",
     color: "#10b981",
+    roles: ["admin", "super_admin", "editor"],
   },
   {
     id: "activity",
@@ -283,6 +284,8 @@ export function DashboardSidebar({ mobile }: { mobile?: boolean }) {
     }));
   };
 
+  const isViewer = user?.role === 'viewer' && !user?.is_super_admin;
+
   const hasAccess = (item: NavItem) => {
     if (!item.roles) return true;
     return user?.role && item.roles.includes(user.role);
@@ -448,23 +451,30 @@ export function DashboardSidebar({ mobile }: { mobile?: boolean }) {
             ))}
           </CollapsibleSection>
 
-          {/* Knowledge Sources (RAG) */}
-          <CollapsibleSection id="sources" label="Knowledge Sources">
-            {sourcesNavigation.filter(hasAccess).map((item) => (
-              <NavLink key={item.id} item={item} />
-            ))}
-          </CollapsibleSection>
+          {/* Knowledge Sources (RAG) - hidden for viewers */}
+          {!isViewer && (
+            <CollapsibleSection id="sources" label="Knowledge Sources">
+              {sourcesNavigation.filter(hasAccess).map((item) => (
+                <NavLink key={item.id} item={item} />
+              ))}
+            </CollapsibleSection>
+          )}
 
-          {/* AI Assistant */}
-          <CollapsibleSection id="ai" label="AI Assistant">
-            {aiNavigation.filter(hasAccess).map((item) => (
-              <NavLink key={item.id} item={item} />
-            ))}
-          </CollapsibleSection>
+          {/* AI Assistant - hidden for viewers */}
+          {!isViewer && (
+            <CollapsibleSection id="ai" label="AI Assistant">
+              {aiNavigation.filter(hasAccess).map((item) => (
+                <NavLink key={item.id} item={item} />
+              ))}
+            </CollapsibleSection>
+          )}
 
-          {/* Tools */}
+          {/* Tools - filter for viewers: only show Team Chat */}
           <CollapsibleSection id="tools" label="Tools">
-            {toolsNavigation.filter(hasAccess).map((item) => (
+            {toolsNavigation.filter(hasAccess).filter(item => {
+              if (isViewer) return item.id === 'team-chat';
+              return true;
+            }).map((item) => (
               <NavLink key={item.id} item={item} />
             ))}
           </CollapsibleSection>
@@ -501,7 +511,7 @@ export function DashboardSidebar({ mobile }: { mobile?: boolean }) {
               <div className="h-px bg-[var(--border-subtle)]" />
               <RoleInfoItem title="Editor" color="green" desc="Can create, edit, and publish content. Access to AI assistant and audit tools. No admin settings access." />
               <div className="h-px bg-[var(--border-subtle)]" />
-              <RoleInfoItem title="Viewer" color="gray" desc="Read-only access to content. Can view documents and use AI chat but cannot create or edit content." />
+              <RoleInfoItem title="Viewer" color="gray" desc="Read-only access to content. Can view documents and use team chat but cannot create, edit, import content, or use AI features." />
             </div>
           </div>
         </div>,

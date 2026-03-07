@@ -29,6 +29,7 @@ const stripHtml = (html: string) => html.replace(/<[^>]*>/g, '').replace(/&nbsp;
 export default function CommunityPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const isViewer = user?.role === 'viewer' && !user?.is_super_admin;
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"recent" | "popular" | "unanswered">("recent");
@@ -237,12 +238,14 @@ export default function CommunityPage() {
               Shared Documents
             </Link>
           </Button>
-          <Button variant="primary" size="lg" className="flex-1 sm:flex-none gap-2 px-7 !text-[#ffffff]" asChild>
-            <Link href="/dashboard/community/new">
-              <Plus className="w-5 h-5" />
-              New Discussion
-            </Link>
-          </Button>
+          {!isViewer && (
+            <Button variant="primary" size="lg" className="flex-1 sm:flex-none gap-2 px-7 !text-[#ffffff]" asChild>
+              <Link href="/dashboard/community/new">
+                <Plus className="w-5 h-5" />
+                New Discussion
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -347,12 +350,14 @@ export default function CommunityPage() {
                     <MessageSquare className="w-12 h-12 text-[var(--dash-text-muted)] mb-4" />
                     <h3 className="text-lg font-semibold text-[var(--dash-text-primary)]">No discussions yet</h3>
                     <p className="text-[var(--dash-text-tertiary)] mt-1">Be the first to start a conversation!</p>
-                    <Button variant="primary" size="md" className="mt-4 !text-[#ffffff]" asChild>
-                      <Link href="/dashboard/community/new">
-                        <Plus className="w-4 h-4 mr-2" />
-                        New Discussion
-                      </Link>
-                    </Button>
+                    {!isViewer && (
+                      <Button variant="primary" size="md" className="mt-4 !text-[#ffffff]" asChild>
+                        <Link href="/dashboard/community/new">
+                          <Plus className="w-4 h-4 mr-2" />
+                          New Discussion
+                        </Link>
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   filteredDiscussions.map((discussion) => {

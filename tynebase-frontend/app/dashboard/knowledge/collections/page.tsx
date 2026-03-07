@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/Toast";
+import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
 import {
   FolderOpen,
@@ -72,6 +73,8 @@ function VisibilityIcon({ visibility }: { visibility: Visibility }) {
 
 export default function CollectionsPage() {
   const { addToast } = useToast();
+  const { user } = useAuth();
+  const isViewer = user?.role === 'viewer' && !user?.is_super_admin;
   const [query, setQuery] = useState("");
   const [collections, setCollections] = useState<APICollection[]>([]);
   const [loading, setLoading] = useState(true);
@@ -180,22 +183,24 @@ export default function CollectionsPage() {
               Curate articles into structured collections with access control.
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/dashboard/knowledge/new"
-              className="inline-flex items-center gap-2 h-11 px-5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-sm font-medium text-[var(--dash-text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)] transition-all"
-            >
-              <FileText className="w-4 h-4" />
-              New Document
-            </Link>
-            <button 
-              onClick={() => setShowNewModal(true)}
-              className="inline-flex items-center gap-2 h-11 px-6 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-xl font-semibold transition-all shadow-sm hover:shadow-md"
-            >
-              <Plus className="w-4 h-4" />
-              New Collection
-            </button>
-          </div>
+          {!isViewer && (
+            <div className="flex items-center gap-3">
+              <Link
+                href="/dashboard/knowledge/new"
+                className="inline-flex items-center gap-2 h-11 px-5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-sm font-medium text-[var(--dash-text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)] transition-all"
+              >
+                <FileText className="w-4 h-4" />
+                New Document
+              </Link>
+              <button 
+                onClick={() => setShowNewModal(true)}
+                className="inline-flex items-center gap-2 h-11 px-6 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-xl font-semibold transition-all shadow-sm hover:shadow-md"
+              >
+                <Plus className="w-4 h-4" />
+                New Collection
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3">
@@ -266,7 +271,7 @@ export default function CollectionsPage() {
           <p className="text-sm text-[var(--dash-text-tertiary)] max-w-md">
             {query ? 'Try adjusting your search query.' : 'Create your first collection to start curating your documents.'}
           </p>
-          {!query && (
+          {!query && !isViewer && (
             <button
               onClick={() => setShowNewModal(true)}
               className="mt-4 flex items-center gap-2 px-4 py-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-lg text-sm font-medium"

@@ -626,6 +626,7 @@ export default function EditDocumentPage() {
               initialTitle={title}
               onTitleChange={setTitle}
               onEditorReady={(editor) => { editorRef.current = editor; }}
+              readOnly={isReadOnly}
               showVersionHistory={showHistory}
               onVersionHistoryToggle={() => setShowHistory(!showHistory)}
             />
