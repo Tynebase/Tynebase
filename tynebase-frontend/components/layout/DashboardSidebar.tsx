@@ -505,8 +505,6 @@ export function DashboardSidebar({ mobile }: { mobile?: boolean }) {
               </button>
             </div>
             <div className="px-6 py-5 space-y-5">
-              <RoleInfoItem title="Super Admin" color="purple" desc="Full access to all features including user management, billing, branding settings, and audit logs." />
-              <div className="h-px bg-[var(--border-subtle)]" />
               <RoleInfoItem title="Admin" color="blue" desc="Can manage users, view billing, configure branding, and access audit logs. Extensive permissions with some restrictions." />
               <div className="h-px bg-[var(--border-subtle)]" />
               <RoleInfoItem title="Editor" color="green" desc="Can create, edit, and publish content. Access to AI assistant and audit tools. No admin settings access." />
@@ -523,7 +521,6 @@ export function DashboardSidebar({ mobile }: { mobile?: boolean }) {
 
 function RoleInfoItem({ title, color, desc }: { title: string; color: string; desc: string }) {
   const colorClasses: Record<string, string> = {
-    purple: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
     blue: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
     green: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
     gray: "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300",
