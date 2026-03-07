@@ -76,13 +76,21 @@ function AcceptInviteContent() {
 
     // If a password was set, sign in with it to establish a full cookie session
     if (password && inviteToAccept.email) {
+      // Small delay to ensure backend has finished setting the password
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       const supabase = createClient();
       if (supabase) {
-        const { data: signInData } = await supabase.auth.signInWithPassword({
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email: inviteToAccept.email,
           password,
         });
-        if (signInData?.session) {
+        
+        if (signInError) {
+          console.error('[AcceptInvite] Auto sign-in failed:', signInError.message);
+          // Don't block the flow - user can still log in manually
+        } else if (signInData?.session) {
+          console.log('[AcceptInvite] Auto sign-in successful');
           setAuthTokens(signInData.session.access_token, signInData.session.refresh_token);
         }
       }
