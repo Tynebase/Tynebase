@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Search,
   FileText,
@@ -26,6 +27,7 @@ interface CommandItem {
   action: () => void;
   category: "navigation" | "actions" | "recent" | "documents";
   keywords?: string[];
+  viewerHidden?: boolean;
 }
 
 interface CommandPaletteProps {
@@ -35,6 +37,8 @@ interface CommandPaletteProps {
 
 export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   const router = useRouter();
+  const { user } = useAuth();
+  const isViewer = user?.role === 'viewer' && !user?.is_super_admin;
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -48,6 +52,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
       action: () => router.push("/dashboard/knowledge/new"),
       category: "actions",
       keywords: ["new", "create", "document", "article"],
+      viewerHidden: true,
     },
     {
       id: "ai-assistant",
@@ -57,6 +62,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
       action: () => router.push("/dashboard/ai-assistant"),
       category: "actions",
       keywords: ["ai", "generate", "assistant"],
+      viewerHidden: true,
     },
     {
       id: "use-template",
@@ -66,6 +72,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
       action: () => router.push("/dashboard/templates"),
       category: "actions",
       keywords: ["template", "start"],
+      viewerHidden: true,
     },
     // Navigation
     {
@@ -91,6 +98,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
       action: () => router.push("/dashboard/templates"),
       category: "navigation",
       keywords: ["templates"],
+      viewerHidden: true,
     },
     {
       id: "nav-analytics",
@@ -115,6 +123,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
       action: () => router.push("/dashboard/settings/team"),
       category: "navigation",
       keywords: ["team", "members", "users", "invite"],
+      viewerHidden: true,
     },
     {
       id: "nav-permissions",
@@ -123,6 +132,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
       action: () => router.push("/dashboard/settings/permissions"),
       category: "navigation",
       keywords: ["permissions", "roles", "access", "rbac"],
+      viewerHidden: true,
     },
     // Recent Documents (mock)
     {
@@ -143,17 +153,23 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
     },
   ], [router]);
 
+  // Filter out viewer-hidden commands
+  const accessibleCommands = useMemo(() => {
+    if (!isViewer) return commands;
+    return commands.filter(cmd => !cmd.viewerHidden);
+  }, [commands, isViewer]);
+
   const filteredCommands = useMemo(() => {
-    if (!query) return commands;
+    if (!query) return accessibleCommands;
 
     const lowerQuery = query.toLowerCase();
-    return commands.filter((cmd) => {
+    return accessibleCommands.filter((cmd) => {
       const matchTitle = cmd.title.toLowerCase().includes(lowerQuery);
       const matchDesc = cmd.description?.toLowerCase().includes(lowerQuery);
       const matchKeywords = cmd.keywords?.some((k) => k.includes(lowerQuery));
       return matchTitle || matchDesc || matchKeywords;
     });
-  }, [commands, query]);
+  }, [accessibleCommands, query]);
 
   const groupedCommands = useMemo(() => {
     const groups: Record<string, CommandItem[]> = {

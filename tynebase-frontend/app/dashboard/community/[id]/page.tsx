@@ -298,28 +298,30 @@ export default function DiscussionPage() {
             />
           )}
           
-          <div className="flex items-center gap-2 mt-3">
-            <Button 
-              variant={r.has_liked ? "primary" : "ghost"} 
-              size="sm" 
-              className="text-xs"
-              onClick={() => handleLikeReply(r.id)}
-            >
-              <ThumbsUp className="w-3 h-3 mr-1" />
-              {r.likes_count}
-            </Button>
-            {!discussion?.is_locked && depth < maxDepth && (
+          {!isViewer && (
+            <div className="flex items-center gap-2 mt-3">
               <Button 
-                variant="ghost" 
+                variant={r.has_liked ? "primary" : "ghost"} 
                 size="sm" 
                 className="text-xs"
-                onClick={() => setReplyingTo(replyingTo === r.id ? null : r.id)}
+                onClick={() => handleLikeReply(r.id)}
               >
-                <ReplyIcon className="w-3 h-3 mr-1" />
-                Reply
+                <ThumbsUp className="w-3 h-3 mr-1" />
+                {r.likes_count}
               </Button>
-            )}
-          </div>
+              {!discussion?.is_locked && depth < maxDepth && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-xs"
+                  onClick={() => setReplyingTo(replyingTo === r.id ? null : r.id)}
+                >
+                  <ReplyIcon className="w-3 h-3 mr-1" />
+                  Reply
+                </Button>
+              )}
+            </div>
+          )}
           
           {/* Inline reply form */}
           {replyingTo === r.id && (
@@ -619,17 +621,19 @@ export default function DiscussionPage() {
                   ))}
                 </div>
 
-                <div className="flex items-center gap-2 pt-4">
-                  <Button 
-                    variant={discussion.has_liked ? "primary" : "outline"} 
-                    size="md" 
-                    className="px-5"
-                    onClick={handleLikeDiscussion}
-                  >
-                    <ThumbsUp className="w-4 h-4" />
-                    {discussion.has_liked ? "Liked" : "Like"} ({discussion.likes_count})
-                  </Button>
-                </div>
+                {!isViewer && (
+                  <div className="flex items-center gap-2 pt-4">
+                    <Button 
+                      variant={discussion.has_liked ? "primary" : "outline"} 
+                      size="md" 
+                      className="px-5"
+                      onClick={handleLikeDiscussion}
+                    >
+                      <ThumbsUp className="w-4 h-4" />
+                      {discussion.has_liked ? "Liked" : "Like"} ({discussion.likes_count})
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -652,35 +656,44 @@ export default function DiscussionPage() {
         <div className="space-y-6">
           <Card>
             <CardContent className="p-6">
-              <div className="font-semibold text-[var(--dash-text-primary)] mb-3">Write a reply</div>
-              {discussion.is_locked ? (
-                <p className="text-sm text-[var(--dash-text-muted)]">This discussion is locked. No new replies can be added.</p>
+              {isViewer ? (
+                <>
+                  <div className="font-semibold text-[var(--dash-text-primary)] mb-3">Discussion</div>
+                  <p className="text-sm text-[var(--dash-text-muted)]">You have read-only access to this discussion.</p>
+                </>
               ) : (
                 <>
-                  <Textarea
-                    value={reply}
-                    onChange={(e) => setReply(e.target.value)}
-                    placeholder="Contribute to the discussion.."
-                    rows={8}
-                    className="px-4 py-3 bg-[var(--surface-card)]"
-                  />
-                  <div className="flex items-center justify-end gap-3 mt-4">
-                    <Button variant="outline" size="md" className="px-5" onClick={() => setReply("")}
-                      disabled={reply.trim().length === 0}
-                    >
-                      Clear
-                    </Button>
-                    <Button 
-                      variant="primary" 
-                      size="md" 
-                      className="px-5" 
-                      disabled={reply.trim().length === 0 || submitting}
-                      onClick={() => handleSubmitReply()}
-                    >
-                      {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                      Post Reply
-                    </Button>
-                  </div>
+                  <div className="font-semibold text-[var(--dash-text-primary)] mb-3">Write a reply</div>
+                  {discussion.is_locked ? (
+                    <p className="text-sm text-[var(--dash-text-muted)]">This discussion is locked. No new replies can be added.</p>
+                  ) : (
+                    <>
+                      <Textarea
+                        value={reply}
+                        onChange={(e) => setReply(e.target.value)}
+                        placeholder="Contribute to the discussion.."
+                        rows={8}
+                        className="px-4 py-3 bg-[var(--surface-card)]"
+                      />
+                      <div className="flex items-center justify-end gap-3 mt-4">
+                        <Button variant="outline" size="md" className="px-5" onClick={() => setReply("")}
+                          disabled={reply.trim().length === 0}
+                        >
+                          Clear
+                        </Button>
+                        <Button 
+                          variant="primary" 
+                          size="md" 
+                          className="px-5" 
+                          disabled={reply.trim().length === 0 || submitting}
+                          onClick={() => handleSubmitReply()}
+                        >
+                          {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                          Post Reply
+                        </Button>
+                      </div>
+                    </>
+                  )}
                 </>
               )}
             </CardContent>
