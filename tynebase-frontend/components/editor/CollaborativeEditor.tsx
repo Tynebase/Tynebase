@@ -34,6 +34,7 @@ import {
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface CollaborativeEditorProps {
   documentId: string;
@@ -71,12 +72,18 @@ function ToolbarDivider() {
   return <div className="w-px h-6 bg-[var(--border-subtle)] mx-1" />;
 }
 
-const getRandomColor = () => {
-  const colors = [
-    "#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8",
-    "#F7DC6F", "#BB8FCE", "#85C1E2", "#F8B739", "#52B788"
-  ];
-  return colors[Math.floor(Math.random() * colors.length)];
+const COLLAB_COLORS = [
+  "#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8",
+  "#F7DC6F", "#BB8FCE", "#85C1E2", "#F8B739", "#52B788",
+  "#E76F51", "#2A9D8F", "#E9C46A", "#264653", "#F4A261",
+];
+
+const getColorForUser = (userId: string): string => {
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) {
+    hash = ((hash << 5) - hash + userId.charCodeAt(i)) | 0;
+  }
+  return COLLAB_COLORS[Math.abs(hash) % COLLAB_COLORS.length];
 };
 
 export function CollaborativeEditor({
@@ -85,6 +92,7 @@ export function CollaborativeEditor({
   onTitleChange,
   readOnly = false,
 }: CollaborativeEditorProps) {
+  const { user } = useAuth();
   const [title, setTitle] = useState(initialTitle);
   const [provider, setProvider] = useState<HocuspocusProvider | null>(null);
   const [status, setStatus] = useState<"connecting" | "connected" | "disconnected">("connecting");
@@ -104,8 +112,8 @@ export function CollaborativeEditor({
       CollaborationCursor.configure({
         provider: provider || undefined,
         user: {
-          name: localStorage.getItem("user_email") || "Anonymous",
-          color: getRandomColor(),
+          name: user?.full_name || user?.email?.split('@')[0] || "Anonymous",
+          color: getColorForUser(user?.id || 'default'),
         },
       }),
     ],
@@ -152,7 +160,10 @@ export function CollaborativeEditor({
         setStatus(status as "connecting" | "connected" | "disconnected");
       },
       onAwarenessUpdate: ({ states }) => {
-        setActiveUsers(states.length);
+        const users = Array.from(states.values())
+          .filter((state: any) => state.user)
+          .map((state: any) => state.user);
+        setActiveUsers(users.length);
       },
       onConnect: () => {
         console.log(`[CollaborativeEditor] Connected to document ${documentId}`);
@@ -172,6 +183,18 @@ export function CollaborativeEditor({
       hocuspocusProvider.destroy();
     };
   }, [documentId]);
+
+  // Update awareness with real user info when auth context loads
+  useEffect(() => {
+    if (provider && user) {
+      const color = getColorForUser(user.id);
+      const displayName = user.full_name || user.email?.split('@')[0] || 'Anonymous';
+      provider.setAwarenessField('user', {
+        name: displayName,
+        color,
+      });
+    }
+  }, [provider, user]);
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setTitle(e.target.value);

@@ -48,6 +48,7 @@ import { uploadDocumentAsset } from "@/lib/api/documents";
 import { Upload, Loader2, Eye, FileText, FileType, FileDown } from "lucide-react";
 import { exportAsMarkdown, exportAsDocx, exportAsPdf, ExportFormat } from "@/lib/utils/documentExport";
 import { useTenant } from "@/contexts/TenantContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 const lowlight = createLowlight(common);
 
@@ -176,9 +177,18 @@ const HIGHLIGHT_COLORS = [
   "#800080", "#800000", "#808000", "#808080", "#C0C0C0",
 ];
 
-const getRandomColor = () => {
-  const colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8", "#F7DC6F", "#BB8FCE", "#85C1E2"];
-  return colors[Math.floor(Math.random() * colors.length)];
+const COLLAB_COLORS = [
+  "#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8",
+  "#F7DC6F", "#BB8FCE", "#85C1E2", "#F8B739", "#52B788",
+  "#E76F51", "#2A9D8F", "#E9C46A", "#264653", "#F4A261",
+];
+
+const getColorForUser = (userId: string): string => {
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) {
+    hash = ((hash << 5) - hash + userId.charCodeAt(i)) | 0;
+  }
+  return COLLAB_COLORS[Math.abs(hash) % COLLAB_COLORS.length];
 };
 
 export function RichTextEditor({
@@ -192,6 +202,7 @@ export function RichTextEditor({
   onVersionHistoryToggle,
 }: RichTextEditorProps) {
   const { tenant } = useTenant();
+  const { user } = useAuth();
   const [title, setTitle] = useState(initialTitle);
   const [provider, setProvider] = useState<HocuspocusProvider | null>(null);
   
@@ -243,7 +254,7 @@ export function RichTextEditor({
   const imageFileRef = useRef<HTMLInputElement>(null);
   const videoFileRef = useRef<HTMLInputElement>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
-  const userColorRef = useRef(getRandomColor());
+  const userColorRef = useRef<string>("");
   const colorPickerRef = useRef<HTMLDivElement>(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -440,6 +451,19 @@ export function RichTextEditor({
     };
   }, [documentId]);
 
+  // Update awareness with real user info when auth context loads
+  useEffect(() => {
+    if (provider && user) {
+      const color = getColorForUser(user.id);
+      userColorRef.current = color;
+      const displayName = user.full_name || user.email?.split('@')[0] || 'Anonymous';
+      provider.setAwarenessField('user', {
+        name: displayName,
+        color,
+      });
+    }
+  }, [provider, user]);
+
   const extensions = [
     StarterKit.configure({ history: false, codeBlock: false }),
     ...(ydoc ? [Collaboration.configure({ 
@@ -449,8 +473,8 @@ export function RichTextEditor({
     ...(provider ? [CollaborationCursor.configure({
       provider,
       user: {
-        name: typeof window !== "undefined" ? localStorage.getItem("user_email") || "Anonymous" : "Anonymous",
-        color: userColorRef.current,
+        name: user?.full_name || user?.email?.split('@')[0] || "Anonymous",
+        color: userColorRef.current || getColorForUser(user?.id || 'default'),
       },
     })] : []),
     Underline,
@@ -730,14 +754,14 @@ export function RichTextEditor({
             {/* Collaborator Avatars */}
             {activeUsers.length > 0 && (
               <div className="flex items-center -space-x-2 mr-2">
-                {activeUsers.slice(0, 4).map((user, idx) => (
+                {activeUsers.slice(0, 4).map((collab, idx) => (
                   <div
-                    key={`${user.name}-${idx}`}
+                    key={`${collab.name}-${idx}`}
                     className="w-7 h-7 rounded-full border-2 border-white flex items-center justify-center text-xs font-semibold text-white shadow-sm"
-                    style={{ backgroundColor: user.color, zIndex: 10 - idx }}
-                    title={user.name}
+                    style={{ backgroundColor: collab.color, zIndex: 10 - idx }}
+                    title={collab.name}
                   >
-                    {user.name.charAt(0).toUpperCase()}
+                    {collab.name.charAt(0).toUpperCase()}
                   </div>
                 ))}
                 {activeUsers.length > 4 && (

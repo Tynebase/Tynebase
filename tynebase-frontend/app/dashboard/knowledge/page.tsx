@@ -1181,11 +1181,11 @@ export default function KnowledgePage() {
                 <div key="status" className="text-center px-2">Status</div>,
                 <div key="ai" className="text-center px-2">AI Score</div>,
                 <div key="updated" className="px-2">Updated</div>,
-                <div key="views" className="text-right pl-2">Views</div>,
+                <div key="views" className="text-right pl-2 pr-10">Views</div>,
               ].flatMap((header, i, arr) => {
                 if (i < arr.length - 1) {
                   return [
-                    <div key={`h-${i}`} className="relative flex items-center">{header.props.children}
+                    <div key={`h-${i}`} className="relative min-w-0">{header}
                       <div
                         className="absolute -right-[5px] top-0 bottom-0 w-[11px] cursor-col-resize group/resize z-10 flex items-center justify-center"
                         onMouseDown={(e) => handleResizeStart(e, i)}
