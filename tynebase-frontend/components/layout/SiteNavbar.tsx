@@ -39,7 +39,6 @@ export function SiteNavbar({ currentPage = 'home' }: SiteNavbarProps) {
         <nav className="hidden md:flex items-center gap-1">
           <a href={featuresLink} className="btn btn-ghost">Features</a>
           <a href={pricingLink} className="btn btn-ghost">Pricing</a>
-          <Link href="/public-documents" className={`btn btn-ghost ${currentPage === 'public-documents' ? 'text-[var(--brand)]' : ''}`}>Public Docs</Link>
           <Link href="/docs" className={`btn btn-ghost ${currentPage === 'docs' ? 'text-[var(--brand)]' : ''}`}>Docs</Link>
         </nav>
 
