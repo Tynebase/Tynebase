@@ -112,19 +112,30 @@ export async function sendRoleChangeEmail(params: {
     <p style="margin: 0 0 24px; color: #64748b; font-size: 15px; line-height: 1.6;">
       Your role in <strong style="color: #1e293b;">${tenantName}</strong> has been updated by ${changedBy}.
     </p>
-    <div style="background-color: #f1f5f9; border-radius: 12px; padding: 24px 32px; margin-bottom: 24px;">
+    <div style="background-color: #f1f5f9; border-radius: 12px; padding: 20px 32px; margin-bottom: 24px;">
       <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
+        <!-- Labels row -->
         <tr>
-          <td width="40%" style="text-align: center; vertical-align: middle;">
-            <p style="margin: 0 0 6px; color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Previous Role</p>
-            <p style="margin: 0; color: #64748b; font-size: 18px; font-weight: 600; text-transform: capitalize;">${oldRole}</p>
+          <td width="42%" style="text-align: center; padding-bottom: 8px;">
+            <p style="margin: 0; color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Previous Role</p>
           </td>
-          <td width="20%" style="text-align: center; vertical-align: middle;">
-            <span style="color: #E85002; font-size: 24px; line-height: 1;">→</span>
+          <td width="16%" style="text-align: center; padding-bottom: 8px;">
+            <span style="color: transparent; font-size: 11px;">→</span>
           </td>
-          <td width="40%" style="text-align: center; vertical-align: middle;">
-            <p style="margin: 0 0 6px; color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">New Role</p>
-            <p style="margin: 0; color: #E85002; font-size: 18px; font-weight: 600; text-transform: capitalize;">${newRole}</p>
+          <td width="42%" style="text-align: center; padding-bottom: 8px;">
+            <p style="margin: 0; color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">New Role</p>
+          </td>
+        </tr>
+        <!-- Values row with arrow -->
+        <tr>
+          <td width="42%" style="text-align: center; vertical-align: middle;">
+            <p style="margin: 0; color: #64748b; font-size: 20px; font-weight: 600; text-transform: capitalize; line-height: 1.2;">${oldRole}</p>
+          </td>
+          <td width="16%" style="text-align: center; vertical-align: middle;">
+            <span style="color: #E85002; font-size: 24px; line-height: 1; display: inline-block; padding-top: 2px;">→</span>
+          </td>
+          <td width="42%" style="text-align: center; vertical-align: middle;">
+            <p style="margin: 0; color: #E85002; font-size: 20px; font-weight: 600; text-transform: capitalize; line-height: 1.2;">${newRole}</p>
           </td>
         </tr>
       </table>
