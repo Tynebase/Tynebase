@@ -233,15 +233,15 @@ export async function sendWorkspaceInviteEmail(params: {
       ${invitedBy} invited you to join <strong style="color: #1e293b;">${tenantName}</strong> as a <strong style="color: #E85002; text-transform: capitalize;">${role}</strong>.
     </p>
     <p style="margin: 0 0 24px; color: #64748b; font-size: 15px; line-height: 1.6;">
-      Review the invitation and accept it to join the workspace.
+      Accept this invitation to join the workspace. If you're not signed in, we'll ask you to sign in first and then finish joining automatically.
     </p>
     <div style="text-align: center; margin: 32px 0;">
       <a href="${acceptUrl}" style="display: inline-block; padding: 14px 32px; background-color: #E85002; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 600; border-radius: 10px;">
-        Review Invitation
+        Accept Invitation
       </a>
     </div>
     <p style="margin: 0; color: #64748b; font-size: 14px; line-height: 1.6;">
-      This invite was sent to ${to}. If you already have a TyneBase account, sign in first and then accept the workspace invite.
+      This invitation was sent to ${to}. Please use the TyneBase account for this email address when accepting the invite.
     </p>
   `;
 

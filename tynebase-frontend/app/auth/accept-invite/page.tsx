@@ -30,13 +30,23 @@ function normalizeInviteRole(role?: string): WorkspaceRole {
   return role === "member" ? "editor" : "viewer";
 }
 
+function buildInviteLoginHref(inviteId?: string, existingInvite?: boolean): string {
+  if (!inviteId) {
+    return "/login";
+  }
+
+  const redirect = `/auth/accept-invite?invite=${inviteId}${existingInvite ? "&existing=1" : ""}`;
+  return `/login?redirect=${encodeURIComponent(redirect)}`;
+}
+
 function AcceptInviteContent() {
   const searchParams = useSearchParams();
   const { addToast } = useToast();
   const inviteIdParam = searchParams.get("invite");
   const dataParam = searchParams.get("data");
+  const existingInviteParam = searchParams.get("existing") === "1";
 
-  const [status, setStatus] = useState<"loading" | "invalid" | "expired" | "no_session" | "ready" | "success">("loading");
+  const [status, setStatus] = useState<"loading" | "invalid" | "expired" | "no_session" | "ready" | "error" | "success">("loading");
   const [invite, setInvite] = useState<InviteData | null>(null);
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
@@ -44,6 +54,71 @@ function AcceptInviteContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const acceptCurrentInvite = async (inviteToAccept: InviteData) => {
+    const response = await acceptInvite(
+      inviteToAccept.inviteId
+        ? {
+            invite_id: inviteToAccept.inviteId,
+            full_name: fullName.trim() || undefined,
+            password: password || undefined,
+          }
+        : {
+            user_id: inviteToAccept.userId!,
+            tenant_id: inviteToAccept.tenantId,
+            role: inviteToAccept.role,
+            full_name: fullName.trim() || undefined,
+            password: password || undefined,
+          }
+    );
+
+    setTenantSubdomain(response.tenant.subdomain);
+
+    addToast({
+      type: "success",
+      title: "Welcome to the team!",
+      description: `You've joined ${response.tenant.name}`,
+    });
+
+    setStatus("success");
+
+    setTimeout(() => {
+      window.location.href = "/dashboard";
+    }, 2000);
+  };
+
+  const handleAcceptError = (error: any, inviteToAccept: InviteData, fromAutoAccept = false) => {
+    console.error('Failed to accept invite:', error);
+
+    if (error.code === 'USER_EXISTS') {
+      if (inviteToAccept.tenantSubdomain) {
+        setTenantSubdomain(inviteToAccept.tenantSubdomain);
+      }
+      setStatus("success");
+      setTimeout(() => {
+        window.location.href = "/dashboard";
+      }, 1500);
+      return;
+    }
+
+    if (error.code === 'INVALID_INVITE' || error.code === 'INVITE_NOT_FOUND') {
+      setStatus("invalid");
+      return;
+    }
+
+    if (fromAutoAccept && (error.code === 'INVITE_EMAIL_MISMATCH' || error.code === 'INVITE_USER_MISMATCH')) {
+      setErrors({
+        submit: `This invitation was sent to ${inviteToAccept.email}. Please sign in with that account to continue.`,
+      });
+      setStatus("error");
+      return;
+    }
+
+    setErrors({ submit: error.message || 'Failed to accept invitation. Please try again.' });
+    if (fromAutoAccept) {
+      setStatus("error");
+    }
+  };
 
   useEffect(() => {
     async function initInvite() {
@@ -89,6 +164,19 @@ function AcceptInviteContent() {
           if (session?.access_token && session?.refresh_token) {
             setAuthTokens(session.access_token, session.refresh_token);
             setInvite(resolvedInvite);
+
+            if (existingInviteParam && resolvedInvite.inviteId) {
+              setStatus("loading");
+              setErrors({});
+
+              try {
+                await acceptCurrentInvite(resolvedInvite);
+              } catch (error: any) {
+                handleAcceptError(error, resolvedInvite, true);
+              }
+              return;
+            }
+
             setStatus("ready");
           } else {
             setInvite(resolvedInvite);
@@ -103,7 +191,22 @@ function AcceptInviteContent() {
       }
     }
     initInvite();
-  }, [dataParam, inviteIdParam]);
+  }, [dataParam, inviteIdParam, existingInviteParam]);
+
+  useEffect(() => {
+    if (status !== "no_session" || !existingInviteParam || !invite?.inviteId) {
+      return;
+    }
+
+    const loginHref = buildInviteLoginHref(invite.inviteId, true);
+    const redirectTimeout = window.setTimeout(() => {
+      window.location.replace(loginHref);
+    }, 250);
+
+    return () => {
+      window.clearTimeout(redirectTimeout);
+    };
+  }, [existingInviteParam, invite?.inviteId, status]);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -132,54 +235,9 @@ function AcceptInviteContent() {
     setErrors({});
 
     try {
-      const response = await acceptInvite(
-        invite.inviteId
-          ? {
-              invite_id: invite.inviteId,
-              full_name: fullName.trim() || undefined,
-              password: password || undefined,
-            }
-          : {
-              user_id: invite.userId!,
-              tenant_id: invite.tenantId,
-              role: invite.role,
-              full_name: fullName.trim() || undefined,
-              password: password || undefined,
-            }
-      );
-
-      // Set tenant subdomain for future API calls
-      setTenantSubdomain(response.tenant.subdomain);
-
-      addToast({
-        type: "success",
-        title: "Welcome to the team!",
-        description: `You've joined ${response.tenant.name}`,
-      });
-
-      setStatus("success");
-
-      // Redirect to dashboard after a short delay
-      setTimeout(() => {
-        window.location.href = "/dashboard";
-      }, 2000);
+      await acceptCurrentInvite(invite);
     } catch (error: any) {
-      console.error('Failed to accept invite:', error);
-
-      // Handle specific error codes
-      if (error.code === 'USER_EXISTS') {
-        // User already accepted - just redirect
-        if (invite.tenantSubdomain) {
-          setTenantSubdomain(invite.tenantSubdomain);
-        }
-        setStatus("success");
-        setTimeout(() => {
-          window.location.href = "/dashboard";
-        }, 1500);
-        return;
-      }
-      
-      setErrors({ submit: error.message || 'Failed to accept invitation. Please try again.' });
+      handleAcceptError(error, invite);
     } finally {
       setIsSubmitting(false);
     }
@@ -230,17 +288,51 @@ function AcceptInviteContent() {
                 <Shield className="w-8 h-8 text-amber-500" />
               </div>
               <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">
-                Session Expired
+                {existingInviteParam ? "Redirecting to sign in" : "Session Expired"}
               </h2>
               <p className="text-[var(--text-secondary)] mb-2">
-                Your invitation to <strong className="text-[var(--text-primary)]">{invite.tenantName}</strong> is valid, but your session has expired.
+                {existingInviteParam ? (
+                  <>
+                    This invitation was sent to <strong className="text-[var(--text-primary)]">{invite.email}</strong>. Sign in with that account and we&apos;ll finish joining <strong className="text-[var(--text-primary)]">{invite.tenantName}</strong> automatically.
+                  </>
+                ) : (
+                  <>
+                    Your invitation to <strong className="text-[var(--text-primary)]">{invite.tenantName}</strong> is valid, but your session has expired.
+                  </>
+                )}
               </p>
               <p className="text-sm text-[var(--text-muted)] mb-6">
-                Please log in to the account that matches this invite to continue.
+                {existingInviteParam
+                  ? "If nothing happens, continue to the login page below."
+                  : "Please log in to the account that matches this invite to continue."}
+              </p>
+              {errors.submit && (
+                <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-sm">
+                  {errors.submit}
+                </div>
+              )}
+              <div className="flex flex-col gap-3">
+                <Link href={buildInviteLoginHref(invite.inviteId, existingInviteParam)}>
+                  <Button variant="primary" className="w-full">{existingInviteParam ? "Continue to Login" : "Go to Login"}</Button>
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {status === "error" && invite && (
+            <div className="text-center py-8">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/10 flex items-center justify-center">
+                <XCircle className="w-8 h-8 text-red-500" />
+              </div>
+              <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">
+                Couldn&apos;t accept this invitation
+              </h2>
+              <p className="text-[var(--text-secondary)] mb-6">
+                {errors.submit || 'There was a problem completing this invitation. Please try again.'}
               </p>
               <div className="flex flex-col gap-3">
-                <Link href={invite.inviteId ? `/login?redirect=${encodeURIComponent(`/auth/accept-invite?invite=${invite.inviteId}`)}` : "/login"}>
-                  <Button variant="primary" className="w-full">Go to Login</Button>
+                <Link href={buildInviteLoginHref(invite.inviteId, existingInviteParam)}>
+                  <Button variant="primary" className="w-full">Continue</Button>
                 </Link>
               </div>
             </div>

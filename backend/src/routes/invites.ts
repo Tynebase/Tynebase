@@ -37,8 +37,63 @@ function buildSupabaseInviteRedirect(frontendUrl: string, tenantSubdomain: strin
  * Build the invite URL for an existing user
  */
 function buildExistingUserInviteUrl(frontendUrl: string, inviteId: string): string {
-  const redirect = encodeURIComponent(`/auth/accept-invite?invite=${inviteId}`);
-  return `${frontendUrl}/login?redirect=${redirect}`;
+  return `${frontendUrl}/auth/accept-invite?invite=${inviteId}&existing=1`;
+}
+
+async function findAuthUserByEmail(email: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+  let page = 1;
+  const perPage = 200;
+
+  while (true) {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
+
+    if (error) {
+      throw error;
+    }
+
+    const users = data?.users || [];
+    const matchingUser = users.find((authUser) => authUser.email?.toLowerCase() === normalizedEmail);
+
+    if (matchingUser) {
+      return matchingUser;
+    }
+
+    if (users.length < perPage) {
+      return null;
+    }
+
+    page += 1;
+  }
+}
+
+async function findAuthUserByIdOrEmail(userId: string | null | undefined, email: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+  let page = 1;
+  const perPage = 200;
+
+  while (true) {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
+
+    if (error) {
+      throw error;
+    }
+
+    const users = data?.users || [];
+    const matchingUser = users.find(
+      (authUser) => (userId && authUser.id === userId) || authUser.email?.toLowerCase() === normalizedEmail
+    );
+
+    if (matchingUser) {
+      return matchingUser;
+    }
+
+    if (users.length < perPage) {
+      return null;
+    }
+
+    page += 1;
+  }
 }
 
 /**
@@ -174,8 +229,20 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
         }
 
         // Check if user already exists in Supabase Auth
-        const { data: allUsers } = await supabaseAdmin.auth.admin.listUsers();
-        const existingAuthUser = allUsers?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase());
+        let existingAuthUser = await findAuthUserByEmail(email);
+
+        if (existingAuthUser && !existingAuthUser.email_confirmed_at) {
+          const { error: deleteAuthUserError } = await supabaseAdmin.auth.admin.deleteUser(existingAuthUser.id);
+
+          if (deleteAuthUserError) {
+            fastify.log.warn(
+              { error: deleteAuthUserError, email, authUserId: existingAuthUser.id },
+              'Failed to delete stale unconfirmed auth user before sending invite'
+            );
+          } else {
+            existingAuthUser = null;
+          }
+        }
 
         const { data: existingPendingInvite } = await supabaseAdmin
           .from('workspace_invites')
@@ -996,11 +1063,7 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
           });
         }
 
-        const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
-        const relatedAuthUser = authUsers?.users?.find((authUser) =>
-          (inviteRecord.auth_user_id && authUser.id === inviteRecord.auth_user_id) ||
-          authUser.email?.toLowerCase() === inviteRecord.email.toLowerCase()
-        );
+        const relatedAuthUser = await findAuthUserByIdOrEmail(inviteRecord.auth_user_id, inviteRecord.email);
 
         if (relatedAuthUser && !relatedAuthUser.email_confirmed_at) {
           await supabaseAdmin.auth.admin.deleteUser(relatedAuthUser.id);
@@ -1104,17 +1167,30 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
         }
 
         const frontendUrl = process.env.FRONTEND_URL || 'https://www.tynebase.com';
-        const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
-        const existingAuthUser = authUsers?.users?.find((authUser) =>
-          (inviteRecord.auth_user_id && authUser.id === inviteRecord.auth_user_id) ||
-          authUser.email?.toLowerCase() === inviteRecord.email.toLowerCase()
-        );
+        let existingAuthUser = await findAuthUserByIdOrEmail(inviteRecord.auth_user_id, inviteRecord.email);
 
         if (existingAuthUser?.id && existingAuthUser.id !== inviteRecord.auth_user_id) {
           await supabaseAdmin
             .from('workspace_invites')
             .update({ auth_user_id: existingAuthUser.id })
             .eq('id', inviteRecord.id);
+        }
+
+        if (existingAuthUser && !existingAuthUser.email_confirmed_at) {
+          const { error: deleteAuthUserError } = await supabaseAdmin.auth.admin.deleteUser(existingAuthUser.id);
+
+          if (deleteAuthUserError) {
+            fastify.log.warn(
+              { error: deleteAuthUserError, inviteId: inviteRecord.id, authUserId: existingAuthUser.id },
+              'Failed to delete stale unconfirmed auth user before resending invite'
+            );
+          } else {
+            existingAuthUser = null;
+            await supabaseAdmin
+              .from('workspace_invites')
+              .update({ auth_user_id: null })
+              .eq('id', inviteRecord.id);
+          }
         }
 
         if (existingAuthUser?.email_confirmed_at) {
