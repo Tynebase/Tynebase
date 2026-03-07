@@ -188,172 +188,9 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
         const { data: allUsers } = await supabaseAdmin.auth.admin.listUsers();
         const existingAuthUser = allUsers?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase());
 
-        // If user exists in Auth and is confirmed, add them directly to this tenant
-        if (existingAuthUser && existingAuthUser.email_confirmed_at) {
-          // Check if they're already in another tenant's users table
-          const { data: existingUserRecord, error: lookupError } = await supabaseAdmin
-            .from('users')
-            .select('id, tenant_id, original_tenant_id')
-            .eq('id', existingAuthUser.id)
-            .maybeSingle();
-
-          if (existingUserRecord && !lookupError) {
-            // User already belongs to a tenant - move them to the new one by updating tenant_id
-            // Store their original tenant so they can return to it when they leave
-            const { data: movedUser, error: moveError } = await supabaseAdmin
-              .from('users')
-              .update({
-                tenant_id: tenant.id,
-                role: role,
-                status: 'active',
-                // Only set original_tenant_id if not already set (preserve the true original)
-                original_tenant_id: existingUserRecord.original_tenant_id || existingUserRecord.tenant_id,
-              })
-              .eq('id', existingAuthUser.id)
-              .select()
-              .single();
-
-            if (moveError) {
-              fastify.log.error({ error: moveError, userId: existingAuthUser.id }, 'Failed to move user to new tenant');
-              return reply.code(500).send({
-                error: {
-                  code: 'MOVE_USER_FAILED',
-                  message: 'Failed to move user to new workspace',
-                  details: {},
-                },
-              });
-            }
-
-            // Update Supabase Auth user_metadata with new tenant info
-            await supabaseAdmin.auth.admin.updateUserById(existingAuthUser.id, {
-              user_metadata: {
-                ...existingAuthUser.user_metadata,
-                tenant_id: tenant.id,
-                tenant_subdomain: tenant.subdomain,
-                tenant_name: tenant.name,
-                role: role,
-              },
-            });
-
-            fastify.log.info(
-              { userId: existingAuthUser.id, oldTenantId: existingUserRecord.tenant_id, newTenantId: tenant.id, addedBy: user.id },
-              'User moved from old tenant to new tenant'
-            );
-
-            writeAuditLog({
-              tenantId: tenant.id,
-              actorId: user.id,
-              action: 'user.added',
-              actionType: 'user',
-              targetName: email,
-              ipAddress: getClientIp(request),
-              metadata: { role, moved_from_tenant: existingUserRecord.tenant_id },
-            });
-
-            // Send welcome email to the moved user
-            sendWelcomeEmail({
-              to: email,
-              userName: movedUser.full_name || email.split('@')[0],
-              tenantName: tenant.name,
-              role: role,
-              addedBy: user.full_name || user.email,
-              loginUrl: `https://www.tynebase.com/login`,
-            }).catch(err => {
-              fastify.log.error({ error: err, email }, 'Failed to send welcome email');
-            });
-
-            return reply.code(200).send({
-              success: true,
-              data: {
-                message: 'User moved to workspace successfully',
-                added_email: email,
-                user: movedUser,
-              },
-            });
-          }
-
-          // User exists in Auth but not in any tenant - add them directly
-          const { data: newUser, error: createError } = await supabaseAdmin
-            .from('users')
-            .insert({
-              id: existingAuthUser.id,
-              tenant_id: tenant.id,
-              email: email,
-              full_name: existingAuthUser.user_metadata?.full_name || null,
-              role: role,
-              status: 'active',
-            })
-            .select()
-            .single();
-
-          if (createError) {
-            fastify.log.error({ error: createError, email, tenantId: tenant.id }, 'Failed to add existing user to tenant');
-            return reply.code(500).send({
-              error: {
-                code: 'ADD_USER_FAILED',
-                message: 'Failed to add user to workspace',
-                details: {},
-              },
-            });
-          }
-
-          // Create default user consents
-          await supabaseAdmin
-            .from('user_consents')
-            .insert({
-              user_id: existingAuthUser.id,
-              ai_processing: true,
-              analytics_tracking: true,
-              knowledge_indexing: true,
-            });
-
-          // Update Supabase Auth user_metadata with new tenant info
-          await supabaseAdmin.auth.admin.updateUserById(existingAuthUser.id, {
-            user_metadata: {
-              ...existingAuthUser.user_metadata,
-              tenant_id: tenant.id,
-              tenant_subdomain: tenant.subdomain,
-              tenant_name: tenant.name,
-              role: role,
-            },
-          });
-
-          fastify.log.info(
-            { email, role, tenantId: tenant.id, userId: existingAuthUser.id, addedBy: user.id },
-            'Existing user added to tenant directly'
-          );
-
-          writeAuditLog({
-            tenantId: tenant.id,
-            actorId: user.id,
-            action: 'user.added',
-            actionType: 'user',
-            targetName: email,
-            ipAddress: getClientIp(request),
-            metadata: { role, existing_user: true },
-          });
-
-          // Send welcome email to the added user
-          sendWelcomeEmail({
-            to: email,
-            userName: newUser.full_name || email.split('@')[0],
-            tenantName: tenant.name,
-            role: role,
-            addedBy: user.full_name || user.email,
-            loginUrl: `https://www.tynebase.com/login`,
-          }).catch(err => {
-            fastify.log.error({ error: err, email }, 'Failed to send welcome email');
-          });
-
-          return reply.code(200).send({
-            success: true,
-            data: {
-              message: 'User added to workspace successfully',
-              added_email: email,
-              user: newUser,
-            },
-          });
-        }
+        // If user exists in Auth and is confirmed, we shouldn't add them directly anymore.
+        // Instead, we should send them an invite link just like new users, so they have to explicitly accept it.
+        // We'll use Supabase's invite functionality which works for both new and existing users.
 
         // Check if there's already a pending invite for this email to this tenant
         const existingPendingInvite = existingAuthUser && 
@@ -373,7 +210,7 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
         // Use Supabase's invite functionality for new users
         // This sends a magic link email to the user
         const frontendUrl = process.env.FRONTEND_URL || 'https://www.tynebase.com';
-        const redirectTo = `${frontendUrl}/auth/callback?tenant=${tenant.subdomain}`;
+        const redirectTo = `${frontendUrl}/auth/invite-callback?tenant=${tenant.subdomain}`;
         fastify.log.info({ email, redirectTo, frontendUrl }, 'Sending invite with redirect URL');
 
         const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
@@ -1002,7 +839,7 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
             invited_by: user.id,
             invited_by_name: user.full_name || user.email,
           },
-          redirectTo: `${frontendUrl}/auth/callback?tenant=${tenant.subdomain}`,
+          redirectTo: `${frontendUrl}/auth/invite-callback?tenant=${tenant.subdomain}`,
         });
 
         if (inviteError) {
