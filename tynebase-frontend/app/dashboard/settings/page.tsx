@@ -319,14 +319,15 @@ export default function SettingsPage() {
       <Modal
         isOpen={showLeaveModal}
         onClose={() => setShowLeaveModal(false)}
-        title="Leave Workspace"
         size="sm"
+        showCloseButton={false}
       >
         <div className="p-6">
-          <div className="flex items-center justify-center mb-4">
+          <div className="flex flex-col items-center justify-center mb-4">
             <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center">
               <AlertTriangle className="w-6 h-6 text-red-500" />
             </div>
+            <h2 className="text-lg font-semibold text-[var(--text-primary)] mt-3 text-center">Leave Workspace</h2>
           </div>
           <p className="text-center text-[var(--dash-text-primary)] mb-2">
             Are you sure you want to leave <strong>{tenant?.name || 'this workspace'}</strong>?

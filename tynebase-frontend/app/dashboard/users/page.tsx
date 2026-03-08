@@ -502,6 +502,11 @@ export default function UsersPage() {
                   <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleBadgeClass(member.role)}`}>
                     {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
                   </span>
+                  {member.is_original_admin && (
+                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-500/10 text-amber-600 ml-1">
+                      Owner
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-6">
                   <div className="text-left sm:text-right w-24">
@@ -514,7 +519,7 @@ export default function UsersPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 justify-end">
-                  <Button variant="ghost" size="icon-sm" title="Change role" onClick={() => handleChangeRole(member)}>
+                  <Button variant="ghost" size="icon-sm" title={member.is_original_admin ? "Original admin role cannot be changed" : "Change role"} onClick={() => handleChangeRole(member)} disabled={member.is_original_admin}>
                     <UserCog className="w-4 h-4" />
                   </Button>
                   <Button variant="ghost" size="icon-sm" title="Send email" onClick={() => handleSendEmail(member)}>
@@ -526,13 +531,15 @@ export default function UsersPage() {
                     </Button>
                     {activeDropdownId === member.id && (
                       <div className="absolute right-0 top-full mt-1 w-48 bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-lg shadow-lg z-50 py-1">
-                        <button onClick={() => { handleChangeRole(member); setActiveDropdownId(null); }} className="w-full text-left px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-ground)] flex items-center gap-2">
-                          <UserCog className="w-4 h-4" /> Change Role
-                        </button>
+                        {!member.is_original_admin && (
+                          <button onClick={() => { handleChangeRole(member); setActiveDropdownId(null); }} className="w-full text-left px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-ground)] flex items-center gap-2">
+                            <UserCog className="w-4 h-4" /> Change Role
+                          </button>
+                        )}
                         <button onClick={() => { handleSendEmail(member); setActiveDropdownId(null); }} className="w-full text-left px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-ground)] flex items-center gap-2">
                           <Mail className="w-4 h-4" /> Send Email
                         </button>
-                        {member.id !== currentUser?.id && (
+                        {member.id !== currentUser?.id && !member.is_original_admin && (
                           <>
                             <div className="h-px bg-[var(--border-subtle)] my-1" />
                             <button onClick={() => handleDeleteClick(member)} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2">
@@ -642,7 +649,7 @@ export default function UsersPage() {
             <select
               value={inviteRole}
               onChange={(e) => setInviteRole(e.target.value as "admin" | "editor" | "viewer")}
-              className="w-full px-4 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]"
+              className="w-full px-4 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)] [&>option]:rounded-lg appearance-none"
             >
               <option value="viewer">Viewer - Read-only access</option>
               <option value="editor">Editor - Can create and edit workspace content</option>
@@ -682,7 +689,7 @@ export default function UsersPage() {
             <select
               value={editRole}
               onChange={(e) => setEditRole(e.target.value as "admin" | "editor" | "viewer")}
-              className="w-full px-4 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]"
+              className="w-full px-4 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)] [&>option]:rounded-lg appearance-none"
             >
               <option value="viewer">Viewer - Read-only access</option>
               <option value="editor">Editor - Can create and edit workspace content</option>

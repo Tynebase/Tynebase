@@ -20,6 +20,7 @@ export interface User {
   created_at: string;
   last_active_at: string | null;
   documents_count: number;
+  is_original_admin?: boolean;
 }
 
 export interface UserListParams {

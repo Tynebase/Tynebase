@@ -69,7 +69,7 @@ export default async function usersRoutes(fastify: FastifyInstance) {
         // Build query for users in tenant
         let usersQuery = supabaseAdmin
           .from('users')
-          .select('id, email, full_name, role, status, created_at, last_active_at', { count: 'exact' })
+          .select('id, email, full_name, role, status, created_at, last_active_at, original_tenant_id', { count: 'exact' })
           .eq('tenant_id', tenant.id)
           .order('created_at', { ascending: false });
 
@@ -119,11 +119,12 @@ export default async function usersRoutes(fastify: FastifyInstance) {
           }
         }
 
-        // Enrich users with document counts
+        // Enrich users with document counts and original admin flag
         const enrichedUsers = users?.map(u => ({
           ...u,
           role: normalizeWorkspaceRole(u.role as any),
           documents_count: documentCounts[u.id] || 0,
+          is_original_admin: u.role === 'admin' && u.original_tenant_id === null,
         })) || [];
 
         const total = count || 0;
@@ -196,7 +197,7 @@ export default async function usersRoutes(fastify: FastifyInstance) {
 
         const { data: targetUser, error: fetchError } = await supabaseAdmin
           .from('users')
-          .select('id, email, full_name, role')
+          .select('id, email, full_name, role, original_tenant_id')
           .eq('id', id)
           .eq('tenant_id', tenant.id)
           .single();
@@ -210,6 +211,14 @@ export default async function usersRoutes(fastify: FastifyInstance) {
         if (id === currentUser.id && body.role && body.role !== 'admin') {
           return reply.code(400).send({
             error: { code: 'CANNOT_DEMOTE_SELF', message: 'Cannot demote yourself' },
+          });
+        }
+
+        // Protect original admin: user whose original_tenant_id is NULL is the workspace creator
+        const isOriginalAdmin = targetUser.role === 'admin' && targetUser.original_tenant_id === null;
+        if (isOriginalAdmin && body.role && body.role !== 'admin') {
+          return reply.code(403).send({
+            error: { code: 'CANNOT_MODIFY_ORIGINAL_ADMIN', message: 'Cannot change the role of the original workspace administrator' },
           });
         }
 
@@ -295,7 +304,7 @@ export default async function usersRoutes(fastify: FastifyInstance) {
 
         const { data: targetUser, error: fetchError } = await supabaseAdmin
           .from('users')
-          .select('id, email, full_name')
+          .select('id, email, full_name, role, original_tenant_id')
           .eq('id', id)
           .eq('tenant_id', tenant.id)
           .single();
@@ -306,11 +315,63 @@ export default async function usersRoutes(fastify: FastifyInstance) {
           });
         }
 
-        const { error: deleteError } = await supabaseAdmin
-          .from('users')
-          .update({ status: 'deleted' })
-          .eq('id', id)
-          .eq('tenant_id', tenant.id);
+        // Protect original admin from being removed
+        const isOriginalAdmin = targetUser.role === 'admin' && targetUser.original_tenant_id === null;
+        if (isOriginalAdmin) {
+          return reply.code(403).send({
+            error: { code: 'CANNOT_REMOVE_ORIGINAL_ADMIN', message: 'Cannot remove the original workspace administrator' },
+          });
+        }
+
+        // If target user has an original_tenant_id, restore them to their original workspace
+        if (targetUser.original_tenant_id) {
+          const { data: originalTenant } = await supabaseAdmin
+            .from('tenants')
+            .select('id, subdomain, name')
+            .eq('id', targetUser.original_tenant_id)
+            .single();
+
+          if (originalTenant) {
+            // Restore user to their original workspace as admin
+            await supabaseAdmin
+              .from('users')
+              .update({
+                tenant_id: targetUser.original_tenant_id,
+                original_tenant_id: null,
+                role: 'admin',
+                status: 'active',
+              })
+              .eq('id', id);
+
+            // Update Supabase Auth metadata
+            await supabaseAdmin.auth.admin.updateUserById(id, {
+              user_metadata: {
+                tenant_id: originalTenant.id,
+                tenant_subdomain: originalTenant.subdomain,
+                tenant_name: originalTenant.name,
+                role: 'admin',
+              },
+            });
+
+            fastify.log.info({ userId: id, restoredTo: originalTenant.id }, 'Removed user restored to original workspace');
+          } else {
+            // Original tenant no longer exists - soft delete
+            await supabaseAdmin
+              .from('users')
+              .update({ status: 'deleted' })
+              .eq('id', id)
+              .eq('tenant_id', tenant.id);
+          }
+        } else {
+          // No original workspace - soft delete
+          await supabaseAdmin
+            .from('users')
+            .update({ status: 'deleted' })
+            .eq('id', id)
+            .eq('tenant_id', tenant.id);
+        }
+
+        const deleteError = null; // Handled above
 
         if (deleteError) {
           return reply.code(500).send({

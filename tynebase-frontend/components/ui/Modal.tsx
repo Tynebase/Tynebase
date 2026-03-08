@@ -77,7 +77,7 @@ export function Modal({
       {/* Modal */}
       <div
         className={cn(
-          "relative w-full bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-xl shadow-xl animate-in zoom-in-95 fade-in duration-200 overflow-hidden max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-3rem)] flex flex-col",
+          "relative w-full bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-xl shadow-xl animate-in zoom-in-95 fade-in duration-200 max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-3rem)] flex flex-col overflow-visible",
           sizeClasses[size],
           className
         )}
@@ -116,7 +116,7 @@ export function Modal({
         {/* Content */}
         <div
           className={cn(
-            "min-h-0 overflow-y-auto px-6 sm:px-8",
+            "min-h-0 overflow-y-visible px-6 sm:px-8",
             title ? "pt-2 pb-6 sm:pt-3 sm:pb-8" : "py-6 sm:py-8"
           )}
         >

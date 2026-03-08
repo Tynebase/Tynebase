@@ -30,9 +30,22 @@
   min-width: 0;
 }
 
+/* Clearfix so floated images expand the editor height */
+.editor-content .ProseMirror::after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
 /* Preview mode specific styles */
 .editor-content .ProseMirror[contenteditable="false"] {
   cursor: default;
+}
+
+/* Ensure image node views expand the editor */
+.editor-content .tiptap [data-node-view-wrapper] {
+  clear: both;
+  display: block;
 }
 
 /* Resizable image styles */

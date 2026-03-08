@@ -112,29 +112,19 @@ export async function sendRoleChangeEmail(params: {
     <p style="margin: 0 0 24px; color: #64748b; font-size: 15px; line-height: 1.6;">
       Your role in <strong style="color: #1e293b;">${tenantName}</strong> has been updated by ${changedBy}.
     </p>
-    <div style="background-color: #f1f5f9; border-radius: 12px; padding: 20px 32px; margin-bottom: 24px;">
+    <div style="background-color: #f1f5f9; border-radius: 12px; padding: 24px 32px; margin-bottom: 24px;">
       <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
-        <!-- Labels row -->
         <tr>
-          <td width="42%" style="text-align: center; padding-bottom: 8px;">
-            <p style="margin: 0; color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Previous Role</p>
-          </td>
-          <td width="16%" style="text-align: center; padding-bottom: 8px;">
-            <span style="color: transparent; font-size: 11px;">→</span>
-          </td>
-          <td width="42%" style="text-align: center; padding-bottom: 8px;">
-            <p style="margin: 0; color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">New Role</p>
-          </td>
-        </tr>
-        <!-- Values row with arrow -->
-        <tr>
-          <td width="42%" style="text-align: center; vertical-align: middle;">
+          <td width="40%" style="text-align: center; vertical-align: middle; padding: 8px 0;">
+            <p style="margin: 0 0 6px 0; color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Previous Role</p>
             <p style="margin: 0; color: #64748b; font-size: 20px; font-weight: 600; text-transform: capitalize; line-height: 1.2;">${oldRole}</p>
           </td>
-          <td width="16%" style="text-align: center; vertical-align: middle;">
-            <span style="color: #E85002; font-size: 24px; line-height: 1; display: inline-block; padding-top: 2px;">→</span>
+          <td width="20%" style="text-align: center; vertical-align: middle; padding: 8px 0;">
+            <p style="margin: 0; color: transparent; font-size: 11px; line-height: 1;">&nbsp;</p>
+            <p style="margin: 0; color: #E85002; font-size: 28px; line-height: 1;">&#8594;</p>
           </td>
-          <td width="42%" style="text-align: center; vertical-align: middle;">
+          <td width="40%" style="text-align: center; vertical-align: middle; padding: 8px 0;">
+            <p style="margin: 0 0 6px 0; color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">New Role</p>
             <p style="margin: 0; color: #E85002; font-size: 20px; font-weight: 600; text-transform: capitalize; line-height: 1.2;">${newRole}</p>
           </td>
         </tr>
@@ -165,7 +155,7 @@ export async function sendUserRemovedEmail(params: {
   
   const content = `
     <h2 style="margin: 0 0 16px; color: #1e293b; font-size: 22px; font-weight: 600;">
-      You've Been Removed from a Workspace
+      You've been removed from a workspace
     </h2>
     <p style="margin: 0 0 24px; color: #64748b; font-size: 15px; line-height: 1.6;">
       Hi ${userName || 'there'},
@@ -248,7 +238,7 @@ export async function sendWorkspaceInviteEmail(params: {
       ${invitedBy} invited you to join <strong style="color: #1e293b;">${tenantName}</strong> as a <strong style="color: #E85002; text-transform: capitalize;">${role}</strong>.
     </p>
     <p style="margin: 0 0 24px; color: #64748b; font-size: 15px; line-height: 1.6;">
-      Accept this invitation to join the workspace. If you're not signed in, we'll ask you to sign in first and then finish joining automatically.
+      Accept this invitation to join their workspace. If you're not signed in, we'll ask you to sign in first and then finish joining automatically.
     </p>
     <div style="text-align: center; margin: 32px 0;">
       <a href="${acceptUrl}" style="display: inline-block; padding: 14px 32px; background-color: #E85002; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 600; border-radius: 10px;">
