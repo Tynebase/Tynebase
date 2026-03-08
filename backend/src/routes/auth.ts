@@ -740,7 +740,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
       const { data: userProfile, error } = await supabaseAdmin
         .from('users')
-        .select('id, email, full_name, role, is_super_admin, status, last_active_at, tenant_id')
+        .select('id, email, full_name, role, is_super_admin, status, last_active_at, tenant_id, original_tenant_id')
         .eq('id', userId)
         .single();
 
@@ -793,6 +793,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
         .update({ last_active_at: new Date().toISOString() })
         .eq('id', userId);
 
+      // User is original admin if they are admin AND have no original_tenant_id (they created this workspace)
+      const isOriginalAdmin = userProfile.role === 'admin' && userProfile.original_tenant_id === null;
+
       return reply.code(200).send({
         success: true,
         data: {
@@ -802,6 +805,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
             full_name: userProfile.full_name,
             role: userProfile.role,
             is_super_admin: userProfile.is_super_admin,
+            is_original_admin: isOriginalAdmin,
             status: userProfile.status,
             last_active_at: userProfile.last_active_at,
           },

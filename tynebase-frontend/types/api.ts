@@ -112,6 +112,7 @@ export interface User {
   timezone?: string;
   role: 'admin' | 'editor' | 'viewer';
   is_super_admin: boolean;
+  is_original_admin?: boolean; // True if user created this workspace (admin with no original_tenant_id)
   status: 'active' | 'suspended' | 'deleted';
   last_active_at: string | null;
   created_at: string;

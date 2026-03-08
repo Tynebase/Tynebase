@@ -35,7 +35,8 @@ export default function SettingsPage() {
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
 
-  // Check if user is admin (admins can't leave, they own the workspace)
+  // Check if user is the original workspace creator (they can't leave their own workspace)
+  const isOriginalAdmin = user?.is_original_admin === true;
   const isAdmin = user?.role === 'admin' || user?.is_super_admin;
   const isViewer = user?.role === 'viewer' && !user?.is_super_admin;
 
@@ -287,8 +288,8 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Leave Workspace - Only show for non-admin users */}
-      {!isAdmin && (
+      {/* Leave Workspace - Show for all users except the original workspace creator */}
+      {!isOriginalAdmin && (
         <div className="bg-[var(--surface-card)] border border-red-500/20 rounded-xl">
           <div className="px-6 py-4 border-b border-red-500/20">
             <h2 className="font-semibold text-red-500">Danger Zone</h2>
