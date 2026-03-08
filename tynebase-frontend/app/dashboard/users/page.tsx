@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Modal, ModalFooter } from "@/components/ui/Modal";
+import { Dropdown } from "@/components/ui/Dropdown";
 import { Avatar } from "@/components/ui/Avatar";
 import {
   Users,
@@ -34,6 +35,13 @@ import { inviteUser, listPendingInvites, cancelInvite, resendInvite, PendingInvi
 import { useToast } from "@/components/ui/Toast";
 import { TIER_CONFIG, TierType } from "@/types/api";
 import Link from "next/link";
+
+// Role options for the dropdown
+const roleOptions = [
+  { value: "viewer", label: "Viewer", description: "Read-only access" },
+  { value: "editor", label: "Editor", description: "Can create and edit workspace content" },
+  { value: "admin", label: "Admin", description: "Can manage members and workspace settings" },
+];
 
 const roleColors: Record<string, string> = {
   admin: "bg-purple-500/10 text-purple-600",
@@ -705,15 +713,12 @@ export default function UsersPage() {
             <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
               Role
             </label>
-            <select
+            <Dropdown
+              options={roleOptions}
               value={editRole}
-              onChange={(e) => setEditRole(e.target.value as "admin" | "editor" | "viewer")}
-              className="w-full px-4 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)] [&>option]:rounded-lg appearance-none"
-            >
-              <option value="viewer">Viewer - Read-only access</option>
-              <option value="editor">Editor - Can create and edit workspace content</option>
-              <option value="admin">Admin - Can manage members and workspace settings</option>
-            </select>
+              onChange={(value) => setEditRole(value as "admin" | "editor" | "viewer")}
+              className="w-full"
+            />
           </div>
           {updateError && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">

@@ -24,6 +24,7 @@ import { DeleteConfirmationModal } from "@/components/ui/DeleteConfirmationModal
 import { DocumentImportModal } from "@/components/docs/DocumentImportModal";
 import { SortableCategories } from "@/components/ui/SortableCategories";
 import { useAuth } from "@/contexts/AuthContext";
+import { createClient } from "@/lib/supabase/client";
 
 interface DocumentCollectionInfo {
   id: string;
@@ -149,6 +150,9 @@ export default function KnowledgePage() {
   const resizeStartWidths = useRef<number[]>([...defaultColWidths]);
   const tableRef = useRef<HTMLDivElement>(null);
 
+  // Document presence: tracks who is actively editing each document
+  const [documentPresence, setDocumentPresence] = useState<Map<string, { userId: string; userName: string; userColor: string }[]>>(new Map());
+
   const gridStyle = useMemo(() => {
     const template = colWidths.map((w, i) => i === 0 ? `minmax(0,${w}fr)` : `${w}fr`).join(' ');
     return { gridTemplateColumns: template };
@@ -214,6 +218,42 @@ export default function KnowledgePage() {
       }
     };
     fetchCategories();
+  }, []);
+
+  // Subscribe to document presence to show who's editing
+  useEffect(() => {
+    const supabase = createClient();
+    if (!supabase) return;
+
+    const presenceChannel = supabase.channel('document-presence');
+
+    const syncPresence = () => {
+      const state = presenceChannel.presenceState();
+      const presenceMap = new Map<string, { userId: string; userName: string; userColor: string }[]>();
+      Object.values(state).forEach((presences: any[]) => {
+        presences.forEach((p: any) => {
+          const docId = p.documentId;
+          if (!docId) return;
+          if (!presenceMap.has(docId)) presenceMap.set(docId, []);
+          // Avoid duplicates
+          const existing = presenceMap.get(docId)!;
+          if (!existing.some(u => u.userId === p.userId)) {
+            existing.push({ userId: p.userId, userName: p.userName, userColor: p.userColor });
+          }
+        });
+      });
+      setDocumentPresence(presenceMap);
+    };
+
+    presenceChannel
+      .on('presence', { event: 'sync' }, syncPresence)
+      .on('presence', { event: 'join' }, syncPresence)
+      .on('presence', { event: 'leave' }, syncPresence)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(presenceChannel);
+    };
   }, []);
 
   const getStateColor = (state: string) => {
@@ -1223,8 +1263,33 @@ export default function KnowledgePage() {
                             <Square className="w-4 h-4 text-[var(--dash-text-muted)] group-hover:text-[var(--dash-text-secondary)]" />
                           )}
                         </button>
-                        <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: categories.find(c => c.id === doc.categoryId)?.color + '15' }}>
-                          <FileText className="w-5 h-5" style={{ color: categories.find(c => c.id === doc.categoryId)?.color }} />
+                        <div className="relative">
+                          <div
+                            className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-shadow duration-300"
+                            style={{
+                              backgroundColor: categories.find(c => c.id === doc.categoryId)?.color + '15',
+                              ...(documentPresence.has(doc.id) ? {
+                                boxShadow: `0 0 8px 2px ${documentPresence.get(doc.id)![0].userColor}60, 0 0 16px 4px ${documentPresence.get(doc.id)![0].userColor}30`,
+                                animation: 'presence-glow 2s ease-in-out infinite alternate',
+                              } : {}),
+                            }}
+                          >
+                            <FileText className="w-5 h-5" style={{ color: categories.find(c => c.id === doc.categoryId)?.color }} />
+                          </div>
+                          {documentPresence.has(doc.id) && (
+                            <div className="absolute -bottom-1 -right-1 flex -space-x-1">
+                              {documentPresence.get(doc.id)!.slice(0, 3).map((u) => (
+                                <div
+                                  key={u.userId}
+                                  className="w-4 h-4 rounded-full border-2 border-[var(--surface-card)] flex items-center justify-center text-[7px] font-bold text-white"
+                                  style={{ backgroundColor: u.userColor }}
+                                  title={`${u.userName} is editing`}
+                                >
+                                  {u.userName[0]?.toUpperCase()}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
@@ -1320,8 +1385,32 @@ export default function KnowledgePage() {
                               <Square className="w-4 h-4 text-[var(--dash-text-muted)]" />
                             )}
                           </button>
-                          <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: categories.find(c => c.id === doc.categoryId)?.color + '15' }}>
-                            <FileText className="w-5 h-5" style={{ color: categories.find(c => c.id === doc.categoryId)?.color }} />
+                          <div className="relative">
+                            <div
+                              className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-shadow duration-300"
+                              style={{
+                                backgroundColor: categories.find(c => c.id === doc.categoryId)?.color + '15',
+                                ...(documentPresence.has(doc.id) ? {
+                                  boxShadow: `0 0 8px 2px ${documentPresence.get(doc.id)![0].userColor}60, 0 0 16px 4px ${documentPresence.get(doc.id)![0].userColor}30`,
+                                } : {}),
+                              }}
+                            >
+                              <FileText className="w-5 h-5" style={{ color: categories.find(c => c.id === doc.categoryId)?.color }} />
+                            </div>
+                            {documentPresence.has(doc.id) && (
+                              <div className="absolute -bottom-1 -right-1 flex -space-x-1">
+                                {documentPresence.get(doc.id)!.slice(0, 2).map((u) => (
+                                  <div
+                                    key={u.userId}
+                                    className="w-3.5 h-3.5 rounded-full border-2 border-[var(--surface-card)] flex items-center justify-center text-[6px] font-bold text-white"
+                                    style={{ backgroundColor: u.userColor }}
+                                    title={`${u.userName} is editing`}
+                                  >
+                                    {u.userName[0]?.toUpperCase()}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5 mb-0.5">
@@ -1378,8 +1467,33 @@ export default function KnowledgePage() {
                             <Square className="w-5 h-5 text-[var(--dash-text-muted)] group-hover:text-[var(--dash-text-secondary)]" />
                           )}
                         </button>
-                        <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: categories.find(c => c.id === doc.categoryId)?.color + '15' }}>
-                          <FileText className="w-6 h-6" style={{ color: categories.find(c => c.id === doc.categoryId)?.color }} />
+                        <div className="relative">
+                          <div
+                            className="w-12 h-12 rounded-xl flex items-center justify-center transition-shadow duration-300"
+                            style={{
+                              backgroundColor: categories.find(c => c.id === doc.categoryId)?.color + '15',
+                              ...(documentPresence.has(doc.id) ? {
+                                boxShadow: `0 0 10px 3px ${documentPresence.get(doc.id)![0].userColor}60, 0 0 20px 6px ${documentPresence.get(doc.id)![0].userColor}30`,
+                                animation: 'presence-glow 2s ease-in-out infinite alternate',
+                              } : {}),
+                            }}
+                          >
+                            <FileText className="w-6 h-6" style={{ color: categories.find(c => c.id === doc.categoryId)?.color }} />
+                          </div>
+                          {documentPresence.has(doc.id) && (
+                            <div className="absolute -bottom-1 -right-1 flex -space-x-1">
+                              {documentPresence.get(doc.id)!.slice(0, 3).map((u) => (
+                                <div
+                                  key={u.userId}
+                                  className="w-5 h-5 rounded-full border-2 border-[var(--surface-card)] flex items-center justify-center text-[8px] font-bold text-white"
+                                  style={{ backgroundColor: u.userColor }}
+                                  title={`${u.userName} is editing`}
+                                >
+                                  {u.userName[0]?.toUpperCase()}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">

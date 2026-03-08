@@ -91,7 +91,7 @@ export function Dropdown({
       {/* Menu */}
       {isOpen && (
         <div className={cn(
-          "absolute z-50 mt-1 w-full min-w-[180px] bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-lg shadow-lg py-1 animate-in fade-in slide-in-from-top-2 duration-150",
+          "absolute z-50 mt-1 w-full min-w-[180px] bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-xl shadow-lg p-1.5 animate-in fade-in slide-in-from-top-2 duration-150",
           align === "right" ? "right-0" : "left-0"
         )}>
           {options.map((option) => (
@@ -100,7 +100,7 @@ export function Dropdown({
               onClick={() => handleSelect(option)}
               disabled={option.disabled}
               className={cn(
-                "w-full flex items-center justify-between px-3 py-2 text-left transition-colors",
+                "w-full flex items-center justify-between px-3 py-2 text-left transition-colors rounded-lg",
                 option.disabled
                   ? "opacity-50 cursor-not-allowed"
                   : "hover:bg-[var(--surface-ground)]",

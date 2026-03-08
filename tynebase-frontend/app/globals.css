@@ -2002,3 +2002,13 @@ html[data-theme="light"] .text-gradient {
 .dashboard-scroll::-webkit-scrollbar-thumb:hover {
   background: var(--dash-border-strong);
 }
+
+/* Document presence glow animation */
+@keyframes presence-glow {
+  0% {
+    filter: brightness(1);
+  }
+  100% {
+    filter: brightness(1.15);
+  }
+}

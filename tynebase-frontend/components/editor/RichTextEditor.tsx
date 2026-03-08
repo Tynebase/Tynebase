@@ -464,6 +464,36 @@ export function RichTextEditor({
     }
   }, [provider, user]);
 
+  // Track presence via Supabase Realtime so the document list can show who's editing
+  useEffect(() => {
+    if (!user || !documentId) return;
+    const { createClient: createSupabaseClient } = require('@/lib/supabase/client');
+    const supabaseClient = createSupabaseClient();
+    if (!supabaseClient) return;
+
+    const color = getColorForUser(user.id);
+    const displayName = user.full_name || user.email?.split('@')[0] || 'Anonymous';
+    const presenceChannel = supabaseClient.channel('document-presence', {
+      config: { presence: { key: `${documentId}:${user.id}` } },
+    });
+
+    presenceChannel.subscribe(async (status: string) => {
+      if (status === 'SUBSCRIBED') {
+        await presenceChannel.track({
+          documentId,
+          userId: user.id,
+          userName: displayName,
+          userColor: color,
+        });
+      }
+    });
+
+    return () => {
+      presenceChannel.untrack();
+      supabaseClient.removeChannel(presenceChannel);
+    };
+  }, [documentId, user]);
+
   const extensions = [
     StarterKit.configure({ history: false, codeBlock: false }),
     ...(ydoc ? [Collaboration.configure({ 

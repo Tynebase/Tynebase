@@ -43,10 +43,10 @@ primary_region = "lhr"
   cpus = 1
   memory_mb = 512
 
-# Scaling configuration
+# Scaling configuration - MUST be single machine for Y.js in-memory state sharing
 [scaling]
   min_machines = 1
-  max_machines = 3
+  max_machines = 1
 
 # Secrets (set via: fly secrets set KEY=VALUE -a tynebase-collab)
 # Required secrets:

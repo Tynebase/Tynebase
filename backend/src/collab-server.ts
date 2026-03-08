@@ -122,7 +122,11 @@ function insertTextWithMarks(parent: Y.XmlElement, text: string): void {
  * Converts content to Y.js XML fragment format for TipTap editor
  */
 function initializeYdocFromContent(ydoc: Y.Doc, content: string): void {
-  const fragment = ydoc.getXmlFragment('default');
+  // Build content in a temporary Y.Doc, then apply as a single update
+  // This prevents 'Invalid access: Add Yjs type to a document before reading data' errors
+  // that occur when directly manipulating a Hocuspocus-managed Y.Doc
+  const tempDoc = new Y.Doc();
+  const fragment = tempDoc.getXmlFragment('default');
   
   const lines = content.split('\n');
   
@@ -331,7 +335,23 @@ function initializeYdocFromContent(ydoc: Y.Doc, content: string): void {
   }
   
   console.log(`[Collab] Initialized Y.doc with ${fragment.length} elements from content`);
+  
+  // Apply the temp doc's state to the actual Hocuspocus-managed doc
+  const update = Y.encodeStateAsUpdate(tempDoc);
+  Y.applyUpdate(ydoc, update);
+  tempDoc.destroy();
 }
+
+/**
+ * Track which documents are currently being loaded to prevent double initialization
+ */
+const documentLoadLocks = new Set<string>();
+
+/**
+ * Track active connections per document for presence
+ * Maps documentName → Map<userId, { name, color }>
+ */
+const activeDocumentUsers = new Map<string, Map<string, { name: string; color: string }>>();
 
 /**
  * Debounce storage for document saves
@@ -714,6 +734,13 @@ const server = new Server({
   async onLoadDocument(data: any) {
     const { documentName, document: ydoc } = data;
 
+    // Guard against double initialization (race condition when two clients connect simultaneously)
+    if (documentLoadLocks.has(documentName)) {
+      console.log(`[Collab] Document ${documentName} already being loaded, skipping`);
+      return;
+    }
+    documentLoadLocks.add(documentName);
+
     try {
       const { data: dbDoc, error } = await supabase
         .from('documents')
@@ -789,6 +816,9 @@ const server = new Server({
       }
     } catch (err: any) {
       console.error(`[Collab] Exception loading document ${documentName}:`, err.message);
+    } finally {
+      // Keep the lock so subsequent connections don't re-initialize
+      // It will be cleared when the last client disconnects
     }
   },
 
@@ -817,12 +847,40 @@ const server = new Server({
   },
 
   async onConnect(data: any) {
-    console.log(`[Collab] Client connected to document ${data.documentName}`);
+    const { documentName } = data;
+    const context = data.context || {};
+    const user = context.user || {};
+    
+    // Track active user for presence
+    if (user.id) {
+      if (!activeDocumentUsers.has(documentName)) {
+        activeDocumentUsers.set(documentName, new Map());
+      }
+      activeDocumentUsers.get(documentName)!.set(user.id, {
+        name: user.name || 'Anonymous',
+        color: user.color || '#888',
+      });
+    }
+    
+    console.log(`[Collab] Client connected to document ${documentName} (${activeDocumentUsers.get(documentName)?.size || 0} active users)`);
   },
 
   async onDisconnect(data: any) {
     const { documentName } = data;
-    console.log(`[Collab] Client disconnected from document ${documentName}`);
+    const context = data.context || {};
+    const user = context.user || {};
+    
+    // Remove user from presence tracking
+    if (user.id && activeDocumentUsers.has(documentName)) {
+      activeDocumentUsers.get(documentName)!.delete(user.id);
+      if (activeDocumentUsers.get(documentName)!.size === 0) {
+        activeDocumentUsers.delete(documentName);
+        // Clear the document load lock when last client disconnects
+        documentLoadLocks.delete(documentName);
+      }
+    }
+    
+    console.log(`[Collab] Client disconnected from document ${documentName} (${activeDocumentUsers.get(documentName)?.size || 0} active users)`);
     
     // Cancel any pending debounced save
     const existingTimeout = saveTimeouts.get(documentName);
