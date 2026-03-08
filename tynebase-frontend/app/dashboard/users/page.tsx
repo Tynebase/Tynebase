@@ -276,6 +276,25 @@ export default function UsersPage() {
       }
     }
     fetchUsers();
+
+    // Poll for user list updates (new members accepting invites, etc.)
+    const interval = setInterval(async () => {
+      try {
+        const response = await listUsers();
+        setUsers((prev) => {
+          if (response.users.length !== prev.length ||
+              JSON.stringify(response.users.map(u => u.id + u.role + u.status)) !==
+              JSON.stringify(prev.map(u => u.id + u.role + u.status))) {
+            return response.users;
+          }
+          return prev;
+        });
+      } catch {
+        // Silent fail for polling
+      }
+    }, 8000);
+
+    return () => clearInterval(interval);
   }, []);
 
   // Fetch pending invites (with periodic polling so inviter sees status changes)

@@ -104,7 +104,7 @@ export async function sendRoleChangeEmail(params: {
   
   const content = `
     <h2 style="margin: 0 0 16px; color: #1e293b; font-size: 22px; font-weight: 600;">
-      Your Role Has Changed
+      Your role has changed
     </h2>
     <p style="margin: 0 0 24px; color: #64748b; font-size: 15px; line-height: 1.6;">
       Hi ${userName || 'there'},
@@ -253,6 +253,79 @@ export async function sendWorkspaceInviteEmail(params: {
   return sendEmail({
     to,
     subject: `Join ${tenantName} on TyneBase`,
+    html: emailTemplate(content),
+  });
+}
+
+/**
+ * Send confirmation email to user who left a workspace
+ */
+export async function sendUserLeftEmail(params: {
+  to: string;
+  userName: string;
+  tenantName: string;
+  restored: boolean;
+  restoredTenantName?: string;
+}): Promise<boolean> {
+  const { to, userName, tenantName, restored, restoredTenantName } = params;
+
+  const restoredBlock = restored && restoredTenantName
+    ? `<p style="margin: 0 0 24px; color: #64748b; font-size: 15px; line-height: 1.6;">You have been restored to your original workspace <strong style="color: #1e293b;">${restoredTenantName}</strong> as an admin.</p>`
+    : '';
+
+  const content = `
+    <h2 style="margin: 0 0 16px; color: #1e293b; font-size: 22px; font-weight: 600;">
+      You've left a workspace
+    </h2>
+    <p style="margin: 0 0 24px; color: #64748b; font-size: 15px; line-height: 1.6;">
+      Hi ${userName || 'there'},
+    </p>
+    <p style="margin: 0 0 24px; color: #64748b; font-size: 15px; line-height: 1.6;">
+      You have successfully left <strong style="color: #1e293b;">${tenantName}</strong>. You no longer have access to that workspace's documents and resources.
+    </p>
+    ${restoredBlock}
+    <p style="margin: 0; color: #64748b; font-size: 14px; line-height: 1.6;">
+      If this was a mistake, contact the workspace administrator to be re-invited.
+    </p>
+  `;
+
+  return sendEmail({
+    to,
+    subject: `You've left ${tenantName}`,
+    html: emailTemplate(content),
+  });
+}
+
+/**
+ * Notify workspace admin that a user has left
+ */
+export async function sendUserLeftAdminNotification(params: {
+  to: string;
+  adminName: string;
+  userName: string;
+  userEmail: string;
+  tenantName: string;
+}): Promise<boolean> {
+  const { to, adminName, userName, userEmail, tenantName } = params;
+
+  const content = `
+    <h2 style="margin: 0 0 16px; color: #1e293b; font-size: 22px; font-weight: 600;">
+      A team member has left your workspace
+    </h2>
+    <p style="margin: 0 0 24px; color: #64748b; font-size: 15px; line-height: 1.6;">
+      Hi ${adminName || 'there'},
+    </p>
+    <p style="margin: 0 0 24px; color: #64748b; font-size: 15px; line-height: 1.6;">
+      <strong style="color: #1e293b;">${userName}</strong> (${userEmail}) has left <strong style="color: #1e293b;">${tenantName}</strong>.
+    </p>
+    <p style="margin: 0; color: #64748b; font-size: 14px; line-height: 1.6;">
+      They no longer have access to your workspace. You can re-invite them from the Users page if needed.
+    </p>
+  `;
+
+  return sendEmail({
+    to,
+    subject: `${userName} has left ${tenantName}`,
     html: emailTemplate(content),
   });
 }

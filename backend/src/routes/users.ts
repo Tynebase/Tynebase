@@ -5,7 +5,7 @@ import { rateLimitMiddleware } from '../middleware/rateLimit';
 import { tenantContextMiddleware } from '../middleware/tenantContext';
 import { authMiddleware } from '../middleware/auth';
 import { membershipGuard } from '../middleware/membershipGuard';
-import { sendRoleChangeEmail, sendUserRemovedEmail } from '../services/email';
+import { sendRoleChangeEmail, sendUserRemovedEmail, sendUserLeftEmail, sendUserLeftAdminNotification } from '../services/email';
 import { WORKSPACE_ROLE_INPUTS, normalizeWorkspaceRole } from '../lib/roles';
 
 /**
@@ -500,6 +500,37 @@ export default async function usersRoutes(fastify: FastifyInstance) {
 
           fastify.log.info({ userId: id, fromTenantId: tenant.id, toTenantId: originalTenant.id }, 'User restored to original workspace');
 
+          // Send leave emails (fire and forget)
+          const leavingUserName = currentUser.full_name || currentUser.email.split('@')[0];
+          sendUserLeftEmail({
+            to: currentUser.email,
+            userName: leavingUserName,
+            tenantName: tenant.name,
+            restored: true,
+            restoredTenantName: originalTenant.name,
+          }).catch(err => fastify.log.error({ error: err }, 'Failed to send user left email'));
+
+          // Notify admins
+          supabaseAdmin
+            .from('users')
+            .select('email, full_name')
+            .eq('tenant_id', tenant.id)
+            .eq('role', 'admin')
+            .eq('status', 'active')
+            .then(({ data: admins }) => {
+              if (admins) {
+                for (const admin of admins) {
+                  sendUserLeftAdminNotification({
+                    to: admin.email,
+                    adminName: admin.full_name || admin.email.split('@')[0],
+                    userName: leavingUserName,
+                    userEmail: currentUser.email,
+                    tenantName: tenant.name,
+                  }).catch(err => fastify.log.error({ error: err }, 'Failed to send admin leave notification'));
+                }
+              }
+            });
+
           return reply.code(200).send({
             success: true,
             data: {
@@ -529,6 +560,36 @@ export default async function usersRoutes(fastify: FastifyInstance) {
         }
 
         fastify.log.info({ userId: id, tenantId: tenant.id }, 'User left workspace (no original to restore)');
+
+        // Send leave emails (fire and forget)
+        const leavingUserName = currentUser.full_name || currentUser.email.split('@')[0];
+        sendUserLeftEmail({
+          to: currentUser.email,
+          userName: leavingUserName,
+          tenantName: tenant.name,
+          restored: false,
+        }).catch(err => fastify.log.error({ error: err }, 'Failed to send user left email'));
+
+        // Notify admins
+        supabaseAdmin
+          .from('users')
+          .select('email, full_name')
+          .eq('tenant_id', tenant.id)
+          .eq('role', 'admin')
+          .eq('status', 'active')
+          .then(({ data: admins }) => {
+            if (admins) {
+              for (const admin of admins) {
+                sendUserLeftAdminNotification({
+                  to: admin.email,
+                  adminName: admin.full_name || admin.email.split('@')[0],
+                  userName: leavingUserName,
+                  userEmail: currentUser.email,
+                  tenantName: tenant.name,
+                }).catch(err => fastify.log.error({ error: err }, 'Failed to send admin leave notification'));
+              }
+            }
+          });
 
         return reply.code(200).send({
           success: true,

@@ -87,6 +87,9 @@ export default function TeamChatPage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const threadEndRef = useRef<HTMLDivElement>(null);
+  const channelInputRef = useRef<HTMLInputElement>(null);
+  const dmInputRef = useRef<HTMLInputElement>(null);
+  const threadInputRef = useRef<HTMLInputElement>(null);
 
   // Load channels and users on mount
   useEffect(() => {
@@ -144,22 +147,97 @@ export default function TeamChatPage() {
 
   const fetchNewMessage = async (messageId: string) => {
     try {
-      // We need to fetch the message with author info
-      // For now, we'll reload messages (could optimize later)
       if (selectedChannel) {
-        const response = await listMessages(selectedChannel.id, { limit: 1 });
+        const response = await listMessages(selectedChannel.id, { limit: 100 });
         if (response.messages.length > 0) {
-          const newMsg = response.messages[0];
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === newMsg.id)) return prev;
-            return [...prev, newMsg];
-          });
+          setMessages(response.messages);
+          scrollToBottom();
         }
       }
     } catch (err) {
       console.error("Failed to fetch new message:", err);
     }
   };
+
+  // Polling fallback for channel messages
+  useEffect(() => {
+    if (!selectedChannel) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const response = await listMessages(selectedChannel.id, { limit: 100 });
+        setMessages((prev) => {
+          if (response.messages.length !== prev.length ||
+              (response.messages.length > 0 && prev.length > 0 &&
+               response.messages[response.messages.length - 1]?.id !== prev[prev.length - 1]?.id)) {
+            return response.messages;
+          }
+          return prev;
+        });
+      } catch (err) {
+        // Silent fail for polling
+      }
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [selectedChannel?.id]);
+
+  // Polling fallback for DM messages
+  useEffect(() => {
+    if (!selectedDM) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const response = await listDMMessages(selectedDM.id, { limit: 100 });
+        setDmMessages((prev) => {
+          if (response.messages.length !== prev.length ||
+              (response.messages.length > 0 && prev.length > 0 &&
+               response.messages[response.messages.length - 1]?.id !== prev[prev.length - 1]?.id)) {
+            return response.messages;
+          }
+          return prev;
+        });
+      } catch (err) {
+        // Silent fail for polling
+      }
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [selectedDM?.id]);
+
+  // DM realtime subscription
+  useEffect(() => {
+    if (!selectedDM) return;
+
+    const channel = supabase
+      .channel(`dm-chat-${selectedDM.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "dm_messages",
+          filter: `conversation_id=eq.${selectedDM.id}`,
+        },
+        async (payload) => {
+          const newMessage = payload.new as any;
+          if (newMessage.author_id !== user?.id) {
+            try {
+              const response = await listDMMessages(selectedDM.id, { limit: 100 });
+              setDmMessages(response.messages);
+              scrollToBottom();
+            } catch (err) {
+              console.error("Failed to fetch new DM:", err);
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedDM?.id, user?.id]);
 
   const loadInitialData = async () => {
     setIsLoading(true);
@@ -240,6 +318,8 @@ export default function TeamChatPage() {
       const response = await sendDMMessage(selectedDM.id, { content });
       setDmMessages((prev) => [...prev, response.message]);
       scrollToBottom();
+      // Auto-focus input after sending
+      setTimeout(() => dmInputRef.current?.focus(), 50);
     } catch (err: any) {
       console.error("Failed to send DM:", err);
       setDmMessageInput(content);
@@ -374,6 +454,8 @@ export default function TeamChatPage() {
       const response = await sendMessage(selectedChannel.id, { content });
       setMessages((prev) => [...prev, response.message]);
       scrollToBottom();
+      // Auto-focus input after sending
+      setTimeout(() => channelInputRef.current?.focus(), 50);
     } catch (err: any) {
       console.error("Failed to send message:", err);
       setMessageInput(content); // Restore input on error
@@ -465,6 +547,8 @@ export default function TeamChatPage() {
         parent_id: threadMessage.id,
       });
       setThreadReplies((prev) => [...prev, response.message]);
+      // Auto-focus thread input after sending
+      setTimeout(() => threadInputRef.current?.focus(), 50);
       
       // Update reply count in main messages
       setMessages((prev) =>
@@ -853,12 +937,14 @@ export default function TeamChatPage() {
             >
               <div className="flex items-center gap-2">
                 <input
+                  ref={dmInputRef}
                   type="text"
                   value={dmMessageInput}
                   onChange={(e) => setDmMessageInput(e.target.value)}
                   placeholder={`Message ${selectedDM.other_user?.full_name || selectedDM.other_user?.email}`}
                   className="flex-1 px-4 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-sm focus:outline-none focus:border-green-500"
                   disabled={isSending}
+                  autoFocus
                 />
                 <button
                   type="submit"
@@ -1079,12 +1165,14 @@ export default function TeamChatPage() {
             >
               <div className="flex items-center gap-2">
                 <input
+                  ref={channelInputRef}
                   type="text"
                   value={messageInput}
                   onChange={(e) => setMessageInput(e.target.value)}
                   placeholder={`Message #${selectedChannel.name}`}
                   className="flex-1 px-4 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-sm focus:outline-none focus:border-[var(--brand)]"
                   disabled={isSending}
+                  autoFocus
                 />
                 <button
                   type="submit"
@@ -1185,6 +1273,7 @@ export default function TeamChatPage() {
           >
             <div className="flex items-center gap-2">
               <input
+                ref={threadInputRef}
                 type="text"
                 value={threadInput}
                 onChange={(e) => setThreadInput(e.target.value)}
