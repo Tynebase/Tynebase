@@ -270,7 +270,7 @@ export async function sendUserLeftEmail(params: {
   const { to, userName, tenantName, restored, restoredTenantName } = params;
 
   const restoredBlock = restored && restoredTenantName
-    ? `<p style="margin: 0 0 24px; color: #64748b; font-size: 15px; line-height: 1.6;">You have been restored to your original workspace <strong style="color: #1e293b;">${restoredTenantName}</strong> as an admin.</p>`
+    ? `<p style="margin: 0 0 24px; color: #64748b; font-size: 15px; line-height: 1.6;">You have been restored to your original workspace <strong style="color: #1e293b;">${restoredTenantName}</strong> as an administrator.</p>`
     : '';
 
   const content = `
