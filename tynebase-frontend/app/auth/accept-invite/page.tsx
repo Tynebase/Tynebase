@@ -180,30 +180,43 @@ function AcceptInviteContent() {
           return;
         }
 
+        let hasSession = false;
+
+        // Check Supabase session first
         const supabase = createClient();
         if (supabase) {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.access_token && session?.refresh_token) {
             setAuthTokens(session.access_token, session.refresh_token);
-            setInvite(resolvedInvite);
-
-            if (existingInviteParam && resolvedInvite.inviteId) {
-              setStatus("loading");
-              setErrors({});
-
-              try {
-                await acceptCurrentInvite(resolvedInvite);
-              } catch (error: any) {
-                handleAcceptError(error, resolvedInvite, true);
-              }
-              return;
-            }
-
-            setStatus("ready");
-          } else {
-            setInvite(resolvedInvite);
-            setStatus("no_session");
+            hasSession = true;
           }
+        }
+
+        // Fallback: check localStorage tokens (set by login page)
+        if (!hasSession) {
+          const storedToken = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+          const storedRefresh = typeof window !== 'undefined' ? localStorage.getItem('refresh_token') : null;
+          if (storedToken && storedRefresh) {
+            hasSession = true;
+          }
+        }
+
+        if (hasSession) {
+          setInvite(resolvedInvite);
+
+          if (existingInviteParam && resolvedInvite.inviteId) {
+            setStatus("loading");
+            setErrors({});
+
+            try {
+              await acceptCurrentInvite(resolvedInvite);
+            } catch (error: any) {
+              handleAcceptError(error, resolvedInvite, true);
+            }
+            return;
+          }
+
+          setStatus("ready");
         } else {
           setInvite(resolvedInvite);
           setStatus("no_session");
