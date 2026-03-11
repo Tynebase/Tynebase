@@ -61,7 +61,7 @@ function emailTemplate(content: string): string {
           <!-- Header -->
           <tr>
             <td style="padding: 32px 40px 24px; text-align: center; border-bottom: 1px solid #e2e8f0; background-color: #111111; border-radius: 16px 16px 0 0;">
-              <img src="https://tynebase.com/Tynebase_logo_white_1700.webp" alt="TyneBase" width="140" style="display: block; margin: 0 auto;" />
+              <img src="https://fsybthuvikyetueizado.supabase.co/storage/v1/object/public/platform-assets/email/tynebase-logo-white.png" alt="TyneBase" width="140" style="display: block; margin: 0 auto;" />
             </td>
           </tr>
           
