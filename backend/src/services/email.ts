@@ -60,8 +60,8 @@ function emailTemplate(content: string): string {
         <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 520px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
           <!-- Header -->
           <tr>
-            <td style="padding: 32px 40px 24px; text-align: center; border-bottom: 1px solid #e2e8f0;">
-              <img src="https://tynebase.com/Tynebase_logo_black_1700.webp" alt="TyneBase" width="140" style="display: block; margin: 0 auto;" />
+            <td style="padding: 32px 40px 24px; text-align: center; border-bottom: 1px solid #e2e8f0; background-color: #111111; border-radius: 16px 16px 0 0;">
+              <img src="https://tynebase.com/Tynebase_logo_white_1700.webp" alt="TyneBase" width="140" style="display: block; margin: 0 auto;" />
             </td>
           </tr>
           
