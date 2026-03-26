@@ -346,5 +346,97 @@ Press \`⌘ + K\` (Mac) or \`Ctrl + K\` (Windows) to open global search:
 - Access recent items
 - Use AI to answer questions from your docs
 `
+  },
+  {
+    id: 'qs-tutorial',
+    slug: 'getting-started-tutorial',
+    title: 'Getting Started Tutorial',
+    description: 'A step-by-step walkthrough for new users covering everything you need to know to get productive with TyneBase.',
+    category: 'Quick start',
+    readTime: '5 min',
+    lastUpdated: '2026-03-25',
+    tags: ['tutorial', 'onboarding', 'getting-started', 'first-time'],
+    content: `
+# Welcome to TyneBase!
+
+Congratulations on setting up your workspace. This tutorial will walk you through everything you need to get productive in just a few minutes.
+
+## Your Dashboard
+
+The **Dashboard** is your command centre. Here you'll find:
+
+- **Quick Stats** — document count, AI credits, storage usage, and content health at a glance
+- **Quick Actions** — shortcuts to the AI Assistant, Templates, and Content Audit
+- **Recent Documents** — jump back into what you were working on
+- **Activity Feed** — see what your team has been up to
+
+## Creating Your First Document
+
+1. Click **+ New Document** in the top-right of your dashboard, or use the **Knowledge Base** section in the sidebar.
+2. Choose how to create:
+   - **Blank** — start from scratch with our rich editor
+   - **From Template** — pick from dozens of ready-made templates
+   - **AI from Prompt** — describe what you need and AI writes it
+   - **AI from Video** — paste a YouTube link or upload a video file
+3. Write, format, and organise your content using the block-based editor.
+4. Hit **Publish** when you're ready to share.
+
+## Using AI Features
+
+TyneBase includes powerful AI capabilities:
+
+- **AI Chat** — open the AI Assistant from the sidebar to generate documents, summaries, or get answers from your knowledge base
+- **RAG Search** — ask questions in plain English and get cited answers from your docs
+- **Video-to-Doc** — turn any video into structured documentation automatically
+
+Each AI action uses credits from your plan. You can see your remaining credits on the dashboard.
+
+## Organising with Categories
+
+Keep your knowledge base tidy:
+
+1. Go to **Knowledge Base** in the sidebar
+2. Create categories (folders) to group related documents
+3. Drag and drop documents between categories
+4. Use colour coding to visually distinguish topics
+
+## Collaborating with Your Team
+
+If you're on a team plan:
+
+- **Invite members** from Settings → Team to add colleagues
+- **Team Chat** — use the built-in chat to discuss documents and assign tasks
+- **Assign documents** — assign docs or tasks directly to team members from the chat
+- **Role-based access** — admins, editors, and viewers each have appropriate permissions
+
+## Publishing Your Knowledge Base
+
+Share your docs with the world:
+
+1. Set documents to **Published** status
+2. Your public knowledge base is available at \`yourcompany.tynebase.com/docs\`
+3. Customise branding (logo, colours) from Settings → Branding
+4. Visitors can search, browse by category, and give feedback
+
+## Keyboard Shortcuts
+
+Speed up your workflow:
+
+- \`⌘/Ctrl + K\` — Global search
+- \`⌘/Ctrl + N\` — New document
+- \`⌘/Ctrl + S\` — Save document
+- \`⌘/Ctrl + Enter\` — Publish document
+
+## Next Steps
+
+You're all set! Here are some things to try:
+
+- Create your first document using AI
+- Invite a team member
+- Customise your workspace branding
+- Explore the template library
+
+If you need help, visit our full documentation or reach out to support. Happy writing!
+`
   }
 ];

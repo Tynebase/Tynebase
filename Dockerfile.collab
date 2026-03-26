@@ -1,6 +1,6 @@
 # Multi-stage Dockerfile for TyneBase Collaboration Server (Hocuspocus)
 # Stage 1: Build stage
-FROM node:18-alpine AS builder
+FROM node:22-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -22,10 +22,11 @@ RUN npm run build
 RUN npm prune --production
 
 # Stage 2: Runtime stage
-FROM node:18-alpine AS runtime
+FROM node:22-alpine AS runtime
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+# Upgrade all Alpine packages to patch OS-level CVEs (openssl, busybox, zlib)
+# then install dumb-init for proper signal handling
+RUN apk upgrade --no-cache && apk add --no-cache dumb-init
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \

@@ -49,7 +49,7 @@ const ScrapeRequestSchema = z.object({
 
 type ScrapeRequest = z.infer<typeof ScrapeRequestSchema>;
 
-const SCRAPE_BASE_CREDITS = 3;
+const SCRAPE_BASE_CREDITS = 2;
 
 function getPromptForOutputType(outputType: string, content: string, title: string): string {
   switch (outputType) {

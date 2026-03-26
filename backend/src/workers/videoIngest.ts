@@ -241,8 +241,9 @@ export async function processVideoIngestJob(job: Job): Promise<Record<string, an
 
     const durationMinutes = estimateVideoDuration(transcript, fileSize);
     
-    // All transcription uses Gemini: 10 credits base
-    const baseCredits = 10;
+    // All transcription uses Gemini: 5 credits base (6 if Claude output)
+    const isClaudeOutput = (outputOptions.ai_model || '').includes('claude');
+    const baseCredits = isClaudeOutput ? 6 : 5;
     
     // Map frontend model name to backend model name for credit calculation
     const backendModelName = MODEL_MAP[outputOptions.ai_model] || 'gemini-2.5-flash';

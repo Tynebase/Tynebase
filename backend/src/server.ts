@@ -61,6 +61,22 @@ const start = async () => {
       },
     });
 
+    // Store raw body for Stripe webhook signature verification
+    fastify.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
+      try {
+        const rawUrl = req.url || '';
+        if (rawUrl.startsWith('/api/billing/webhook')) {
+          // Keep raw body for Stripe verification, also parse as JSON
+          (req as any).rawBody = body;
+          done(null, JSON.parse(body as string));
+        } else {
+          done(null, JSON.parse(body as string));
+        }
+      } catch (err: any) {
+        done(err, undefined);
+      }
+    });
+
     fastify.get('/health', async () => {
       return {
         status: 'ok',
@@ -92,6 +108,7 @@ const start = async () => {
     await fastify.register(import('./routes/superadmin-impersonate'), { prefix: '' });
     await fastify.register(import('./routes/superadmin-suspend'), { prefix: '' });
     await fastify.register(import('./routes/superadmin-change-tier'), { prefix: '' });
+    await fastify.register(import('./routes/superadmin-users'), { prefix: '' });
     await fastify.register(import('./routes/tenants'), { prefix: '' });
     await fastify.register(import('./routes/kb'), { prefix: '' });
     await fastify.register(import('./routes/dashboard'), { prefix: '' });
@@ -127,11 +144,13 @@ const start = async () => {
     await fastify.register(import('./routes/audit'), { prefix: '' });
     await fastify.register(import('./routes/notifications'), { prefix: '' });
     await fastify.register(import('./routes/chat'), { prefix: '' });
+    await fastify.register(import('./routes/chat-assignments'), { prefix: '' });
     await fastify.register(import('./routes/dm'), { prefix: '' });
     await fastify.register(import('./routes/discussions'), { prefix: '' });
     await fastify.register(import('./routes/discussion-assets'), { prefix: '' });
     await fastify.register(import('./routes/document-shares'), { prefix: '' });
     await fastify.register(import('./routes/tier-upgrade'), { prefix: '' });
+    await fastify.register(import('./routes/stripe-billing'), { prefix: '' });
 
     const port = parseInt(env.PORT, 10);
     await fastify.listen({ port, host: '0.0.0.0' });

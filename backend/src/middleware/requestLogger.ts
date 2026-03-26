@@ -47,21 +47,38 @@ export const requestLoggerMiddleware = async (
   );
 
   // Hook into response to log completion
-  reply.raw.on('finish', () => {
-    const duration = Date.now() - startTime;
-
-    request.log.info(
-      {
-        type: 'request_complete',
-        method: request.method,
-        path: request.url,
-        user_id: user?.id || null,
-        tenant_id: tenant?.id || null,
-        status: reply.statusCode,
-        duration,
-        ip: request.ip,
-      },
-      'Request completed'
-    );
-  });
+  reply.then(
+    () => {
+      const duration = Date.now() - startTime;
+      request.log.info(
+        {
+          type: 'request_complete',
+          method: request.method,
+          path: request.url,
+          user_id: user?.id || null,
+          tenant_id: tenant?.id || null,
+          status: reply.statusCode,
+          duration,
+          ip: request.ip,
+        },
+        'Request completed'
+      );
+    },
+    () => {
+      const duration = Date.now() - startTime;
+      request.log.info(
+        {
+          type: 'request_complete',
+          method: request.method,
+          path: request.url,
+          user_id: user?.id || null,
+          tenant_id: tenant?.id || null,
+          status: reply.statusCode,
+          duration,
+          ip: request.ip,
+        },
+        'Request completed'
+      );
+    }
+  );
 };

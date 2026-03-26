@@ -22,9 +22,9 @@ import { useCredits } from "@/contexts/CreditsContext";
 
 // AI model credit costs
 const aiProviders = [
-  { id: 'deepseek', name: 'DeepSeek', desc: 'Fast and economical', credits: 1 },
-  { id: 'gemini', name: 'Gemini 2.5', desc: 'Balanced performance', credits: 2 },
-  { id: 'claude', name: 'Claude Sonnet 4.5', desc: 'Highest quality output', credits: 5 },
+  { id: 'deepseek', name: 'DeepSeek', desc: 'Fast and economical', credits: 0.2 },
+  { id: 'gemini', name: 'Gemini 2.5', desc: 'Balanced performance', credits: 1 },
+  { id: 'claude', name: 'Claude Sonnet 4.5', desc: 'Highest quality output', credits: 2 },
 ];
 
 // Template categories

@@ -32,7 +32,8 @@ import {
   CreditCard,
   Music,
   HelpCircle,
-  X
+  X,
+  Shield
 } from "lucide-react";
 import { useState, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -219,6 +220,14 @@ const toolsNavigation: NavItem[] = [
 
 const adminNavigation: NavItem[] = [
   {
+    id: "platform-admin",
+    label: "Platform Admin",
+    icon: Shield,
+    href: "/dashboard/admin",
+    color: "#ef4444",
+    roles: ["super_admin"],
+  },
+  {
     id: "settings",
     label: "Settings",
     icon: Settings,
@@ -288,6 +297,7 @@ export function DashboardSidebar({ mobile }: { mobile?: boolean }) {
 
   const hasAccess = (item: NavItem) => {
     if (!item.roles) return true;
+    if (user?.is_super_admin && item.roles.includes("super_admin")) return true;
     return user?.role && item.roles.includes(user.role);
   };
 

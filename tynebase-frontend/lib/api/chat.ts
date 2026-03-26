@@ -238,13 +238,76 @@ export async function listChatUsers(): Promise<ListChatUsersResponse> {
 }
 
 // ============================================================================
-// DIRECT MESSAGES
+// ASSIGNMENTS
 // ============================================================================
 
-/**
- * Create a DM channel with another user
- * Channel name format: dm-{sortedUserId1}-{sortedUserId2} (first 8 chars of each)
- */
+export interface ChatAssignment {
+  id: string;
+  assignment_type: 'document' | 'task';
+  title: string | null;
+  description: string | null;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  due_date: string | null;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  document_id: string | null;
+  channel_id: string | null;
+  assigned_by_user: { id: string; full_name: string | null; email: string } | null;
+  assigned_to_user: { id: string; full_name: string | null; email: string } | null;
+  document: { id: string; title: string } | null;
+}
+
+export interface CreateAssignmentRequest {
+  assigned_to: string;
+  assignment_type: 'document' | 'task';
+  document_id?: string;
+  title?: string;
+  description?: string;
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  due_date?: string;
+  channel_id?: string;
+}
+
+export interface ListAssignmentsParams {
+  status?: 'pending' | 'in_progress' | 'completed' | 'cancelled' | 'all';
+  type?: 'document' | 'task' | 'all';
+  assigned_to?: string;
+  limit?: number;
+}
+
+export async function listAssignments(params: ListAssignmentsParams = {}): Promise<{ assignments: ChatAssignment[] }> {
+  const sp = new URLSearchParams();
+  if (params.status) sp.set('status', params.status);
+  if (params.type) sp.set('type', params.type);
+  if (params.assigned_to) sp.set('assigned_to', params.assigned_to);
+  if (params.limit) sp.set('limit', params.limit.toString());
+  const qs = sp.toString();
+  return apiGet<{ assignments: ChatAssignment[] }>(`/api/chat/assignments${qs ? `?${qs}` : ''}`);
+}
+
+export async function listMyAssignments(params: ListAssignmentsParams = {}): Promise<{ assignments: ChatAssignment[] }> {
+  const sp = new URLSearchParams();
+  if (params.status) sp.set('status', params.status);
+  if (params.type) sp.set('type', params.type);
+  if (params.limit) sp.set('limit', params.limit.toString());
+  const qs = sp.toString();
+  return apiGet<{ assignments: ChatAssignment[] }>(`/api/chat/assignments/my${qs ? `?${qs}` : ''}`);
+}
+
+export async function createAssignment(data: CreateAssignmentRequest): Promise<{ assignment: ChatAssignment }> {
+  return apiPost<{ assignment: ChatAssignment }>('/api/chat/assignments', data);
+}
+
+export async function updateAssignment(id: string, data: { status?: string; priority?: string; due_date?: string | null }): Promise<{ assignment: ChatAssignment }> {
+  return apiPatch<{ assignment: ChatAssignment }>(`/api/chat/assignments/${id}`, data);
+}
+
+// ============================================================================
+// DIRECT MESSAGES (Legacy DM channel approach)
+// ============================================================================
+
 export async function createDMChannel(
   currentUserId: string,
   targetUserId: string,

@@ -50,7 +50,7 @@ interface SuggestionWithStatus extends EnhanceSuggestion {
   appliedPosition?: { from: number; to: number }; // Store where the change was applied
 }
 
-const ENHANCE_CREDIT_COST = 5;
+const ENHANCE_CREDIT_COST = 2;
 
 export function EnhanceSuggestionsPanel({
   documentId,

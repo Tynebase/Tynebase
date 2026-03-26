@@ -1,6 +1,8 @@
 /**
  * Credit calculation utilities for TyneBase operations
- * Based on pricing model: 1 credit per 200k tokens, with model multipliers
+ * Pricing (v2 — March 2026):
+ *   DeepSeek 0.2 · Gemini 1 · Claude 2
+ *   Media base: 5 (Gemini/DeepSeek) or 6 (Claude)
  */
 
 export type OperationType = 
@@ -30,66 +32,63 @@ export type AIModel =
   | 'gemini-3-flash';
 
 /**
- * Model credit costs
- * - DeepSeek: 1 credit (default, most economical)
- * - Gemini 2.5: 2 credits (good balance of cost/quality)
- * - Claude Sonnet: 5 credits (highest quality)
+ * Model credit costs (v2 pricing)
+ * - DeepSeek: 0.2 credits (cheapest, great for bulk ops)
+ * - Gemini: 1 credit (good balance of cost/quality)
+ * - Claude: 2 credits (highest quality)
  */
 const MODEL_CREDITS: Record<string, number> = {
-  // DeepSeek models: 1 credit
-  'deepseek-v3': 1,
-  'deepseek': 1,
+  // DeepSeek models: 0.2 credits
+  'deepseek-v3': 0.2,
+  'deepseek': 0.2,
   
-  // Gemini models: 2 credits
-  'gemini-2.5-flash': 2,
-  'gemini-2.5': 2,
-  'gemini': 2,
-  'gemini-3-flash': 2,
+  // Gemini models: 1 credit
+  'gemini-2.5-flash': 1,
+  'gemini-2.5': 1,
+  'gemini': 1,
+  'gemini-3-flash': 1,
   
-  // Claude models: 5 credits
-  'claude-sonnet-4.5': 5,
-  'claude-3-sonnet': 5,
-  'claude-3-opus': 5,
-  'claude-3-haiku': 3,
-  'claude': 5,
+  // Claude models: 2 credits
+  'claude-sonnet-4.5': 2,
+  'claude-3-sonnet': 2,
+  'claude-3-opus': 2,
+  'claude-3-haiku': 1,
+  'claude': 2,
   
-  // GPT models (legacy): 2 credits
-  'gpt-4': 2,
-  'gpt-4-turbo': 2,
-  'gpt-3.5-turbo': 1,
+  // GPT models (legacy): 1 credit
+  'gpt-4': 1,
+  'gpt-4-turbo': 1,
+  'gpt-3.5-turbo': 0.2,
 };
 
 /**
  * Get credit cost for a model
  * @param model - AI model name
- * @returns Credit cost (defaults to 1 if unknown)
+ * @returns Credit cost (defaults to 0.2 if unknown)
  */
 export function getModelCreditCost(model: string): number {
-  return MODEL_CREDITS[model] || 1;
+  return MODEL_CREDITS[model] ?? 0.2;
 }
 
 /**
- * Model multipliers for premium models (deprecated - use MODEL_CREDITS instead)
+ * Model multipliers (kept for backward compat, mirrors MODEL_CREDITS)
  */
 const MODEL_MULTIPLIERS: Record<string, number> = {
-  'deepseek-v3': 1,
-  'deepseek': 1,
-  'gemini-2.5-flash': 2,
-  'gemini-2.5': 2,
-  'gemini': 2,
-  'claude-sonnet-4.5': 5,
-  'claude': 5,
+  'deepseek-v3': 0.2,
+  'deepseek': 0.2,
+  'gemini-2.5-flash': 1,
+  'gemini-2.5': 1,
+  'gemini': 1,
+  'claude-sonnet-4.5': 2,
+  'claude': 2,
 };
 
 /**
  * Base credits for media ingestion (video/audio)
+ * 5 for Gemini/DeepSeek transcription, 6 if Claude is used for final doc
  */
-const MEDIA_BASE_CREDITS = 10;
-
-/**
- * Extra credits per output option (transcript, summary, article)
- */
-const EXTRA_CREDIT_PER_OPTION = 1;
+const MEDIA_BASE_CREDITS_STANDARD = 5;
+const MEDIA_BASE_CREDITS_CLAUDE = 6;
 
 /**
  * Minutes of media before additional credits are charged
@@ -101,9 +100,9 @@ const MEDIA_EXTRA_MINUTES_PER_CREDIT = 5;
 /**
  * Calculate credits for text generation based on model
  * Uses fixed credit costs per model:
- * - DeepSeek: 1 credit
- * - Gemini: 2 credits
- * - Claude: 5 credits
+ * - DeepSeek: 0.2 credits
+ * - Gemini: 1 credit
+ * - Claude: 2 credits
  * 
  * @param _inputTokens - Number of input tokens (unused, kept for API compatibility)
  * @param _outputTokens - Number of output tokens (unused, kept for API compatibility)
@@ -147,25 +146,29 @@ export interface MediaOutputOptions {
 
 /**
  * Calculate credits for video ingestion
- * Base: 10 credits
- * Each output option (transcript, summary, article): +1 credit
+ * Base: 5 credits (Gemini/DeepSeek) or 6 credits (Claude)
+ * Each output option (transcript, summary, article): + model cost
  * After 10 minutes: +1 credit per 5 additional minutes
  * 
  * @param durationMinutes - Video duration in minutes
  * @param outputOptions - Optional output options for extra credits
+ * @param model - AI model used for output generation
  * @returns Number of credits to deduct
  */
 export function calculateVideoIngestionCredits(
   durationMinutes: number,
-  outputOptions?: MediaOutputOptions
+  outputOptions?: MediaOutputOptions,
+  model?: string
 ): number {
-  let credits = MEDIA_BASE_CREDITS;
+  const isClaudeOutput = model ? model.includes('claude') : false;
+  let credits = isClaudeOutput ? MEDIA_BASE_CREDITS_CLAUDE : MEDIA_BASE_CREDITS_STANDARD;
   
-  // Add credits for output options
+  // Add per-model cost for each output option
+  const modelCost = model ? getModelCreditCost(model) : 1;
   if (outputOptions) {
-    if (outputOptions.generate_transcript) credits += EXTRA_CREDIT_PER_OPTION;
-    if (outputOptions.generate_summary) credits += EXTRA_CREDIT_PER_OPTION;
-    if (outputOptions.generate_article) credits += EXTRA_CREDIT_PER_OPTION;
+    if (outputOptions.generate_transcript) credits += modelCost;
+    if (outputOptions.generate_summary) credits += modelCost;
+    if (outputOptions.generate_article) credits += modelCost;
   }
   
   // Add credits for excessive length (beyond 10 minutes)
@@ -188,9 +191,10 @@ export function calculateVideoIngestionCredits(
  */
 export function calculateAudioIngestionCredits(
   durationMinutes: number,
-  outputOptions?: MediaOutputOptions
+  outputOptions?: MediaOutputOptions,
+  model?: string
 ): number {
-  return calculateVideoIngestionCredits(durationMinutes, outputOptions);
+  return calculateVideoIngestionCredits(durationMinutes, outputOptions, model);
 }
 
 /**
@@ -202,25 +206,26 @@ export function calculateAudioIngestionCredits(
  */
 export function calculateMediaIngestionCredits(
   durationMinutes: number,
-  outputOptions?: MediaOutputOptions
+  outputOptions?: MediaOutputOptions,
+  model?: string
 ): number {
-  return calculateVideoIngestionCredits(durationMinutes, outputOptions);
+  return calculateVideoIngestionCredits(durationMinutes, outputOptions, model);
 }
 
 /**
  * Calculate credits for URL conversion (flat rate)
- * @returns Number of credits to deduct (always 1)
+ * @returns Number of credits to deduct (always 0.5)
  */
 export function calculateURLConversionCredits(): number {
-  return 1;
+  return 0.5;
 }
 
 /**
  * Calculate credits for PDF conversion (flat rate)
- * @returns Number of credits to deduct (always 1)
+ * @returns Number of credits to deduct (always 0.5)
  */
 export function calculatePDFConversionCredits(): number {
-  return 1;
+  return 0.5;
 }
 
 /**

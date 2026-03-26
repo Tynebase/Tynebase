@@ -32,6 +32,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getDashboardStats, getRecentDocuments, getRecentActivity, type DashboardStats, type RecentDocument, type RecentActivity } from "@/lib/api/dashboard";
 import { capitalize } from "@/lib/utils";
+import { WelcomeTutorialBanner } from "@/components/layout/WelcomeTutorialBanner";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -153,6 +154,9 @@ export default function DashboardPage() {
           )
         }
       />
+
+      {/* First-timer tutorial banner */}
+      <WelcomeTutorialBanner />
 
       <div className="flex-1 min-h-0 flex flex-col gap-8">
         {/* Quick Stats */}

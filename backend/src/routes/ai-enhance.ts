@@ -163,7 +163,7 @@ export default async function aiEnhanceRoutes(fastify: FastifyInstance) {
         }
 
         const currentMonth = new Date().toISOString().slice(0, 7);
-        // Enhancement uses Claude Sonnet = 5 credits
+        // Enhancement uses Claude Sonnet = 2 credits
         const creditsToDeduct = getModelCreditCost('claude');
 
         const { data: deductResult, error: deductError } = await supabaseAdmin.rpc(

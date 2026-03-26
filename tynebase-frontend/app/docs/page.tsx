@@ -422,14 +422,30 @@ export default function DocsPage() {
   return <TyneBaseDocsPage />;
 }
 
+function extractHeadings(content: string) {
+  const lines = content.split('\n');
+  const headings: { id: string; text: string; level: number }[] = [];
+  lines.forEach(line => {
+    const match = line.match(/^(#{2,3})\s+(.+)/);
+    if (match) {
+      const text = match[2].trim();
+      const id = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      headings.push({ id, text, level: match[1].length });
+    }
+  });
+  return headings;
+}
+
 function TyneBaseDocsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<DocArticle[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedArticle, setSelectedArticle] = useState<DocArticle | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<{ title: string; articles: DocArticle[] } | null>(null);
-  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  const [mobileSidebar, setMobileSidebar] = useState(false);
+  const [activeHeading, setActiveHeading] = useState("");
+
+  const headings = selectedArticle ? extractHeadings(selectedArticle.content) : [];
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
@@ -445,63 +461,340 @@ function TyneBaseDocsPage() {
 
   const openArticle = (article: DocArticle) => {
     setSelectedArticle(article);
-    setIsModalOpen(true);
     setIsSearching(false);
     setSearchQuery("");
+    setMobileSidebar(false);
+    setActiveHeading("");
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const closeModal = () => {
-    setIsModalOpen(false);
+  const goHome = () => {
     setSelectedArticle(null);
+    setIsSearching(false);
+    setSearchQuery("");
+    setActiveHeading("");
   };
 
-  const openCategoryModal = (category: { title: string; articles: DocArticle[] }) => {
-    setSelectedCategory(category);
-    setIsCategoryModalOpen(true);
+  const toggleCategory = (id: string) => {
+    setExpandedCategories(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const closeCategoryModal = () => {
-    setIsCategoryModalOpen(false);
-    setSelectedCategory(null);
-  };
+  // Expand the category of the selected article
+  useEffect(() => {
+    if (selectedArticle) {
+      const cat = categories.find(c => c.articles.some(a => a.id === selectedArticle.id));
+      if (cat) setExpandedCategories(prev => ({ ...prev, [cat.id]: true }));
+    }
+  }, [selectedArticle]);
+
+  // Auto-open tutorial article if redirected from dashboard banner
+  useEffect(() => {
+    const shouldOpenTutorial = sessionStorage.getItem("tynebase_open_tutorial");
+    if (shouldOpenTutorial) {
+      sessionStorage.removeItem("tynebase_open_tutorial");
+      const tutorialArticle = allArticles.find(a => a.slug === "getting-started-tutorial");
+      if (tutorialArticle) {
+        setSelectedArticle(tutorialArticle);
+        const cat = categories.find(c => c.articles.some(a => a.id === tutorialArticle.id));
+        if (cat) setExpandedCategories(prev => ({ ...prev, [cat.id]: true }));
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
-        const searchInput = document.getElementById('doc-search') as HTMLInputElement;
-        searchInput?.focus();
+        document.getElementById('doc-search')?.focus();
+      }
+      if (e.key === 'Escape' && selectedArticle) {
+        goHome();
       }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [selectedArticle]);
 
+  // Find prev/next articles
+  const currentIndex = selectedArticle ? allArticles.findIndex(a => a.id === selectedArticle.id) : -1;
+  const prevArticle = currentIndex > 0 ? allArticles[currentIndex - 1] : null;
+  const nextArticle = currentIndex >= 0 && currentIndex < allArticles.length - 1 ? allArticles[currentIndex + 1] : null;
+
+  // ======================== ARTICLE VIEW ========================
+  if (selectedArticle) {
+    return (
+      <div className="min-h-screen relative">
+        <div className="hero-gradient" />
+        <SiteNavbar currentPage="docs" />
+
+        <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', paddingTop: '80px' }}>
+          {/* Left Sidebar - Navigation */}
+          <aside
+            className="hidden lg:block"
+            style={{
+              width: '280px',
+              flexShrink: 0,
+              position: 'sticky',
+              top: '80px',
+              height: 'calc(100vh - 80px)',
+              overflowY: 'auto',
+              padding: '24px 16px 24px 24px',
+              borderRight: '1px solid var(--border-subtle)',
+            }}
+          >
+            <button
+              onClick={goHome}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', marginBottom: '24px', padding: 0 }}
+            >
+              <ArrowRight style={{ width: '14px', height: '14px', transform: 'rotate(180deg)' }} />
+              All Documentation
+            </button>
+
+            {/* Search */}
+            <div style={{ position: 'relative', marginBottom: '20px' }}>
+              <Search style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', width: '14px', height: '14px', color: 'var(--text-muted)' }} />
+              <input
+                id="doc-search"
+                type="text"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px 8px 32px',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '8px',
+                  color: 'var(--text-primary)',
+                  fontSize: '13px',
+                  outline: 'none',
+                }}
+              />
+              {isSearching && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px',
+                  background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
+                  borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.15)', zIndex: 50, maxHeight: '300px', overflowY: 'auto',
+                }}>
+                  {searchResults.length > 0 ? searchResults.map(a => (
+                    <button key={a.id} onClick={() => openArticle(a)}
+                      style={{ width: '100%', padding: '10px 12px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '13px' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{a.title}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{a.category}</div>
+                    </button>
+                  )) : (
+                    <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>No results</div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Category Tree */}
+            <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {categories.map(cat => {
+                const isExpanded = expandedCategories[cat.id] ?? false;
+                const IconComponent = iconMap[cat.icon] || Zap;
+                return (
+                  <div key={cat.id}>
+                    <button
+                      onClick={() => toggleCategory(cat.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '8px', width: '100%',
+                        padding: '8px 10px', background: 'none', border: 'none', cursor: 'pointer',
+                        borderRadius: '6px', fontSize: '13px', fontWeight: 600,
+                        color: 'var(--text-primary)', transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <ChevronRight style={{ width: '14px', height: '14px', color: 'var(--text-muted)', transition: 'transform 0.15s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }} />
+                      <IconComponent className="w-4 h-4 text-[var(--brand)]" />
+                      {cat.title}
+                    </button>
+                    {isExpanded && (
+                      <div style={{ paddingLeft: '32px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                        {cat.articles.map(article => (
+                          <button
+                            key={article.id}
+                            onClick={() => openArticle(article)}
+                            style={{
+                              display: 'block', width: '100%', padding: '6px 10px',
+                              background: selectedArticle?.id === article.id ? 'var(--bg-secondary)' : 'transparent',
+                              border: 'none', borderRadius: '6px', textAlign: 'left', cursor: 'pointer',
+                              fontSize: '13px', color: selectedArticle?.id === article.id ? 'var(--brand)' : 'var(--text-secondary)',
+                              fontWeight: selectedArticle?.id === article.id ? 500 : 400,
+                              transition: 'all 0.15s',
+                              borderLeft: selectedArticle?.id === article.id ? '2px solid var(--brand)' : '2px solid transparent',
+                            }}
+                            onMouseEnter={e => { if (selectedArticle?.id !== article.id) e.currentTarget.style.color = 'var(--text-primary)'; }}
+                            onMouseLeave={e => { if (selectedArticle?.id !== article.id) e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                          >
+                            {article.title}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </nav>
+          </aside>
+
+          {/* Main Content */}
+          <main style={{ flex: 1, minWidth: 0, padding: '24px 32px 80px 48px', maxWidth: '820px' }}>
+            {/* Breadcrumb */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '24px', flexWrap: 'wrap' }}>
+              <button onClick={goHome} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '13px' }}
+                onMouseEnter={e => e.currentTarget.style.color = 'var(--brand)'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+              >Docs</button>
+              <ChevronRight style={{ width: '12px', height: '12px' }} />
+              <span style={{ color: 'var(--text-secondary)' }}>{selectedArticle.category}</span>
+              <ChevronRight style={{ width: '12px', height: '12px' }} />
+              <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{selectedArticle.title}</span>
+            </div>
+
+            {/* Article Header */}
+            <div style={{ marginBottom: '32px' }}>
+              <span style={{
+                display: 'inline-block', padding: '4px 12px', borderRadius: '6px', fontSize: '12px',
+                fontWeight: 600, background: 'var(--bg-secondary)', color: 'var(--brand)',
+                textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px',
+              }}>
+                {selectedArticle.category}
+              </span>
+              <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.2, marginBottom: '12px' }}>
+                {selectedArticle.title}
+              </h1>
+              <p style={{ fontSize: '17px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '16px' }}>
+                {selectedArticle.description}
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '13px', color: 'var(--text-muted)' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Clock style={{ width: '14px', height: '14px' }} /> {selectedArticle.readTime}
+                </span>
+                <span>Updated {selectedArticle.lastUpdated}</span>
+              </div>
+              {selectedArticle.tags.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '12px' }}>
+                  {selectedArticle.tags.map(tag => (
+                    <span key={tag} style={{ padding: '2px 8px', background: 'var(--bg-secondary)', borderRadius: '4px', fontSize: '11px', color: 'var(--text-muted)' }}>{tag}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Article Content (Markdown) */}
+            <div className="docs-prose" style={{ lineHeight: 1.8, color: 'var(--text-primary)' }}>
+              <div
+                style={{ fontSize: '15px' }}
+                dangerouslySetInnerHTML={{
+                  __html: selectedArticle.content
+                    .replace(/^### (.+)$/gm, '<h3 id="$1" style="font-size:17px;font-weight:600;color:var(--text-primary);margin:28px 0 12px;letter-spacing:-0.01em;">$1</h3>')
+                    .replace(/^## (.+)$/gm, (_, t) => `<h2 id="${t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}" style="font-size:22px;font-weight:600;color:var(--text-primary);margin:40px 0 16px;padding-bottom:12px;border-bottom:1px solid var(--border-subtle);">${t}</h2>`)
+                    .replace(/^# (.+)$/gm, '<h1 style="font-size:28px;font-weight:700;color:var(--text-primary);margin:40px 0 20px;">$1</h1>')
+                    .replace(/\*\*(.+?)\*\*/g, '<strong style="font-weight:600;color:var(--text-primary);">$1</strong>')
+                    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                    .replace(/`([^`]+)`/g, '<code style="background:var(--bg-secondary);padding:2px 6px;border-radius:4px;font-size:13px;font-family:monospace;">$1</code>')
+                    .replace(/^- (.+)$/gm, '<li style="margin-bottom:6px;padding-left:4px;">$1</li>')
+                    .replace(/(<li[^>]*>.*<\/li>\n?)+/g, (match) => `<ul style="margin:12px 0 20px 20px;list-style:disc;">${match}</ul>`)
+                    .replace(/^> (.+)$/gm, '<blockquote style="border-left:3px solid var(--brand);padding:12px 16px;margin:16px 0;background:var(--bg-secondary);border-radius:0 8px 8px 0;font-style:italic;color:var(--text-secondary);">$1</blockquote>')
+                    .replace(/\n{2,}/g, '</p><p style="margin-bottom:16px;">')
+                    .replace(/^(?!<[hublop])(.+)$/gm, '<p style="margin-bottom:16px;color:var(--text-secondary);">$1</p>')
+                }}
+              />
+            </div>
+
+            {/* Prev / Next Navigation */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', marginTop: '64px', paddingTop: '32px', borderTop: '1px solid var(--border-subtle)' }}>
+              {prevArticle ? (
+                <button
+                  onClick={() => openArticle(prevArticle)}
+                  style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '16px 20px', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: '12px', cursor: 'pointer', textAlign: 'left', transition: 'border-color 0.15s' }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--brand)'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
+                >
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>← Previous</span>
+                  <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)' }}>{prevArticle.title}</span>
+                </button>
+              ) : <div />}
+              {nextArticle ? (
+                <button
+                  onClick={() => openArticle(nextArticle)}
+                  style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', padding: '16px 20px', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: '12px', cursor: 'pointer', textAlign: 'right', transition: 'border-color 0.15s' }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--brand)'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
+                >
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Next →</span>
+                  <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)' }}>{nextArticle.title}</span>
+                </button>
+              ) : <div />}
+            </div>
+          </main>
+
+          {/* Right Sidebar - Table of Contents */}
+          {headings.length > 0 && (
+            <aside
+              className="hidden xl:block"
+              style={{
+                width: '220px', flexShrink: 0, position: 'sticky', top: '80px',
+                height: 'calc(100vh - 80px)', overflowY: 'auto', padding: '24px 24px 24px 16px',
+              }}
+            >
+              <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>
+                On this page
+              </p>
+              <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {headings.map(h => (
+                  <a
+                    key={h.id}
+                    href={`#${h.id}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      document.getElementById(h.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      setActiveHeading(h.id);
+                    }}
+                    style={{
+                      fontSize: '12px', color: activeHeading === h.id ? 'var(--brand)' : 'var(--text-muted)',
+                      textDecoration: 'none', padding: '3px 0',
+                      borderLeft: activeHeading === h.id ? '2px solid var(--brand)' : '2px solid transparent',
+                      paddingLeft: h.level === 3 ? '16px' : '8px',
+                      transition: 'color 0.15s',
+                    }}
+                    onMouseEnter={e => { if (activeHeading !== h.id) (e.target as HTMLElement).style.color = 'var(--text-primary)'; }}
+                    onMouseLeave={e => { if (activeHeading !== h.id) (e.target as HTMLElement).style.color = 'var(--text-muted)'; }}
+                  >
+                    {h.text}
+                  </a>
+                ))}
+              </nav>
+            </aside>
+          )}
+        </div>
+
+        <SiteFooter currentPage="docs" />
+      </div>
+    );
+  }
+
+  // ======================== HOME VIEW ========================
   return (
     <div className="min-h-screen relative">
       <div className="hero-gradient" />
-
       <SiteNavbar currentPage="docs" />
-
-      <DocModal article={selectedArticle} isOpen={isModalOpen} onClose={closeModal} />
-      <CategoryModal 
-        categoryTitle={selectedCategory?.title || ''}
-        articles={selectedCategory?.articles || []}
-        isOpen={isCategoryModalOpen}
-        onClose={closeCategoryModal}
-        onSelectArticle={openArticle}
-      />
 
       {/* Hero Section */}
       <section style={{ paddingTop: '160px', paddingBottom: '80px' }}>
         <div className="container">
           <div style={{ textAlign: 'center', maxWidth: '800px', margin: '0 auto' }}>
-            {/* Docs Logo */}
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
-              <Image 
-                src="/docs_logo1.webp" 
-                alt="Documentation" 
-                width={60} 
+              <Image
+                src="/docs_logo1.webp"
+                alt="Documentation"
+                width={60}
                 height={60}
                 style={{ width: 'auto', height: 'auto' }}
                 priority
@@ -514,29 +807,24 @@ function TyneBaseDocsPage() {
               Discover TyneBase
             </h1>
             <p style={{ fontSize: '20px', color: 'var(--text-secondary)', marginBottom: '48px', lineHeight: 1.6 }}>
-              Everything you need to build, manage and scale your knowledge base. 
+              Everything you need to build, manage and scale your knowledge base.
               From quick start guides to advanced AI features and enterprise security.
             </p>
-            
+
             {/* Search Box */}
             <div style={{ maxWidth: '600px', margin: '0 auto', position: 'relative' }}>
               <div style={{ position: 'relative' }}>
                 <Search style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', width: '20px', height: '20px', color: 'var(--text-muted)' }} />
-                <input 
+                <input
                   id="doc-search"
-                  type="text" 
-                  placeholder="Search documentation..." 
+                  type="text"
+                  placeholder="Search documentation..."
                   value={searchQuery}
                   onChange={(e) => handleSearch(e.target.value)}
                   style={{
-                    width: '100%',
-                    padding: '18px 100px 18px 56px',
-                    background: 'var(--bg-secondary)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: '12px',
-                    color: 'var(--text-primary)',
-                    fontSize: '16px',
-                    outline: 'none'
+                    width: '100%', padding: '18px 100px 18px 56px', background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-subtle)', borderRadius: '12px',
+                    color: 'var(--text-primary)', fontSize: '16px', outline: 'none',
                   }}
                 />
                 <div style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -545,58 +833,35 @@ function TyneBaseDocsPage() {
                 </div>
               </div>
 
-              {/* Search Results Dropdown */}
               {isSearching && (
                 <div style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: 0,
-                  right: 0,
-                  marginTop: '8px',
-                  background: 'var(--bg-elevated)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '12px',
-                  boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
-                  zIndex: 50,
-                  maxHeight: '400px',
-                  overflowY: 'auto',
+                  position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '8px',
+                  background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
+                  borderRadius: '12px', boxShadow: '0 10px 40px rgba(0,0,0,0.2)', zIndex: 50,
+                  maxHeight: '400px', overflowY: 'auto',
                 }}>
                   {searchResults.length > 0 ? (
                     <div style={{ padding: '8px' }}>
                       {searchResults.map((article) => (
-                        <button
-                          key={article.id}
-                          onClick={() => openArticle(article)}
-                          style={{
-                            width: '100%',
-                            padding: '12px 16px',
-                            background: 'transparent',
-                            border: 'none',
-                            borderRadius: '8px',
-                            textAlign: 'left',
-                            cursor: 'pointer',
-                            transition: 'background 0.15s ease',
-                          }}
+                        <button key={article.id} onClick={() => openArticle(article)}
+                          style={{ width: '100%', padding: '12px 16px', background: 'transparent', border: 'none', borderRadius: '8px', textAlign: 'left', cursor: 'pointer', transition: 'background 0.15s ease' }}
                           onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
                           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                         >
-                          <div style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '4px' }}>
-                            {article.title}
-                          </div>
-                          <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                            {article.category} · {article.readTime} read
-                          </div>
+                          <div style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '4px' }}>{article.title}</div>
+                          <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{article.category} · {article.readTime} read</div>
                         </button>
                       ))}
                     </div>
                   ) : (
-                    <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                      No results found for "{searchQuery}"
-                    </div>
+                    <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>No results found for &ldquo;{searchQuery}&rdquo;</div>
                   )}
                 </div>
               )}
             </div>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '16px' }}>
+              {allArticles.length} articles across {categories.length} categories
+            </p>
           </div>
         </div>
       </section>
@@ -605,67 +870,42 @@ function TyneBaseDocsPage() {
       <section style={{ paddingTop: '80px', paddingBottom: '80px' }}>
         <div className="container">
           <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-            <h2 style={{ fontSize: '28px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>
-              Browse by category
-            </h2>
-            <p style={{ fontSize: '16px', color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto' }}>
-              Find the documentation you need, organised by topic.
-            </p>
+            <h2 style={{ fontSize: '28px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>Browse by category</h2>
+            <p style={{ fontSize: '16px', color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto' }}>Find the documentation you need, organised by topic.</p>
           </div>
-          
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px', maxWidth: '1100px', margin: '0 auto' }}>
             {categories.map((category) => {
               const IconComponent = iconMap[category.icon] || Zap;
               return (
-                <button 
+                <div
                   key={category.id}
-                  onClick={() => openCategoryModal(category)}
                   className="bento-item"
-                  style={{ padding: '32px', display: 'flex', flexDirection: 'column', cursor: 'pointer', border: 'none', background: 'var(--bg-elevated)', textAlign: 'left', width: '100%' }}
+                  style={{ padding: '32px', display: 'flex', flexDirection: 'column', background: 'var(--bg-elevated)', textAlign: 'left', width: '100%' }}
                 >
                   <div className={`feature-icon feature-icon-${category.color}`} style={{ marginBottom: '20px' }}>
                     <IconComponent className="w-5 h-5" />
                   </div>
-                  <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px' }}>
-                    {category.title}
-                  </h3>
-                  <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: 1.6 }}>
-                    {category.description}
-                  </p>
+                  <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px' }}>{category.title}</h3>
+                  <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: 1.6 }}>{category.description}</p>
                   <div style={{ marginTop: 'auto' }}>
-                    <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                      {category.articles.length} articles
-                    </p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {category.articles.slice(0, 3).map((article) => (
-                        <div
+                    <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>{category.articles.length} articles</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {category.articles.map((article) => (
+                        <button
                           key={article.id}
                           onClick={() => openArticle(article)}
-                          style={{
-                            background: 'transparent',
-                            padding: '8px 12px',
-                            borderRadius: '6px',
-                            textAlign: 'left',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            color: 'var(--text-secondary)',
-                            transition: 'all 0.15s ease',
-                          }}
-                          onMouseEnter={e => {
-                            e.currentTarget.style.background = 'var(--bg-secondary)';
-                            e.currentTarget.style.color = 'var(--brand)';
-                          }}
-                          onMouseLeave={e => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.color = 'var(--text-secondary)';
-                          }}
+                          style={{ background: 'transparent', padding: '8px 12px', borderRadius: '6px', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: 'var(--text-secondary)', border: 'none', transition: 'all 0.15s ease', display: 'flex', alignItems: 'center', gap: '8px' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-secondary)'; e.currentTarget.style.color = 'var(--brand)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
                         >
-                          → {article.title}
-                        </div>
+                          <FileText style={{ width: '14px', height: '14px', flexShrink: 0 }} />
+                          {article.title}
+                        </button>
                       ))}
                     </div>
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
@@ -676,216 +916,27 @@ function TyneBaseDocsPage() {
       <section style={{ paddingTop: '80px', paddingBottom: '80px', background: 'var(--bg-secondary)' }}>
         <div className="container">
           <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-            <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--brand)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '16px' }}>
-              AI-Powered
-            </p>
-            <h2 style={{ fontSize: '28px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>
-              Generate Documentation with AI
-            </h2>
+            <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--brand)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '16px' }}>AI-Powered</p>
+            <h2 style={{ fontSize: '28px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>Generate Documentation with AI</h2>
             <p style={{ fontSize: '16px', color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto' }}>
               TyneBase uses advanced AI models with EU-compliant data processing to help you create and find knowledge faster.
             </p>
           </div>
-          
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', maxWidth: '1000px', margin: '0 auto' }}>
             {aiFeatures.map((feature) => (
-              <div 
-                key={feature.title} 
-                style={{ 
-                  padding: '32px', 
-                  background: 'var(--bg-elevated)', 
-                  border: '1px solid var(--border-subtle)', 
-                  borderRadius: '16px',
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                }}
-                onClick={() => {
-                  const aiArticle = allArticles.find(a => a.title.toLowerCase().includes(feature.title.toLowerCase().replace('(rag)', '').trim()));
-                  if (aiArticle) openArticle(aiArticle);
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.transform = 'translateY(-4px)';
-                  e.currentTarget.style.boxShadow = '0 10px 40px rgba(0,0,0,0.1)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
+              <div key={feature.title}
+                style={{ padding: '32px', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: '16px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s ease' }}
+                onClick={() => { const a = allArticles.find(a => a.title.toLowerCase().includes(feature.title.toLowerCase().replace('(rag)', '').trim())); if (a) openArticle(a); }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 10px 40px rgba(0,0,0,0.1)'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
               >
                 <div className="feature-icon feature-icon-purple" style={{ marginBottom: '20px', marginLeft: 'auto', marginRight: 'auto' }}>
                   <feature.icon className="w-5 h-5" />
                 </div>
-                <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px' }}>
-                  {feature.title}
-                </h3>
-                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                  {feature.description}
-                </p>
+                <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px' }}>{feature.title}</h3>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{feature.description}</p>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Popular Articles */}
-      <section style={{ paddingTop: '80px', paddingBottom: '80px' }}>
-        <div className="container">
-          <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-            <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-              <h2 style={{ fontSize: '28px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>
-                Popular Articles
-              </h2>
-              <p style={{ fontSize: '16px', color: 'var(--text-secondary)' }}>
-                The most read guides and tutorials from our documentation.
-              </p>
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {allArticles.slice(0, 6).map((article) => (
-                <button 
-                  key={article.id}
-                  onClick={() => openArticle(article)}
-                  style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'space-between', 
-                    padding: '20px 24px', 
-                    background: 'var(--bg-elevated)', 
-                    border: '1px solid var(--border-subtle)', 
-                    borderRadius: '12px',
-                    transition: 'all 0.2s ease',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    width: '100%',
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.borderColor = 'var(--brand)';
-                    e.currentTarget.style.transform = 'translateX(4px)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = 'var(--border-subtle)';
-                    e.currentTarget.style.transform = 'translateX(0)';
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <FileText style={{ width: '20px', height: '20px', color: 'var(--text-muted)' }} />
-                    <div>
-                      <h4 style={{ fontSize: '16px', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '4px' }}>
-                        {article.title}
-                      </h4>
-                      <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                        {article.category}
-                      </p>
-                    </div>
-                  </div>
-                  <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                    {article.readTime} read
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Enterprise Features */}
-      <section style={{ paddingTop: '80px', paddingBottom: '80px', background: 'var(--bg-secondary)' }}>
-        <div className="container">
-          <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-            <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--brand)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '16px' }}>
-              Enterprise
-            </p>
-            <h2 style={{ fontSize: '28px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>
-              Security & Compliance
-            </h2>
-            <p style={{ fontSize: '16px', color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto' }}>
-              Enterprise-grade security features designed for organizations with strict compliance requirements.
-            </p>
-          </div>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', maxWidth: '900px', margin: '0 auto' }}>
-            {enterpriseFeatures.map((feature) => (
-              <div 
-                key={feature.title} 
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'flex-start', 
-                  gap: '16px',
-                  padding: '24px', 
-                  background: 'var(--bg-elevated)', 
-                  border: '1px solid var(--border-subtle)', 
-                  borderRadius: '12px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                }}
-                onClick={() => {
-                  const secArticle = allArticles.find(a => 
-                    a.category === 'Security & Compliance' && 
-                    a.title.toLowerCase().includes(feature.title.toLowerCase().split('/')[0].trim())
-                  );
-                  if (secArticle) openArticle(secArticle);
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = 'var(--brand)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = 'var(--border-subtle)';
-                }}
-              >
-                <div className="feature-icon feature-icon-brand" style={{ flexShrink: 0 }}>
-                  <feature.icon className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
-                    {feature.title}
-                  </h3>
-                  <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-                    {feature.description}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* API Documentation */}
-      <section style={{ paddingTop: '80px', paddingBottom: '80px' }}>
-        <div className="container">
-          <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-            <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-              <h2 style={{ fontSize: '28px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>
-                API & Developer Resources
-              </h2>
-              <p style={{ fontSize: '16px', color: 'var(--text-secondary)' }}>
-                Build integrations and extend TyneBase with our developer tools.
-              </p>
-            </div>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '24px' }}>
-              {apiDocs.map((doc) => (
-                <div 
-                  key={doc.title} 
-                  className="bento-item"
-                  style={{ padding: '32px', textAlign: 'center', cursor: 'pointer' }}
-                  onClick={() => {
-                    const apiArticle = allArticles.find(a => a.slug === doc.slug);
-                    if (apiArticle) openArticle(apiArticle);
-                  }}
-                >
-                  <div className="feature-icon feature-icon-blue" style={{ marginBottom: '20px', marginLeft: 'auto', marginRight: 'auto' }}>
-                    <doc.icon className="w-5 h-5" />
-                  </div>
-                  <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
-                    {doc.title}
-                  </h3>
-                  <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-                    {doc.description}
-                  </p>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       </section>
@@ -896,20 +947,11 @@ function TyneBaseDocsPage() {
           <div style={{ position: 'relative', maxWidth: '700px', margin: '0 auto' }}>
             <div style={{ position: 'absolute', inset: '-16px', background: 'linear-gradient(135deg, var(--accent-blue), var(--accent-purple), var(--accent-pink))', opacity: 0.15, filter: 'blur(40px)', borderRadius: '24px' }} />
             <div style={{ position: 'relative', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: '20px', padding: '48px', textAlign: 'center' }}>
-              <h2 style={{ fontSize: '24px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>
-                Can't find what you need?
-              </h2>
-              <p style={{ fontSize: '16px', color: 'var(--text-secondary)', marginBottom: '32px' }}>
-                Our support team is here to help you succeed.
-              </p>
+              <h2 style={{ fontSize: '24px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>Can&apos;t find what you need?</h2>
+              <p style={{ fontSize: '16px', color: 'var(--text-secondary)', marginBottom: '32px' }}>Our support team is here to help you succeed.</p>
               <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
-                <Link href="/contact" className="btn btn-primary">
-                  Contact Support
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-                <Link href="/community" className="btn btn-secondary">
-                  Join Community
-                </Link>
+                <Link href="/contact" className="btn btn-primary">Contact Support<ArrowRight className="w-4 h-4" /></Link>
+                <Link href="/community" className="btn btn-secondary">Join Community</Link>
               </div>
             </div>
           </div>

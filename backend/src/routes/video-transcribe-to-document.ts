@@ -5,6 +5,7 @@ import { authMiddleware } from '../middleware/auth';
 import { supabaseAdmin } from '../lib/supabase';
 import { dispatchJob } from '../utils/dispatchJob';
 import { z } from 'zod';
+import { getModelCreditCost } from '../utils/creditCalculator';
 
 const VideoTranscribeRequestSchema = z.object({
   document_id: z.string().uuid(),
@@ -110,13 +111,14 @@ export default async function videoTranscribeToDocumentRoutes(fastify: FastifyIn
 
         request.log.info({ outputOptions }, 'Video transcribe output options');
         
-        const BASE_CREDITS = 10;
-        const SUMMARY_CREDITS = 2;
-        const ARTICLE_CREDITS = 2;
+        const aiModel = outputOptions.ai_model || 'gemini';
+        const isClaudeOutput = aiModel.includes('claude');
+        const BASE_CREDITS = isClaudeOutput ? 6 : 5;
+        const modelCost = getModelCreditCost(aiModel);
         
         const REQUIRED_CREDITS = BASE_CREDITS + 
-          (outputOptions.generate_summary ? SUMMARY_CREDITS : 0) + 
-          (outputOptions.generate_article ? ARTICLE_CREDITS : 0);
+          (outputOptions.generate_summary ? modelCost : 0) + 
+          (outputOptions.generate_article ? modelCost : 0);
         
         const currentMonth = new Date().toISOString().slice(0, 7);
         

@@ -712,7 +712,7 @@ export default function NewDocumentPage() {
                   onChange={(e) => setVideoIngestionOptions(prev => ({ ...prev, generate_summary: e.target.checked }))}
                   className="w-4 h-4 rounded border-[var(--border-default)] text-[var(--brand-primary)] focus:ring-[var(--brand-primary)]"
                 />
-                <span className="text-sm text-[var(--text-secondary)]">Generate summary (+{videoIngestionOptions.ai_model === 'claude' ? 5 : videoIngestionOptions.ai_model === 'gemini' ? 2 : 1} credits/video)</span>
+                <span className="text-sm text-[var(--text-secondary)]">Generate summary (+{videoIngestionOptions.ai_model === 'claude' ? 2 : videoIngestionOptions.ai_model === 'gemini' ? 1 : 0.2} credits/video)</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -721,7 +721,7 @@ export default function NewDocumentPage() {
                   onChange={(e) => setVideoIngestionOptions(prev => ({ ...prev, generate_article: e.target.checked }))}
                   className="w-4 h-4 rounded border-[var(--border-default)] text-[var(--brand-primary)] focus:ring-[var(--brand-primary)]"
                 />
-                <span className="text-sm text-[var(--text-secondary)]">Generate article (+{videoIngestionOptions.ai_model === 'claude' ? 5 : videoIngestionOptions.ai_model === 'gemini' ? 2 : 1} credits/video)</span>
+                <span className="text-sm text-[var(--text-secondary)]">Generate article (+{videoIngestionOptions.ai_model === 'claude' ? 2 : videoIngestionOptions.ai_model === 'gemini' ? 1 : 0.2} credits/video)</span>
               </label>
 
               <div className="pt-2">
@@ -731,9 +731,9 @@ export default function NewDocumentPage() {
                   onChange={(e) => setVideoIngestionOptions(prev => ({ ...prev, ai_model: e.target.value as 'deepseek' | 'gemini' | 'claude' }))}
                   className="w-full px-3 py-2 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] text-sm"
                 >
-                  <option value="deepseek">DeepSeek (5 credits/video)</option>
-                  <option value="gemini">Gemini (10 credits/video)</option>
-                  <option value="claude">Claude (5 credits/video)</option>
+                  <option value="deepseek">DeepSeek (5 + 0.2/output credits)</option>
+                  <option value="gemini">Gemini (5 + 1/output credits)</option>
+                  <option value="claude">Claude (6 + 2/output credits)</option>
                 </select>
               </div>
             </div>

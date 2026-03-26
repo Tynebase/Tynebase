@@ -967,7 +967,7 @@ export default async function ragRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Step 2: Deduct credits based on model (default: deepseek = 1 credit)
+        // Step 2: Deduct credits based on model (default: deepseek = 0.2 credits)
         const currentMonth = new Date().toISOString().slice(0, 7);
         const creditsToDeduct = getModelCreditCost(model || 'deepseek');
 
@@ -1017,6 +1017,7 @@ export default async function ragRoutes(fastify: FastifyInstance) {
           const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean);
           const origin = request.headers.origin || allowedOrigins[0] || '*';
           
+          reply.hijack();
           reply.raw.writeHead(200, {
             'Content-Type': 'text/event-stream',
             'Cache-Control': 'no-cache',

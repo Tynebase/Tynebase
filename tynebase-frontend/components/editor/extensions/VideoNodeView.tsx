@@ -231,7 +231,7 @@ export default function VideoNodeView({ node, selected, deleteNode }: NodeViewPr
                   
                   <div className="flex items-center justify-center gap-2 text-xs text-[var(--text-tertiary)] mt-4">
                     <span className="px-2 py-1 bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] rounded">
-                      {10 + (outputOptions.generate_summary ? 2 : 0) + (outputOptions.generate_article ? 2 : 0)} credits
+                      {5 + (outputOptions.generate_summary ? 1 : 0) + (outputOptions.generate_article ? 1 : 0)} credits
                     </span>
                   </div>
                 </div>
@@ -263,11 +263,11 @@ export default function VideoNodeView({ node, selected, deleteNode }: NodeViewPr
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-[var(--text-primary)]">Total Cost</span>
                     <span className="text-lg font-bold text-[var(--brand-primary)]">
-                      {10 + (outputOptions.generate_summary ? 2 : 0) + (outputOptions.generate_article ? 2 : 0)} credits
+                      {5 + (outputOptions.generate_summary ? 1 : 0) + (outputOptions.generate_article ? 1 : 0)} credits
                     </span>
                   </div>
                   <p className="text-xs text-[var(--text-tertiary)]">
-                    Base: 10 credits (Gemini transcription) • AI outputs: +2 credits each
+                    Base: 5 credits (Gemini transcription) • AI outputs: +1 credit each
                   </p>
                 </div>
 
@@ -300,7 +300,7 @@ export default function VideoNodeView({ node, selected, deleteNode }: NodeViewPr
                     <div className="flex-1">
                       <div className="font-medium text-[var(--text-primary)]">Summary</div>
                       <div className="text-sm text-[var(--text-secondary)]">AI-generated key points</div>
-                      <div className="text-xs text-[var(--text-tertiary)] mt-1">+2 credits</div>
+                      <div className="text-xs text-[var(--text-tertiary)] mt-1">+1 credit</div>
                     </div>
                   </label>
 
@@ -314,7 +314,7 @@ export default function VideoNodeView({ node, selected, deleteNode }: NodeViewPr
                     <div className="flex-1">
                       <div className="font-medium text-[var(--text-primary)]">Article</div>
                       <div className="text-sm text-[var(--text-secondary)]">Formatted documentation</div>
-                      <div className="text-xs text-[var(--text-tertiary)] mt-1">+2 credits</div>
+                      <div className="text-xs text-[var(--text-tertiary)] mt-1">+1 credit</div>
                     </div>
                   </label>
                 </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { DashboardLayout as DashLayout } from "@/components/layout/DashboardLayout";
+import { ImpersonationBanner } from "@/components/layout/ImpersonationBanner";
 import { useAuth } from "@/contexts/AuthContext";
 import { CreditsProvider } from "@/contexts/CreditsContext";
 import { useRouter, usePathname } from "next/navigation";
@@ -97,6 +98,7 @@ export default function DashboardLayout({
 
   return (
     <CreditsProvider>
+      <ImpersonationBanner />
       <DashLayout>{children}</DashLayout>
     </CreditsProvider>
   );

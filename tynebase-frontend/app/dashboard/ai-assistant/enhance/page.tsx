@@ -48,7 +48,7 @@ interface SuggestionWithStatus extends EnhanceSuggestion {
   expanded: boolean;
 }
 
-const ENHANCE_CREDIT_COST = 5;
+const ENHANCE_CREDIT_COST = 2;
 
 const formatRelativeTime = (dateString: string): string => {
   const date = new Date(dateString);

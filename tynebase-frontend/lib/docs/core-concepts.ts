@@ -162,12 +162,12 @@ When AI generates a document, we capture:
 {
   "event_type": "ai_generation_completed",
   "ai_metadata": {
-    "model": "gpt-5.2",
-    "provider": "openai",
+    "model": "deepseek-v3",
+    "provider": "bedrock",
     "prompt_hash": "sha256:abc123...",
     "tokens_input": 450,
     "tokens_output": 2100,
-    "cost_usd": 0.038,
+    "credits_charged": 0.2,
     "rag_sources": ["doc_123", "doc_456"],
     "temperature": 0.7,
     "generation_time_ms": 4500

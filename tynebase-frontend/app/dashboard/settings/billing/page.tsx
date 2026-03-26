@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { getDashboardStats, DashboardStats } from "@/lib/api/dashboard";
 import { upgradeTenantTier } from "@/lib/api/tenants";
+import { createCheckoutSession, createPortalSession } from "@/lib/api/billing";
 import Link from "next/link";
 import { TIER_CONFIG, TierType } from "@/types/api";
 import { 
@@ -134,6 +135,8 @@ export default function BillingPage() {
     },
   };
 
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+
   const handleUpgrade = async (tier: TierType) => {
     if (tier === 'enterprise') {
       addToast({
@@ -148,20 +151,33 @@ export default function BillingPage() {
     setIsUpgrading(true);
 
     try {
-      const result = await upgradeTenantTier(tier as 'base' | 'pro' | 'enterprise');
-      addToast({
-        type: "success",
-        title: "Plan Upgraded!",
-        description: result.message || `Successfully upgraded to ${tier}`,
-      });
-      // Reload the page to reflect the new tier
-      window.location.reload();
-    } catch (err: any) {
-      console.error('Failed to upgrade:', err);
+      // Try Stripe checkout first
+      const result = await createCheckoutSession(tier, billingCycle);
+      if (result.url) {
+        window.location.href = result.url;
+        return;
+      }
+    } catch (stripeErr: any) {
+      // If Stripe not configured, fall back to mock upgrade
+      if (stripeErr?.code === 'STRIPE_NOT_CONFIGURED' || stripeErr?.message?.includes('Stripe')) {
+        try {
+          const result = await upgradeTenantTier(tier as 'base' | 'pro' | 'enterprise');
+          addToast({
+            type: "success",
+            title: "Plan Upgraded!",
+            description: result.message || `Successfully upgraded to ${tier}`,
+          });
+          window.location.reload();
+          return;
+        } catch (mockErr: any) {
+          console.error('Mock upgrade also failed:', mockErr);
+        }
+      }
+      console.error('Failed to upgrade:', stripeErr);
       addToast({
         type: "error",
         title: "Upgrade Failed",
-        description: err.message || "Failed to upgrade plan. Please try again.",
+        description: stripeErr.message || "Failed to upgrade plan. Please try again.",
       });
     } finally {
       setIsUpgrading(false);
@@ -169,13 +185,21 @@ export default function BillingPage() {
     }
   };
 
-  const handleManageBilling = () => {
-    // In production, this would redirect to Stripe customer portal
-    addToast({
-      type: "info",
-      title: "Stripe Integration Coming Soon",
-      description: "Billing management portal will be available soon.",
-    });
+  const handleManageBilling = async () => {
+    try {
+      const result = await createPortalSession();
+      if (result.url) {
+        window.location.href = result.url;
+        return;
+      }
+    } catch (err: any) {
+      // Fallback if Stripe not configured
+      addToast({
+        type: "info",
+        title: "Billing Portal",
+        description: err?.code === 'NO_SUBSCRIPTION' ? "No active subscription to manage." : "Billing portal will be available once Stripe is configured.",
+      });
+    }
   };
 
   const getTierIndex = (tier: TierType): number => {

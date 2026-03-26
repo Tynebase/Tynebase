@@ -1,0 +1,455 @@
+import { FastifyInstance } from 'fastify';
+import { authMiddleware } from '../middleware/auth';
+import { superAdminGuard } from '../middleware/superAdminGuard';
+import { supabaseAdmin } from '../lib/supabase';
+import { z } from 'zod';
+
+/**
+ * Query Parameters Schema for listing all users
+ */
+const listUsersQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(50),
+  search: z.string().optional(),
+  status: z.enum(['active', 'suspended', 'deleted', 'all']).default('all'),
+});
+
+/**
+ * User ID Parameter Schema
+ */
+const userIdParamsSchema = z.object({
+  userId: z.string().uuid(),
+});
+
+/**
+ * Assign Credits Body Schema
+ */
+const assignCreditsBodySchema = z.object({
+  credits: z.number().int().min(1).max(100000),
+});
+
+/**
+ * Super Admin User Management Routes
+ * 
+ * Provides platform-wide user management capabilities:
+ * - List all users across all tenants
+ * - Delete users
+ * - Send password recovery emails
+ * - Assign AI credits to tenant credit pools
+ */
+export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
+  /**
+   * GET /api/superadmin/users
+   * 
+   * Returns paginated list of all users across all tenants
+   */
+  fastify.get(
+    '/api/superadmin/users',
+    {
+      preHandler: [authMiddleware, superAdminGuard],
+    },
+    async (request, reply) => {
+      try {
+        const query = listUsersQuerySchema.parse(request.query);
+        const { page, limit, search, status } = query;
+        const offset = (page - 1) * limit;
+
+        let dbQuery = supabaseAdmin
+          .from('users')
+          .select(`
+            id,
+            email,
+            full_name,
+            role,
+            status,
+            tenant_id,
+            is_super_admin,
+            created_at,
+            last_active_at
+          `, { count: 'exact' })
+          .order('created_at', { ascending: false })
+          .range(offset, offset + limit - 1);
+
+        if (status !== 'all') {
+          dbQuery = dbQuery.eq('status', status);
+        }
+
+        if (search && search.trim()) {
+          const searchTerm = `%${search.trim()}%`;
+          dbQuery = dbQuery.or(`email.ilike.${searchTerm},full_name.ilike.${searchTerm}`);
+        }
+
+        const { data: users, error, count } = await dbQuery;
+
+        if (error) {
+          request.log.error({ error }, 'Failed to fetch users');
+          throw error;
+        }
+
+        // Get tenant info for all users
+        const tenantIds = [...new Set((users || []).map(u => u.tenant_id).filter(Boolean))];
+        let tenantMap = new Map<string, { name: string; subdomain: string }>();
+
+        if (tenantIds.length > 0) {
+          const { data: tenants } = await supabaseAdmin
+            .from('tenants')
+            .select('id, name, subdomain')
+            .in('id', tenantIds);
+
+          tenants?.forEach(t => {
+            tenantMap.set(t.id, { name: t.name, subdomain: t.subdomain });
+          });
+        }
+
+        const enrichedUsers = (users || []).map(u => ({
+          ...u,
+          tenant_name: tenantMap.get(u.tenant_id)?.name || 'N/A',
+          tenant_subdomain: tenantMap.get(u.tenant_id)?.subdomain || 'N/A',
+        }));
+
+        return {
+          success: true,
+          data: {
+            users: enrichedUsers,
+            pagination: {
+              page,
+              limit,
+              total: count || 0,
+              totalPages: Math.ceil((count || 0) / limit),
+            },
+          },
+        };
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.status(400).send({
+            error: { code: 'INVALID_QUERY_PARAMS', message: 'Invalid query parameters', details: error.errors },
+          });
+        }
+        request.log.error({ error }, 'Error retrieving users list');
+        return reply.status(500).send({
+          error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to retrieve users' },
+        });
+      }
+    }
+  );
+
+  /**
+   * DELETE /api/superadmin/users/:userId
+   * 
+   * Soft-deletes a user by setting status to 'deleted'
+   */
+  fastify.delete(
+    '/api/superadmin/users/:userId',
+    {
+      preHandler: [authMiddleware, superAdminGuard],
+    },
+    async (request, reply) => {
+      try {
+        const { userId } = userIdParamsSchema.parse(request.params);
+
+        // Verify user exists
+        const { data: targetUser, error: fetchError } = await supabaseAdmin
+          .from('users')
+          .select('id, email, full_name, is_super_admin, status')
+          .eq('id', userId)
+          .single();
+
+        if (fetchError || !targetUser) {
+          return reply.status(404).send({
+            error: { code: 'USER_NOT_FOUND', message: 'User not found' },
+          });
+        }
+
+        // Prevent deleting super admins
+        if (targetUser.is_super_admin) {
+          return reply.status(403).send({
+            error: { code: 'FORBIDDEN', message: 'Cannot delete a super admin user' },
+          });
+        }
+
+        if (targetUser.status === 'deleted') {
+          return reply.status(400).send({
+            error: { code: 'ALREADY_DELETED', message: 'User is already deleted' },
+          });
+        }
+
+        // Soft delete
+        const { error: updateError } = await supabaseAdmin
+          .from('users')
+          .update({ status: 'deleted' })
+          .eq('id', userId);
+
+        if (updateError) {
+          request.log.error({ error: updateError }, 'Failed to delete user');
+          throw updateError;
+        }
+
+        request.log.info(
+          { superAdminId: request.user?.id, deletedUserId: userId, deletedEmail: targetUser.email },
+          'Super admin deleted user'
+        );
+
+        return {
+          success: true,
+          message: `User ${targetUser.email} has been deleted`,
+        };
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.status(400).send({
+            error: { code: 'INVALID_PARAMS', message: 'Invalid parameters' },
+          });
+        }
+        request.log.error({ error }, 'Error deleting user');
+        return reply.status(500).send({
+          error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to delete user' },
+        });
+      }
+    }
+  );
+
+  /**
+   * POST /api/superadmin/users/:userId/recovery
+   * 
+   * Sends a password recovery email to the user via Supabase Auth
+   */
+  fastify.post(
+    '/api/superadmin/users/:userId/recovery',
+    {
+      preHandler: [authMiddleware, superAdminGuard],
+    },
+    async (request, reply) => {
+      try {
+        const { userId } = userIdParamsSchema.parse(request.params);
+
+        // Get user email
+        const { data: targetUser, error: fetchError } = await supabaseAdmin
+          .from('users')
+          .select('id, email, status')
+          .eq('id', userId)
+          .single();
+
+        if (fetchError || !targetUser) {
+          return reply.status(404).send({
+            error: { code: 'USER_NOT_FOUND', message: 'User not found' },
+          });
+        }
+
+        if (targetUser.status === 'deleted') {
+          return reply.status(400).send({
+            error: { code: 'USER_DELETED', message: 'Cannot send recovery to a deleted user' },
+          });
+        }
+
+        // Send password recovery via Supabase Auth Admin API
+        const { error: resetError } = await supabaseAdmin.auth.admin.generateLink({
+          type: 'recovery',
+          email: targetUser.email,
+        });
+
+        if (resetError) {
+          request.log.error({ error: resetError, email: targetUser.email }, 'Failed to send recovery email');
+          
+          // Fallback: try resetPasswordForEmail
+          const { error: fallbackError } = await supabaseAdmin.auth.resetPasswordForEmail(
+            targetUser.email,
+            { redirectTo: `${process.env.FRONTEND_URL || 'https://www.tynebase.com'}/auth/reset-password` }
+          );
+
+          if (fallbackError) {
+            request.log.error({ error: fallbackError }, 'Fallback recovery also failed');
+            throw fallbackError;
+          }
+        }
+
+        request.log.info(
+          { superAdminId: request.user?.id, targetUserId: userId, targetEmail: targetUser.email },
+          'Super admin sent password recovery'
+        );
+
+        return {
+          success: true,
+          message: `Password recovery email sent to ${targetUser.email}`,
+        };
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.status(400).send({
+            error: { code: 'INVALID_PARAMS', message: 'Invalid parameters' },
+          });
+        }
+        request.log.error({ error }, 'Error sending recovery email');
+        return reply.status(500).send({
+          error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to send recovery email' },
+        });
+      }
+    }
+  );
+
+  /**
+   * POST /api/superadmin/users/:userId/credits
+   * 
+   * Assigns additional AI credits to the user's tenant credit pool
+   */
+  fastify.post(
+    '/api/superadmin/users/:userId/credits',
+    {
+      preHandler: [authMiddleware, superAdminGuard],
+    },
+    async (request, reply) => {
+      try {
+        const { userId } = userIdParamsSchema.parse(request.params);
+        const { credits } = assignCreditsBodySchema.parse(request.body);
+
+        // Get user and tenant
+        const { data: targetUser, error: fetchError } = await supabaseAdmin
+          .from('users')
+          .select('id, email, tenant_id')
+          .eq('id', userId)
+          .single();
+
+        if (fetchError || !targetUser) {
+          return reply.status(404).send({
+            error: { code: 'USER_NOT_FOUND', message: 'User not found' },
+          });
+        }
+
+        if (!targetUser.tenant_id) {
+          return reply.status(400).send({
+            error: { code: 'NO_TENANT', message: 'User has no associated tenant' },
+          });
+        }
+
+        // Get current credit pool
+        const { data: pool, error: poolError } = await supabaseAdmin
+          .from('credit_pools')
+          .select('id, total_credits, used_credits')
+          .eq('tenant_id', targetUser.tenant_id)
+          .single();
+
+        if (poolError || !pool) {
+          // Create a new credit pool if it doesn't exist
+          const { error: createError } = await supabaseAdmin
+            .from('credit_pools')
+            .insert({
+              tenant_id: targetUser.tenant_id,
+              total_credits: credits,
+              used_credits: 0,
+            });
+
+          if (createError) {
+            request.log.error({ error: createError }, 'Failed to create credit pool');
+            throw createError;
+          }
+
+          return {
+            success: true,
+            message: `Created credit pool with ${credits} credits for tenant`,
+            data: { total_credits: credits, used_credits: 0 },
+          };
+        }
+
+        // Add credits to existing pool
+        const newTotal = pool.total_credits + credits;
+        const { error: updateError } = await supabaseAdmin
+          .from('credit_pools')
+          .update({ total_credits: newTotal })
+          .eq('id', pool.id);
+
+        if (updateError) {
+          request.log.error({ error: updateError }, 'Failed to update credit pool');
+          throw updateError;
+        }
+
+        request.log.info(
+          {
+            superAdminId: request.user?.id,
+            targetUserId: userId,
+            tenantId: targetUser.tenant_id,
+            creditsAdded: credits,
+            newTotal,
+          },
+          'Super admin assigned credits'
+        );
+
+        return {
+          success: true,
+          message: `Added ${credits} credits. New total: ${newTotal}`,
+          data: { total_credits: newTotal, used_credits: pool.used_credits },
+        };
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.status(400).send({
+            error: { code: 'INVALID_PARAMS', message: 'Invalid parameters', details: error.errors },
+          });
+        }
+        request.log.error({ error }, 'Error assigning credits');
+        return reply.status(500).send({
+          error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to assign credits' },
+        });
+      }
+    }
+  );
+
+  /**
+   * GET /api/superadmin/kpis
+   * 
+   * Returns platform-wide KPIs for the admin dashboard
+   */
+  fastify.get(
+    '/api/superadmin/kpis',
+    {
+      preHandler: [authMiddleware, superAdminGuard],
+    },
+    async (request, reply) => {
+      try {
+        const now = new Date();
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+        // Parallel queries for all KPIs
+        const [
+          tenantsResult,
+          usersResult,
+          activeUsersResult,
+          documentsResult,
+          newUsersResult,
+          newDocsResult,
+          aiQueriesResult,
+          creditPoolsResult,
+        ] = await Promise.all([
+          supabaseAdmin.from('tenants').select('*', { count: 'exact', head: true }),
+          supabaseAdmin.from('users').select('*', { count: 'exact', head: true }).neq('status', 'deleted'),
+          supabaseAdmin.from('users').select('*', { count: 'exact', head: true }).gte('last_active_at', sevenDaysAgo.toISOString()).neq('status', 'deleted'),
+          supabaseAdmin.from('documents').select('*', { count: 'exact', head: true }),
+          supabaseAdmin.from('users').select('*', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo.toISOString()).neq('status', 'deleted'),
+          supabaseAdmin.from('documents').select('*', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo.toISOString()),
+          supabaseAdmin.from('query_usage').select('credits_charged').gte('created_at', thirtyDaysAgo.toISOString()),
+          supabaseAdmin.from('credit_pools').select('total_credits, used_credits'),
+        ]);
+
+        const totalCreditsUsed = creditPoolsResult.data?.reduce((sum, p) => sum + (p.used_credits || 0), 0) || 0;
+        const totalCreditsAllocated = creditPoolsResult.data?.reduce((sum, p) => sum + (p.total_credits || 0), 0) || 0;
+
+        return {
+          success: true,
+          data: {
+            totalTenants: tenantsResult.count || 0,
+            totalUsers: usersResult.count || 0,
+            activeUsers7d: activeUsersResult.count || 0,
+            totalDocuments: documentsResult.count || 0,
+            newUsersLast30d: newUsersResult.count || 0,
+            newDocsLast30d: newDocsResult.count || 0,
+            aiQueriesLast30d: aiQueriesResult.data?.length || 0,
+            totalCreditsUsed,
+            totalCreditsAllocated,
+            creditUtilization: totalCreditsAllocated > 0 ? Math.round((totalCreditsUsed / totalCreditsAllocated) * 100) : 0,
+          },
+        };
+      } catch (error) {
+        request.log.error({ error }, 'Error retrieving KPIs');
+        return reply.status(500).send({
+          error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to retrieve KPIs' },
+        });
+      }
+    }
+  );
+}

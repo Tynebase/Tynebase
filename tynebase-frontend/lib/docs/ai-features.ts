@@ -66,19 +66,19 @@ Include sections on:
 
 TyneBase supports three EU-compliant AI providers:
 
-### OpenAI (GPT-5.2)
-- **Best for**: General documentation, code examples
-- **Strengths**: Balanced quality and speed
-- **Region**: EU data residency
+### DeepSeek V3 — 0.2 credits per generation
+- **Best for**: Quick drafts, routine documentation
+- **Strengths**: Fastest, most economical
+- **Region**: eu-west-1 via AWS Bedrock
 
-### Google (Gemini 3)
+### Google Gemini 2.5 Flash — 1 credit per generation
 - **Best for**: Research-heavy content, multimodal
-- **Strengths**: Large context window (2M tokens)
-- **Region**: europe-west2 (London)
+- **Strengths**: Large context window, balanced quality
+- **Region**: europe-west2 (London) via Vertex AI
 
-### Anthropic (Claude 4.5)
+### Anthropic Claude Sonnet 4.5 — 2 credits per generation
 - **Best for**: Nuanced writing, complex analysis
-- **Strengths**: Detailed reasoning, code review
+- **Strengths**: Detailed reasoning, best output quality
 - **Region**: eu-central-1 via AWS Bedrock
 
 ## Generation Settings
@@ -98,9 +98,9 @@ Every AI-generated document tracks:
 {
   "source": "ai_generated",
   "prompt_hash": "sha256:abc123...",
-  "model": "gpt-5.2",
+  "model": "deepseek-v3",
   "tokens_used": 2847,
-  "cost_usd": 0.042,
+  "credits_charged": 0.2,
   "rag_sources": ["doc-123", "doc-456"],
   "generated_at": "2026-01-10T14:30:00Z"
 }
@@ -156,8 +156,8 @@ Paste a YouTube URL or drag-and-drop a video file.
 TyneBase automatically:
 1. Downloads/processes the video
 2. Extracts audio track
-3. Transcribes using Whisper 3 (for audio) or Gemini Flash (for native video)
-4. Identifies speakers (diarization)
+3. Transcribes using Gemini 2.5 Flash (native video + audio understanding)
+4. Identifies speakers and key topics
 5. Extracts key topics and timestamps
 
 ### Step 3: Generate Documentation
@@ -173,7 +173,7 @@ Choose your output format:
 
 ## Native Video Understanding
 
-For complex videos, TyneBase uses Gemini 3 Flash's native video capabilities:
+For complex videos, TyneBase uses Gemini 2.5 Flash's native video capabilities:
 
 - **Visual Content**: Understands diagrams, slides, demos
 - **Code on Screen**: Extracts code shown in tutorials

@@ -23,6 +23,11 @@ const envSchema = z.object({
   RATE_LIMIT_AI: z.string().default('10'),
   RATE_LIMIT_WINDOW_AI: z.string().default('60000'),
   
+  // Stripe billing
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  FRONTEND_URL: z.string().url().optional(),
+  
   // Axiom logging configuration (optional)
   AXIOM_DATASET: z.string().optional(),
   AXIOM_TOKEN: z.string().optional(),

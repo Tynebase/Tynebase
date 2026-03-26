@@ -24,9 +24,9 @@ const outputOptions = [
 
 
 const aiProviders = [
-  { id: 'deepseek', name: 'DeepSeek', desc: 'Fast and efficient via AWS Bedrock', badge: 'Recommended', credits: 1 },
-  { id: 'gemini', name: 'Gemini 2.5', desc: 'Advanced reasoning via Google Vertex', badge: null, credits: 2 },
-  { id: 'claude', name: 'Claude Sonnet 4.5', desc: 'Best for analysis & nuanced writing', badge: null, credits: 5 },
+  { id: 'deepseek', name: 'DeepSeek', desc: 'Fast and efficient via AWS Bedrock', badge: 'Recommended', credits: 0.2 },
+  { id: 'gemini', name: 'Gemini 2.5', desc: 'Advanced reasoning via Google Vertex', badge: null, credits: 1 },
+  { id: 'claude', name: 'Claude Sonnet 4.5', desc: 'Best for analysis & nuanced writing', badge: null, credits: 2 },
 ];
 
 export default function AIAssistantPage() {
@@ -95,8 +95,8 @@ export default function AIAssistantPage() {
   const [recentGenerations, setRecentGenerations] = useState<GenerationJob[]>([]);
   const [recentGenerationsLoading, setRecentGenerationsLoading] = useState(false);
   
-  const BASE_FILE_CREDITS = 5;
-  const LARGE_FILE_CREDITS = 10;
+  const BASE_FILE_CREDITS = 3;
+  const LARGE_FILE_CREDITS = 5;
   const LARGE_FILE_THRESHOLD = 50 * 1024 * 1024; // 50MB
   const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB hard limit
   const EXTRA_CREDIT_PER_OPTION = 1;
@@ -667,12 +667,12 @@ export default function AIAssistantPage() {
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--brand-primary-muted)] rounded-lg">
                   <Sparkles className="w-4 h-4 text-[var(--brand)]" />
                   <span className="text-sm font-medium text-[var(--brand)]">
-                    {3 + (aiProviders.find(p => p.id === selectedProvider)?.credits || 1) * Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length} credits
+                    {2 + (aiProviders.find(p => p.id === selectedProvider)?.credits || 0.2) * Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length} credits
                   </span>
                 </div>
               </div>
               <p className="text-xs text-[var(--dash-text-muted)] mb-3">
-                Base: 3 credits (Tavily scrape) + AI: {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1)} {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1) === 1 ? 'credit' : 'credits'} ({selectedProvider}) × {Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length} AI output{Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length !== 1 ? 's' : ''}
+                Base: 2 credits (Tavily scrape) + AI: {(aiProviders.find(p => p.id === selectedProvider)?.credits || 0.2)} {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1) === 1 ? 'credit' : 'credits'} ({selectedProvider}) × {Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length} AI output{Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length !== 1 ? 's' : ''}
               </p>
               <div className="grid grid-cols-2 gap-3">
                 {[
@@ -792,8 +792,8 @@ export default function AIAssistantPage() {
                   <>
                     <LinkIcon className="w-4 h-4" />
                     {selectedScrapeOutputTypes.size > 1 
-                      ? `Extract & Generate ${selectedScrapeOutputTypes.size} Documents (${3 + (aiProviders.find(p => p.id === selectedProvider)?.credits || 1) * Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length} credits)`
-                      : `Extract Content (${3 + (aiProviders.find(p => p.id === selectedProvider)?.credits || 1) * Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length} credits)`
+                      ? `Extract & Generate ${selectedScrapeOutputTypes.size} Documents (${2 + (aiProviders.find(p => p.id === selectedProvider)?.credits || 0.2) * Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length} credits)`
+                      : `Extract Content (${2 + (aiProviders.find(p => p.id === selectedProvider)?.credits || 0.2) * Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length} credits)`
                     }
                   </>
                 )}
@@ -863,7 +863,7 @@ export default function AIAssistantPage() {
                     <p className="text-sm text-[var(--dash-text-tertiary)] mt-0.5">
                       {formatFileSize(selectedFile.size)} • {selectedFile.type || 'Unknown type'}
                       {selectedFile.size > LARGE_FILE_THRESHOLD && (
-                        <span className="text-amber-600 ml-2">• Large file (+5 credits)</span>
+                        <span className="text-amber-600 ml-2">• Large file (+2 credits)</span>
                       )}
                     </p>
                   </div>

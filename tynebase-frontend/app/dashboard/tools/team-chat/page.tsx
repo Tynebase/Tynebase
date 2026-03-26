@@ -30,6 +30,14 @@ import {
   DMMessage,
 } from "@/lib/api/dm";
 import {
+  listMyAssignments,
+  createAssignment,
+  updateAssignment,
+  ChatAssignment,
+  CreateAssignmentRequest,
+} from "@/lib/api/chat";
+import { apiGet } from "@/lib/api/client";
+import {
   Hash,
   Send,
   Smile,
@@ -45,6 +53,11 @@ import {
   Reply,
   Mail,
   User,
+  ClipboardList,
+  FileText,
+  CheckSquare,
+  Calendar,
+  AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -84,6 +97,20 @@ export default function TeamChatPage() {
   const [dmHasMore, setDmHasMore] = useState(false);
   const [activeTab, setActiveTab] = useState<"channels" | "dms">("channels");
   const [isStartingDM, setIsStartingDM] = useState(false);
+
+  // State - Assignments
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assignType, setAssignType] = useState<"document" | "task">("task");
+  const [assignTo, setAssignTo] = useState("");
+  const [assignTitle, setAssignTitle] = useState("");
+  const [assignDescription, setAssignDescription] = useState("");
+  const [assignPriority, setAssignPriority] = useState<"low" | "medium" | "high" | "urgent">("medium");
+  const [assignDueDate, setAssignDueDate] = useState("");
+  const [assignDocId, setAssignDocId] = useState("");
+  const [assignLoading, setAssignLoading] = useState(false);
+  const [myAssignments, setMyAssignments] = useState<ChatAssignment[]>([]);
+  const [showAssignments, setShowAssignments] = useState(false);
+  const [documents, setDocuments] = useState<{id: string; title: string}[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const threadEndRef = useRef<HTMLDivElement>(null);
@@ -564,6 +591,79 @@ export default function TeamChatPage() {
     }
   };
 
+  // Assignment functions
+  const loadMyAssignments = async () => {
+    try {
+      const res = await listMyAssignments({ status: 'all', limit: 20 });
+      setMyAssignments(res.assignments);
+    } catch (err) {
+      console.error('Failed to load assignments:', err);
+    }
+  };
+
+  const loadDocuments = async () => {
+    try {
+      const res = await apiGet<{documents: {id: string; title: string}[]}>('/api/documents?limit=100&status=published');
+      setDocuments((res as any)?.documents || []);
+    } catch (err) {
+      console.error('Failed to load documents:', err);
+    }
+  };
+
+  const handleCreateAssignment = async () => {
+    if (!assignTo) return;
+    if (assignType === 'task' && !assignTitle.trim()) return;
+    if (assignType === 'document' && !assignDocId) return;
+
+    setAssignLoading(true);
+    try {
+      const data: CreateAssignmentRequest = {
+        assigned_to: assignTo,
+        assignment_type: assignType,
+        priority: assignPriority,
+        channel_id: selectedChannel?.id,
+      };
+      if (assignType === 'task') {
+        data.title = assignTitle.trim();
+        data.description = assignDescription.trim() || undefined;
+      } else {
+        data.document_id = assignDocId;
+      }
+      if (assignDueDate) data.due_date = assignDueDate;
+
+      await createAssignment(data);
+
+      // Reset form
+      setShowAssignModal(false);
+      setAssignTitle('');
+      setAssignDescription('');
+      setAssignTo('');
+      setAssignDocId('');
+      setAssignDueDate('');
+      setAssignPriority('medium');
+
+      // Refresh messages to show the system message
+      if (selectedChannel) {
+        const response = await listMessages(selectedChannel.id, { limit: 100 });
+        setMessages(response.messages);
+      }
+      await loadMyAssignments();
+    } catch (err: any) {
+      console.error('Failed to create assignment:', err);
+    } finally {
+      setAssignLoading(false);
+    }
+  };
+
+  const handleUpdateAssignmentStatus = async (id: string, status: string) => {
+    try {
+      await updateAssignment(id, { status });
+      await loadMyAssignments();
+    } catch (err) {
+      console.error('Failed to update assignment:', err);
+    }
+  };
+
   const scrollToBottom = () => {
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -978,6 +1078,25 @@ export default function TeamChatPage() {
                   </p>
                 )}
               </div>
+              <button
+                onClick={() => { setShowAssignModal(true); loadDocuments(); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--brand)] bg-[var(--brand)]/10 hover:bg-[var(--brand)]/20 rounded-lg transition-colors"
+              >
+                <ClipboardList className="w-4 h-4" />
+                Assign
+              </button>
+              <button
+                onClick={() => { setShowAssignments(!showAssignments); loadMyAssignments(); }}
+                className="p-2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] rounded-lg relative"
+                title="My Assignments"
+              >
+                <CheckSquare className="w-5 h-5" />
+                {myAssignments.filter(a => a.status === 'pending' || a.status === 'in_progress').length > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[var(--brand)] text-white text-[9px] rounded-full flex items-center justify-center font-bold">
+                    {myAssignments.filter(a => a.status === 'pending' || a.status === 'in_progress').length}
+                  </span>
+                )}
+              </button>
               <button className="p-2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] rounded-lg">
                 <Users className="w-5 h-5" />
               </button>
@@ -1290,6 +1409,243 @@ export default function TeamChatPage() {
             </div>
           </form>
         </aside>
+      )}
+
+      {/* Assignments Side Panel */}
+      {showAssignments && (
+        <aside className="w-80 bg-[var(--surface-card)] border-l border-[var(--border-subtle)] flex flex-col">
+          <header className="h-14 px-4 flex items-center justify-between border-b border-[var(--border-subtle)]">
+            <h2 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
+              <CheckSquare className="w-4 h-4" />
+              My Assignments
+            </h2>
+            <button
+              onClick={() => setShowAssignments(false)}
+              className="p-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </header>
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {myAssignments.length === 0 ? (
+              <p className="text-center text-sm text-[var(--text-muted)] py-8">No assignments yet</p>
+            ) : (
+              myAssignments.map((a) => (
+                <div
+                  key={a.id}
+                  className={cn(
+                    "p-3 rounded-lg border text-sm",
+                    a.status === 'completed'
+                      ? "bg-green-50 border-green-200 dark:bg-green-900/10 dark:border-green-800"
+                      : a.status === 'cancelled'
+                      ? "bg-gray-50 border-gray-200 dark:bg-gray-900/10 dark:border-gray-700 opacity-60"
+                      : a.priority === 'urgent'
+                      ? "bg-red-50 border-red-200 dark:bg-red-900/10 dark:border-red-800"
+                      : a.priority === 'high'
+                      ? "bg-orange-50 border-orange-200 dark:bg-orange-900/10 dark:border-orange-800"
+                      : "bg-[var(--surface-ground)] border-[var(--border-subtle)]"
+                  )}
+                >
+                  <div className="flex items-start gap-2">
+                    {a.assignment_type === 'document' ? (
+                      <FileText className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                    ) : (
+                      <ClipboardList className="w-4 h-4 text-[var(--brand)] flex-shrink-0 mt-0.5" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className={cn(
+                        "font-medium text-[var(--text-primary)] truncate",
+                        a.status === 'completed' && "line-through opacity-60"
+                      )}>
+                        {a.title || a.document?.title || 'Untitled'}
+                      </p>
+                      {a.assigned_by_user && (
+                        <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                          From: {a.assigned_by_user.full_name || a.assigned_by_user.email}
+                        </p>
+                      )}
+                      {a.due_date && (
+                        <p className="text-xs text-[var(--text-muted)] mt-0.5 flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          Due: {new Date(a.due_date).toLocaleDateString()}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-1 mt-2">
+                        <span className={cn(
+                          "px-1.5 py-0.5 rounded text-[10px] font-medium",
+                          a.priority === 'urgent' ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300" :
+                          a.priority === 'high' ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" :
+                          a.priority === 'medium' ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300" :
+                          "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                        )}>
+                          {a.priority}
+                        </span>
+                        {a.status !== 'completed' && a.status !== 'cancelled' && (
+                          <button
+                            onClick={() => handleUpdateAssignmentStatus(a.id, a.status === 'pending' ? 'in_progress' : 'completed')}
+                            className="ml-auto px-2 py-0.5 rounded text-[10px] font-medium bg-[var(--brand)]/10 text-[var(--brand)] hover:bg-[var(--brand)]/20 transition-colors"
+                          >
+                            {a.status === 'pending' ? 'Start' : 'Complete'}
+                          </button>
+                        )}
+                        {a.status === 'completed' && (
+                          <span className="ml-auto text-[10px] text-green-600 font-medium">Done</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </aside>
+      )}
+
+      {/* Assignment Modal */}
+      {showAssignModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowAssignModal(false)} />
+          <div className="relative w-full max-w-lg bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-xl shadow-xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)]">
+              <h2 className="text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                <ClipboardList className="w-5 h-5 text-[var(--brand)]" />
+                Assign {assignType === 'document' ? 'Document' : 'Task'}
+              </h2>
+              <button onClick={() => setShowAssignModal(false)} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] text-[var(--text-tertiary)]">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              {/* Type Toggle */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setAssignType('task')}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors",
+                    assignType === 'task'
+                      ? "bg-[var(--brand)]/10 border-[var(--brand)] text-[var(--brand)]"
+                      : "border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--brand)]"
+                  )}
+                >
+                  <ClipboardList className="w-4 h-4" /> Task
+                </button>
+                <button
+                  onClick={() => setAssignType('document')}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors",
+                    assignType === 'document'
+                      ? "bg-blue-500/10 border-blue-500 text-blue-600"
+                      : "border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-blue-500"
+                  )}
+                >
+                  <FileText className="w-4 h-4" /> Document
+                </button>
+              </div>
+
+              {/* Assign To */}
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Assign to</label>
+                <select
+                  value={assignTo}
+                  onChange={(e) => setAssignTo(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
+                >
+                  <option value="">Select team member...</option>
+                  {teamUsers.filter(m => m.id !== user?.id).map((m) => (
+                    <option key={m.id} value={m.id}>{m.full_name || m.email}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Task-specific fields */}
+              {assignType === 'task' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Task title</label>
+                    <input
+                      type="text"
+                      value={assignTitle}
+                      onChange={(e) => setAssignTitle(e.target.value)}
+                      placeholder="e.g. Review Q3 report"
+                      className="w-full px-3 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--brand)]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Description (optional)</label>
+                    <textarea
+                      value={assignDescription}
+                      onChange={(e) => setAssignDescription(e.target.value)}
+                      placeholder="Add context..."
+                      rows={2}
+                      className="w-full px-3 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--brand)] resize-none"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Document-specific fields */}
+              {assignType === 'document' && (
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Select document</label>
+                  <select
+                    value={assignDocId}
+                    onChange={(e) => setAssignDocId(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
+                  >
+                    <option value="">Select document...</option>
+                    {documents.map((d) => (
+                      <option key={d.id} value={d.id}>{d.title}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Priority + Due Date */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Priority</label>
+                  <select
+                    value={assignPriority}
+                    onChange={(e) => setAssignPriority(e.target.value as any)}
+                    className="w-full px-3 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Due date (optional)</label>
+                  <input
+                    type="date"
+                    value={assignDueDate}
+                    onChange={(e) => setAssignDueDate(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
+                  />
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  onClick={() => setShowAssignModal(false)}
+                  className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateAssignment}
+                  disabled={assignLoading || !assignTo || (assignType === 'task' && !assignTitle.trim()) || (assignType === 'document' && !assignDocId)}
+                  className="flex items-center gap-2 px-5 py-2 bg-[var(--brand)] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                >
+                  {assignLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardList className="w-4 h-4" />}
+                  Create Assignment
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Delete Message Confirmation Modal */}
