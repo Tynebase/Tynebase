@@ -1,19 +1,16 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Pruning invalid keys to stabilize the kernel
-  experimental: {
-    // reactCompiler is now a standard experimental flag
-    // but if it keeps failing, set to false to ship today.
-    reactCompiler: true, 
-  },
-  // Stop Next.js from hunting in the parent directory
-  typescript: {
-    ignoreBuildErrors: false, // Keep your standards high
-  },
+  // SOTA Protocol: reactCompiler is now a top-level key in Next 15/16
+  reactCompiler: true,
+
+  // ESLint and TypeScript are also top-level, not nested in experimental
   eslint: {
     ignoreDuringBuilds: false,
-  }
+  },
+  typescript: {
+    ignoreBuildErrors: false,
+  },
 };
 
 export default nextConfig;
