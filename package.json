@@ -1,16 +1,17 @@
 {
   "dependencies": {
     "@supabase/supabase-js": "^2.91.1",
-    "@tailwindcss/postcss": "^4.2.2",
     "babel-plugin-react-compiler": "1.0.0",
     "ctl": "^5.0.9",
     "dotenv": "^17.2.3",
     "fly": "^4.6.16",
-    "js-yaml": "^4.1.1",
-    "tailwindcss": "^4.0.0"
+    "js-yaml": "^4.1.1"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",
+    "autoprefixer": "^10.4.27",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^4.2.2",
     "typescript": "^6.0.2"
   }
 }
