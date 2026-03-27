@@ -1,8 +1,8 @@
 @import "tailwindcss";
 @import "../components/editor/editor-styles.css";
 
-/* Basic theme variables for Tailwind v4 */
-@theme {
+/* CSS Variables for theme */
+:root {
   --color-black: #000000;
   --color-white: #ffffff;
   
