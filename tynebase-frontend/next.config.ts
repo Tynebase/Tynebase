@@ -1,16 +1,16 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // SOTA Protocol: Prison Strong Stability
+  // SOTA Protocol: Absolute Bare-Metal Execution
   output: 'standalone',
   
-  // Mandatory Bypasses for the Vercel Build Worker
+  // Mandatory Bypass for the Vercel Build Worker
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+
+  // Note: The 'eslint' key has been completely purged. 
+  // Next 16 strictly rejects it in next.config.ts, causing schema validation faults.
 
   // Asset Optimization
   images: {
@@ -20,6 +20,11 @@ const nextConfig: NextConfig = {
   // Pruning all experimental keys to ensure the 1-minute build time restoration
   reactStrictMode: true,
   poweredByHeader: false,
+
+  // THE THREAD-LOCK BREAKER
+  // If a Server Component hangs while fetching data from Fly.dev during SSG,
+  // this forces a crash with a stack trace instead of an infinite silent hang.
+  staticPageGenerationTimeout: 60,
 };
 
 export default nextConfig;
