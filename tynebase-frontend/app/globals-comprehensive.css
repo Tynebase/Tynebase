@@ -2,9 +2,9 @@
 @import "../components/editor/editor-styles.css";
 
 /* ═══════════════════════════════════════════════════════════════════════
-    TYNEBASE DESIGN SYSTEM - SOTA Edition
-    Inspired by: Linear, Vercel, Stripe, Raycast
-    ═══════════════════════════════════════════════════════════════════════ */
+   TYNEBASE DESIGN SYSTEM - SOTA Edition
+   Inspired by: Linear, Vercel, Stripe, Raycast
+   ═══════════════════════════════════════════════════════════════════════ */
 
 :root {
   /* ─────────────────────────────────────────────────────────────────────
@@ -42,140 +42,147 @@
   --accent-royal-blue: #1548e0;
   --accent-yellow: #eab308;
   --accent-orange: #f97316;
+  --accent-cyan: #1242d3;
+  --accent-royal-blue: #1548e0;
+  --accent-yellow: #eab308;
+  --accent-orange: #f97316;
 
-  /* ─────────────────────────────────────────────────────────────────────
-     SEMANTIC TOKENS - Dark Theme (Landing Pages)
-     ────────────────────────────────────────────────────────────────────── */
-  --bg-primary: #1a1f2e;
-  --bg-secondary: #1f2937;
-  --bg-tertiary: #374151;
-  --bg-elevated: #4b5563;
-  --bg-hover: rgba(255, 255, 255, 0.05);
-  --bg-active: rgba(255, 255, 255, 0.08);
+  /* ─────────────────────────────────────────────────────────────────────
+     SEMANTIC TOKENS - Dark Theme (Landing Pages)
+     ───────────────────────────────────────────────────────────────────── */
+  --bg-primary: #1a1f2e;
+  --bg-secondary: #1f2937;
+  --bg-tertiary: #374151;
+  --bg-elevated: #4b5563;
+  --bg-hover: rgba(255, 255, 255, 0.05);
+  --bg-active: rgba(255, 255, 255, 0.08);
 
-  --text-primary: var(--white);
-  --text-secondary: var(--gray-400);
-  --text-tertiary: var(--gray-500);
-  --text-muted: var(--gray-600);
+  --text-primary: var(--white);
+  --text-secondary: var(--gray-400);
+  --text-tertiary: var(--gray-500);
+  --text-muted: var(--gray-600);
 
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-default: rgba(255, 255, 255, 0.12);
-  --border-strong: rgba(255, 255, 255, 0.2);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-default: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.2);
 
-  /* ─────────────────────────────────────────────────────────────────────
-     DASHBOARD LIGHT MODE TOKENS
-     ────────────────────────────────────────────────────────────────────── */
-  --surface-ground: #f8f9fa;
-  --surface-card: #ffffff;
-  --surface-elevated: #ffffff;
-  --surface-sidebar: #ffffff;
-  --surface-hover: rgba(0, 0, 0, 0.04);
-  --surface-active: rgba(0, 0, 0, 0.08);
+  /* ─────────────────────────────────────────────────────────────────────
+     DASHBOARD LIGHT MODE TOKENS
+     ───────────────────────────────────────────────────────────────────── */
+  --surface-ground: #f8f9fa;
+  --surface-card: #ffffff;
+  --surface-elevated: #ffffff;
+  --surface-sidebar: #ffffff;
+  --surface-hover: rgba(0, 0, 0, 0.04);
+  --surface-active: rgba(0, 0, 0, 0.08);
 
-  --dash-text-primary: #111827;
-  --dash-text-secondary: #1f2937;
-  --dash-text-tertiary: #374151;
-  --dash-text-muted: #4b5563;
+  --dash-text-primary: #111827;
+  --dash-text-secondary: #1f2937;
+  --dash-text-tertiary: #374151;
+  --dash-text-muted: #4b5563;
 
-  --dash-border-subtle: #e5e7eb;
-  --dash-border-default: #d1d5db;
-  --dash-border-strong: #9ca3af;
+  --dash-border-subtle: #e5e7eb;
+  --dash-border-default: #d1d5db;
+  --dash-border-strong: #9ca3af;
 
-  /* Status Colors */
-  --status-success: #059669;
-  --status-success-bg: #d1fae5;
-  --status-warning: #d97706;
-  --status-warning-bg: #fef3c7;
-  --status-error: #dc2626;
-  --status-error-bg: #fee2e2;
-  --status-info: #2563eb;
-  --status-info-bg: #dbeafe;
+  /* Status Colors */
+  --status-success: #059669;
+  --status-success-bg: #d1fae5;
+  --status-warning: #d97706;
+  --status-warning-bg: #fef3c7;
+  --status-error: #dc2626;
+  --status-error-bg: #fee2e2;
+  --status-info: #2563eb;
+  --status-info-bg: #dbeafe;
 
-  /* Brand with light mode adjustments */
-  --brand-primary-muted: rgba(255, 77, 0, 0.1);
-  --brand-primary-light: rgba(255, 77, 0, 0.15);
+  /* Brand with light mode adjustments */
+  --brand-primary-muted: rgba(255, 77, 0, 0.1);
+  --brand-primary-light: rgba(255, 77, 0, 0.15);
 
-  /* ─────────────────────────────────────────────────────────────────────
-     TYPOGRAPHY
-     ────────────────────────────────────────────────────────────────────── */
-  --font-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  --font-mono: 'SF Mono', SFMono-Regular, ui-monospace, monospace;
+  /* ─────────────────────────────────────────────────────────────────────
+     TYPOGRAPHY
+     ───────────────────────────────────────────────────────────────────── */
+  --font-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-mono: 'SF Mono', SFMono-Regular, ui-monospace, monospace;
 
-  /* ─────────────────────────────────────────────────────────────────────
-     EFFECTS
-     ────────────────────────────────────────────────────────────────────── */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
-  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.7);
-  --shadow-glow-brand: 0 0 60px -12px var(--brand);
+  /* ─────────────────────────────────────────────────────────────────────
+     EFFECTS
+     ───────────────────────────────────────────────────────────────────── */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.7);
+  --shadow-glow-brand: 0 0 60px -12px var(--brand);
 
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
-  --radius-full: 9999px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
 
-  /* ─────────────────────────────────────────────────────────────────────
-     ANIMATION
-     ────────────────────────────────────────────────────────────────────── */
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
-  --duration-fast: 150ms;
-  --duration-normal: 200ms;
-  --duration-slow: 300ms;
+  /* ─────────────────────────────────────────────────────────────────────
+     ANIMATION
+     ───────────────────────────────────────────────────────────────────── */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
 }
 
 html[data-theme="dark"] {
-  /* ─────────────────────────────────────────────────────────────────────
-     DASHBOARD DARK MODE TOKENS
-     Note: landing already uses dark semantic tokens above.
-     ────────────────────────────────────────────────────────────────────── */
-  --surface-ground: #1a1f2e;
-  --surface-card: #1f2937;
-  --surface-elevated: #374151;
-  --surface-sidebar: #1f2937;
-  --surface-hover: rgba(255, 255, 255, 0.06);
-  --surface-active: rgba(255, 255, 255, 0.1);
+  /* ─────────────────────────────────────────────────────────────────────
+     DASHBOARD DARK MODE TOKENS
+     Note: landing already uses dark semantic tokens above.
+     ───────────────────────────────────────────────────────────────────── */
+  --surface-ground: #1a1f2e;
+  --surface-card: #1f2937;
+  --surface-elevated: #374151;
+  --surface-sidebar: #1f2937;
+  --surface-hover: rgba(255, 255, 255, 0.06);
+  --surface-active: rgba(255, 255, 255, 0.1);
 
-  --dash-text-primary: #f9fafb;
-  --dash-text-secondary: #d1d5db;
-  --dash-text-tertiary: #9ca3af;
-  --dash-text-muted: #6b7280;
+  --dash-text-primary: #f9fafb;
+  --dash-text-secondary: #d1d5db;
+  --dash-text-tertiary: #9ca3af;
+  --dash-text-muted: #6b7280;
 
-  --dash-border-subtle: rgba(255, 255, 255, 0.10);
-  --dash-border-default: rgba(255, 255, 255, 0.16);
-  --dash-border-strong: rgba(255, 255, 255, 0.24);
+  --dash-border-subtle: rgba(255, 255, 255, 0.10);
+  --dash-border-default: rgba(255, 255, 255, 0.16);
+  --dash-border-strong: rgba(255, 255, 255, 0.24);
 
-  --brand-primary-muted: rgba(255, 77, 0, 0.18);
-  --brand-primary-light: rgba(255, 77, 0, 0.24);
+  --brand-primary-muted: rgba(255, 77, 0, 0.18);
+  --brand-primary-light: rgba(255, 77, 0, 0.24);
 }
 
 html[data-theme="light"] {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f4f4f5;
-  --bg-tertiary: #e4e4e7;
-  --bg-elevated: #ffffff;
-  --bg-hover: rgba(0, 0, 0, 0.04);
-  --bg-active: rgba(0, 0, 0, 0.06);
+  --bg-primary: #ffffff;
+  --bg-secondary: #f4f4f5;
+  --bg-tertiary: #e4e4e7;
+  --bg-elevated: #ffffff;
+  --bg-hover: rgba(0, 0, 0, 0.04);
+  --bg-active: rgba(0, 0, 0, 0.06);
 
-  --text-primary: #0b1220;
-  --text-secondary: #1f2937;
-  --text-tertiary: #374151;
-  --text-muted: #52525b;
+  --text-primary: #0b1220;
+  --text-secondary: #1f2937;
+  --text-tertiary: #374151;
+  --text-muted: #52525b;
 
-  --border-subtle: rgba(15, 23, 42, 0.10);
-  --border-default: rgba(15, 23, 42, 0.16);
-  --border-strong: rgba(15, 23, 42, 0.24);
+  --border-subtle: rgba(15, 23, 42, 0.10);
+  --border-default: rgba(15, 23, 42, 0.16);
+  --border-strong: rgba(15, 23, 42, 0.24);
 }
 
 html[data-theme="light"] .site-header,
 html[data-theme="light"] .site-footer {
-  --text-primary: #ffffff;
+  --text-primary: #ffffff;
+  --text-secondary: #ffffff;
+  --text-tertiary: #ffffff;
+  --text-muted: #ffffff;
 }
 
 html[data-theme="light"] .site-footer a {
-  color: #ffffff;
+  color: #ffffff;
 }
 
 html[data-theme="light"] .site-footer a:hover {
