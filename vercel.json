@@ -1,6 +1,6 @@
 {
-  "buildCommand": "NEXT_DISABLE_TURBOPACK=1 next build",
-  "devCommand": "npm run dev",
+  "buildCommand": "cd tynebase-frontend && NEXT_DISABLE_TURBOPACK=1 next build",
+  "devCommand": "cd tynebase-frontend && npm run dev",
   "framework": "nextjs",
   "regions": ["lhr1"],
   "headers": [
