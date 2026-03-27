@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --no-turbo",
     "start": "next start",
     "lint": "eslint"
   },
@@ -84,20 +84,17 @@
     "y-protocols": "^1.0.7",
     "yjs": "^13.6.29",
     "zod": "^4.3.5",
-    "@tailwindcss/postcss": "^4.2.2",
-    "tailwindcss": "^4.2.2"
-    
+    "tailwindcss": "^4.2.2",
+    "autoprefixer": "^10.4.27",
+    "postcss": "^8.5.8"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.2.2",
     "@types/node": "^20.19.37",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "autoprefixer": "^10.4.27",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
-    "postcss": "^8.5.8",
     "typescript": "^5.9.3"
   }
 }
