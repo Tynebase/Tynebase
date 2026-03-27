@@ -1,16 +1,16 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // SOTA Protocol: reactCompiler is now a top-level key in Next 15/16
-  reactCompiler: true,
+  // SOTA Protocol: System Rollback
+  // Deactivated React Compiler to resolve Binary Ghost in Vercel build container
+  reactCompiler: false,
 
-  // ESLint and TypeScript are also top-level, not nested in experimental
-  eslint: {
-    ignoreDuringBuilds: false,
-  },
+  // TypeScript logic remains as a top-level authority
   typescript: {
     ignoreBuildErrors: false,
   },
+
+  // Note: eslint and other experimental keys pruned to match Next 16.2.1 schema requirements
 };
 
 export default nextConfig;
