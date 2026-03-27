@@ -1,8 +1,9 @@
 {
-  "buildCommand": "cd tynebase-frontend && npm run build",
-  "devCommand": "cd tynebase-frontend && npm run dev",
-  "installCommand": "cd tynebase-frontend && npm install --legacy-peer-deps",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install --legacy-peer-deps",
   "framework": "nextjs",
+  "rootDirectory": "tynebase-frontend",
   "regions": ["lhr1"],
   "headers": [
     {
