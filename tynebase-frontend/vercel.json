@@ -3,7 +3,6 @@
   "devCommand": "npm run dev",
   "installCommand": "npm install --legacy-peer-deps",
   "framework": "nextjs",
-  "rootDirectory": ".",
   "regions": ["lhr1"],
   "headers": [
     {
