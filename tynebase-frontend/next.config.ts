@@ -1,16 +1,19 @@
-// tynebase-frontend/next.config.ts
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Pruning invalid keys to stabilize the kernel
   experimental: {
-    // KILL THE GHOST: Set this to false
-    reactCompiler: false, 
-    turbopack: {
-      // Ensure Turbopack knows its own root
-      root: '.', 
-    },
+    // reactCompiler is now a standard experimental flag
+    // but if it keeps failing, set to false to ship today.
+    reactCompiler: true, 
   },
-  /* rest of your config */
+  // Stop Next.js from hunting in the parent directory
+  typescript: {
+    ignoreBuildErrors: false, // Keep your standards high
+  },
+  eslint: {
+    ignoreDuringBuilds: false,
+  }
 };
 
 export default nextConfig;
