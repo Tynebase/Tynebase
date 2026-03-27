@@ -6,9 +6,6 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   productionBrowserSourceMaps: false,
 };
 
