@@ -125,7 +125,8 @@
 
   .gemini-container::before {
     content: '';
-    @apply absolute -inset-1/2;
+    position: absolute;
+    inset: -50%;
     background: conic-gradient(from 0deg, #4285f4, #ea4335, #fbbc04, #34a853, #4285f4);
     animation: var(--animate-gemini);
   }
@@ -135,7 +136,9 @@
   }
 
   .shine-text {
-    @apply bg-clip-text text-transparent;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
     background-image: linear-gradient(110deg, var(--color-brand-dark), var(--color-white), var(--color-brand-dark));
     background-size: 200% 100%;
     animation: var(--animate-brand-flow);
@@ -148,11 +151,14 @@
 
   /* Structural Core */
   .btn-primary {
-    @apply bg-brand text-white transition-all duration-200;
+    background-color: var(--color-brand);
+    color: white;
+    transition: all 0.2s;
     box-shadow: 0 1px 2px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,77,0,0.4);
   }
   .btn-primary:hover {
-    @apply bg-brand-light -translate-y-px;
+    background-color: var(--color-brand-light);
+    transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(255,77,0,0.4);
   }
 }
