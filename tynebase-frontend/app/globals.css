@@ -1,6 +1,12 @@
 @import "tailwindcss";
 @import "../components/editor/editor-styles.css";
 
+/* In v4, you define your theme variables here directly */
+@theme {
+  --font-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-mono: 'SF Mono', SFMono-Regular, ui-monospace, monospace;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
    TYNEBASE DESIGN SYSTEM - SOTA Edition
    Inspired by: Linear, Vercel, Stripe, Raycast
