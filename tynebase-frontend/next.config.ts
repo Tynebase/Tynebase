@@ -1,9 +1,16 @@
-// next.config.ts refactor snippet
-const nextConfig = {
+// tynebase-frontend/next.config.ts
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
   experimental: {
-    reactCompiler: true,
+    // KILL THE GHOST: Set this to false
+    reactCompiler: false, 
     turbopack: {
-      root: '.', // Forces resolution to the current directory
+      // Ensure Turbopack knows its own root
+      root: '.', 
     },
   },
+  /* rest of your config */
 };
+
+export default nextConfig;

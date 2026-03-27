@@ -2,7 +2,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.91.1",
     "@tailwindcss/postcss": "^4.2.2",
-    "babel-plugin-react-compiler": "^1.0.0",
+    "babel-plugin-react-compiler": "1.0.0",
     "ctl": "^5.0.9",
     "dotenv": "^17.2.3",
     "fly": "^4.6.16",
