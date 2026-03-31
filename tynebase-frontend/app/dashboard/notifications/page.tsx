@@ -158,7 +158,7 @@ export default function NotificationsPage() {
           <p className="text-[var(--dash-text-tertiary)] mt-1">Stay updated with your workspace activity</p>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/dashboard/settings/notifications">
+          <Link href="/dashboard/preferences">
             <Button variant="outline" className="flex items-center gap-2">
               <Settings className="w-4 h-4" />
               <span className="hidden sm:inline">Preferences</span>

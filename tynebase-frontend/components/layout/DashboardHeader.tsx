@@ -230,7 +230,7 @@ export function DashboardHeader({ onOpenCommandPalette, onMenuClick }: Dashboard
                       </button>
                     )}
                     <Link
-                      href="/dashboard/notifications"
+                      href="/dashboard/preferences"
                       onClick={() => setShowNotifications(false)}
                       className="p-1.5 rounded-md text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)] hover:bg-[var(--surface-hover)] transition-colors"
                       title="Notification settings"
