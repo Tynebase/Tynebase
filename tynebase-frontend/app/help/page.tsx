@@ -69,13 +69,13 @@ export default function HelpPage() {
 
       <section style={{ position: 'relative', zIndex: 10, paddingTop: '180px', paddingBottom: '24px' }}>
         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', borderRadius: '16px', background: 'linear-gradient(135deg, var(--brand), var(--accent-pink))', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px' }}>
             <Image
-              src="/help_logo.png"
-              alt="Help"
-              width={32}
-              height={32}
-              style={{ width: '32px', height: '32px' }}
+              src="/docs_logo1.webp"
+              alt="Documentation"
+              width={80}
+              height={80}
+              style={{ width: '80px', height: '80px' }}
             />
           </div>
           <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--brand)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '16px' }}>Help Center</p>
