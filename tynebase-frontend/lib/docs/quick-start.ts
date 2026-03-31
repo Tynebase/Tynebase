@@ -44,12 +44,18 @@ Our editor supports:
 
 Before publishing, configure your document:
 
-| Field | Description |
-|-------|-------------|
-| **Title** | Clear, searchable document title |
-| **Category** | Organise into your knowledge structure |
-| **Tags** | Add keywords for better discoverability |
-| **Visibility** | Public, Internal, or Restricted |
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Field</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Description</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Title</strong></div>
+  <div style="background: white; padding: 12px 16px;">Clear, searchable document title</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Category</strong></div>
+  <div style="background: white; padding: 12px 16px;">Organise into your knowledge structure</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Tags</strong></div>
+  <div style="background: white; padding: 12px 16px;">Add keywords for better discoverability</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Visibility</strong></div>
+  <div style="background: white; padding: 12px 16px;">Public, Internal, or Restricted</div>
+</div>
 
 ## Step 5: Publish
 
@@ -113,12 +119,18 @@ Categories organise your knowledge base. Go to **Knowledge → Categories**:
 
 TyneBase uses role-based access control (RBAC):
 
-| Role | Capabilities |
-|------|--------------|
-| **Admin** | Full access, user management, branding |
-| **Editor** | Create, edit, publish documents |
-| **Contributor** | Create drafts, suggest edits |
-| **View Only** | Read-only access |
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Role</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Capabilities</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Admin</strong></div>
+  <div style="background: white; padding: 12px 16px;">Full access, user management, branding</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Editor</strong></div>
+  <div style="background: white; padding: 12px 16px;">Create, edit, publish documents</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Contributor</strong></div>
+  <div style="background: white; padding: 12px 16px;">Create drafts, suggest edits</div>
+  <div style="background: white; padding: 12px 16px;"><strong>View Only</strong></div>
+  <div style="background: white; padding: 12px 16px;">Read-only access</div>
+</div>
 
 ## Step 4: Configure AI Settings
 
@@ -179,12 +191,18 @@ With SCIM enabled, users are automatically provisioned when they authenticate vi
 
 ## Role Assignment Best Practices
 
-| Team Type | Recommended Role |
-|-----------|------------------|
-| Documentation team | Editor |
-| Subject matter experts | Contributor |
-| General employees | View Only |
-| IT/Operations | Admin |
+<div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Team Type</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Recommended Role</div>
+  <div style="background: white; padding: 12px 16px;">Documentation team</div>
+  <div style="background: white; padding: 12px 16px;">Editor</div>
+  <div style="background: white; padding: 12px 16px;">Subject matter experts</div>
+  <div style="background: white; padding: 12px 16px;">Contributor</div>
+  <div style="background: white; padding: 12px 16px;">General employees</div>
+  <div style="background: white; padding: 12px 16px;">View Only</div>
+  <div style="background: white; padding: 12px 16px;">IT/Operations</div>
+  <div style="background: white; padding: 12px 16px;">Admin</div>
+</div>
 
 ## Pending Invitations
 
@@ -243,12 +261,18 @@ Include sections on:
 
 ### Step 2: Configure Options
 
-| Option | Description |
-|--------|-------------|
-| **Tone** | Professional, Casual, Technical |
-| **Length** | Brief, Standard, Comprehensive |
-| **Format** | Article, Guide, Runbook, FAQ |
-| **Include** | Code examples, diagrams, checklists |
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Option</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Description</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Tone</strong></div>
+  <div style="background: white; padding: 12px 16px;">Professional, Casual, Technical</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Length</strong></div>
+  <div style="background: white; padding: 12px 16px;">Brief, Standard, Comprehensive</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Format</strong></div>
+  <div style="background: white; padding: 12px 16px;">Article, Guide, Runbook, FAQ</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Include</strong></div>
+  <div style="background: white; padding: 12px 16px;">Code examples, diagrams, checklists</div>
+</div>
 
 ### Step 3: Generate & Review
 
@@ -310,12 +334,18 @@ The TyneBase dashboard gives you a complete overview of your knowledge base heal
 
 ### Content Overview
 
-| Metric | Description |
-|--------|-------------|
-| **Total Documents** | Published articles in your knowledge base |
-| **Total Views** | Cumulative document views this month |
-| **AI Generations** | Documents created by AI this month |
-| **Active Users** | Team members active in last 7 days |
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Metric</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Description</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Total Documents</strong></div>
+  <div style="background: white; padding: 12px 16px;">Published articles in your knowledge base</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Total Views</strong></div>
+  <div style="background: white; padding: 12px 16px;">Cumulative document views this month</div>
+  <div style="background: white; padding: 12px 16px;"><strong>AI Generations</strong></div>
+  <div style="background: white; padding: 12px 16px;">Documents created by AI this month</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Active Users</strong></div>
+  <div style="background: white; padding: 12px 16px;">Team members active in last 7 days</div>
+</div>
 
 ### Content Health
 
@@ -328,14 +358,22 @@ The audit dashboard shows:
 
 ## Sidebar Navigation
 
-| Section | Purpose |
-|---------|---------|
-| **Knowledge** | Browse all documents and categories |
-| **AI Assistant** | Generate new content with AI |
-| **Content Audit** | Monitor documentation health |
-| **Community** | Team discussions and Q&A |
-| **Templates** | Reusable document templates |
-| **Settings** | Workspace configuration |
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Section</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Purpose</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Knowledge</strong></div>
+  <div style="background: white; padding: 12px 16px;">Browse all documents and categories</div>
+  <div style="background: white; padding: 12px 16px;"><strong>AI Assistant</strong></div>
+  <div style="background: white; padding: 12px 16px;">Generate new content with AI</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Content Audit</strong></div>
+  <div style="background: white; padding: 12px 16px;">Monitor documentation health</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Community</strong></div>
+  <div style="background: white; padding: 12px 16px;">Team discussions and Q&A</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Templates</strong></div>
+  <div style="background: white; padding: 12px 16px;">Reusable document templates</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Settings</strong></div>
+  <div style="background: white; padding: 12px 16px;">Workspace configuration</div>
+</div>
 
 ## Global Search
 

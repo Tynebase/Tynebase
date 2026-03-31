@@ -54,13 +54,26 @@ Every document in TyneBase follows a structured lifecycle that ensures quality a
 
 ## State Transitions
 
-| From | To | Required |
-|------|----|----------|
-| Draft | In Review | Submit action |
-| In Review | Published | Reviewer approval |
-| In Review | Draft | Rejection with feedback |
-| Published | Archived | Archive action |
-| Archived | Draft | Restore action |
+<div style="display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">From</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">To</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Required</div>
+  <div style="background: white; padding: 12px 16px;">Draft</div>
+  <div style="background: white; padding: 12px 16px;">In Review</div>
+  <div style="background: white; padding: 12px 16px;">Submit action</div>
+  <div style="background: white; padding: 12px 16px;">In Review</div>
+  <div style="background: white; padding: 12px 16px;">Published</div>
+  <div style="background: white; padding: 12px 16px;">Reviewer approval</div>
+  <div style="background: white; padding: 12px 16px;">In Review</div>
+  <div style="background: white; padding: 12px 16px;">Draft</div>
+  <div style="background: white; padding: 12px 16px;">Rejection with feedback</div>
+  <div style="background: white; padding: 12px 16px;">Published</div>
+  <div style="background: white; padding: 12px 16px;">Archived</div>
+  <div style="background: white; padding: 12px 16px;">Archive action</div>
+  <div style="background: white; padding: 12px 16px;">Archived</div>
+  <div style="background: white; padding: 12px 16px;">Draft</div>
+  <div style="background: white; padding: 12px 16px;">Restore action</div>
+</div>
 
 ## Verification Cycles
 
@@ -120,39 +133,63 @@ Lineage tracks the complete history of a document:
 
 ### Creation Events
 
-| Event | Description |
-|-------|-------------|
-| \`document_created\` | Manual creation |
-| \`document_uploaded\` | File upload |
-| \`document_ai_generated\` | AI generation |
-| \`document_cloned_from_template\` | Template use |
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Event</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Description</div>
+  <div style="background: white; padding: 12px 16px;"><code>document_created</code></div>
+  <div style="background: white; padding: 12px 16px;">Manual creation</div>
+  <div style="background: white; padding: 12px 16px;"><code>document_uploaded</code></div>
+  <div style="background: white; padding: 12px 16px;">File upload</div>
+  <div style="background: white; padding: 12px 16px;"><code>document_ai_generated</code></div>
+  <div style="background: white; padding: 12px 16px;">AI generation</div>
+  <div style="background: white; padding: 12px 16px;"><code>document_cloned_from_template</code></div>
+  <div style="background: white; padding: 12px 16px;">Template use</div>
+</div>
 
 ### Modification Events
 
-| Event | Description |
-|-------|-------------|
-| \`content_edited\` | Content changes |
-| \`metadata_updated\` | Title, tags, category |
-| \`version_created\` | New version saved |
-| \`version_restored\` | Previous version restored |
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Event</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Description</div>
+  <div style="background: white; padding: 12px 16px;"><code>content_edited</code></div>
+  <div style="background: white; padding: 12px 16px;">Content changes</div>
+  <div style="background: white; padding: 12px 16px;"><code>metadata_updated</code></div>
+  <div style="background: white; padding: 12px 16px;">Title, tags, category</div>
+  <div style="background: white; padding: 12px 16px;"><code>version_created</code></div>
+  <div style="background: white; padding: 12px 16px;">New version saved</div>
+  <div style="background: white; padding: 12px 16px;"><code>version_restored</code></div>
+  <div style="background: white; padding: 12px 16px;">Previous version restored</div>
+</div>
 
 ### State Changes
 
-| Event | Description |
-|-------|-------------|
-| \`state_draft\` | Moved to draft |
-| \`state_in_review\` | Submitted for review |
-| \`state_published\` | Published |
-| \`state_archived\` | Archived |
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Event</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Description</div>
+  <div style="background: white; padding: 12px 16px;"><code>state_draft</code></div>
+  <div style="background: white; padding: 12px 16px;">Moved to draft</div>
+  <div style="background: white; padding: 12px 16px;"><code>state_in_review</code></div>
+  <div style="background: white; padding: 12px 16px;">Submitted for review</div>
+  <div style="background: white; padding: 12px 16px;"><code>state_published</code></div>
+  <div style="background: white; padding: 12px 16px;">Published</div>
+  <div style="background: white; padding: 12px 16px;"><code>state_archived</code></div>
+  <div style="background: white; padding: 12px 16px;">Archived</div>
+</div>
 
 ### AI Operations
 
-| Event | Description |
-|-------|-------------|
-| \`ai_generation_completed\` | AI created content |
-| \`rag_context_retrieved\` | Used in RAG query |
-| \`document_indexed\` | Added to AI index |
-| \`embedding_created\` | Vectors generated |
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Event</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Description</div>
+  <div style="background: white; padding: 12px 16px;"><code>ai_generation_completed</code></div>
+  <div style="background: white; padding: 12px 16px;">AI created content</div>
+  <div style="background: white; padding: 12px 16px;"><code>rag_context_retrieved</code></div>
+  <div style="background: white; padding: 12px 16px;">Used in RAG query</div>
+  <div style="background: white; padding: 12px 16px;"><code>document_indexed</code></div>
+  <div style="background: white; padding: 12px 16px;">Added to AI index</div>
+  <div style="background: white; padding: 12px 16px;"><code>embedding_created</code></div>
+  <div style="background: white; padding: 12px 16px;">Vectors generated</div>
+</div>
 
 ## AI Generation Metadata
 
@@ -246,19 +283,41 @@ The Content Audit dashboard helps you maintain a healthy, accurate knowledge bas
 ### Stale Content
 Documents not updated within their verification period:
 
-| Age | Status | Action |
-|-----|--------|--------|
-| 0-90 days | Fresh | None needed |
-| 90-180 days | Aging | Review recommended |
-| 180+ days | Stale | Verification required |
+<div style="display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Age</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Status</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Action</div>
+  <div style="background: white; padding: 12px 16px;">0-90 days</div>
+  <div style="background: white; padding: 12px 16px;">Fresh</div>
+  <div style="background: white; padding: 12px 16px;">None needed</div>
+  <div style="background: white; padding: 12px 16px;">90-180 days</div>
+  <div style="background: white; padding: 12px 16px;">Aging</div>
+  <div style="background: white; padding: 12px 16px;">Review recommended</div>
+  <div style="background: white; padding: 12px 16px;">180+ days</div>
+  <div style="background: white; padding: 12px 16px;">Stale</div>
+  <div style="background: white; padding: 12px 16px;">Verification required</div>
+</div>
 
 ### Engagement Metrics
 
-| Metric | Healthy | Warning | Critical |
-|--------|---------|---------|----------|
-| Views/month | >50 | 10-50 | <10 |
-| Helpful votes | >70% | 50-70% | <50% |
-| Bounce rate | <30% | 30-50% | >50% |
+<div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Metric</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Healthy</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Warning</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Critical</div>
+  <div style="background: white; padding: 12px 16px;">Views/month</div>
+  <div style="background: white; padding: 12px 16px;">>50</div>
+  <div style="background: white; padding: 12px 16px;">10-50</div>
+  <div style="background: white; padding: 12px 16px;"><10</div>
+  <div style="background: white; padding: 12px 16px;">Helpful votes</div>
+  <div style="background: white; padding: 12px 16px;">>70%</div>
+  <div style="background: white; padding: 12px 16px;">50-70%</div>
+  <div style="background: white; padding: 12px 16px;"><50%</div>
+  <div style="background: white; padding: 12px 16px;">Bounce rate</div>
+  <div style="background: white; padding: 12px 16px;"><30%</div>
+  <div style="background: white; padding: 12px 16px;">30-50%</div>
+  <div style="background: white; padding: 12px 16px;">>50%</div>
+</div>
 
 ### Content Quality
 
@@ -333,13 +392,20 @@ Templates ensure consistency and speed up documentation creation.
 
 ### Template Categories
 
-| Category | Examples |
-|----------|----------|
-| **Engineering** | API docs, runbooks, ADRs |
-| **HR** | Policies, handbooks, onboarding |
-| **Product** | PRDs, release notes, roadmaps |
-| **Support** | FAQs, troubleshooting, guides |
-| **Sales** | Playbooks, proposals, battle cards |
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Category</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Examples</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Engineering</strong></div>
+  <div style="background: white; padding: 12px 16px;">API docs, runbooks, ADRs</div>
+  <div style="background: white; padding: 12px 16px;"><strong>HR</strong></div>
+  <div style="background: white; padding: 12px 16px;">Policies, handbooks, onboarding</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Product</strong></div>
+  <div style="background: white; padding: 12px 16px;">PRDs, release notes, roadmaps</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Support</strong></div>
+  <div style="background: white; padding: 12px 16px;">FAQs, troubleshooting, guides</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Sales</strong></div>
+  <div style="background: white; padding: 12px 16px;">Playbooks, proposals, battle cards</div>
+</div>
 
 ## Creating Templates
 

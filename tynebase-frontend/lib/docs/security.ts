@@ -32,20 +32,31 @@ Enable Single Sign-On for seamless, secure authentication.
 
 ### Step 2: Configure SAML Settings
 
-| Field | Value |
-|-------|-------|
-| **Single sign-on URL** | \`https://your-subdomain.tynebase.com/api/auth/saml/callback\` |
-| **Audience URI** | \`https://your-subdomain.tynebase.com\` |
-| **Name ID format** | EmailAddress |
-| **Application username** | Email |
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Field</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Value</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Single sign-on URL</strong></div>
+  <div style="background: white; padding: 12px 16px;"><code>https://your-subdomain.tynebase.com/api/auth/saml/callback</code></div>
+  <div style="background: white; padding: 12px 16px;"><strong>Audience URI</strong></div>
+  <div style="background: white; padding: 12px 16px;"><code>https://your-subdomain.tynebase.com</code></div>
+  <div style="background: white; padding: 12px 16px;"><strong>Name ID format</strong></div>
+  <div style="background: white; padding: 12px 16px;">EmailAddress</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Application username</strong></div>
+  <div style="background: white; padding: 12px 16px;">Email</div>
+</div>
 
 ### Step 3: Attribute Statements
 
-| Name | Value |
-|------|-------|
-| \`email\` | user.email |
-| \`firstName\` | user.firstName |
-| \`lastName\` | user.lastName |
+<div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Name</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Value</div>
+  <div style="background: white; padding: 12px 16px;"><code>email</code></div>
+  <div style="background: white; padding: 12px 16px;">user.email</div>
+  <div style="background: white; padding: 12px 16px;"><code>firstName</code></div>
+  <div style="background: white; padding: 12px 16px;">user.firstName</div>
+  <div style="background: white; padding: 12px 16px;"><code>lastName</code></div>
+  <div style="background: white; padding: 12px 16px;">user.lastName</div>
+</div>
 
 ### Step 4: Download Metadata
 
@@ -73,21 +84,31 @@ Click **View SAML setup instructions** and download the IdP metadata XML.
 1. Go to **Single sign-on** → **SAML**
 2. Edit **Basic SAML Configuration**:
 
-| Field | Value |
-|-------|-------|
-| **Identifier (Entity ID)** | \`https://your-subdomain.tynebase.com\` |
-| **Reply URL (ACS URL)** | \`https://your-subdomain.tynebase.com/api/auth/saml/callback\` |
-| **Sign on URL** | \`https://your-subdomain.tynebase.com/login\` |
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Field</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Value</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Identifier (Entity ID)</strong></div>
+  <div style="background: white; padding: 12px 16px;"><code>https://your-subdomain.tynebase.com</code></div>
+  <div style="background: white; padding: 12px 16px;"><strong>Reply URL (ACS URL)</strong></div>
+  <div style="background: white; padding: 12px 16px;"><code>https://your-subdomain.tynebase.com/api/auth/saml/callback</code></div>
+  <div style="background: white; padding: 12px 16px;"><strong>Sign on URL</strong></div>
+  <div style="background: white; padding: 12px 16px;"><code>https://your-subdomain.tynebase.com/login</code></div>
+</div>
 
 ### Step 3: Configure Claims
 
 Add these claims in **Attributes & Claims**:
 
-| Claim | Source |
-|-------|--------|
-| \`emailaddress\` | user.mail |
-| \`givenname\` | user.givenname |
-| \`surname\` | user.surname |
+<div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Claim</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Source</div>
+  <div style="background: white; padding: 12px 16px;"><code>emailaddress</code></div>
+  <div style="background: white; padding: 12px 16px;">user.mail</div>
+  <div style="background: white; padding: 12px 16px;"><code>givenname</code></div>
+  <div style="background: white; padding: 12px 16px;">user.givenname</div>
+  <div style="background: white; padding: 12px 16px;"><code>surname</code></div>
+  <div style="background: white; padding: 12px 16px;">user.surname</div>
+</div>
 
 ### Step 4: Download Certificate
 
@@ -131,12 +152,18 @@ Enable automatic user provisioning:
 
 ## Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
-| Invalid signature | Re-download and upload IdP certificate |
-| User not created | Check attribute mapping |
-| Redirect loop | Verify ACS URL is correct |
-| 403 error | Ensure user is assigned to app in IdP |
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Issue</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Solution</div>
+  <div style="background: white; padding: 12px 16px;">Invalid signature</div>
+  <div style="background: white; padding: 12px 16px;">Re-download and upload IdP certificate</div>
+  <div style="background: white; padding: 12px 16px;">User not created</div>
+  <div style="background: white; padding: 12px 16px;">Check attribute mapping</div>
+  <div style="background: white; padding: 12px 16px;">Redirect loop</div>
+  <div style="background: white; padding: 12px 16px;">Verify ACS URL is correct</div>
+  <div style="background: white; padding: 12px 16px;">403 error</div>
+  <div style="background: white; padding: 12px 16px;">Ensure user is assigned to app in IdP</div>
+</div>
 `
   },
   {
@@ -165,21 +192,48 @@ TyneBase is designed for GDPR compliance from the ground up.
 
 ### Where Data is Stored
 
-| Data Type | Location | Provider |
-|-----------|----------|----------|
-| Database | EU (Frankfurt) | Supabase |
-| File Storage | EU (Frankfurt) | Supabase |
-| AI Processing | EU endpoints | OpenAI EU, Vertex AI |
-| Embeddings | EU (Frankfurt) | Supabase pgvector |
+<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Data Type</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Location</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Provider</div>
+  <div style="background: white; padding: 12px 16px;">Database</div>
+  <div style="background: white; padding: 12px 16px;">EU (Frankfurt)</div>
+  <div style="background: white; padding: 12px 16px;">Supabase</div>
+  <div style="background: white; padding: 12px 16px;">File Storage</div>
+  <div style="background: white; padding: 12px 16px;">EU (Frankfurt)</div>
+  <div style="background: white; padding: 12px 16px;">Supabase</div>
+  <div style="background: white; padding: 12px 16px;">AI Processing</div>
+  <div style="background: white; padding: 12px 16px;">EU endpoints</div>
+  <div style="background: white; padding: 12px 16px;">OpenAI EU, Vertex AI</div>
+  <div style="background: white; padding: 12px 16px;">Embeddings</div>
+  <div style="background: white; padding: 12px 16px;">EU (Frankfurt)</div>
+  <div style="background: white; padding: 12px 16px;">Supabase pgvector</div>
+</div>
 
 ### Data We Collect
 
-| Category | Data | Purpose | Lawful Basis |
-|----------|------|---------|--------------|
-| Account | Email, name | Service provision | Contract |
-| Content | Documents | Core functionality | Contract |
-| Usage | Page views, actions | Analytics | Legitimate interest |
-| AI | Prompts, generations | AI features | Consent |
+<div style="display: grid; grid-template-columns: 1fr 1fr 1.5fr 1fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Category</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Data</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Purpose</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Lawful Basis</div>
+  <div style="background: white; padding: 12px 16px;">Account</div>
+  <div style="background: white; padding: 12px 16px;">Email, name</div>
+  <div style="background: white; padding: 12px 16px;">Service provision</div>
+  <div style="background: white; padding: 12px 16px;">Contract</div>
+  <div style="background: white; padding: 12px 16px;">Content</div>
+  <div style="background: white; padding: 12px 16px;">Documents</div>
+  <div style="background: white; padding: 12px 16px;">Core functionality</div>
+  <div style="background: white; padding: 12px 16px;">Contract</div>
+  <div style="background: white; padding: 12px 16px;">Usage</div>
+  <div style="background: white; padding: 12px 16px;">Page views, actions</div>
+  <div style="background: white; padding: 12px 16px;">Analytics</div>
+  <div style="background: white; padding: 12px 16px;">Legitimate interest</div>
+  <div style="background: white; padding: 12px 16px;">AI</div>
+  <div style="background: white; padding: 12px 16px;">Prompts, generations</div>
+  <div style="background: white; padding: 12px 16px;">AI features</div>
+  <div style="background: white; padding: 12px 16px;">Consent</div>
+</div>
 
 ## User Rights
 
@@ -224,12 +278,23 @@ Data export in machine-readable format:
 
 Control what data processing you allow:
 
-| Purpose | Default | Can Withdraw |
-|---------|---------|--------------|
-| Essential services | Required | No |
-| Analytics | Off | Yes |
-| AI processing | Off | Yes |
-| Knowledge indexing | Off | Yes |
+<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Purpose</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Default</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Can Withdraw</div>
+  <div style="background: white; padding: 12px 16px;">Essential services</div>
+  <div style="background: white; padding: 12px 16px;">Required</div>
+  <div style="background: white; padding: 12px 16px;">No</div>
+  <div style="background: white; padding: 12px 16px;">Analytics</div>
+  <div style="background: white; padding: 12px 16px;">Off</div>
+  <div style="background: white; padding: 12px 16px;">Yes</div>
+  <div style="background: white; padding: 12px 16px;">AI processing</div>
+  <div style="background: white; padding: 12px 16px;">Off</div>
+  <div style="background: white; padding: 12px 16px;">Yes</div>
+  <div style="background: white; padding: 12px 16px;">Knowledge indexing</div>
+  <div style="background: white; padding: 12px 16px;">Off</div>
+  <div style="background: white; padding: 12px 16px;">Yes</div>
+</div>
 
 ### Managing Consent
 
@@ -277,18 +342,63 @@ TyneBase uses RBAC to manage what users can do in your workspace.
 
 ## Role Capabilities
 
-| Capability | View Only | Contributor | Editor | Admin |
-|------------|-----------|-------------|--------|-------|
-| Read documents | ✅ | ✅ | ✅ | ✅ |
-| Create drafts | ❌ | ✅ | ✅ | ✅ |
-| Edit own docs | ❌ | ✅ | ✅ | ✅ |
-| Edit any doc | ❌ | ❌ | ✅ | ✅ |
-| Publish | ❌ | ❌ | ✅ | ✅ |
-| Delete docs | ❌ | ❌ | Own only | ✅ |
-| Use AI features | ❌ | ✅ | ✅ | ✅ |
-| View audit | ❌ | ❌ | ✅ | ✅ |
-| Manage users | ❌ | ❌ | ❌ | ✅ |
-| Workspace settings | ❌ | ❌ | ❌ | ✅ |
+<div style="display: grid; grid-template-columns: 1.2fr 0.8fr 0.8fr 0.8fr 0.8fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Capability</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">View Only</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Contributor</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Editor</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Admin</div>
+  <div style="background: white; padding: 12px 16px;">Read documents</div>
+  <div style="background: white; padding: 12px 16px;">✅</div>
+  <div style="background: white; padding: 12px 16px;">✅</div>
+  <div style="background: white; padding: 12px 16px;">✅</div>
+  <div style="background: white; padding: 12px 16px;">✅</div>
+  <div style="background: white; padding: 12px 16px;">Create drafts</div>
+  <div style="background: white; padding: 12px 16px;">❌</div>
+  <div style="background: white; padding: 12px 16px;">✅</div>
+  <div style="background: white; padding: 12px 16px;">✅</div>
+  <div style="background: white; padding: 12px 16px;">✅</div>
+  <div style="background: white; padding: 12px 16px;">Edit own docs</div>
+  <div style="background: white; padding: 12px 16px;">❌</div>
+  <div style="background: white; padding: 12px 16px;">✅</div>
+  <div style="background: white; padding: 12px 16px;">✅</div>
+  <div style="background: white; padding: 12px 16px;">✅</div>
+  <div style="background: white; padding: 12px 16px;">Edit any doc</div>
+  <div style="background: white; padding: 12px 16px;">❌</div>
+  <div style="background: white; padding: 12px 16px;">❌</div>
+  <div style="background: white; padding: 12px 16px;">✅</div>
+  <div style="background: white; padding: 12px 16px;">✅</div>
+  <div style="background: white; padding: 12px 16px;">Publish</div>
+  <div style="background: white; padding: 12px 16px;">❌</div>
+  <div style="background: white; padding: 12px 16px;">❌</div>
+  <div style="background: white; padding: 12px 16px;">✅</div>
+  <div style="background: white; padding: 12px 16px;">✅</div>
+  <div style="background: white; padding: 12px 16px;">Delete docs</div>
+  <div style="background: white; padding: 12px 16px;">❌</div>
+  <div style="background: white; padding: 12px 16px;">❌</div>
+  <div style="background: white; padding: 12px 16px;">Own only</div>
+  <div style="background: white; padding: 12px 16px;">✅</div>
+  <div style="background: white; padding: 12px 16px;">Use AI features</div>
+  <div style="background: white; padding: 12px 16px;">❌</div>
+  <div style="background: white; padding: 12px 16px;">✅</div>
+  <div style="background: white; padding: 12px 16px;">✅</div>
+  <div style="background: white; padding: 12px 16px;">✅</div>
+  <div style="background: white; padding: 12px 16px;">View audit</div>
+  <div style="background: white; padding: 12px 16px;">❌</div>
+  <div style="background: white; padding: 12px 16px;">❌</div>
+  <div style="background: white; padding: 12px 16px;">✅</div>
+  <div style="background: white; padding: 12px 16px;">✅</div>
+  <div style="background: white; padding: 12px 16px;">Manage users</div>
+  <div style="background: white; padding: 12px 16px;">❌</div>
+  <div style="background: white; padding: 12px 16px;">❌</div>
+  <div style="background: white; padding: 12px 16px;">❌</div>
+  <div style="background: white; padding: 12px 16px;">✅</div>
+  <div style="background: white; padding: 12px 16px;">Workspace settings</div>
+  <div style="background: white; padding: 12px 16px;">❌</div>
+  <div style="background: white; padding: 12px 16px;">❌</div>
+  <div style="background: white; padding: 12px 16px;">❌</div>
+  <div style="background: white; padding: 12px 16px;">✅</div>
+</div>
 
 ## Assigning Roles
 
@@ -378,11 +488,20 @@ TyneBase implements multiple layers of security to protect your data.
 
 All stored data is encrypted:
 
-| Data Type | Encryption | Key Management |
-|-----------|------------|----------------|
-| Database | AES-256 | Supabase managed |
-| File storage | AES-256 | Supabase managed |
-| Backups | AES-256 | Isolated keys |
+<div style="display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Data Type</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Encryption</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Key Management</div>
+  <div style="background: white; padding: 12px 16px;">Database</div>
+  <div style="background: white; padding: 12px 16px;">AES-256</div>
+  <div style="background: white; padding: 12px 16px;">Supabase managed</div>
+  <div style="background: white; padding: 12px 16px;">File storage</div>
+  <div style="background: white; padding: 12px 16px;">AES-256</div>
+  <div style="background: white; padding: 12px 16px;">Supabase managed</div>
+  <div style="background: white; padding: 12px 16px;">Backups</div>
+  <div style="background: white; padding: 12px 16px;">AES-256</div>
+  <div style="background: white; padding: 12px 16px;">Isolated keys</div>
+</div>
 
 ## Encryption in Transit
 
@@ -419,12 +538,18 @@ Supported methods:
 
 ## Session Security
 
-| Setting | Value |
-|---------|-------|
-| Session timeout | 24 hours |
-| Idle timeout | 1 hour |
-| Concurrent sessions | Unlimited |
-| Session revocation | Immediate |
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Setting</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Value</div>
+  <div style="background: white; padding: 12px 16px;">Session timeout</div>
+  <div style="background: white; padding: 12px 16px;">24 hours</div>
+  <div style="background: white; padding: 12px 16px;">Idle timeout</div>
+  <div style="background: white; padding: 12px 16px;">1 hour</div>
+  <div style="background: white; padding: 12px 16px;">Concurrent sessions</div>
+  <div style="background: white; padding: 12px 16px;">Unlimited</div>
+  <div style="background: white; padding: 12px 16px;">Session revocation</div>
+  <div style="background: white; padding: 12px 16px;">Immediate</div>
+</div>
 
 View and revoke sessions in **Settings** → **Security** → **Sessions**.
 
@@ -446,12 +571,18 @@ View and revoke sessions in **Settings** → **Security** → **Sessions**.
 
 ## Compliance Certifications
 
-| Standard | Status |
-|----------|--------|
-| SOC 2 Type II | Certified |
-| GDPR | Compliant |
-| HIPAA | Available (Enterprise) |
-| ISO 27001 | In progress |
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Standard</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Status</div>
+  <div style="background: white; padding: 12px 16px;">SOC 2 Type II</div>
+  <div style="background: white; padding: 12px 16px;">Certified</div>
+  <div style="background: white; padding: 12px 16px;">GDPR</div>
+  <div style="background: white; padding: 12px 16px;">Compliant</div>
+  <div style="background: white; padding: 12px 16px;">HIPAA</div>
+  <div style="background: white; padding: 12px 16px;">Available (Enterprise)</div>
+  <div style="background: white; padding: 12px 16px;">ISO 27001</div>
+  <div style="background: white; padding: 12px 16px;">In progress</div>
+</div>
 
 ## Security Reporting
 
@@ -595,23 +726,37 @@ TyneBase provides comprehensive audit logging to help you maintain compliance an
 
 ### User Actions
 
-| Event | Details Captured |
-|-------|------------------|
-| **Login/Logout** | User, timestamp, IP, device |
-| **Document CRUD** | Action, document ID, user, changes |
-| **Permission changes** | Who, what, before/after |
-| **Search queries** | Query text, results count, user |
-| **AI usage** | Prompts, model used, tokens |
-| **Settings changes** | Setting name, old/new value |
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Event</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Details Captured</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Login/Logout</strong></div>
+  <div style="background: white; padding: 12px 16px;">User, timestamp, IP, device</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Document CRUD</strong></div>
+  <div style="background: white; padding: 12px 16px;">Action, document ID, user, changes</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Permission changes</strong></div>
+  <div style="background: white; padding: 12px 16px;">Who, what, before/after</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Search queries</strong></div>
+  <div style="background: white; padding: 12px 16px;">Query text, results count, user</div>
+  <div style="background: white; padding: 12px 16px;"><strong>AI usage</strong></div>
+  <div style="background: white; padding: 12px 16px;">Prompts, model used, tokens</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Settings changes</strong></div>
+  <div style="background: white; padding: 12px 16px;">Setting name, old/new value</div>
+</div>
 
 ### System Events
 
-| Event | Details |
-|-------|---------|
-| **API calls** | Endpoint, method, status, latency |
-| **Authentication** | Success/failure, method used |
-| **Rate limiting** | Triggered rules, affected users |
-| **Errors** | Stack traces, context |
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Event</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Details</div>
+  <div style="background: white; padding: 12px 16px;"><strong>API calls</strong></div>
+  <div style="background: white; padding: 12px 16px;">Endpoint, method, status, latency</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Authentication</strong></div>
+  <div style="background: white; padding: 12px 16px;">Success/failure, method used</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Rate limiting</strong></div>
+  <div style="background: white; padding: 12px 16px;">Triggered rules, affected users</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Errors</strong></div>
+  <div style="background: white; padding: 12px 16px;">Stack traces, context</div>
+</div>
 
 ## Accessing Audit Logs
 
@@ -667,11 +812,16 @@ curl -X GET "https://api.tynebase.com/v1/audit-logs" \\
 
 ## Retention Policies
 
-| Plan | Retention Period |
-|------|------------------|
-| Free | 7 days |
-| Pro | 90 days |
-| Enterprise | Custom (up to 7 years) |
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Plan</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Retention Period</div>
+  <div style="background: white; padding: 12px 16px;">Free</div>
+  <div style="background: white; padding: 12px 16px;">7 days</div>
+  <div style="background: white; padding: 12px 16px;">Pro</div>
+  <div style="background: white; padding: 12px 16px;">90 days</div>
+  <div style="background: white; padding: 12px 16px;">Enterprise</div>
+  <div style="background: white; padding: 12px 16px;">Custom (up to 7 years)</div>
+</div>
 
 ## SIEM Integration
 
@@ -721,22 +871,46 @@ Keep your knowledge base accurate and up-to-date with TyneBase's content audit f
 
 Each document receives a health score based on:
 
-| Factor | Weight | Description |
-|--------|--------|-------------|
-| **Freshness** | 30% | Time since last update |
-| **Completeness** | 25% | Required sections filled |
-| **Accuracy** | 20% | Verified information |
-| **Engagement** | 15% | Views, searches, feedback |
-| **Links** | 10% | Working internal/external links |
+<div style="display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Factor</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Weight</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Description</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Freshness</strong></div>
+  <div style="background: white; padding: 12px 16px;">30%</div>
+  <div style="background: white; padding: 12px 16px;">Time since last update</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Completeness</strong></div>
+  <div style="background: white; padding: 12px 16px;">25%</div>
+  <div style="background: white; padding: 12px 16px;">Required sections filled</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Accuracy</strong></div>
+  <div style="background: white; padding: 12px 16px;">20%</div>
+  <div style="background: white; padding: 12px 16px;">Verified information</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Engagement</strong></div>
+  <div style="background: white; padding: 12px 16px;">15%</div>
+  <div style="background: white; padding: 12px 16px;">Views, searches, feedback</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Links</strong></div>
+  <div style="background: white; padding: 12px 16px;">10%</div>
+  <div style="background: white; padding: 12px 16px;">Working internal/external links</div>
+</div>
 
 ### Score Ranges
 
-| Score | Status | Action Required |
-|-------|--------|-----------------|
-| 80-100 | | None |
-| 60-79 | | Review soon |
-| 40-59 | | Update required |
-| 0-39 | | Immediate action |
+<div style="display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Score</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Status</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Action Required</div>
+  <div style="background: white; padding: 12px 16px;">80-100</div>
+  <div style="background: white; padding: 12px 16px;"></div>
+  <div style="background: white; padding: 12px 16px;">None</div>
+  <div style="background: white; padding: 12px 16px;">60-79</div>
+  <div style="background: white; padding: 12px 16px;"></div>
+  <div style="background: white; padding: 12px 16px;">Review soon</div>
+  <div style="background: white; padding: 12px 16px;">40-59</div>
+  <div style="background: white; padding: 12px 16px;"></div>
+  <div style="background: white; padding: 12px 16px;">Update required</div>
+  <div style="background: white; padding: 12px 16px;">0-39</div>
+  <div style="background: white; padding: 12px 16px;"></div>
+  <div style="background: white; padding: 12px 16px;">Immediate action</div>
+</div>
 
 ## Running Content Audits
 
@@ -858,12 +1032,23 @@ TyneBase ensures your data is protected with comprehensive backup and recovery c
 
 ### Automatic Backups
 
-| Backup Type | Frequency | Retention |
-|-------------|-----------|-----------|
-| **Continuous** | Real-time WAL | 7 days |
-| **Daily** | Every 24 hours | 30 days |
-| **Weekly** | Every Sunday | 90 days |
-| **Monthly** | 1st of month | 1 year |
+<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Backup Type</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Frequency</div>
+  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Retention</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Continuous</strong></div>
+  <div style="background: white; padding: 12px 16px;">Real-time WAL</div>
+  <div style="background: white; padding: 12px 16px;">7 days</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Daily</strong></div>
+  <div style="background: white; padding: 12px 16px;">Every 24 hours</div>
+  <div style="background: white; padding: 12px 16px;">30 days</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Weekly</strong></div>
+  <div style="background: white; padding: 12px 16px;">Every Sunday</div>
+  <div style="background: white; padding: 12px 16px;">90 days</div>
+  <div style="background: white; padding: 12px 16px;"><strong>Monthly</strong></div>
+  <div style="background: white; padding: 12px 16px;">1st of month</div>
+  <div style="background: white; padding: 12px 16px;">1 year</div>
+</div>
 
 ### What's Backed Up
 
