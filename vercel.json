@@ -1,8 +1,7 @@
 {
-  "rootDirectory": "tynebase-frontend",
-  "installCommand": "npm install",
-  "buildCommand": "NODE_OPTIONS='--max-old-space-size=4096' TURBOPACK=0 next build",
-  "devCommand": "npm run dev",
+  "installCommand": "cd tynebase-frontend && npm install",
+  "buildCommand": "cd tynebase-frontend && NODE_OPTIONS='--max-old-space-size=4096' TURBOPACK=0 next build",
+  "devCommand": "cd tynebase-frontend && npm run dev",
   "framework": "nextjs",
   "regions": ["lhr1"],
   "headers": [
