@@ -1,4 +1,5 @@
 {
+  "installCommand": "cd tynebase-frontend && npm install",
   "buildCommand": "cd tynebase-frontend && NEXT_DISABLE_TURBOPACK=1 next build",
   "devCommand": "cd tynebase-frontend && npm run dev",
   "framework": "nextjs",

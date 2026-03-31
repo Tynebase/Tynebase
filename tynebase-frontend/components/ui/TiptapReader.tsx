@@ -137,6 +137,39 @@ export function TiptapReader({ content, title, className = "", isHtml = false }:
             .tiptap-reader .resizable-image-wrapper.selected > div {
               display: none !important;
             }
+            /* Style for div tables (previously markdown tables) */
+            .tiptap-reader div[style*="display: grid"] {
+              display: grid !important;
+              gap: 1px !important;
+              background-color: var(--border-subtle) !important;
+              border-radius: 8px !important;
+              overflow: hidden !important;
+              margin: 16px 0 !important;
+              border: 3px solid var(--text-primary) !important;
+            }
+            .tiptap-reader div[style*="display: grid"] > div {
+              padding: 12px 16px !important;
+              background-color: var(--surface-card) !important;
+              color: var(--text-primary) !important;
+              font-weight: 400 !important;
+            }
+            /* Header row cells - target via attribute selectors */
+            .tiptap-reader div[style*="display: grid"] > div[style*="background: #f9fafb"],
+            .tiptap-reader div[style*="display: grid"] > div[style*="font-weight: 600"] {
+              background-color: var(--bg-secondary) !important;
+              font-weight: 600 !important;
+            }
+            /* Data cells with white background */
+            .tiptap-reader div[style*="display: grid"] > div[style*="background: white"] {
+              background-color: var(--surface-card) !important;
+            }
+            /* Ensure proper alignment and text wrapping */
+            .tiptap-reader div[style*="display: grid"] > div {
+              display: flex;
+              align-items: center;
+              min-height: 44px;
+              word-break: break-word;
+            }
           `}</style>
           {title && (
             <h1 
