@@ -4,6 +4,8 @@ import { aiFeatureArticles } from './ai-features';
 import { coreConceptsArticles } from './core-concepts';
 import { securityArticles } from './security';
 import { apiReferenceArticles } from './api-reference';
+import { brandingArticles } from './branding';
+import { billingArticles } from './billing';
 
 export * from './types';
 
@@ -13,6 +15,8 @@ export const allArticles: DocArticle[] = [
   ...coreConceptsArticles,
   ...securityArticles,
   ...apiReferenceArticles,
+  ...brandingArticles,
+  ...billingArticles,
 ];
 
 export const categories = [
@@ -42,6 +46,24 @@ export const categories = [
     icon: 'Bot',
     color: 'purple',
     articles: aiFeatureArticles,
+  },
+  {
+    id: 'branding',
+    slug: 'branding',
+    title: 'Branding & White-Label',
+    description: 'Customize your workspace with your company\'s branding.',
+    icon: 'Palette',
+    color: 'pink',
+    articles: brandingArticles,
+  },
+  {
+    id: 'billing',
+    slug: 'billing',
+    title: 'Billing & Plans',
+    description: 'Pricing plans, billing cycles, and payment options.',
+    icon: 'CreditCard',
+    color: 'green',
+    articles: billingArticles,
   },
   {
     id: 'security',

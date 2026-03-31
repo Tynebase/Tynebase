@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Search, BookOpen, MessageSquare, FileText, Users, Settings, Zap, Shield } from "lucide-react";
+import { Search, BookOpen, MessageSquare, FileText, Users, Settings, Zap, Shield, Palette, CreditCard } from "lucide-react";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 
@@ -29,18 +29,25 @@ const categories = [
     href: "/docs?slug=inviting-team"
   },
   { 
-    icon: Settings, 
-    title: "Settings & Config", 
-    description: "Configure your workspace", 
-    count: 15,
-    href: "/docs?slug=workspace-setup"
-  },
-  { 
     icon: Zap, 
     title: "AI Features", 
     description: "Use AI to generate content", 
     count: 10,
     href: "/docs?slug=first-ai-generation"
+  },
+  { 
+    icon: Palette, 
+    title: "Branding & White-Label", 
+    description: "Customize your workspace branding", 
+    count: 6,
+    href: "/docs?slug=branding-overview"
+  },
+  { 
+    icon: CreditCard, 
+    title: "Billing & Plans", 
+    description: "Pricing plans and payment options", 
+    count: 4,
+    href: "/docs?slug=billing-overview"
   },
   { 
     icon: Shield, 
