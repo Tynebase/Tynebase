@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 
 interface SiteNavbarProps {
-  currentPage?: 'home' | 'docs' | 'public-documents' | 'other';
+  currentPage?: 'home' | 'docs' | 'public-documents' | 'help' | 'other';
 }
 
 export function SiteNavbar({ currentPage = 'home' }: SiteNavbarProps) {
@@ -39,7 +39,7 @@ export function SiteNavbar({ currentPage = 'home' }: SiteNavbarProps) {
         <nav className="hidden md:flex items-center gap-1">
           <a href={featuresLink} className="btn btn-ghost">Features</a>
           <a href={pricingLink} className="btn btn-ghost">Pricing</a>
-          <Link href="/docs" className={`btn btn-ghost ${currentPage === 'docs' ? 'text-[var(--brand)]' : ''}`}>Docs</Link>
+          <Link href="/help" className={`btn btn-ghost ${currentPage === 'help' ? 'text-[var(--brand)]' : ''}`}>Documentation</Link>
         </nav>
 
         <div className="flex items-center gap-3 pr-6">

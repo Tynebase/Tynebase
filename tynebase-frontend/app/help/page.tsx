@@ -7,21 +7,57 @@ import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 
 const categories = [
-  { icon: BookOpen, title: "Getting Started", description: "Learn the basics of TyneBase", count: 12 },
-  { icon: FileText, title: "Documentation", description: "Create and manage documents", count: 24 },
-  { icon: Users, title: "Team Management", description: "Invite and manage team members", count: 8 },
-  { icon: Settings, title: "Settings & Config", description: "Configure your workspace", count: 15 },
-  { icon: Zap, title: "AI Features", description: "Use AI to generate content", count: 10 },
-  { icon: Shield, title: "Security & Privacy", description: "SSO, permissions, and compliance", count: 18 }
+  { 
+    icon: BookOpen, 
+    title: "Getting Started", 
+    description: "Learn the basics of TyneBase", 
+    count: 12,
+    href: "/docs?slug=getting-started-tutorial"
+  },
+  { 
+    icon: FileText, 
+    title: "Documentation", 
+    description: "Create and manage documents", 
+    count: 24,
+    href: "/docs?slug=document-lifecycle"
+  },
+  { 
+    icon: Users, 
+    title: "Team Management", 
+    description: "Invite and manage team members", 
+    count: 8,
+    href: "/docs?slug=inviting-team"
+  },
+  { 
+    icon: Settings, 
+    title: "Settings & Config", 
+    description: "Configure your workspace", 
+    count: 15,
+    href: "/docs?slug=workspace-setup"
+  },
+  { 
+    icon: Zap, 
+    title: "AI Features", 
+    description: "Use AI to generate content", 
+    count: 10,
+    href: "/docs?slug=first-ai-generation"
+  },
+  { 
+    icon: Shield, 
+    title: "Security & Privacy", 
+    description: "SSO, permissions, and compliance", 
+    count: 18,
+    href: "/docs?slug=permissions-rbac"
+  }
 ];
 
 const popularArticles = [
-  "How to create your first document",
-  "Inviting team members to your workspace",
-  "Setting up SSO for your organization",
-  "Using AI to generate documentation",
-  "Configuring custom branding",
-  "Understanding permissions and roles"
+  { title: "How to create your first document", href: "/docs?slug=creating-first-document" },
+  { title: "Inviting team members to your workspace", href: "/docs?slug=inviting-team" },
+  { title: "Setting up SSO for your organization", href: "/docs?slug=workspace-setup" },
+  { title: "Using AI to generate documentation", href: "/docs?slug=first-ai-generation" },
+  { title: "Configuring custom branding", href: "/docs?slug=workspace-setup" },
+  { title: "Understanding permissions and roles", href: "/docs?slug=permissions-rbac" }
 ];
 
 export default function HelpPage() {
@@ -63,7 +99,7 @@ export default function HelpPage() {
         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 24px' }}>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" style={{ width: '100%', maxWidth: '1024px' }}>
             {categories.map((category) => (
-              <div key={category.title} className="bento-item cursor-pointer group">
+              <Link key={category.title} href={category.href} className="bento-item cursor-pointer group block">
                 <div className="feature-icon feature-icon-brand mb-4">
                   <category.icon className="w-5 h-5" />
                 </div>
@@ -72,7 +108,7 @@ export default function HelpPage() {
                 </h3>
                 <p className="text-sm text-[var(--text-secondary)] mb-3">{category.description}</p>
                 <p className="text-xs text-[var(--text-muted)]">{category.count} articles</p>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -84,9 +120,9 @@ export default function HelpPage() {
             <h2 className="text-2xl font-semibold text-[var(--text-primary)] mb-8 text-center">Popular Articles</h2>
             <div className="space-y-3">
               {popularArticles.map((article) => (
-                <div key={article} className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-lg p-4 cursor-pointer hover:border-[var(--brand)] transition-colors">
-                  <span className="text-[var(--text-primary)]">{article}</span>
-                </div>
+                <Link key={article.title} href={article.href} className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-lg p-4 cursor-pointer hover:border-[var(--brand)] transition-colors block">
+                  <span className="text-[var(--text-primary)]">{article.title}</span>
+                </Link>
               ))}
             </div>
           </div>

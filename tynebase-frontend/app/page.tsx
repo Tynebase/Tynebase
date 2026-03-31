@@ -495,7 +495,7 @@ export default function Home() {
                   {team.name}
                 </button>
               ))}
-              <Link href="/docs" className="team-tab-link">
+              <Link href="/help" className="team-tab-link">
                 Learn more
                 <ArrowRight className="w-4 h-4" />
               </Link>
