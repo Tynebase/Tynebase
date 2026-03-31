@@ -6,14 +6,14 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Copy package files
-COPY backend/package*.json ./
-COPY backend/tsconfig.json ./
+COPY package*.json ./
+COPY tsconfig.json ./
 
 # Install dependencies (including devDependencies for build)
 RUN npm ci
 
 # Copy source code
-COPY backend/src ./src
+COPY src ./src
 
 # Build TypeScript to JavaScript
 RUN npm run build
@@ -40,7 +40,7 @@ RUN addgroup -g 1001 -S nodejs && \
 WORKDIR /app
 
 # Copy package files
-COPY backend/package*.json ./
+COPY package*.json ./
 
 # Copy production dependencies from builder
 COPY --from=builder /app/node_modules ./node_modules
