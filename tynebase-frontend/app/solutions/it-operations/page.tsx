@@ -25,7 +25,7 @@ export default function ITOperationsPage() {
           <nav className="hidden md:flex items-center gap-1">
             <Link href="/features" className="btn btn-ghost">Features</Link>
             <Link href="/pricing" className="btn btn-ghost">Pricing</Link>
-            <Link href="/docs" className="btn btn-ghost">Docs</Link>
+            <Link href="/help" className="btn btn-ghost">Documentation</Link>
           </nav>
           <div className="flex items-center gap-3">
             <Link href="/login" className="btn btn-ghost">Log in</Link>
