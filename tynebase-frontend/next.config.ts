@@ -11,9 +11,6 @@ const nextConfig: NextConfig = {
   },
   productionBrowserSourceMaps: false,
   trailingSlash: true,
-  experimental: {
-    forceSwcTransforms: true,
-  },
 };
 
 export default nextConfig;
