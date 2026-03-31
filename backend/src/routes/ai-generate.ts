@@ -7,6 +7,7 @@ import { creditGuardMiddleware } from '../middleware/creditGuard';
 import { supabaseAdmin } from '../lib/supabase';
 import { dispatchJob } from '../utils/dispatchJob';
 import { getModelCreditCost } from '../utils/creditCalculator';
+import { notifyCreditsLow, notifyCreditsExhausted } from '../services/notifications';
 
 /**
  * Model credit costs for AI generation:
@@ -204,6 +205,30 @@ export default async function aiGenerateRoutes(fastify: FastifyInstance) {
           },
           'AI generation job dispatched successfully'
         );
+
+        // Check remaining credits and notify if low (fire-and-forget)
+        (async () => {
+          try {
+            const { data: creditData } = await supabaseAdmin
+              .from('credit_allocations')
+              .select('credits_remaining, credits_total')
+              .eq('tenant_id', tenant.id)
+              .eq('month_year', currentMonth)
+              .single();
+
+            if (creditData) {
+              const remaining = creditData.credits_remaining;
+              const total = creditData.credits_total;
+              if (remaining <= 0) {
+                await notifyCreditsExhausted({ userId: user.id, tenantId: tenant.id });
+              } else if (remaining <= 3) {
+                await notifyCreditsLow({ userId: user.id, tenantId: tenant.id, creditsRemaining: remaining, creditsTotal: total });
+              }
+            }
+          } catch (err) {
+            request.log.error({ err }, 'Failed to check/notify credit levels');
+          }
+        })();
 
         return reply.status(202).send({
           success: true,

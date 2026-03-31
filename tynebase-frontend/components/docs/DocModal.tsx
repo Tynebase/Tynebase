@@ -337,15 +337,17 @@ export function DocModal({ article: initialArticle, isOpen, onClose }: DocModalP
                 table: ({ children }) => (
                   <div style={{ 
                     overflowX: 'auto', 
-                    marginBottom: '24px',
-                    marginTop: '8px',
+                    marginBottom: '20px',
+                    marginTop: '12px',
                     borderRadius: '10px',
-                    border: '1px solid #eaeaea',
+                    border: '1px solid #e2e4e9',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
                   }}>
                     <table style={{ 
                       width: '100%', 
                       borderCollapse: 'collapse',
-                      fontSize: '14px',
+                      fontSize: '13.5px',
+                      lineHeight: '1.55',
                     }}>
                       {children}
                     </table>
@@ -353,30 +355,33 @@ export function DocModal({ article: initialArticle, isOpen, onClose }: DocModalP
                 ),
                 thead: ({ children }) => (
                   <thead style={{ 
-                    background: 'linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%)',
+                    background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
                   }}>
                     {children}
                   </thead>
                 ),
                 th: ({ children }) => (
                   <th style={{ 
-                    padding: '14px 18px', 
+                    padding: '10px 16px', 
                     textAlign: 'left', 
                     fontWeight: 600,
-                    color: '#111111',
-                    borderBottom: '2px solid #eaeaea',
-                    fontSize: '13px',
+                    color: '#ffffff',
+                    fontSize: '11.5px',
                     textTransform: 'uppercase',
-                    letterSpacing: '0.03em',
+                    letterSpacing: '0.06em',
+                    whiteSpace: 'nowrap',
+                    borderRight: '1px solid rgba(255,255,255,0.07)',
                   }}>
                     {children}
                   </th>
                 ),
                 td: ({ children }) => (
                   <td style={{ 
-                    padding: '14px 18px', 
-                    borderBottom: '1px solid #e5e5e5',
-                    color: '#333333',
+                    padding: '9px 16px', 
+                    borderTop: '1px solid #f0f0f2',
+                    color: '#374151',
+                    fontSize: '13.5px',
+                    verticalAlign: 'top',
                   }}>
                     {children}
                   </td>

@@ -8,6 +8,7 @@ import { membershipGuard } from '../middleware/membershipGuard';
 import { writeAuditLog, getClientIp } from '../lib/auditLog';
 import { sendWorkspaceInviteEmail } from '../services/email';
 import { WORKSPACE_ROLE_INPUTS, canManageWorkspace, normalizeWorkspaceRole } from '../lib/roles';
+import { notifyInvitation } from '../services/notifications';
 
 /**
  * User limits per subscription tier
@@ -403,6 +404,24 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
           ipAddress: getClientIp(request),
           metadata: { role },
         });
+
+        // Notify the invited user if they already have an account
+        if (existingAuthUser?.id) {
+          const { data: existingDbUser } = await supabaseAdmin
+            .from('users')
+            .select('id')
+            .eq('email', email)
+            .maybeSingle();
+
+          if (existingDbUser) {
+            notifyInvitation({
+              userId: existingDbUser.id,
+              tenantId: tenant.id,
+              inviterName: user.full_name || user.email,
+              workspaceName: tenant.name,
+            }).catch(err => fastify.log.error({ err }, 'Failed to send invite notification'));
+          }
+        }
 
         return reply.code(200).send({
           success: true,

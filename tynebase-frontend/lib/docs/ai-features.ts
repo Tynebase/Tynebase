@@ -54,20 +54,13 @@ Include sections on:
 
 ### Specify Format
 
-<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Format</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Best For</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Article</strong></div>
-  <div style="background: white; padding: 12px 16px;">Explanatory content, concepts</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Guide</strong></div>
-  <div style="background: white; padding: 12px 16px;">Step-by-step procedures</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Runbook</strong></div>
-  <div style="background: white; padding: 12px 16px;">Operational procedures</div>
-  <div style="background: white; padding: 12px 16px;"><strong>FAQ</strong></div>
-  <div style="background: white; padding: 12px 16px;">Common questions</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Reference</strong></div>
-  <div style="background: white; padding: 12px 16px;">API docs, specifications</div>
-</div>
+| Format | Best For |
+|--------|----------|
+| **Article** | Explanatory content, concepts |
+| **Guide** | Step-by-step procedures |
+| **Runbook** | Operational procedures |
+| **FAQ** | Common questions |
+| **Reference** | API docs, specifications |
 
 ## AI Provider Options
 
@@ -90,23 +83,12 @@ TyneBase supports three EU-compliant AI providers:
 
 ## Generation Settings
 
-<div style="display: grid; grid-template-columns: 1fr 1.5fr 1.5fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Setting</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Options</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Description</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Tone</strong></div>
-  <div style="background: white; padding: 12px 16px;">Professional, Casual, Technical</div>
-  <div style="background: white; padding: 12px 16px;">Writing style</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Length</strong></div>
-  <div style="background: white; padding: 12px 16px;">Brief, Standard, Comprehensive</div>
-  <div style="background: white; padding: 12px 16px;">Content depth</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Examples</strong></div>
-  <div style="background: white; padding: 12px 16px;">On/Off</div>
-  <div style="background: white; padding: 12px 16px;">Include code samples</div>
-  <div style="background: white; padding: 12px 16px;"><strong>RAG Context</strong></div>
-  <div style="background: white; padding: 12px 16px;">On/Off</div>
-  <div style="background: white; padding: 12px 16px;">Use existing docs as reference</div>
-</div>
+| Setting | Options | Description |
+|---------|---------|-------------|
+| **Tone** | Professional, Casual, Technical | Writing style |
+| **Length** | Brief, Standard, Comprehensive | Content depth |
+| **Examples** | On/Off | Include code samples |
+| **RAG Context** | On/Off | Use existing docs as reference |
 
 ## Document Lineage
 
@@ -182,18 +164,12 @@ TyneBase automatically:
 
 Choose your output format:
 
-<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Format</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Description</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Meeting Notes</strong></div>
-  <div style="background: white; padding: 12px 16px;">Summary, action items, decisions</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Tutorial</strong></div>
-  <div style="background: white; padding: 12px 16px;">Step-by-step guide with timestamps</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Transcript</strong></div>
-  <div style="background: white; padding: 12px 16px;">Full text with speaker labels</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Key Points</strong></div>
-  <div style="background: white; padding: 12px 16px;">Bullet-point summary</div>
-</div>
+| Format | Description |
+|--------|-------------|
+| **Meeting Notes** | Summary, action items, decisions |
+| **Tutorial** | Step-by-step guide with timestamps |
+| **Transcript** | Full text with speaker labels |
+| **Key Points** | Bullet-point summary |
 
 ## Native Video Understanding
 
@@ -240,16 +216,11 @@ in the Q1 2026 product demo video.
 
 ## Processing Times
 
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Video Length</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Estimated Time</div>
-  <div style="background: white; padding: 12px 16px;">5 minutes</div>
-  <div style="background: white; padding: 12px 16px;">~30 seconds</div>
-  <div style="background: white; padding: 12px 16px;">15 minutes</div>
-  <div style="background: white; padding: 12px 16px;">~1-2 minutes</div>
-  <div style="background: white; padding: 12px 16px;">1 hour</div>
-  <div style="background: white; padding: 12px 16px;">~5-8 minutes</div>
-</div>
+| Video Length | Estimated Time |
+|-------------|----------------|
+| 5 minutes | ~30 seconds |
+| 15 minutes | ~1-2 minutes |
+| 1 hour | ~5-8 minutes |
 
 ## Tips for Best Results
 
@@ -320,18 +291,12 @@ The AI will:
 
 AI search understands context and nuance:
 
-<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Query Type</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Example</div>
-  <div style="background: white; padding: 12px 16px;"><strong>How-to</strong></div>
-  <div style="background: white; padding: 12px 16px;">"How do I configure webhooks?"</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Comparison</strong></div>
-  <div style="background: white; padding: 12px 16px;">"What's the difference between roles?"</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Troubleshooting</strong></div>
-  <div style="background: white; padding: 12px 16px;">"Why is my API returning 403?"</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Policy</strong></div>
-  <div style="background: white; padding: 12px 16px;">"What's our data retention policy?"</div>
-</div>
+| Query Type | Example |
+|------------|----------|
+| **How-to** | "How do I configure webhooks?" |
+| **Comparison** | "What's the difference between roles?" |
+| **Troubleshooting** | "Why is my API returning 403?" |
+| **Policy** | "What's our data retention policy?" |
 
 ## Search Results
 
@@ -368,17 +333,10 @@ TyneBase uses semantic chunking:
 
 We combine vector search with keyword matching:
 
-<div style="display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Method</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Weight</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Purpose</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Vector</strong></div>
-  <div style="background: white; padding: 12px 16px;">70%</div>
-  <div style="background: white; padding: 12px 16px;">Semantic understanding</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Keyword</strong></div>
-  <div style="background: white; padding: 12px 16px;">30%</div>
-  <div style="background: white; padding: 12px 16px;">Exact matches, names</div>
-</div>
+| Method | Weight | Purpose |
+|--------|--------|---------|
+| **Vector** | 70% | Semantic understanding |
+| **Keyword** | 30% | Exact matches, names |
 
 ## Reranking
 
@@ -459,20 +417,13 @@ For technical documentation:
 
 ## Enhancement Modes
 
-<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Mode</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Description</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Polish</strong></div>
-  <div style="background: white; padding: 12px 16px;">Fix grammar, improve clarity</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Expand</strong></div>
-  <div style="background: white; padding: 12px 16px;">Add more detail and examples</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Simplify</strong></div>
-  <div style="background: white; padding: 12px 16px;">Reduce complexity, shorter sentences</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Technical</strong></div>
-  <div style="background: white; padding: 12px 16px;">Add code samples, specifications</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Executive</strong></div>
-  <div style="background: white; padding: 12px 16px;">Summary-focused, high-level</div>
-</div>
+| Mode | Description |
+|------|-------------|
+| **Polish** | Fix grammar, improve clarity |
+| **Expand** | Add more detail and examples |
+| **Simplify** | Reduce complexity, shorter sentences |
+| **Technical** | Add code samples, specifications |
+| **Executive** | Summary-focused, high-level |
 
 ## Suggested Improvements
 

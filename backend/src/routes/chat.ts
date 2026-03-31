@@ -6,6 +6,7 @@ import { tenantContextMiddleware } from '../middleware/tenantContext';
 import { authMiddleware } from '../middleware/auth';
 import { membershipGuard } from '../middleware/membershipGuard';
 import { writeAuditLog, getClientIp } from '../lib/auditLog';
+import { notifyChatMessage } from '../services/notifications';
 
 /**
  * Zod schemas for chat API
@@ -541,6 +542,40 @@ export default async function chatRoutes(fastify: FastifyInstance) {
             },
           });
         }
+
+        // Notify other tenant users about the new message (fire-and-forget)
+        (async () => {
+          try {
+            const { data: channelInfo } = await supabaseAdmin
+              .from('chat_channels')
+              .select('name')
+              .eq('id', id)
+              .single();
+
+            const { data: tenantUsers } = await supabaseAdmin
+              .from('users')
+              .select('id')
+              .eq('tenant_id', tenant.id)
+              .eq('status', 'active')
+              .neq('id', user.id);
+
+            if (tenantUsers?.length) {
+              const preview = body.content.length > 100 ? body.content.substring(0, 100) + '...' : body.content;
+              for (const tu of tenantUsers) {
+                notifyChatMessage({
+                  userId: tu.id,
+                  tenantId: tenant.id,
+                  senderName: user.full_name || user.email,
+                  channelName: channelInfo?.name,
+                  messagePreview: preview,
+                  channelId: id,
+                }).catch(() => {});
+              }
+            }
+          } catch (err) {
+            fastify.log.error({ err }, 'Failed to send chat message notifications');
+          }
+        })();
 
         return reply.code(201).send({
           success: true,

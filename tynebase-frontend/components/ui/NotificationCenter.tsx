@@ -14,7 +14,9 @@ import {
   Settings,
   Clock,
   Trash2,
-  Loader2
+  Loader2,
+  CreditCard,
+  MessageCircle
 } from "lucide-react";
 import { Button } from "./Button";
 import { 
@@ -32,6 +34,12 @@ const typeIcons = {
   mention: Users,
   system: AlertCircle,
   ai: Sparkles,
+  task: FileText,
+  billing: CreditCard,
+  chat: MessageCircle,
+  credits: Sparkles,
+  invoice: CreditCard,
+  invitation: Users,
 };
 
 const typeColors = {
@@ -40,6 +48,12 @@ const typeColors = {
   mention: "text-purple-500 bg-purple-500/10",
   system: "text-amber-500 bg-amber-500/10",
   ai: "text-pink-500 bg-pink-500/10",
+  task: "text-indigo-500 bg-indigo-500/10",
+  billing: "text-orange-500 bg-orange-500/10",
+  chat: "text-cyan-500 bg-cyan-500/10",
+  credits: "text-violet-500 bg-violet-500/10",
+  invoice: "text-orange-500 bg-orange-500/10",
+  invitation: "text-teal-500 bg-teal-500/10",
 };
 
 function formatTimestamp(timestamp: string): string {

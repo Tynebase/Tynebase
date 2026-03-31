@@ -1122,6 +1122,287 @@ export default async function auditRoutes(fastify: FastifyInstance) {
   );
 
   /**
+   * POST /api/audit/run-full-audit
+   * Performs a comprehensive content audit across all documents.
+   * Identifies issues (stale, empty, uncategorised, low-view published docs)
+   * and auto-creates review entries for documents that don't already have pending reviews.
+   */
+  fastify.post(
+    '/api/audit/run-full-audit',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        const now = new Date();
+
+        // 1. Fetch ALL documents for this tenant (excluding category markers)
+        const { data: allDocs, error: docsError } = await supabaseAdmin
+          .from('documents')
+          .select('id, title, content, status, visibility, category_id, view_count, created_at, updated_at')
+          .eq('tenant_id', tenant.id)
+          .not('content', 'like', '__CATEGORY__%');
+
+        if (docsError) {
+          fastify.log.error({ error: docsError, tenantId: tenant.id }, 'Full audit: failed to fetch documents');
+          return reply.code(500).send({ error: { code: 'FETCH_FAILED', message: 'Failed to fetch documents for audit', details: {} } });
+        }
+
+        const docs = allDocs || [];
+
+        // 2. Fetch existing pending/in-progress reviews so we don't create duplicates
+        const { data: existingReviews } = await supabaseAdmin
+          .from('document_reviews')
+          .select('document_id')
+          .eq('tenant_id', tenant.id)
+          .in('status', ['pending', 'in_progress']);
+
+        const reviewedDocIds = new Set((existingReviews || []).map((r: any) => r.document_id));
+
+        // 3. Analyse each document for issues
+        interface AuditIssue {
+          document_id: string;
+          title: string;
+          issues: string[];
+          severity: 'critical' | 'warning' | 'info';
+          auto_review_created: boolean;
+        }
+
+        const findings: AuditIssue[] = [];
+        const reviewsToCreate: any[] = [];
+        let staleCount = 0;
+        let emptyCount = 0;
+        let uncategorisedCount = 0;
+        let draftCount = 0;
+        let lowViewCount = 0;
+        let healthyCount = 0;
+
+        const staleThreshold90 = new Date(now);
+        staleThreshold90.setDate(staleThreshold90.getDate() - 90);
+        const staleThreshold180 = new Date(now);
+        staleThreshold180.setDate(staleThreshold180.getDate() - 180);
+
+        const dueDate7 = new Date(now);
+        dueDate7.setDate(dueDate7.getDate() + 7);
+        const dueDate14 = new Date(now);
+        dueDate14.setDate(dueDate14.getDate() + 14);
+
+        for (const doc of docs) {
+          const issues: string[] = [];
+          let severity: 'critical' | 'warning' | 'info' = 'info';
+          const updatedAt = new Date(doc.updated_at);
+          const contentLength = (doc.content || '').trim().length;
+
+          // Check: empty or very short content
+          if (contentLength < 50) {
+            issues.push('Empty or minimal content');
+            severity = 'critical';
+            emptyCount++;
+          }
+
+          // Check: stale (not updated in 90+ days)
+          if (updatedAt < staleThreshold90) {
+            const daysSince = Math.floor((now.getTime() - updatedAt.getTime()) / (1000 * 60 * 60 * 24));
+            if (updatedAt < staleThreshold180) {
+              issues.push(`Severely stale — not updated in ${daysSince} days`);
+              severity = 'critical';
+            } else {
+              issues.push(`Stale — not updated in ${daysSince} days`);
+              if (severity !== 'critical') severity = 'warning';
+            }
+            staleCount++;
+          }
+
+          // Check: no category
+          if (!doc.category_id) {
+            issues.push('No category assigned');
+            if (severity === 'info') severity = 'info';
+            uncategorisedCount++;
+          }
+
+          // Check: still in draft
+          if (doc.status === 'draft') {
+            issues.push('Still in draft status');
+            if (severity !== 'critical') severity = 'warning';
+            draftCount++;
+          }
+
+          // Check: published but very low views
+          if (doc.status === 'published' && (doc.view_count || 0) === 0) {
+            issues.push('Published but has zero views');
+            if (severity === 'info') severity = 'info';
+            lowViewCount++;
+          }
+
+          if (issues.length === 0) {
+            healthyCount++;
+            continue;
+          }
+
+          const needsReview = !reviewedDocIds.has(doc.id);
+          findings.push({
+            document_id: doc.id,
+            title: doc.title,
+            issues,
+            severity,
+            auto_review_created: needsReview && (severity === 'critical' || severity === 'warning'),
+          });
+
+          // Auto-create reviews for critical/warning issues without existing reviews
+          if (needsReview && (severity === 'critical' || severity === 'warning')) {
+            reviewsToCreate.push({
+              tenant_id: tenant.id,
+              document_id: doc.id,
+              reason: `Auto-audit: ${issues.join('; ')}`,
+              priority: severity === 'critical' ? 'high' : 'medium',
+              due_date: severity === 'critical'
+                ? dueDate7.toISOString().split('T')[0]
+                : dueDate14.toISOString().split('T')[0],
+              created_by: user.id,
+              notes: 'Created automatically by full content audit',
+            });
+          }
+        }
+
+        // 4. Batch-insert reviews
+        let reviewsCreated = 0;
+        if (reviewsToCreate.length > 0) {
+          const { data: created, error: insertError } = await supabaseAdmin
+            .from('document_reviews')
+            .insert(reviewsToCreate)
+            .select('id');
+
+          if (insertError) {
+            fastify.log.error({ error: insertError, tenantId: tenant.id }, 'Full audit: failed to create reviews');
+          } else {
+            reviewsCreated = (created || []).length;
+          }
+        }
+
+        // 5. Build summary
+        const summary = {
+          total_documents: docs.length,
+          healthy: healthyCount,
+          issues_found: findings.length,
+          reviews_created: reviewsCreated,
+          breakdown: {
+            stale: staleCount,
+            empty_content: emptyCount,
+            uncategorised: uncategorisedCount,
+            stuck_in_draft: draftCount,
+            zero_views: lowViewCount,
+          },
+        };
+
+        // Sort findings: critical first, then warning, then info
+        const severityOrder = { critical: 0, warning: 1, info: 2 };
+        findings.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
+
+        fastify.log.info(
+          { tenantId: tenant.id, userId: user.id, summary },
+          'Full content audit completed'
+        );
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            summary,
+            findings: findings.slice(0, 50), // Cap at 50 to avoid huge payloads
+            ran_at: now.toISOString(),
+          },
+        });
+      } catch (error) {
+        fastify.log.error({ error }, 'Unexpected error in POST /api/audit/run-full-audit');
+        return reply.code(500).send({
+          error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred', details: {} },
+        });
+      }
+    }
+  );
+
+  /**
+   * POST /api/audit/mark-reviewed/:id
+   * Touches updated_at on a document to mark it as freshly reviewed
+   * without changing any content. Creates a lineage event.
+   */
+  fastify.post(
+    '/api/audit/mark-reviewed/:id',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+        const { id } = request.params as { id: string };
+
+        if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+          return reply.code(400).send({
+            error: { code: 'VALIDATION_ERROR', message: 'Invalid document ID format', details: {} },
+          });
+        }
+
+        // Touch updated_at
+        const { data: doc, error: updateError } = await supabaseAdmin
+          .from('documents')
+          .update({ updated_at: new Date().toISOString() })
+          .eq('id', id)
+          .eq('tenant_id', tenant.id)
+          .select('id, title')
+          .single();
+
+        if (updateError) {
+          if (updateError.code === 'PGRST116') {
+            return reply.code(404).send({
+              error: { code: 'DOCUMENT_NOT_FOUND', message: 'Document not found', details: {} },
+            });
+          }
+          fastify.log.error({ error: updateError, tenantId: tenant.id, docId: id }, 'Failed to mark document as reviewed');
+          return reply.code(500).send({
+            error: { code: 'UPDATE_FAILED', message: 'Failed to mark document as reviewed', details: {} },
+          });
+        }
+
+        // Create lineage event
+        await supabaseAdmin
+          .from('document_lineage')
+          .insert({
+            document_id: id,
+            event_type: 'reviewed',
+            actor_id: user.id,
+            metadata: { action: 'mark_reviewed_via_audit' },
+          });
+
+        // Also complete any pending reviews for this document
+        await supabaseAdmin
+          .from('document_reviews')
+          .update({ status: 'completed', completed_at: new Date().toISOString() })
+          .eq('document_id', id)
+          .eq('tenant_id', tenant.id)
+          .in('status', ['pending', 'in_progress']);
+
+        fastify.log.info(
+          { tenantId: tenant.id, userId: user.id, docId: id },
+          'Document marked as reviewed'
+        );
+
+        return reply.code(200).send({
+          success: true,
+          data: { message: 'Document marked as reviewed', document: doc },
+        });
+      } catch (error) {
+        fastify.log.error({ error }, 'Unexpected error in POST /api/audit/mark-reviewed/:id');
+        return reply.code(500).send({
+          error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred', details: {} },
+        });
+      }
+    }
+  );
+
+  /**
    * POST /api/documents/:id/view
    * Increments the view count for a document
    */

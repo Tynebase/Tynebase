@@ -6,6 +6,7 @@ import { authMiddleware } from '../middleware/auth';
 import { membershipGuard } from '../middleware/membershipGuard';
 import { rateLimitMiddleware } from '../middleware/rateLimit';
 import crypto from 'crypto';
+import { notifyDocumentShared } from '../services/notifications';
 
 /**
  * Rewrites Supabase signed URLs in document content to use the public asset proxy.
@@ -334,6 +335,15 @@ export default async function documentShareRoutes(fastify: FastifyInstance) {
           { documentId: params.id, shareId: share.id, sharedWith: body.user_id, userId: user.id },
           'Document shared with user'
         );
+
+        // Notify the target user about the shared document
+        notifyDocumentShared({
+          userId: body.user_id,
+          tenantId: tenant.id,
+          documentTitle: document.title || 'Untitled Document',
+          sharedBy: user.full_name || user.email,
+          documentId: params.id,
+        }).catch(err => fastify.log.error({ err }, 'Failed to send document share notification'));
 
         return reply.code(201).send({
           success: true,

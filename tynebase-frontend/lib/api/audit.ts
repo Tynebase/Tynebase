@@ -217,6 +217,52 @@ export async function deleteReview(id: string): Promise<{ message: string }> {
 }
 
 /**
+ * Full audit result types
+ */
+export interface AuditFinding {
+  document_id: string;
+  title: string;
+  issues: string[];
+  severity: 'critical' | 'warning' | 'info';
+  auto_review_created: boolean;
+}
+
+export interface AuditSummary {
+  total_documents: number;
+  healthy: number;
+  issues_found: number;
+  reviews_created: number;
+  breakdown: {
+    stale: number;
+    empty_content: number;
+    uncategorised: number;
+    stuck_in_draft: number;
+    zero_views: number;
+  };
+}
+
+export interface FullAuditResult {
+  summary: AuditSummary;
+  findings: AuditFinding[];
+  ran_at: string;
+}
+
+/**
+ * Run a comprehensive full content audit.
+ * Scans all documents, identifies issues, and auto-creates reviews.
+ */
+export async function runFullAudit(): Promise<FullAuditResult> {
+  return apiPost<FullAuditResult>('/api/audit/run-full-audit');
+}
+
+/**
+ * Mark a document as reviewed (touches updated_at, completes pending reviews)
+ */
+export async function markDocumentReviewed(documentId: string): Promise<{ message: string }> {
+  return apiPost<{ message: string }>(`/api/audit/mark-reviewed/${documentId}`);
+}
+
+/**
  * Increment document view count
  */
 export async function trackDocumentView(documentId: string): Promise<void> {

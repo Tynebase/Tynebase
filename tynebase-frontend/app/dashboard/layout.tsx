@@ -4,6 +4,7 @@ import { DashboardLayout as DashLayout } from "@/components/layout/DashboardLayo
 import { ImpersonationBanner } from "@/components/layout/ImpersonationBanner";
 import { useAuth } from "@/contexts/AuthContext";
 import { CreditsProvider } from "@/contexts/CreditsContext";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 
@@ -98,8 +99,10 @@ export default function DashboardLayout({
 
   return (
     <CreditsProvider>
-      <ImpersonationBanner />
-      <DashLayout>{children}</DashLayout>
+      <NotificationProvider>
+        <ImpersonationBanner />
+        <DashLayout>{children}</DashLayout>
+      </NotificationProvider>
     </CreditsProvider>
   );
 }

@@ -5,6 +5,7 @@ import { rateLimitMiddleware } from '../middleware/rateLimit';
 import { tenantContextMiddleware } from '../middleware/tenantContext';
 import { authMiddleware } from '../middleware/auth';
 import { membershipGuard } from '../middleware/membershipGuard';
+import { notifyDirectMessage } from '../services/notifications';
 
 /**
  * Zod schemas for DM API
@@ -444,6 +445,32 @@ export default async function dmRoutes(fastify: FastifyInstance) {
             error: { code: 'SEND_FAILED', message: 'Failed to send message', details: {} },
           });
         }
+
+        // Notify other participants about the new DM (fire-and-forget)
+        (async () => {
+          try {
+            const { data: participants } = await supabaseAdmin
+              .from('dm_participants')
+              .select('user_id')
+              .eq('conversation_id', id)
+              .neq('user_id', user.id);
+
+            if (participants?.length) {
+              const preview = body.content.length > 100 ? body.content.substring(0, 100) + '...' : body.content;
+              for (const p of participants) {
+                notifyDirectMessage({
+                  userId: p.user_id,
+                  tenantId: tenant.id,
+                  senderName: user.full_name || user.email,
+                  messagePreview: preview,
+                  conversationId: id,
+                }).catch(() => {});
+              }
+            }
+          } catch (err) {
+            fastify.log.error({ err }, 'Failed to send DM notifications');
+          }
+        })();
 
         return reply.code(201).send({
           success: true,

@@ -5,13 +5,17 @@
  * Handles notification CRUD operations, marking as read, and clearing notifications.
  */
 
-import { apiGet, apiPost, apiPatch, apiDelete } from './client';
+import { apiGet, apiPost, apiPatch, apiPut, apiDelete } from './client';
 
 // ============================================================================
 // TYPE DEFINITIONS
 // ============================================================================
 
-export type NotificationType = 'document' | 'comment' | 'mention' | 'system' | 'ai';
+export type NotificationType = 'document' | 'comment' | 'mention' | 'system' | 'ai' | 'billing' | 'task' | 'chat' | 'credits' | 'invoice' | 'invitation';
+
+export type NotificationPriority = 'low' | 'normal' | 'high' | 'urgent';
+
+export type NotificationCategory = 'general' | 'workspace' | 'billing' | 'security';
 
 export interface Notification {
   id: string;
@@ -22,6 +26,8 @@ export interface Notification {
   description: string | null;
   action_url: string | null;
   read: boolean;
+  priority: NotificationPriority;
+  category: NotificationCategory;
   metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
@@ -139,4 +145,84 @@ export async function clearAllNotifications(): Promise<{ message: string }> {
   }>('/api/notifications');
 
   return response;
+}
+
+// ============================================================================
+// NOTIFICATION PREFERENCES
+// ============================================================================
+
+export interface NotificationPreferences {
+  id?: string;
+  user_id?: string;
+  document_enabled: boolean;
+  comment_enabled: boolean;
+  mention_enabled: boolean;
+  system_enabled: boolean;
+  ai_enabled: boolean;
+  billing_enabled: boolean;
+  task_enabled: boolean;
+  chat_enabled: boolean;
+  credits_enabled: boolean;
+  invoice_enabled: boolean;
+  invitation_enabled: boolean;
+  in_app_enabled: boolean;
+  email_enabled: boolean;
+  quiet_hours_enabled: boolean;
+  quiet_hours_start: string | null;
+  quiet_hours_end: string | null;
+}
+
+/**
+ * Get notification preferences for the authenticated user
+ */
+export async function getNotificationPreferences(): Promise<NotificationPreferences> {
+  const response = await apiGet<{
+    success: true;
+    data: NotificationPreferences;
+  }>('/api/notifications/preferences');
+
+  return response.data;
+}
+
+/**
+ * Update notification preferences for the authenticated user
+ */
+export async function updateNotificationPreferences(
+  prefs: Partial<NotificationPreferences>
+): Promise<NotificationPreferences> {
+  const response = await apiPut<{
+    success: true;
+    data: NotificationPreferences;
+  }>('/api/notifications/preferences', prefs);
+
+  return response.data;
+}
+
+// ============================================================================
+// CREATE NOTIFICATION (admin use)
+// ============================================================================
+
+export interface CreateNotificationParams {
+  user_id?: string;
+  type: NotificationType;
+  title: string;
+  description?: string;
+  action_url?: string;
+  priority?: NotificationPriority;
+  category?: NotificationCategory;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Create a new notification
+ */
+export async function createNewNotification(
+  params: CreateNotificationParams
+): Promise<{ id: string }> {
+  const response = await apiPost<{
+    success: true;
+    data: { id: string };
+  }>('/api/notifications', params);
+
+  return response.data;
 }

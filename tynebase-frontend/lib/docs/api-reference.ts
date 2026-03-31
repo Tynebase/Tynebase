@@ -45,22 +45,14 @@ curl -X GET "https://api.tynebase.com/v1/documents" \\
 
 ### Key Permissions
 
-<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Scope</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Description</div>
-  <div style="background: white; padding: 12px 16px;"><code>documents:read</code></div>
-  <div style="background: white; padding: 12px 16px;">Read documents and categories</div>
-  <div style="background: white; padding: 12px 16px;"><code>documents:write</code></div>
-  <div style="background: white; padding: 12px 16px;">Create, update, delete documents</div>
-  <div style="background: white; padding: 12px 16px;"><code>users:read</code></div>
-  <div style="background: white; padding: 12px 16px;">Read user information</div>
-  <div style="background: white; padding: 12px 16px;"><code>users:write</code></div>
-  <div style="background: white; padding: 12px 16px;">Manage users (admin only)</div>
-  <div style="background: white; padding: 12px 16px;"><code>ai:generate</code></div>
-  <div style="background: white; padding: 12px 16px;">Use AI generation endpoints</div>
-  <div style="background: white; padding: 12px 16px;"><code>search:query</code></div>
-  <div style="background: white; padding: 12px 16px;">Access search and RAG endpoints</div>
-</div>
+| Scope | Description |
+|-------|-------------|
+| \`documents:read\` | Read documents and categories |
+| \`documents:write\` | Create, update, delete documents |
+| \`users:read\` | Read user information |
+| \`users:write\` | Manage users (admin only) |
+| \`ai:generate\` | Use AI generation endpoints |
+| \`search:query\` | Access search and RAG endpoints |
 
 ## Request Format
 
@@ -126,20 +118,11 @@ All responses follow a consistent structure:
 
 ## Rate Limiting
 
-<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Plan</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Requests/minute</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Requests/day</div>
-  <div style="background: white; padding: 12px 16px;">Free</div>
-  <div style="background: white; padding: 12px 16px;">60</div>
-  <div style="background: white; padding: 12px 16px;">1,000</div>
-  <div style="background: white; padding: 12px 16px;">Pro</div>
-  <div style="background: white; padding: 12px 16px;">300</div>
-  <div style="background: white; padding: 12px 16px;">10,000</div>
-  <div style="background: white; padding: 12px 16px;">Enterprise</div>
-  <div style="background: white; padding: 12px 16px;">1,000</div>
-  <div style="background: white; padding: 12px 16px;">Unlimited</div>
-</div>
+| Plan | Requests/minute | Requests/day |
+|------|----------------:|-------------:|
+| Free | 60 | 1,000 |
+| Pro | 300 | 10,000 |
+| Enterprise | 1,000 | Unlimited |
 
 Rate limit headers:
 \`\`\`http
@@ -199,29 +182,14 @@ GET /v1/documents
 
 ### Query Parameters
 
-<div style="display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Parameter</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Type</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Description</div>
-  <div style="background: white; padding: 12px 16px;"><code>limit</code></div>
-  <div style="background: white; padding: 12px 16px;">integer</div>
-  <div style="background: white; padding: 12px 16px;">Results per page (max 100)</div>
-  <div style="background: white; padding: 12px 16px;"><code>cursor</code></div>
-  <div style="background: white; padding: 12px 16px;">string</div>
-  <div style="background: white; padding: 12px 16px;">Pagination cursor</div>
-  <div style="background: white; padding: 12px 16px;"><code>category_id</code></div>
-  <div style="background: white; padding: 12px 16px;">string</div>
-  <div style="background: white; padding: 12px 16px;">Filter by category</div>
-  <div style="background: white; padding: 12px 16px;"><code>state</code></div>
-  <div style="background: white; padding: 12px 16px;">string</div>
-  <div style="background: white; padding: 12px 16px;">Filter by state (draft, published, archived)</div>
-  <div style="background: white; padding: 12px 16px;"><code>author_id</code></div>
-  <div style="background: white; padding: 12px 16px;">string</div>
-  <div style="background: white; padding: 12px 16px;">Filter by author</div>
-  <div style="background: white; padding: 12px 16px;"><code>search</code></div>
-  <div style="background: white; padding: 12px 16px;">string</div>
-  <div style="background: white; padding: 12px 16px;">Full-text search</div>
-</div>
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| \`limit\` | integer | Results per page (max 100) |
+| \`cursor\` | string | Pagination cursor |
+| \`category_id\` | string | Filter by category |
+| \`state\` | string | Filter by state (draft, published, archived) |
+| \`author_id\` | string | Filter by author |
+| \`search\` | string | Full-text search |
 
 ### Example Request
 
@@ -606,48 +574,30 @@ POST /v1/webhooks
 
 ### Document Events
 
-<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Event</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Description</div>
-  <div style="background: white; padding: 12px 16px;"><code>document.created</code></div>
-  <div style="background: white; padding: 12px 16px;">New document created</div>
-  <div style="background: white; padding: 12px 16px;"><code>document.updated</code></div>
-  <div style="background: white; padding: 12px 16px;">Document content changed</div>
-  <div style="background: white; padding: 12px 16px;"><code>document.published</code></div>
-  <div style="background: white; padding: 12px 16px;">Document state → published</div>
-  <div style="background: white; padding: 12px 16px;"><code>document.archived</code></div>
-  <div style="background: white; padding: 12px 16px;">Document state → archived</div>
-  <div style="background: white; padding: 12px 16px;"><code>document.deleted</code></div>
-  <div style="background: white; padding: 12px 16px;">Document permanently deleted</div>
-</div>
+| Event | Description |
+|-------|-------------|
+| \`document.created\` | New document created |
+| \`document.updated\` | Document content changed |
+| \`document.published\` | Document state → published |
+| \`document.archived\` | Document state → archived |
+| \`document.deleted\` | Document permanently deleted |
 
 ### User Events
 
-<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Event</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Description</div>
-  <div style="background: white; padding: 12px 16px;"><code>user.invited</code></div>
-  <div style="background: white; padding: 12px 16px;">New user invitation sent</div>
-  <div style="background: white; padding: 12px 16px;"><code>user.joined</code></div>
-  <div style="background: white; padding: 12px 16px;">User accepted invitation</div>
-  <div style="background: white; padding: 12px 16px;"><code>user.removed</code></div>
-  <div style="background: white; padding: 12px 16px;">User removed from workspace</div>
-  <div style="background: white; padding: 12px 16px;"><code>user.role_changed</code></div>
-  <div style="background: white; padding: 12px 16px;">User role updated</div>
-</div>
+| Event | Description |
+|-------|-------------|
+| \`user.invited\` | New user invitation sent |
+| \`user.joined\` | User accepted invitation |
+| \`user.removed\` | User removed from workspace |
+| \`user.role_changed\` | User role updated |
 
 ### AI Events
 
-<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Event</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Description</div>
-  <div style="background: white; padding: 12px 16px;"><code>ai.generation_completed</code></div>
-  <div style="background: white; padding: 12px 16px;">AI document generation finished</div>
-  <div style="background: white; padding: 12px 16px;"><code>ai.generation_failed</code></div>
-  <div style="background: white; padding: 12px 16px;">AI generation error</div>
-  <div style="background: white; padding: 12px 16px;"><code>ai.index_updated</code></div>
-  <div style="background: white; padding: 12px 16px;">Document re-indexed for RAG</div>
-</div>
+| Event | Description |
+|-------|-------------|
+| \`ai.generation_completed\` | AI document generation finished |
+| \`ai.generation_failed\` | AI generation error |
+| \`ai.index_updated\` | Document re-indexed for RAG |
 
 ## Webhook Payload
 
@@ -707,20 +657,13 @@ function verifyWebhook(
 
 Failed webhooks are retried with exponential backoff:
 
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Attempt</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Delay</div>
-  <div style="background: white; padding: 12px 16px;">1</div>
-  <div style="background: white; padding: 12px 16px;">Immediate</div>
-  <div style="background: white; padding: 12px 16px;">2</div>
-  <div style="background: white; padding: 12px 16px;">1 minute</div>
-  <div style="background: white; padding: 12px 16px;">3</div>
-  <div style="background: white; padding: 12px 16px;">5 minutes</div>
-  <div style="background: white; padding: 12px 16px;">4</div>
-  <div style="background: white; padding: 12px 16px;">30 minutes</div>
-  <div style="background: white; padding: 12px 16px;">5</div>
-  <div style="background: white; padding: 12px 16px;">2 hours</div>
-</div>
+| Attempt | Delay |
+|--------:|-------|
+| 1 | Immediate |
+| 2 | 1 minute |
+| 3 | 5 minutes |
+| 4 | 30 minutes |
+| 5 | 2 hours |
 
 After 5 failures, the webhook is disabled.
 

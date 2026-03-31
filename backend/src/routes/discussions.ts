@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { supabaseAdmin } from '../lib/supabase';
+import { notifyNewComment } from '../services/notifications';
 import { rateLimitMiddleware } from '../middleware/rateLimit';
 import { tenantContextMiddleware } from '../middleware/tenantContext';
 import { authMiddleware } from '../middleware/auth';
@@ -815,6 +816,29 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
         if (error) {
           return reply.code(500).send({ error: { code: 'CREATE_FAILED', message: 'Failed to create reply', details: {} } });
         }
+
+        // Notify the discussion author about the new reply (fire-and-forget)
+        (async () => {
+          try {
+            const { data: disc } = await supabaseAdmin
+              .from('discussions')
+              .select('author_id, title')
+              .eq('id', id)
+              .single();
+
+            if (disc && disc.author_id !== user.id) {
+              await notifyNewComment({
+                userId: disc.author_id,
+                tenantId: tenant.id,
+                commenterName: user.full_name || user.email,
+                targetTitle: disc.title || 'a discussion',
+                targetUrl: `/dashboard/community/${id}`,
+              });
+            }
+          } catch (err) {
+            fastify.log.error({ err }, 'Failed to send discussion reply notification');
+          }
+        })();
 
         return reply.code(201).send({ reply: { ...newReply, has_liked: false } });
       } catch (error) {
