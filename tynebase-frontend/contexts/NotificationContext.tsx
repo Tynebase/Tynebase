@@ -69,13 +69,20 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       setState(prev => ({ ...prev, isLoading: true, error: null }));
       const response = await listNotifications({ limit: 50 });
 
-      if (isMountedRef.current) {
+      if (isMountedRef.current && response && response.notifications) {
         setState({
           notifications: response.notifications,
-          unreadCount: response.unreadCount,
+          unreadCount: response.unreadCount || 0,
           isLoading: false,
           error: null,
         });
+      } else if (isMountedRef.current) {
+        // Handle case where response is undefined or doesn't have expected structure
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
+          error: "Invalid response format from server",
+        }));
       }
     } catch (err) {
       console.error("[NotificationContext] Failed to fetch notifications:", err);

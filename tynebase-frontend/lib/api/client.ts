@@ -279,8 +279,9 @@ export async function apiClient<T = unknown>(
           statusCode: response.status,
           details: errorJson.error?.details || errorJson.details,
         };
-      } catch {
+      } catch (parseError) {
         // If response is not JSON, use status text
+        console.warn('Failed to parse error response as JSON:', parseError);
         errorData = {
           message: response.statusText || 'An error occurred',
           statusCode: response.status,
@@ -318,7 +319,16 @@ export async function apiClient<T = unknown>(
     }
 
     // Parse JSON response
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch (parseError) {
+      console.error('Failed to parse response as JSON:', parseError);
+      throw new ApiClientError({
+        message: 'Invalid response format from server',
+        statusCode: response.status,
+      });
+    }
     
     // Backend wraps responses in { success, data: {...} } format
     // Unwrap the data property if present for consistent frontend usage
