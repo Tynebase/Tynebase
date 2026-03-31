@@ -181,9 +181,6 @@ export default async function stripeBillingRoutes(fastify: FastifyInstance) {
   // =========================================================================
   fastify.post(
     '/api/billing/webhook',
-    {
-      config: { rawBody: true },
-    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const stripe = getStripe();
       if (!stripe) {
