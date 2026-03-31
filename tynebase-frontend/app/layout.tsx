@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/components/providers/Providers";
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: "TyneBase - Knowledge that scales with your team",
   description: "Multi-tenant knowledge management platform with AI-assisted document generation, community discussions, and white-label branding.",
