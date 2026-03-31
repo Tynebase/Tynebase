@@ -16,6 +16,7 @@ import {
   impersonateTenant,
   suspendTenant,
   unsuspendTenant,
+  changeTenantTier,
   type PlatformKPIs,
   type PlatformUser,
   type TenantListItem,
@@ -38,10 +39,11 @@ import {
   ChevronRight,
   RefreshCw,
   AlertTriangle,
-  Ban,
-  CheckCircle,
   X,
   Sparkles,
+  PauseCircle,
+  PlayCircle,
+  ArrowUpDown,
 } from "lucide-react";
 
 type Tab = "kpis" | "users" | "tenants";
@@ -50,6 +52,14 @@ interface CreditsModal {
   user: PlatformUser;
   credits: string;
 }
+
+interface TierModal {
+  tenant: TenantListItem;
+  selectedTier: string;
+  customCredits: string;
+}
+
+const TIERS = ["free", "base", "pro", "enterprise"] as const;
 
 export default function SuperAdminPage() {
   const { user } = useAuth();
@@ -80,6 +90,8 @@ export default function SuperAdminPage() {
   // Modal state
   const [creditsModal, setCreditsModal] = useState<CreditsModal | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<PlatformUser | null>(null);
+  const [tierModal, setTierModal] = useState<TierModal | null>(null);
+  const [confirmSuspend, setConfirmSuspend] = useState<TenantListItem | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   // Guard: only super admins
@@ -232,6 +244,46 @@ export default function SuperAdminPage() {
     }
   };
 
+  const handleSuspendToggle = async (tenant: TenantListItem) => {
+    const isSuspended = (tenant as any).status === "suspended";
+    setActionLoading(`suspend-${tenant.id}`);
+    try {
+      if (isSuspended) {
+        await unsuspendTenant(tenant.id);
+        addToast({ type: "success", title: `Workspace "${tenant.name}" reactivated` });
+      } else {
+        await suspendTenant(tenant.id);
+        addToast({ type: "success", title: `Workspace "${tenant.name}" suspended` });
+      }
+      setConfirmSuspend(null);
+      fetchTenants();
+    } catch (err: any) {
+      addToast({ type: "error", title: err.message || "Failed to update tenant status" });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleChangeTier = async () => {
+    if (!tierModal) return;
+    const customCredits = tierModal.customCredits ? parseInt(tierModal.customCredits) : undefined;
+    if (tierModal.customCredits && (isNaN(customCredits!) || customCredits! < 1)) {
+      addToast({ type: "error", title: "Enter a valid credit amount" });
+      return;
+    }
+    setActionLoading(`tier-${tierModal.tenant.id}`);
+    try {
+      const result = await changeTenantTier(tierModal.tenant.id, tierModal.selectedTier, customCredits);
+      addToast({ type: "success", title: result.message });
+      setTierModal(null);
+      fetchTenants();
+    } catch (err: any) {
+      addToast({ type: "error", title: err.message || "Failed to change tier" });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "Never";
     return new Date(dateString).toLocaleDateString("en-GB", {
@@ -241,28 +293,20 @@ export default function SuperAdminPage() {
     });
   };
 
-  const formatBytes = (bytes: number) => {
-    if (bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
-  };
-
   if (!user?.is_super_admin) {
     return null;
   }
 
   const kpiCards = kpis
     ? [
-        { label: "Total Tenants", value: kpis.totalTenants, icon: Building2, color: "#8b5cf6" },
-        { label: "Total Users", value: kpis.totalUsers, icon: Users, color: "#3b82f6" },
-        { label: "Active Users (7d)", value: kpis.activeUsers7d, icon: Activity, color: "#10b981" },
-        { label: "Total Documents", value: kpis.totalDocuments, icon: FileText, color: "#f59e0b" },
-        { label: "New Users (30d)", value: kpis.newUsersLast30d, icon: TrendingUp, color: "#06b6d4" },
-        { label: "New Docs (30d)", value: kpis.newDocsLast30d, icon: FileText, color: "#ec4899" },
-        { label: "AI Queries (30d)", value: kpis.aiQueriesLast30d, icon: Sparkles, color: "#8b5cf6" },
-        { label: "Credits Used", value: `${kpis.totalCreditsUsed} / ${kpis.totalCreditsAllocated}`, icon: CreditCard, color: "#ef4444", subtitle: `${kpis.creditUtilization}% utilization` },
+        { label: "Total Tenants", value: kpis.totalTenants, icon: Building2, color: "#8b5cf6", glow: "rgba(139,92,246,0.15)" },
+        { label: "Total Users", value: kpis.totalUsers, icon: Users, color: "#3b82f6", glow: "rgba(59,130,246,0.15)" },
+        { label: "Active Users (7d)", value: kpis.activeUsers7d, icon: Activity, color: "#10b981", glow: "rgba(16,185,129,0.15)" },
+        { label: "Total Documents", value: kpis.totalDocuments, icon: FileText, color: "#f59e0b", glow: "rgba(245,158,11,0.15)" },
+        { label: "New Users (30d)", value: kpis.newUsersLast30d, icon: TrendingUp, color: "#06b6d4", glow: "rgba(6,182,212,0.15)" },
+        { label: "New Docs (30d)", value: kpis.newDocsLast30d, icon: FileText, color: "#ec4899", glow: "rgba(236,72,153,0.15)" },
+        { label: "AI Queries (30d)", value: kpis.aiQueriesLast30d, icon: Sparkles, color: "#8b5cf6", glow: "rgba(139,92,246,0.15)" },
+        { label: "Credits Used", value: `${kpis.totalCreditsUsed} / ${kpis.totalCreditsAllocated}`, icon: CreditCard, color: "#ef4444", glow: "rgba(239,68,68,0.15)", subtitle: `${kpis.creditUtilization}% utilization` },
       ]
     : [];
 
@@ -293,7 +337,7 @@ export default function SuperAdminPage() {
       />
 
       {/* Tabs */}
-      <div className="flex items-center bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg p-1.5 w-fit mx-auto">
+      <div className="flex items-center bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-1.5 w-fit mx-auto shadow-sm">
         {([
           { id: "kpis" as Tab, label: "KPIs", icon: TrendingUp },
           { id: "users" as Tab, label: "Users", icon: Users },
@@ -302,11 +346,12 @@ export default function SuperAdminPage() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-5 py-2 text-sm font-medium rounded-md transition-colors ${
+            className={`flex items-center gap-2 px-5 py-2 text-sm font-medium rounded-lg transition-all duration-150 ${
               activeTab === tab.id
-                ? "bg-[var(--brand)] text-white"
-                : "text-[var(--dash-text-secondary)] hover:text-[var(--dash-text-primary)]"
+                ? "bg-[var(--brand)] text-white shadow-md"
+                : "text-[var(--dash-text-secondary)] hover:text-[var(--dash-text-primary)] hover:bg-[var(--surface-ground)]"
             }`}
+            style={activeTab === tab.id ? { boxShadow: "0 0 12px rgba(var(--brand-rgb, 59,130,246), 0.35)" } : {}}
           >
             <tab.icon className="w-4 h-4" />
             {tab.label}
@@ -324,13 +369,27 @@ export default function SuperAdminPage() {
                 <Loader2 className="w-8 h-8 animate-spin text-[var(--brand)]" />
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                 {kpiCards.map((kpi) => (
-                  <div key={kpi.label} className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-[var(--dash-text-tertiary)]">{kpi.label}</p>
-                        <p className="text-2xl font-bold text-[var(--dash-text-primary)] mt-1">
+                  <div
+                    key={kpi.label}
+                    className="relative bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-5 overflow-hidden transition-all duration-200 hover:border-opacity-60 group"
+                    style={{ boxShadow: `0 0 0 1px transparent` }}
+                  >
+                    {/* Top accent line */}
+                    <div
+                      className="absolute top-0 left-0 right-0 h-[2px] rounded-t-xl opacity-60 group-hover:opacity-100 transition-opacity"
+                      style={{ background: `linear-gradient(90deg, transparent, ${kpi.color}, transparent)` }}
+                    />
+                    {/* Subtle background glow */}
+                    <div
+                      className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                      style={{ background: `radial-gradient(ellipse at top right, ${kpi.glow}, transparent 70%)` }}
+                    />
+                    <div className="relative flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-[var(--dash-text-tertiary)] uppercase tracking-wide">{kpi.label}</p>
+                        <p className="text-2xl font-bold text-[var(--dash-text-primary)] mt-1.5 tabular-nums">
                           {typeof kpi.value === "number" ? kpi.value.toLocaleString() : kpi.value}
                         </p>
                         {"subtitle" in kpi && kpi.subtitle && (
@@ -338,10 +397,10 @@ export default function SuperAdminPage() {
                         )}
                       </div>
                       <div
-                        className="w-12 h-12 rounded-full flex items-center justify-center"
-                        style={{ backgroundColor: `${kpi.color}15` }}
+                        className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                        style={{ backgroundColor: `${kpi.color}18` }}
                       >
-                        <kpi.icon className="w-6 h-6" style={{ color: kpi.color }} />
+                        <kpi.icon className="w-5 h-5" style={{ color: kpi.color }} />
                       </div>
                     </div>
                   </div>
@@ -393,13 +452,13 @@ export default function SuperAdminPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-[var(--dash-border-subtle)]">
-                        <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)]">User</th>
-                        <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)]">Tenant</th>
-                        <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)]">Role</th>
-                        <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)]">Status</th>
-                        <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)]">Last Active</th>
-                        <th className="text-right px-4 py-3 font-medium text-[var(--dash-text-tertiary)]">Actions</th>
+                      <tr className="border-b border-[var(--dash-border-subtle)] bg-[var(--surface-ground)]/40">
+                        <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)] text-xs uppercase tracking-wide">User</th>
+                        <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)] text-xs uppercase tracking-wide">Tenant</th>
+                        <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)] text-xs uppercase tracking-wide">Role</th>
+                        <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)] text-xs uppercase tracking-wide">Status</th>
+                        <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)] text-xs uppercase tracking-wide">Last Active</th>
+                        <th className="text-right px-4 py-3 font-medium text-[var(--dash-text-tertiary)] text-xs uppercase tracking-wide">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--dash-border-subtle)]">
@@ -522,18 +581,21 @@ export default function SuperAdminPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-[var(--dash-border-subtle)]">
-                        <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)]">Workspace</th>
-                        <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)]">Tier</th>
-                        <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)]">Users</th>
-                        <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)]">Docs</th>
-                        <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)]">Credits</th>
-                        <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)]">Last Active</th>
-                        <th className="text-right px-4 py-3 font-medium text-[var(--dash-text-tertiary)]">Actions</th>
+                      <tr className="border-b border-[var(--dash-border-subtle)] bg-[var(--surface-ground)]/40">
+                        <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)] text-xs uppercase tracking-wide">Workspace</th>
+                        <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)] text-xs uppercase tracking-wide">Tier</th>
+                        <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)] text-xs uppercase tracking-wide">Status</th>
+                        <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)] text-xs uppercase tracking-wide">Users</th>
+                        <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)] text-xs uppercase tracking-wide">Docs</th>
+                        <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)] text-xs uppercase tracking-wide">Credits</th>
+                        <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)] text-xs uppercase tracking-wide">Last Active</th>
+                        <th className="text-right px-4 py-3 font-medium text-[var(--dash-text-tertiary)] text-xs uppercase tracking-wide">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--dash-border-subtle)]">
-                      {tenants.map((t) => (
+                      {tenants.map((t) => {
+                        const isSuspended = (t as any).status === "suspended";
+                        return (
                         <tr key={t.id} className="hover:bg-[var(--surface-hover)] transition-colors">
                           <td className="px-4 py-3">
                             <div>
@@ -542,28 +604,73 @@ export default function SuperAdminPage() {
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                              t.tier === "enterprise"
-                                ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
-                                : t.tier === "pro"
-                                ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
-                                : t.tier === "base"
-                                ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
-                                : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
-                            }`}>
+                            <button
+                              onClick={() => setTierModal({ tenant: t, selectedTier: t.tier, customCredits: "" })}
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors hover:ring-1 hover:ring-offset-1 ${
+                                t.tier === "enterprise"
+                                  ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 hover:ring-purple-400"
+                                  : t.tier === "pro"
+                                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 hover:ring-blue-400"
+                                  : t.tier === "base"
+                                  ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 hover:ring-green-400"
+                                  : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 hover:ring-gray-400"
+                              }`}
+                              title="Change tier"
+                            >
                               {t.tier}
+                              <ArrowUpDown className="w-2.5 h-2.5 opacity-60" />
+                            </button>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                              isSuspended
+                                ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300"
+                                : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                            }`}>
+                              {isSuspended ? "suspended" : "active"}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-[var(--dash-text-secondary)]">{t.userCount}</td>
                           <td className="px-4 py-3 text-[var(--dash-text-secondary)]">{t.documentCount}</td>
                           <td className="px-4 py-3">
-                            <span className="text-[var(--dash-text-secondary)]">
-                              {t.creditsUsed} / {t.creditsTotal}
-                            </span>
+                            <div className="flex flex-col">
+                              <span className="text-[var(--dash-text-secondary)]">{t.creditsUsed} / {t.creditsTotal}</span>
+                              {t.creditsTotal > 0 && (
+                                <div className="w-16 h-1 mt-1 rounded-full bg-[var(--dash-border-subtle)] overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full transition-all"
+                                    style={{
+                                      width: `${Math.min(100, Math.round((t.creditsUsed / t.creditsTotal) * 100))}%`,
+                                      background: t.creditsUsed / t.creditsTotal > 0.8 ? "#ef4444" : t.creditsUsed / t.creditsTotal > 0.5 ? "#f59e0b" : "#10b981",
+                                    }}
+                                  />
+                                </div>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3 text-[var(--dash-text-muted)]">{formatDate(t.lastActive)}</td>
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-1">
+                              {/* Suspend / Unsuspend */}
+                              <button
+                                onClick={() => setConfirmSuspend(t)}
+                                disabled={!!actionLoading}
+                                className={`p-2 rounded-lg transition-colors disabled:opacity-30 ${
+                                  isSuspended
+                                    ? "hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-emerald-500"
+                                    : "hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-yellow-500"
+                                }`}
+                                title={isSuspended ? "Reactivate workspace" : "Suspend workspace"}
+                              >
+                                {actionLoading === `suspend-${t.id}` ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : isSuspended ? (
+                                  <PlayCircle className="w-4 h-4" />
+                                ) : (
+                                  <PauseCircle className="w-4 h-4" />
+                                )}
+                              </button>
+                              {/* Enter Workspace */}
                               <button
                                 onClick={() => handleImpersonate(t.id, t.name)}
                                 disabled={actionLoading === `impersonate-${t.id}`}
@@ -575,12 +682,13 @@ export default function SuperAdminPage() {
                                 ) : (
                                   <LogIn className="w-3.5 h-3.5" />
                                 )}
-                                Enter Workspace
+                                Enter
                               </button>
                             </div>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -695,6 +803,143 @@ export default function SuperAdminPage() {
                 >
                   {actionLoading === confirmDelete.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                   Delete User
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== SUSPEND CONFIRM MODAL ==================== */}
+      {confirmSuspend && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setConfirmSuspend(null)} />
+          <div className="relative w-full max-w-md bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl shadow-xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--dash-border-subtle)]">
+              <h2 className={`text-lg font-semibold flex items-center gap-2 ${(confirmSuspend as any).status === "suspended" ? "text-emerald-500" : "text-yellow-500"}`}>
+                {(confirmSuspend as any).status === "suspended" ? (
+                  <PlayCircle className="w-5 h-5" />
+                ) : (
+                  <PauseCircle className="w-5 h-5" />
+                )}
+                {(confirmSuspend as any).status === "suspended" ? "Reactivate Workspace" : "Suspend Workspace"}
+              </h2>
+              <button onClick={() => setConfirmSuspend(null)} className="p-1.5 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)]">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              {(confirmSuspend as any).status === "suspended" ? (
+                <p className="text-sm text-[var(--dash-text-secondary)]">
+                  Reactivate <strong>{confirmSuspend.name}</strong>? Users will regain full access to their workspace.
+                </p>
+              ) : (
+                <p className="text-sm text-[var(--dash-text-secondary)]">
+                  Suspend <strong>{confirmSuspend.name}</strong>? All users in this workspace will lose access until reactivated.
+                </p>
+              )}
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  onClick={() => setConfirmSuspend(null)}
+                  className="px-4 py-2 text-sm text-[var(--dash-text-secondary)] hover:text-[var(--dash-text-primary)] transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleSuspendToggle(confirmSuspend)}
+                  disabled={actionLoading === `suspend-${confirmSuspend.id}`}
+                  className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
+                    (confirmSuspend as any).status === "suspended"
+                      ? "bg-emerald-500 hover:bg-emerald-600 text-white"
+                      : "bg-yellow-500 hover:bg-yellow-600 text-white"
+                  }`}
+                >
+                  {actionLoading === `suspend-${confirmSuspend.id}` ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (confirmSuspend as any).status === "suspended" ? (
+                    <PlayCircle className="w-4 h-4" />
+                  ) : (
+                    <PauseCircle className="w-4 h-4" />
+                  )}
+                  {(confirmSuspend as any).status === "suspended" ? "Reactivate" : "Suspend"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== CHANGE TIER MODAL ==================== */}
+      {tierModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setTierModal(null)} />
+          <div className="relative w-full max-w-md bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl shadow-xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--dash-border-subtle)]">
+              <h2 className="text-lg font-semibold text-[var(--dash-text-primary)] flex items-center gap-2">
+                <ArrowUpDown className="w-5 h-5 text-[var(--brand)]" />
+                Change Tier
+              </h2>
+              <button onClick={() => setTierModal(null)} className="p-1.5 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)]">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-5">
+              <p className="text-sm text-[var(--dash-text-secondary)]">
+                Changing tier for <strong>{tierModal.tenant.name}</strong>. Credits allocation will be updated automatically unless you specify a custom amount.
+              </p>
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-[var(--dash-text-tertiary)] uppercase tracking-wide">Select Tier</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {TIERS.map((tier) => (
+                    <button
+                      key={tier}
+                      onClick={() => setTierModal({ ...tierModal, selectedTier: tier })}
+                      className={`px-4 py-2.5 rounded-lg text-sm font-medium border transition-all ${
+                        tierModal.selectedTier === tier
+                          ? tier === "enterprise"
+                            ? "border-purple-500 bg-purple-500/10 text-purple-400"
+                            : tier === "pro"
+                            ? "border-blue-500 bg-blue-500/10 text-blue-400"
+                            : tier === "base"
+                            ? "border-emerald-500 bg-emerald-500/10 text-emerald-400"
+                            : "border-[var(--brand)] bg-[var(--brand)]/10 text-[var(--brand)]"
+                          : "border-[var(--dash-border-subtle)] text-[var(--dash-text-secondary)] hover:border-[var(--dash-text-tertiary)]"
+                      }`}
+                    >
+                      {tier.charAt(0).toUpperCase() + tier.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-[var(--dash-text-tertiary)] uppercase tracking-wide">Custom Credits (optional)</p>
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="Leave blank to use tier default..."
+                  value={tierModal.customCredits}
+                  onChange={(e) => setTierModal({ ...tierModal, customCredits: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-lg text-sm text-[var(--dash-text-primary)] placeholder-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)]"
+                />
+              </div>
+              <div className="flex items-center justify-end gap-3 pt-1">
+                <button
+                  onClick={() => setTierModal(null)}
+                  className="px-4 py-2 text-sm text-[var(--dash-text-secondary)] hover:text-[var(--dash-text-primary)] transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleChangeTier}
+                  disabled={actionLoading === `tier-${tierModal.tenant.id}` || tierModal.selectedTier === tierModal.tenant.tier}
+                  className="flex items-center gap-2 px-5 py-2 bg-[var(--brand)] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                >
+                  {actionLoading === `tier-${tierModal.tenant.id}` ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <ArrowUpDown className="w-4 h-4" />
+                  )}
+                  Apply Change
                 </button>
               </div>
             </div>
