@@ -501,6 +501,16 @@ function TyneBaseDocsPage() {
     }
   }, []);
 
+  // Auto-select first article by default (remove deprecated hero page)
+  useEffect(() => {
+    if (!selectedArticle && allArticles.length > 0) {
+      const defaultArticle = allArticles[0];
+      setSelectedArticle(defaultArticle);
+      const cat = categories.find(c => c.articles.some(a => a.id === defaultArticle.id));
+      if (cat) setExpandedCategories(prev => ({ ...prev, [cat.id]: true }));
+    }
+  }, [selectedArticle, allArticles, categories]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {

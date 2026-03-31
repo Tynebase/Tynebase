@@ -152,24 +152,32 @@ export function TiptapReader({ content, title, className = "", isHtml = false }:
               background-color: var(--surface-card) !important;
               color: var(--text-primary) !important;
               font-weight: 400 !important;
+              word-break: break-word;
+              min-height: 44px;
+              display: block !important;
+              align-items: flex-start !important;
             }
             /* Header row cells - target via attribute selectors */
             .tiptap-reader div[style*="display: grid"] > div[style*="background: #f9fafb"],
             .tiptap-reader div[style*="display: grid"] > div[style*="font-weight: 600"] {
               background-color: var(--bg-secondary) !important;
               font-weight: 600 !important;
+              color: var(--text-primary) !important;
             }
             /* Data cells with white background */
             .tiptap-reader div[style*="display: grid"] > div[style*="background: white"] {
               background-color: var(--surface-card) !important;
             }
-            /* Ensure proper alignment and text wrapping */
-            .tiptap-reader div[style*="display: grid"] > div {
-              display: flex;
-              align-items: center;
-              min-height: 44px;
-              word-break: break-word;
+            /* Zebra striping for better readability */
+            .tiptap-reader div[style*="display: grid"] > div:nth-child(2n) {
+              background-color: var(--surface-card-hover) !important;
             }
+            /* Ensure header row stays distinct */
+            .tiptap-reader div[style*="display: grid"] > div[style*="background: #f9fafb"],
+            .tiptap-reader div[style*="display: grid"] > div[style*="font-weight: 600"] {
+              background-color: var(--bg-secondary) !important;
+            }
+            /* Remove flex display that caused misalignment */
           `}</style>
           {title && (
             <h1 
