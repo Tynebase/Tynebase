@@ -422,6 +422,60 @@ export default function DocsPage() {
   return <TyneBaseDocsPage />;
 }
 
+function renderMarkdown(content: string): string {
+  const blocks: string[] = [];
+
+  // Protect fenced code blocks
+  let md = content.replace(/```(\w*)\n([\s\S]*?)```/g, (_, _lang, code) => {
+    const escaped = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const idx = blocks.length;
+    blocks.push(`<pre style="background:var(--bg-secondary);border:1px solid var(--border-subtle);border-radius:8px;padding:16px 20px;overflow-x:auto;margin:16px 0;"><code style="font-family:monospace;font-size:13px;color:var(--text-primary);white-space:pre;">${escaped}</code></pre>`);
+    return `\x02${idx}\x03`;
+  });
+
+  // Convert markdown tables to HTML
+  md = md.replace(/((?:^\|[^\n]*(?:\n|$))+)/gm, (block) => {
+    const lines = block.trim().split('\n').filter(Boolean);
+    const isSep = (l: string) => /^\|[\s|:=-]+\|$/.test(l.trim());
+    const nonSep = lines.filter(l => !isSep(l));
+    if (nonSep.length < 2) return block;
+    const parse = (l: string) => l.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+    const cellInner = (t: string) => t
+      .replace(/\*\*(.+?)\*\*/g, '<strong style="font-weight:600;color:var(--text-primary);">$1</strong>')
+      .replace(/`([^`]+)`/g, '<code style="background:var(--bg-secondary);padding:1px 5px;border-radius:3px;font-size:12px;font-family:monospace;color:var(--text-primary);">$1</code>');
+    const [header, ...rows] = nonSep;
+    const ths = parse(header).map(h =>
+      `<th style="padding:10px 16px;text-align:left;font-weight:600;font-size:13px;color:var(--text-primary);background:var(--bg-secondary);border-bottom:2px solid var(--border-subtle);white-space:nowrap;">${cellInner(h)}</th>`
+    ).join('');
+    const trs = rows.map(r =>
+      `<tr>${parse(r).map(c =>
+        `<td style="padding:10px 16px;font-size:13px;color:var(--text-secondary);border-bottom:1px solid var(--border-subtle);">${cellInner(c)}</td>`
+      ).join('')}</tr>`
+    ).join('');
+    const idx = blocks.length;
+    blocks.push(`<div style="overflow-x:auto;margin:20px 0;border-radius:8px;border:1px solid var(--border-subtle);"><table style="width:100%;border-collapse:collapse;"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`);
+    return `\x02${idx}\x03`;
+  });
+
+  // Apply remaining inline/block transforms
+  md = md
+    .replace(/^### (.+)$/gm, '<h3 id="$1" style="font-size:17px;font-weight:600;color:var(--text-primary);margin:28px 0 12px;letter-spacing:-0.01em;">$1</h3>')
+    .replace(/^## (.+)$/gm, (_, t) => `<h2 id="${t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}" style="font-size:22px;font-weight:600;color:var(--text-primary);margin:40px 0 16px;padding-bottom:12px;border-bottom:1px solid var(--border-subtle);">${t}</h2>`)
+    .replace(/^# (.+)$/gm, '<h1 style="font-size:28px;font-weight:700;color:var(--text-primary);margin:40px 0 20px;">$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong style="font-weight:600;color:var(--text-primary);">$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`([^`]+)`/g, '<code style="background:var(--bg-secondary);padding:2px 6px;border-radius:4px;font-size:13px;font-family:monospace;">$1</code>')
+    .replace(/^- (.+)$/gm, '<li style="margin-bottom:6px;padding-left:4px;">$1</li>')
+    .replace(/(<li[^>]*>.*<\/li>\n?)+/g, match => `<ul style="margin:12px 0 20px 20px;list-style:disc;">${match}</ul>`)
+    .replace(/^> (.+)$/gm, '<blockquote style="border-left:3px solid var(--brand);padding:12px 16px;margin:16px 0;background:var(--bg-secondary);border-radius:0 8px 8px 0;font-style:italic;color:var(--text-secondary);">$1</blockquote>')
+    .replace(/\n{2,}/g, '</p><p style="margin-bottom:16px;">')
+    .replace(/^(?!\x02)(?!<[hublop])(.+)$/gm, '<p style="margin-bottom:16px;color:var(--text-secondary);">$1</p>');
+
+  // Restore protected blocks
+  md = md.replace(/\x02(\d+)\x03/g, (_, i) => blocks[+i] ?? '');
+  return md;
+}
+
 function extractHeadings(content: string) {
   const lines = content.split('\n');
   const headings: { id: string; text: string; level: number }[] = [];
@@ -487,29 +541,25 @@ function TyneBaseDocsPage() {
     }
   }, [selectedArticle]);
 
-  // Auto-open tutorial article if redirected from dashboard banner
+  // On mount: open article from ?slug= param, sessionStorage tutorial flag, or default first article
   useEffect(() => {
-    const shouldOpenTutorial = sessionStorage.getItem("tynebase_open_tutorial");
-    if (shouldOpenTutorial) {
-      sessionStorage.removeItem("tynebase_open_tutorial");
-      const tutorialArticle = allArticles.find(a => a.slug === "getting-started-tutorial");
-      if (tutorialArticle) {
-        setSelectedArticle(tutorialArticle);
-        const cat = categories.find(c => c.articles.some(a => a.id === tutorialArticle.id));
-        if (cat) setExpandedCategories(prev => ({ ...prev, [cat.id]: true }));
-      }
-    }
-  }, []);
+    const params = new URLSearchParams(window.location.search);
+    const slugParam = params.get('slug');
 
-  // Auto-select first article by default (remove deprecated hero page)
-  useEffect(() => {
-    if (!selectedArticle && allArticles.length > 0) {
-      const defaultArticle = allArticles[0];
-      setSelectedArticle(defaultArticle);
-      const cat = categories.find(c => c.articles.some(a => a.id === defaultArticle.id));
+    const shouldOpenTutorial = sessionStorage.getItem("tynebase_open_tutorial");
+    if (shouldOpenTutorial) sessionStorage.removeItem("tynebase_open_tutorial");
+
+    const targetSlug = slugParam || (shouldOpenTutorial ? 'getting-started-tutorial' : null);
+    const article = targetSlug
+      ? allArticles.find(a => a.slug === targetSlug) ?? allArticles[0]
+      : allArticles[0];
+
+    if (article) {
+      setSelectedArticle(article);
+      const cat = categories.find(c => c.articles.some(a => a.id === article.id));
       if (cat) setExpandedCategories(prev => ({ ...prev, [cat.id]: true }));
     }
-  }, [selectedArticle, allArticles, categories]);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -623,6 +673,9 @@ function TyneBaseDocsPage() {
                       <ChevronRight style={{ width: '14px', height: '14px', color: 'var(--text-muted)', transition: 'transform 0.15s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }} />
                       <IconComponent className="w-4 h-4 text-[var(--brand)]" />
                       {cat.title}
+                      {cat.id === 'api-reference' && (
+                        <span style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', padding: '2px 6px', borderRadius: '4px', letterSpacing: '0.04em', flexShrink: 0 }}>SOON</span>
+                      )}
                     </button>
                     {isExpanded && (
                       <div style={{ paddingLeft: '32px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
@@ -701,20 +754,7 @@ function TyneBaseDocsPage() {
             <div className="docs-prose" style={{ lineHeight: 1.8, color: 'var(--text-primary)' }}>
               <div
                 style={{ fontSize: '15px' }}
-                dangerouslySetInnerHTML={{
-                  __html: selectedArticle.content
-                    .replace(/^### (.+)$/gm, '<h3 id="$1" style="font-size:17px;font-weight:600;color:var(--text-primary);margin:28px 0 12px;letter-spacing:-0.01em;">$1</h3>')
-                    .replace(/^## (.+)$/gm, (_, t) => `<h2 id="${t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}" style="font-size:22px;font-weight:600;color:var(--text-primary);margin:40px 0 16px;padding-bottom:12px;border-bottom:1px solid var(--border-subtle);">${t}</h2>`)
-                    .replace(/^# (.+)$/gm, '<h1 style="font-size:28px;font-weight:700;color:var(--text-primary);margin:40px 0 20px;">$1</h1>')
-                    .replace(/\*\*(.+?)\*\*/g, '<strong style="font-weight:600;color:var(--text-primary);">$1</strong>')
-                    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-                    .replace(/`([^`]+)`/g, '<code style="background:var(--bg-secondary);padding:2px 6px;border-radius:4px;font-size:13px;font-family:monospace;">$1</code>')
-                    .replace(/^- (.+)$/gm, '<li style="margin-bottom:6px;padding-left:4px;">$1</li>')
-                    .replace(/(<li[^>]*>.*<\/li>\n?)+/g, (match) => `<ul style="margin:12px 0 20px 20px;list-style:disc;">${match}</ul>`)
-                    .replace(/^> (.+)$/gm, '<blockquote style="border-left:3px solid var(--brand);padding:12px 16px;margin:16px 0;background:var(--bg-secondary);border-radius:0 8px 8px 0;font-style:italic;color:var(--text-secondary);">$1</blockquote>')
-                    .replace(/\n{2,}/g, '</p><p style="margin-bottom:16px;">')
-                    .replace(/^(?!<[hublop])(.+)$/gm, '<p style="margin-bottom:16px;color:var(--text-secondary);">$1</p>')
-                }}
+                dangerouslySetInnerHTML={{ __html: renderMarkdown(selectedArticle.content) }}
               />
             </div>
 
@@ -891,8 +931,11 @@ function TyneBaseDocsPage() {
                 <div
                   key={category.id}
                   className="bento-item"
-                  style={{ padding: '32px', display: 'flex', flexDirection: 'column', background: 'var(--bg-elevated)', textAlign: 'left', width: '100%' }}
+                  style={{ padding: '32px', display: 'flex', flexDirection: 'column', background: 'var(--bg-elevated)', textAlign: 'left', width: '100%', position: 'relative' }}
                 >
+                  {category.id === 'api-reference' && (
+                    <span style={{ position: 'absolute', top: '16px', right: '16px', fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', padding: '3px 8px', borderRadius: '6px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Coming soon</span>
+                  )}
                   <div className={`feature-icon feature-icon-${category.color}`} style={{ marginBottom: '20px' }}>
                     <IconComponent className="w-5 h-5" />
                   </div>

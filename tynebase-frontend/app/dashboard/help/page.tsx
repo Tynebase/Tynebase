@@ -15,10 +15,10 @@ const helpCategories = [
     icon: Zap,
     color: "#10b981",
     articles: [
-      { title: "Quick start Guide", href: "#" },
-      { title: "Creating Your First Document", href: "#" },
-      { title: "Understanding the Dashboard", href: "#" },
-      { title: "Inviting Team Members", href: "#" },
+      { title: "Quick start Guide", href: "/docs?slug=getting-started-tutorial" },
+      { title: "Creating Your First Document", href: "/docs?slug=creating-first-document" },
+      { title: "Understanding the Dashboard", href: "/docs?slug=understanding-dashboard" },
+      { title: "Inviting Team Members", href: "/docs?slug=inviting-team" },
     ],
   },
   {
@@ -28,11 +28,11 @@ const helpCategories = [
     icon: BookOpen,
     color: "#3b82f6",
     articles: [
-      { title: "Organizing Articles", href: "#" },
-      { title: "Using Categories & Tags", href: "#" },
+      { title: "Organizing Articles", href: "/docs?slug=document-lifecycle" },
+      { title: "Using Categories & Tags", href: "/docs?slug=document-lineage" },
       { title: "Collections & Visibility", href: "/dashboard/help/collections" },
-      { title: "Version History", href: "#" },
-      { title: "Publishing & Unpublishing", href: "#" },
+      { title: "Version History", href: "/docs?slug=document-lineage" },
+      { title: "Publishing & Unpublishing", href: "/docs?slug=document-lifecycle" },
     ],
   },
   {
@@ -42,10 +42,10 @@ const helpCategories = [
     icon: Sparkles,
     color: "#8b5cf6",
     articles: [
-      { title: "Generating from Prompts", href: "#" },
-      { title: "Automatically transform videos into comprehensive documentation", href: "#" },
-      { title: "Enhancing Existing Content", href: "#" },
-      { title: "AI Settings & Providers", href: "#" },
+      { title: "Generating from Prompts", href: "/docs?slug=ai-from-prompt" },
+      { title: "Automatically transform videos into comprehensive documentation", href: "/docs?slug=ai-from-video" },
+      { title: "Enhancing Existing Content", href: "/docs?slug=ai-enhance" },
+      { title: "AI Settings & Providers", href: "/docs?slug=first-ai-generation" },
     ],
   },
   {
@@ -55,10 +55,10 @@ const helpCategories = [
     icon: Users,
     color: "#f59e0b",
     articles: [
-      { title: "Creating Discussions", href: "#" },
-      { title: "Moderation Tools", href: "#" },
-      { title: "Mentions & Notifications", href: "#" },
-      { title: "Best Practices", href: "#" },
+      { title: "Creating Discussions", href: "/docs?slug=community-forum" },
+      { title: "Moderation Tools", href: "/docs?slug=community-forum" },
+      { title: "Mentions & Notifications", href: "/docs?slug=community-forum" },
+      { title: "Best Practices", href: "/docs?slug=community-forum" },
     ],
   },
   {
@@ -68,10 +68,10 @@ const helpCategories = [
     icon: FileText,
     color: "#ef4444",
     articles: [
-      { title: "Using Templates", href: "#" },
-      { title: "Creating Custom Templates", href: "#" },
-      { title: "Sharing Templates", href: "#" },
-      { title: "Template Variables", href: "#" },
+      { title: "Using Templates", href: "/docs?slug=templates" },
+      { title: "Creating Custom Templates", href: "/docs?slug=templates" },
+      { title: "Sharing Templates", href: "/docs?slug=templates" },
+      { title: "Template Variables", href: "/docs?slug=templates" },
     ],
   },
   {
@@ -81,10 +81,10 @@ const helpCategories = [
     icon: Shield,
     color: "#06b6d4",
     articles: [
-      { title: "User Management", href: "#" },
-      { title: "Roles & Permissions", href: "#" },
-      { title: "Branding & White-Label", href: "#" },
-      { title: "Billing & Plans", href: "#" },
+      { title: "User Management", href: "/docs?slug=permissions-rbac" },
+      { title: "Roles & Permissions", href: "/docs?slug=permissions-rbac" },
+      { title: "Branding & White-Label", href: "/docs?slug=workspace-setup" },
+      { title: "Billing & Plans", href: "/docs" },
     ],
   },
 ];
@@ -135,13 +135,13 @@ export default function HelpPage() {
           <Mail className="w-5 h-5" />
           Contact Support
         </a>
-        <a
-          href="#"
+        <Link
+          href="/docs?slug=ai-from-video"
           className="flex items-center justify-center gap-2 px-6 py-3 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-secondary)] font-medium hover:border-[var(--brand)] hover:text-[var(--brand)] hover:shadow-md transition-all"
         >
           <Video className="w-5 h-5" />
           Video Tutorials
-        </a>
+        </Link>
       </div>
 
       {/* Categories Grid */}
