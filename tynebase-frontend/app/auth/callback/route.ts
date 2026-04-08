@@ -121,37 +121,19 @@ export async function GET(request: Request) {
     const accessToken = data.session?.access_token;
     const refreshToken = data.session?.refresh_token;
 
-    console.log('[Auth Callback] User has tenant, setting app cookies and redirecting to oauth-login');
+    console.log('[Auth Callback] User has tenant, passing tokens via URL fragment to oauth-login');
 
-    const oauthLoginUrl = `${origin}/auth/oauth-login?redirect=${encodeURIComponent(redirect)}`;
-    const response = NextResponse.redirect(oauthLoginUrl);
+    // Pass tokens via URL fragment — fragments never leave the browser so they
+    // aren't affected by Firefox Total Cookie Protection or cross-site cookie
+    // restrictions that apply to Set-Cookie headers in redirect responses.
+    const payload = Buffer.from(JSON.stringify({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      tenant_subdomain: subdomain,
+      redirect,
+    })).toString('base64url');
 
-    const secure = origin.startsWith('https');
-
-    if (accessToken) {
-      response.cookies.set('access_token', accessToken, {
-        path: '/',
-        maxAge: 7 * 24 * 60 * 60,
-        sameSite: 'lax',
-        secure,
-      });
-    }
-    if (refreshToken) {
-      response.cookies.set('refresh_token', refreshToken, {
-        path: '/',
-        maxAge: 30 * 24 * 60 * 60,
-        sameSite: 'lax',
-        secure,
-      });
-    }
-    response.cookies.set('tenant_subdomain', subdomain, {
-      path: '/',
-      maxAge: 365 * 24 * 60 * 60,
-      sameSite: 'lax',
-      secure,
-    });
-
-    return response;
+    return NextResponse.redirect(`${origin}/auth/oauth-login#t=${payload}`);
   }
 
   // User exists in auth but has no tenant record - might need to complete signup

@@ -1,29 +1,22 @@
 "use client";
 
 import { useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { setAuthTokens, setTenantSubdomain } from "@/lib/api/client";
 import { Loader2 } from "lucide-react";
 
-function getCookie(name: string): string | null {
-  if (typeof document === "undefined") return null;
-  const match = document.cookie.match(new RegExp("(?:^|; )" + name + "=([^;]*)"));
-  return match ? decodeURIComponent(match[1]) : null;
-}
-
 function OAuthLoginContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
-    const redirect = searchParams.get("redirect") || "/dashboard";
+    // Tokens are passed via URL fragment (#t=<base64url>) to avoid cookie
+    // cross-site restrictions (e.g. Firefox Total Cookie Protection).
+    // Fragments are never sent to the server and never logged.
+    const hash = window.location.hash.slice(1); // remove leading '#'
+    const params = new URLSearchParams(hash);
+    const raw = params.get("t");
 
-    const accessToken = getCookie("access_token");
-    const refreshToken = getCookie("refresh_token");
-    const tenantSubdomain = getCookie("tenant_subdomain");
-
-    if (!accessToken) {
-      // Tokens not present — send back to login
+    if (!raw) {
       router.replace(
         "/login?error=auth_failed&message=" +
           encodeURIComponent("Session not found. Please try signing in again.")
@@ -31,14 +24,35 @@ function OAuthLoginContent() {
       return;
     }
 
-    // Sync server-set cookies into localStorage so the app's auth helpers can read them
-    setAuthTokens(accessToken, refreshToken || "");
-    if (tenantSubdomain) {
-      setTenantSubdomain(tenantSubdomain);
+    let parsed: {
+      access_token?: string;
+      refresh_token?: string;
+      tenant_subdomain?: string;
+      redirect?: string;
+    };
+
+    try {
+      parsed = JSON.parse(atob(raw.replace(/-/g, "+").replace(/_/g, "/")));
+    } catch {
+      router.replace("/login?error=auth_failed");
+      return;
     }
 
-    window.location.href = redirect;
-  }, [router, searchParams]);
+    const { access_token, refresh_token, tenant_subdomain, redirect = "/dashboard" } = parsed;
+
+    if (!access_token) {
+      router.replace("/login?error=auth_failed");
+      return;
+    }
+
+    setAuthTokens(access_token, refresh_token || "");
+    if (tenant_subdomain) {
+      setTenantSubdomain(tenant_subdomain);
+    }
+
+    // Use replace to avoid the oauth-login page appearing in browser history
+    window.location.replace(redirect);
+  }, [router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center">
