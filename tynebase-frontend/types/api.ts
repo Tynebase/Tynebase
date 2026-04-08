@@ -75,6 +75,7 @@ export const TIER_CONFIG = {
 export type TierType = keyof typeof TIER_CONFIG;
 
 export interface TenantSettings {
+  custom_domain?: string | null;
   branding?: {
     logo_url?: string;
     logo_dark_url?: string;

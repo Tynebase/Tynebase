@@ -33,6 +33,7 @@ const settingsSchema = z.object({
     rag_chat_enabled: z.boolean().optional(),
     document_export_enabled: z.boolean().optional(),
   }).optional(),
+  custom_domain: z.string().max(253).regex(/^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/).optional().nullable(),
 }).strict();
 
 /**
