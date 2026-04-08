@@ -27,6 +27,7 @@ import { Markdown } from "tiptap-markdown";
 import { HocuspocusProvider } from "@hocuspocus/provider";
 import { useEffect, useState, useCallback, useRef } from "react";
 import * as Y from "yjs";
+import { createClient as createSupabaseClient } from "@/lib/supabase/client";
 import { common, createLowlight } from "lowlight";
 import { FontSize } from "./extensions/FontSize";
 import { FontFamily } from "./extensions/FontFamily";
@@ -55,6 +56,7 @@ const lowlight = createLowlight(common);
 interface RichTextEditorProps {
   documentId: string;
   initialTitle?: string;
+  initialContent?: string;
   onTitleChange?: (title: string) => void;
   onSave?: (data: { title: string; content: string }) => void;
   onEditorReady?: (editor: any) => void;
@@ -194,6 +196,7 @@ const getColorForUser = (userId: string): string => {
 export function RichTextEditor({
   documentId,
   initialTitle = "",
+  initialContent,
   onTitleChange,
   onSave,
   onEditorReady,
@@ -264,6 +267,9 @@ export function RichTextEditor({
   const [dragCounter, setDragCounter] = useState(0);
   const editorContentRef = useRef<HTMLDivElement>(null);
   const editorRefForDrag = useRef<any>(null);
+  // Fallback content: keep a ref so the onCreate closure can read the latest value
+  const initialContentRef = useRef<string | undefined>(initialContent);
+  const hasInitializedFallback = useRef(false);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -464,10 +470,14 @@ export function RichTextEditor({
     }
   }, [provider, user]);
 
+  // Keep initialContentRef in sync so the fallback can always read the latest value
+  useEffect(() => {
+    initialContentRef.current = initialContent;
+  }, [initialContent]);
+
   // Track presence via Supabase Realtime so the document list can show who's editing
   useEffect(() => {
     if (!user || !documentId) return;
-    const { createClient: createSupabaseClient } = require('@/lib/supabase/client');
     const supabaseClient = createSupabaseClient();
     if (!supabaseClient) return;
 
@@ -609,6 +619,35 @@ export function RichTextEditor({
     editorRefForDrag.current = editor;
     if (editor) onEditorReady?.(editor);
   }, [editor]);
+
+  // Fallback: when the Y.js document syncs empty but we have content from the DB,
+  // populate the editor once per session so documents are never blank on open.
+  useEffect(() => {
+    if (!editor || !isReady || hasInitializedFallback.current) return;
+
+    // Wait a short tick so Y.js can apply any pending remote updates before we check
+    const timer = setTimeout(() => {
+      if (editor.isDestroyed) return;
+
+      const textContent = editor.getText().trim();
+      const fallback = initialContentRef.current?.trim();
+
+      if (!textContent && fallback) {
+        // Guard against double-init across sessions for the same document
+        const sessionKey = `ydoc-init-${documentId}`;
+        if (!sessionStorage.getItem(sessionKey)) {
+          sessionStorage.setItem(sessionKey, '1');
+          // setContent with false keeps TipTap from emitting an extra 'update' event
+          editor.commands.setContent(initialContentRef.current!, false);
+          console.log('[RichTextEditor] Fallback: populated empty Y.js doc with DB content');
+        }
+      }
+
+      hasInitializedFallback.current = true;
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [editor, isReady, documentId]);
 
   // Update editable state when readOnly changes without recreating the editor
   useEffect(() => {

@@ -225,6 +225,10 @@ export default function KnowledgePage() {
     const supabase = createClient();
     if (!supabase) return;
 
+    // Reset to empty while the channel is (re)connecting so stale avatars
+    // from the previous document-editor session disappear immediately.
+    setDocumentPresence(new Map());
+
     const presenceChannel = supabase.channel('document-presence');
 
     const syncPresence = () => {
@@ -234,6 +238,9 @@ export default function KnowledgePage() {
         presences.forEach((p: any) => {
           const docId = p.documentId;
           if (!docId) return;
+          // Never show the current user's own presence indicator on the list page —
+          // it looks like a lag artefact when navigating back from the editor.
+          if (p.userId === authUser?.id) return;
           if (!presenceMap.has(docId)) presenceMap.set(docId, []);
           // Avoid duplicates
           const existing = presenceMap.get(docId)!;
@@ -254,7 +261,7 @@ export default function KnowledgePage() {
     return () => {
       supabase.removeChannel(presenceChannel);
     };
-  }, []);
+  }, [authUser?.id]);
 
   const getStateColor = (state: string) => {
     switch (state) {

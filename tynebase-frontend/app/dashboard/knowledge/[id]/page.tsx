@@ -635,6 +635,7 @@ export default function EditDocumentPage() {
             <RichTextEditor
               documentId={documentId}
               initialTitle={title}
+              initialContent={content}
               onTitleChange={setTitle}
               onEditorReady={(editor) => { editorRef.current = editor; }}
               readOnly={isReadOnly}
