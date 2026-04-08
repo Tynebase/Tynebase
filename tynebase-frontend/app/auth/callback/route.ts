@@ -117,8 +117,8 @@ export async function GET(request: Request) {
   }
 
   if (userData?.tenant_id && userData.tenants && typeof userData.tenants === 'object' && 'subdomain' in userData.tenants) {
-    console.log('[Auth Callback] User has tenant, redirecting to dashboard');
-    return NextResponse.redirect(`${origin}${redirect}`);
+    console.log('[Auth Callback] User has tenant, redirecting through oauth-login to store tokens');
+    return NextResponse.redirect(`${origin}/auth/oauth-login?redirect=${encodeURIComponent(redirect)}`);
   }
 
   // User exists in auth but has no tenant record - might need to complete signup
