@@ -5,7 +5,7 @@ app = "tynebase-backend"
 primary_region = "lhr"
 
 [build]
-  dockerfile = "backend/Dockerfile"
+  dockerfile = "Dockerfile"
 
 [env]
   NODE_ENV = "production"

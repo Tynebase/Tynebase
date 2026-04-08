@@ -493,7 +493,7 @@ export default function EnhancePage() {
             <div className="flex-1 min-h-0 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-8 sm:p-12 text-center flex flex-col items-center justify-center">
               <RefreshCw className="w-12 h-12 text-[var(--brand)] mb-4 animate-spin" />
               <h3 className="text-lg font-semibold text-[var(--dash-text-primary)] mb-2">
-                Analyzing &ldquo;{selectedDoc.title}&rdquo;
+                Analysing &ldquo;{selectedDoc.title}&rdquo;
               </h3>
               <p className="text-[var(--dash-text-tertiary)] max-w-md">
                 AI is reviewing your content for improvements...

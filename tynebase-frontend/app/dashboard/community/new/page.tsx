@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState, useEffect, useCallback, useRef } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -23,7 +23,15 @@ type CategoryId = (typeof categories)[number]["id"];
 
 export default function NewDiscussionPage() {
   const router = useRouter();
-  const [category, setCategory] = useState<CategoryId>("General");
+  const searchParams = useSearchParams();
+
+  const defaultCategory = (): CategoryId => {
+    const param = searchParams?.get('category');
+    if (param && categories.some(c => c.id === param)) return param as CategoryId;
+    return "General";
+  };
+
+  const [category, setCategory] = useState<CategoryId>(defaultCategory);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [tags, setTags] = useState<string[]>([]);

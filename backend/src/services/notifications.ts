@@ -396,7 +396,7 @@ export async function notifyChatMessage(params: {
     description: params.messagePreview.length > 100
       ? params.messagePreview.substring(0, 100) + '...'
       : params.messagePreview,
-    actionUrl: params.channelId ? `/dashboard/chat?channel=${params.channelId}` : '/dashboard/chat',
+    actionUrl: params.channelId ? `/dashboard/tools/team-chat?channel=${params.channelId}` : '/dashboard/tools/team-chat',
     category: 'workspace',
     metadata: { sender: params.senderName, channel_id: params.channelId },
   });
@@ -419,8 +419,8 @@ export async function notifyDirectMessage(params: {
       ? params.messagePreview.substring(0, 100) + '...'
       : params.messagePreview,
     actionUrl: params.conversationId
-      ? `/dashboard/chat/dm/${params.conversationId}`
-      : '/dashboard/chat',
+      ? `/dashboard/tools/team-chat?dm=${params.conversationId}`
+      : '/dashboard/tools/team-chat',
     priority: 'high',
     category: 'workspace',
     metadata: { sender: params.senderName, conversation_id: params.conversationId },

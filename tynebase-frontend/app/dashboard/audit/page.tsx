@@ -85,6 +85,20 @@ export default function AuditPage() {
     }
   };
 
+  const fetchReviewQueue = useCallback(async () => {
+    const reviewLimit = showAllReviews ? 50 : 10;
+    try {
+      const reviewsData = await getReviewQueue(reviewFilter, reviewLimit);
+      setReviewQueue(reviewsData.reviews);
+    } catch (error) {
+      console.error("Failed to fetch review queue:", error);
+    }
+  }, [reviewFilter, showAllReviews]);
+
+  useEffect(() => {
+    fetchReviewQueue();
+  }, [fetchReviewQueue]);
+
   const fetchData = useCallback(async (showRefreshSpinner = false) => {
     if (showRefreshSpinner) {
       setRefreshing(true);
@@ -96,7 +110,7 @@ export default function AuditPage() {
       const days = getDaysFromRange(timeRange);
       const staleLimit = showAllStale ? 50 : 10;
       const reviewLimit = showAllReviews ? 50 : 10;
-      
+
       const [statsData, staleData, performersData, reviewsData] = await Promise.all([
         getAuditStats(days),
         getStaleDocuments(days, staleLimit),
@@ -158,7 +172,7 @@ export default function AuditPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [timeRange, showAllStale, showAllReviews, reviewFilter]);
+  }, [timeRange, showAllStale]);
 
   useEffect(() => {
     fetchData();
@@ -636,7 +650,7 @@ export default function AuditPage() {
                         <div className="flex flex-wrap gap-1.5 mt-1.5">
                           {finding.issues.map((issue, i) => (
                             <span key={i} className={`inline-flex items-center px-2 py-0.5 rounded text-xs border ${severityColor(finding.severity)}`}>
-                              {issue}
+                              {issue ? issue.charAt(0).toUpperCase() + issue.slice(1) : issue}
                             </span>
                           ))}
                         </div>
@@ -845,7 +859,7 @@ export default function AuditPage() {
                     onClick={() => handleDocumentClick(item.document_id)}
                   >
                     <span className={`px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ${item.priority === 'high' ? 'bg-red-500/10 text-red-500' : item.priority === 'medium' ? 'bg-amber-500/10 text-amber-500' : 'bg-blue-500/10 text-blue-500'}`}>
-                      {item.priority}
+                      {item.priority ? item.priority.charAt(0).toUpperCase() + item.priority.slice(1) : item.priority}
                     </span>
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-[var(--dash-text-primary)] truncate">{item.title}</p>

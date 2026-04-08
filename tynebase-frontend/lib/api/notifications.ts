@@ -80,12 +80,23 @@ export async function listNotifications(
   const queryString = queryParams.toString();
   const endpoint = queryString ? `/api/notifications?${queryString}` : '/api/notifications';
   
-  const response = await apiGet<{
-    success: true;
-    data: NotificationListResponse;
-  }>(endpoint);
+  try {
+    const response = await apiGet<NotificationListResponse>(endpoint);
 
-  return response.data;
+    // Validate response structure
+    if (!response) {
+      throw new Error('No response received from server');
+    }
+
+    if (!response.notifications || !Array.isArray(response.notifications)) {
+      throw new Error('Invalid notifications data received');
+    }
+
+    return response;
+  } catch (error) {
+    console.error('[notifications API] Error:', error);
+    throw error;
+  }
 }
 
 /**

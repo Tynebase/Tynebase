@@ -11,6 +11,7 @@ import {
   listAllUsers,
   listAllTenants,
   deleteUser,
+  restoreUser,
   sendRecoveryEmail,
   assignCredits,
   impersonateTenant,
@@ -44,6 +45,7 @@ import {
   PauseCircle,
   PlayCircle,
   ArrowUpDown,
+  UserCheck,
 } from "lucide-react";
 
 type Tab = "kpis" | "users" | "tenants";
@@ -181,11 +183,24 @@ export default function SuperAdminPage() {
     }
   };
 
+  const handleRestoreUser = async (targetUser: PlatformUser) => {
+    setActionLoading(`restore-${targetUser.id}`);
+    try {
+      await restoreUser(targetUser.id);
+      addToast({ type: "success", title: `${targetUser.email} has been restored` });
+      fetchUsers();
+    } catch (err: any) {
+      addToast({ type: "error", title: err.message || "Failed to restore user" });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleSendRecovery = async (targetUser: PlatformUser) => {
     setActionLoading(`recovery-${targetUser.id}`);
     try {
       await sendRecoveryEmail(targetUser.id);
-      addToast({ type: "success", title: `Recovery email sent to ${targetUser.email}` });
+      addToast({ type: "success", title: `Password recovery email sent to ${targetUser.email}` });
     } catch (err: any) {
       addToast({ type: "error", title: err.message || "Failed to send recovery email" });
     } finally {
@@ -202,8 +217,8 @@ export default function SuperAdminPage() {
     }
     setActionLoading(`credits-${creditsModal.user.id}`);
     try {
-      const result = await assignCredits(creditsModal.user.id, amount);
-      addToast({ type: "success", title: result.message });
+      await assignCredits(creditsModal.user.id, amount);
+      addToast({ type: "success", title: `${amount} credits assigned to ${creditsModal.user.email}'s workspace` });
       setCreditsModal(null);
     } catch (err: any) {
       addToast({ type: "error", title: err.message || "Failed to assign credits" });
@@ -300,10 +315,10 @@ export default function SuperAdminPage() {
   const kpiCards = kpis
     ? [
         { label: "Total Tenants", value: kpis.totalTenants, icon: Building2, color: "#8b5cf6", glow: "rgba(139,92,246,0.15)" },
-        { label: "Total Users", value: kpis.totalUsers, icon: Users, color: "#3b82f6", glow: "rgba(59,130,246,0.15)" },
-        { label: "Active Users (7d)", value: kpis.activeUsers7d, icon: Activity, color: "#10b981", glow: "rgba(16,185,129,0.15)" },
+        { label: "Total Users", value: kpis.totalUsers, icon: Users, color: "#3b82f6", glow: "rgba(59,130,246,0.15)", onClick: () => { setActiveTab("users"); setUsersStatus("all"); } },
+        { label: "Active Users (7d)", value: kpis.activeUsers7d, icon: Activity, color: "#10b981", glow: "rgba(16,185,129,0.15)", onClick: () => { setActiveTab("users"); setUsersStatus("active"); } },
         { label: "Total Documents", value: kpis.totalDocuments, icon: FileText, color: "#f59e0b", glow: "rgba(245,158,11,0.15)" },
-        { label: "New Users (30d)", value: kpis.newUsersLast30d, icon: TrendingUp, color: "#06b6d4", glow: "rgba(6,182,212,0.15)" },
+        { label: "New Users (30d)", value: kpis.newUsersLast30d, icon: TrendingUp, color: "#06b6d4", glow: "rgba(6,182,212,0.15)", onClick: () => { setActiveTab("users"); setUsersStatus("active"); } },
         { label: "New Docs (30d)", value: kpis.newDocsLast30d, icon: FileText, color: "#ec4899", glow: "rgba(236,72,153,0.15)" },
         { label: "AI Queries (30d)", value: kpis.aiQueriesLast30d, icon: Sparkles, color: "#8b5cf6", glow: "rgba(139,92,246,0.15)" },
         { label: "Credits Used", value: `${kpis.totalCreditsUsed} / ${kpis.totalCreditsAllocated}`, icon: CreditCard, color: "#ef4444", glow: "rgba(239,68,68,0.15)", subtitle: `${kpis.creditUtilization}% utilization` },
@@ -373,7 +388,8 @@ export default function SuperAdminPage() {
                 {kpiCards.map((kpi) => (
                   <div
                     key={kpi.label}
-                    className="relative bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-5 overflow-hidden transition-all duration-200 hover:border-opacity-60 group"
+                    onClick={'onClick' in kpi ? kpi.onClick : undefined}
+                    className={`relative bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-5 overflow-hidden transition-all duration-200 hover:border-opacity-60 group ${'onClick' in kpi ? 'cursor-pointer hover:border-[var(--brand)]/50' : ''}`}
                     style={{ boxShadow: `0 0 0 1px transparent` }}
                   >
                     {/* Top accent line */}
@@ -482,7 +498,7 @@ export default function SuperAdminPage() {
                                 ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
                                 : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
                             }`}>
-                              {u.is_super_admin ? "Super Admin" : u.role}
+                              {u.is_super_admin ? "Super Admin" : u.role ? u.role.charAt(0).toUpperCase() + u.role.slice(1) : "—"}
                             </span>
                           </td>
                           <td className="px-4 py-3">
@@ -493,7 +509,7 @@ export default function SuperAdminPage() {
                                 ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300"
                                 : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
                             }`}>
-                              {u.status}
+                              {u.status ? u.status.charAt(0).toUpperCase() + u.status.slice(1) : "—"}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-[var(--dash-text-muted)]">
@@ -501,6 +517,21 @@ export default function SuperAdminPage() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-1">
+                              {/* Restore (deleted users only) */}
+                              {u.status === "deleted" && (
+                                <button
+                                  onClick={() => handleRestoreUser(u)}
+                                  disabled={actionLoading === `restore-${u.id}`}
+                                  className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-emerald-500 transition-colors disabled:opacity-30"
+                                  title="Restore user"
+                                >
+                                  {actionLoading === `restore-${u.id}` ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <UserCheck className="w-4 h-4" />
+                                  )}
+                                </button>
+                              )}
                               {/* Send Recovery */}
                               <button
                                 onClick={() => handleSendRecovery(u)}
@@ -517,9 +548,9 @@ export default function SuperAdminPage() {
                               {/* Assign Credits */}
                               <button
                                 onClick={() => setCreditsModal({ user: u, credits: "" })}
-                                disabled={u.status === "deleted"}
+                                disabled={u.status === "deleted" || u.is_super_admin}
                                 className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-emerald-500 transition-colors disabled:opacity-30"
-                                title="Assign AI credits"
+                                title={u.is_super_admin ? "Cannot assign credits to super admin" : "Assign AI credits"}
                               >
                                 <Coins className="w-4 h-4" />
                               </button>
@@ -617,7 +648,7 @@ export default function SuperAdminPage() {
                               }`}
                               title="Change tier"
                             >
-                              {t.tier}
+                              {t.tier ? t.tier.charAt(0).toUpperCase() + t.tier.slice(1) : "—"}
                               <ArrowUpDown className="w-2.5 h-2.5 opacity-60" />
                             </button>
                           </td>
@@ -627,7 +658,7 @@ export default function SuperAdminPage() {
                                 ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300"
                                 : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
                             }`}>
-                              {isSuspended ? "suspended" : "active"}
+                              {isSuspended ? "Suspended" : "Active"}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-[var(--dash-text-secondary)]">{t.userCount}</td>
@@ -835,7 +866,7 @@ export default function SuperAdminPage() {
                 </p>
               ) : (
                 <p className="text-sm text-[var(--dash-text-secondary)]">
-                  Suspend <strong>{confirmSuspend.name}</strong>? All users in this workspace will lose access until reactivated.
+                  Suspend <strong>{confirmSuspend.name}</strong>? All users in this workspace will lose access to the platform until they have been reactivated.
                 </p>
               )}
               <div className="flex items-center justify-end gap-3 pt-2">

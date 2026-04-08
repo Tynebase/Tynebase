@@ -11,6 +11,7 @@ import {
   Send,
   ArrowUpRight,
   Loader2,
+  ArrowUpDown,
 } from "lucide-react";
 import { listDocuments, deleteDocument, updateDocument, Document } from "@/lib/api/documents";
 import { listCategories, Category } from "@/lib/api/folders";
@@ -333,7 +334,14 @@ export default function DraftsPage() {
               className="w-4 h-4 rounded accent-[var(--brand)]"
             />
             <span className="flex-1 text-xs font-medium text-[var(--dash-text-muted)] uppercase tracking-wider">Document</span>
-            <span className="w-24 text-xs font-medium text-[var(--dash-text-muted)] uppercase tracking-wider text-center">Progress</span>
+            <button
+              onClick={() => setSortBy(prev => prev === "completeness" ? "recent" : "completeness")}
+              className={`w-24 flex items-center justify-center gap-1 text-xs font-medium uppercase tracking-wider transition-colors ${sortBy === "completeness" ? "text-[var(--brand)]" : "text-[var(--dash-text-muted)] hover:text-[var(--dash-text-secondary)]"}`}
+              title="Toggle sort by progress"
+            >
+              Progress
+              <ArrowUpDown className="w-3 h-3" />
+            </button>
             <span className="w-24 text-xs font-medium text-[var(--dash-text-muted)] uppercase tracking-wider text-right">Words</span>
             <span className="w-32 text-xs font-medium text-[var(--dash-text-muted)] uppercase tracking-wider text-right">Last Edited</span>
             <span className="w-24"></span>

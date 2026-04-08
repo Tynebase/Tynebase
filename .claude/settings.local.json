@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git pull:*)",
+      "Bash(xargs grep:*)",
+      "Bash(head -20 grep -r \"Audit Log\\\\|audit-log\" /c/Users/Mai/Desktop/TyneBase/tynebase-frontend/components/layout/)",
+      "Bash(grep -n \"fetchCollection\\\\|refreshCollection\\\\|setCollection\\\\|addDocument\\\\|removeDocument\" /c/Users/Mai/Desktop/TyneBase/tynebase-frontend/app/dashboard/knowledge/collections/[id]/page.tsx)",
+      "Bash(grep -n \"Back\\\\|DashboardPageHeader\\\\|ArrowLeft\\\\|h1\\\\|collection.name\" /c/Users/Mai/Desktop/TyneBase/tynebase-frontend/app/dashboard/knowledge/collections/[id]/page.tsx)"
+    ]
+  }
+}

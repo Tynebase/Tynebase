@@ -390,8 +390,73 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
   );
 
   /**
+   * POST /api/superadmin/users/:userId/restore
+   *
+   * Restores a soft-deleted user by setting their status back to 'active'
+   */
+  fastify.post(
+    '/api/superadmin/users/:userId/restore',
+    {
+      preHandler: [authMiddleware, superAdminGuard],
+    },
+    async (request, reply) => {
+      try {
+        const { userId } = userIdParamsSchema.parse(request.params);
+
+        const { data: targetUser, error: fetchError } = await supabaseAdmin
+          .from('users')
+          .select('id, email, status')
+          .eq('id', userId)
+          .single();
+
+        if (fetchError || !targetUser) {
+          return reply.status(404).send({
+            error: { code: 'USER_NOT_FOUND', message: 'User not found' },
+          });
+        }
+
+        if (targetUser.status !== 'deleted') {
+          return reply.status(400).send({
+            error: { code: 'NOT_DELETED', message: 'User is not deleted' },
+          });
+        }
+
+        const { error: updateError } = await supabaseAdmin
+          .from('users')
+          .update({ status: 'active' })
+          .eq('id', userId);
+
+        if (updateError) {
+          request.log.error({ error: updateError }, 'Failed to restore user');
+          throw updateError;
+        }
+
+        request.log.info(
+          { superAdminId: request.user?.id, restoredUserId: userId, email: targetUser.email },
+          'Super admin restored user'
+        );
+
+        return {
+          success: true,
+          message: `User ${targetUser.email} has been restored`,
+        };
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.status(400).send({
+            error: { code: 'INVALID_PARAMS', message: 'Invalid parameters' },
+          });
+        }
+        request.log.error({ error }, 'Error restoring user');
+        return reply.status(500).send({
+          error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to restore user' },
+        });
+      }
+    }
+  );
+
+  /**
    * GET /api/superadmin/kpis
-   * 
+   *
    * Returns platform-wide KPIs for the admin dashboard
    */
   fastify.get(

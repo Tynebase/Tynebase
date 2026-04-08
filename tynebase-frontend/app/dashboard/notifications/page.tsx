@@ -140,7 +140,11 @@ export default function NotificationsPage() {
       await markAsRead(notification.id);
     }
     if (notification.action_url) {
-      router.push(notification.action_url);
+      // Remap legacy chat paths to current route
+      const url = notification.action_url
+        .replace(/^\/dashboard\/chat\/dm\//, '/dashboard/tools/team-chat?dm=')
+        .replace(/^\/dashboard\/chat(\?|$)/, '/dashboard/tools/team-chat$1');
+      router.push(url);
     }
   };
 

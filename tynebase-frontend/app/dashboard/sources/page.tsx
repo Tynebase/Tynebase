@@ -124,7 +124,8 @@ export default function SourcesPage() {
   const [error, setError] = useState<string | null>(null);
   const [reindexingDocs, setReindexingDocs] = useState<Record<string, { jobId: string; progress: number; status: string }>>({});
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [reasonFilter, setReasonFilter] = useState<'all' | 'never_indexed' | 'outdated'>('all');
+  const [reasonFilter, setReasonFilter] = useState<'all' | 'never_indexed' | 'outdated' | 'failed'>('all');
+  const [reindexingAll, setReindexingAll] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [retryingFailed, setRetryingFailed] = useState(false);
   const [retryResult, setRetryResult] = useState<{ reset: number; failed: number } | null>(null);
@@ -231,8 +232,34 @@ export default function SourcesPage() {
     }
   };
 
+  const handleReindexAll = async () => {
+    if (!healthData || healthData.documents_needing_reindex.length === 0) return;
+    try {
+      setReindexingAll(true);
+      let successCount = 0;
+      for (const doc of healthData.documents_needing_reindex) {
+        try {
+          await reindexDocument(doc.id);
+          successCount++;
+        } catch {
+          // continue with others
+        }
+      }
+      addToast({ type: 'success', title: `Re-indexing ${successCount} document${successCount !== 1 ? 's' : ''}` });
+      fetchHealthData();
+    } catch (err) {
+      addToast({ type: 'error', title: 'Re-index all failed', description: err instanceof Error ? err.message : 'Failed to re-index documents' });
+    } finally {
+      setReindexingAll(false);
+    }
+  };
+
   const filtered = useMemo(() => {
     if (!healthData) return [];
+    if (reasonFilter === 'failed') {
+      // For failed filter, show an empty list since we don't have individual failed docs
+      return [];
+    }
     let result = healthData.documents_needing_reindex;
     if (reasonFilter !== 'all') {
       result = result.filter((doc) => doc.reason === reasonFilter);
@@ -300,10 +327,7 @@ export default function SourcesPage() {
             </p>
           </CardContent>
         </Card>
-        <Card
-          className="cursor-pointer hover:border-[var(--status-warning)] transition-all"
-          onClick={() => document.getElementById('documents-needing-reindex')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-        >
+        <Card>
           <CardContent className="p-6">
             <p className="text-xs text-[var(--dash-text-muted)]">Needs Re-indexed</p>
             <p className="text-2xl font-bold text-[var(--status-warning)] mt-1">
@@ -343,7 +367,7 @@ export default function SourcesPage() {
           </button>
           {showFilters && (
             <div className="absolute right-0 top-full mt-2 w-56 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl shadow-lg z-20 py-1">
-              {([['all', 'All Documents'], ['never_indexed', 'Never Indexed'], ['outdated', 'Needs Re-indexing']] as const).map(([value, label]) => (
+              {([['all', 'All Documents'], ['never_indexed', 'Never Indexed'], ['outdated', 'Needs Re-indexing'], ['failed', 'Failed Jobs']] as const).map(([value, label]) => (
                 <button
                   key={value}
                   onClick={() => { setReasonFilter(value); setShowFilters(false); }}
@@ -382,6 +406,14 @@ export default function SourcesPage() {
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           Re-run Health Checks
+        </button>
+        <button
+          onClick={handleReindexAll}
+          disabled={reindexingAll || loading || stats.needingReindex === 0}
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-sm font-semibold text-[var(--dash-text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)] transition-all disabled:opacity-50"
+        >
+          <Layers className={`w-4 h-4 ${reindexingAll ? 'animate-spin' : ''}`} />
+          {reindexingAll ? 'Re-indexing...' : `Re-index All (${stats.needingReindex})`}
         </button>
         <button
           onClick={handleRetryFailed}

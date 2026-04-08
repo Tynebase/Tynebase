@@ -35,7 +35,7 @@ const VISIBILITY_INFO: Record<Visibility, { label: string; description: string; 
   },
   team: {
     label: "Team",
-    description: "Visible to all members of your organization",
+    description: "Visible to all members of your organisation",
     icon: Users,
   },
   public: {
@@ -390,7 +390,7 @@ export default function CollectionsPage() {
 
           <div>
             <label className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-2">
-              Color
+              Colour
             </label>
             <div className="flex gap-2">
               {COLLECTION_COLORS.map((color) => (

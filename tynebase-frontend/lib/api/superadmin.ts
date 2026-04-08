@@ -117,6 +117,11 @@ export async function deleteUser(userId: string): Promise<{ message: string }> {
   return response;
 }
 
+export async function restoreUser(userId: string): Promise<{ message: string }> {
+  const response = await apiPost<{ message: string }>(`/api/superadmin/users/${userId}/restore`);
+  return response;
+}
+
 export async function sendRecoveryEmail(userId: string): Promise<{ message: string }> {
   const response = await apiPost<{ message: string }>(`/api/superadmin/users/${userId}/recovery`);
   return response;

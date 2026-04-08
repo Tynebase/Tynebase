@@ -141,3 +141,14 @@ export async function cancelInvite(inviteId: string): Promise<{ message: string 
 export async function resendInvite(inviteId: string): Promise<{ message: string; email: string }> {
   return apiPost<{ message: string; email: string }>(`/api/invites/${inviteId}/resend`, {});
 }
+
+/**
+ * Decline a pending invitation
+ * 
+ * Marks the invitation as declined. No authentication required.
+ * 
+ * @param inviteId - The ID of the pending invite to decline
+ */
+export async function declineInvite(inviteId: string): Promise<{ message: string }> {
+  return apiPost<{ message: string }>(`/api/invites/${inviteId}/decline`, {});
+}

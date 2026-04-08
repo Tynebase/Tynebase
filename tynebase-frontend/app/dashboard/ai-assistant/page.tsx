@@ -70,7 +70,7 @@ export default function AIAssistantPage() {
   const tabs = [
     { id: 'prompt' as TabType, icon: FileText, label: 'From Prompt', description: 'Generate from text description' },
     { id: 'scrape' as TabType, icon: LinkIcon, label: 'From URL', description: 'Extract content from web pages' },
-    { id: 'file' as TabType, icon: File, label: 'From File', description: 'Import legal documents & media' },
+    { id: 'file' as TabType, icon: File, label: 'Import documents & media', description: 'Import documents & media' },
   ];
   
   const supportedFileCategories = [
@@ -808,9 +808,9 @@ export default function AIAssistantPage() {
             <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
               <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-blue-900">Legal Document Management</p>
+                <p className="text-sm font-medium text-blue-900">Document Management</p>
                 <p className="text-xs text-blue-700 mt-1">
-                  Files are verified with SHA-256 checksums, OCR processed for searchability, and metadata preserved for legal admissibility.
+                  Files are verified with SHA-256 checksums, OCR processed for searchability, and metadata preserved for full traceability. If you are loading legal documents, these properties also support legal admissibility.
                 </p>
               </div>
             </div>

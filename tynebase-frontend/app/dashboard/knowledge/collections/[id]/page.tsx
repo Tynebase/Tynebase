@@ -24,6 +24,7 @@ import {
   Eye,
   Pencil,
   AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import { 
   getCollection, 
@@ -144,25 +145,24 @@ export default function CollectionDetailPage() {
   const [removing, setRemoving] = useState(false);
   const [removeModalOpen, setRemoveModalOpen] = useState(false);
 
-  useEffect(() => {
-    const fetchCollection = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await getCollection(collectionId);
-        setCollection(response.collection);
-      } catch (err) {
-        console.error("Failed to fetch collection:", err);
-        setError(err instanceof Error ? err.message : "Failed to load collection");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (collectionId) {
-      fetchCollection();
+  const refreshCollection = useCallback(async () => {
+    if (!collectionId) return;
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await getCollection(collectionId);
+      setCollection(response.collection);
+    } catch (err) {
+      console.error("Failed to fetch collection:", err);
+      setError(err instanceof Error ? err.message : "Failed to load collection");
+    } finally {
+      setLoading(false);
     }
   }, [collectionId]);
+
+  useEffect(() => {
+    refreshCollection();
+  }, [refreshCollection]);
 
   // Fetch members for private collections
   useEffect(() => {
@@ -411,6 +411,10 @@ export default function CollectionDetailPage() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <Button variant="ghost" className="gap-2" onClick={refreshCollection} title="Refresh collection">
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </Button>
           <Link href="/dashboard/knowledge/collections">
             <Button variant="ghost" className="gap-2">
               <ArrowLeft className="w-4 h-4" />

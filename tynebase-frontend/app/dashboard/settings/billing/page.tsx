@@ -54,7 +54,7 @@ export default function BillingPage() {
               </div>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold">$0<span className="text-sm font-normal">/month</span></div>
+              <div className="text-2xl font-bold">£0<span className="text-sm font-normal">/month</span></div>
               <Button className="mt-2" variant="outline">
                 Upgrade Plan
                 <ArrowRight className="h-4 w-4 ml-2" />
@@ -81,7 +81,7 @@ export default function BillingPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold mb-4">
-                $19<span className="text-sm font-normal">/month</span>
+                £29<span className="text-sm font-normal">/month</span>
               </div>
               <div className="space-y-2 mb-4">
                 <div className="flex items-center gap-2 text-sm">
@@ -113,7 +113,7 @@ export default function BillingPage() {
                 Enterprise
               </CardTitle>
               <CardDescription>
-                Custom solutions for large organizations
+                Custom solutions for large organisations
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -138,7 +138,7 @@ export default function BillingPage() {
                   <span>SLA guarantee</span>
                 </div>
               </div>
-              <Button className="w-full" variant="outline">
+              <Button className="w-full" variant="outline" onClick={() => window.location.href = 'mailto:sales@tynebase.com'}>
                 Contact Sales
               </Button>
             </CardContent>

@@ -4,6 +4,7 @@ import { useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { setAuthTokens } from "@/lib/api/client";
+import { declineInvite } from "@/lib/api/invites";
 import { Loader2 } from "lucide-react";
 
 /**
@@ -17,6 +18,20 @@ import { Loader2 } from "lucide-react";
  * @supabase/ssr automatically detects hash fragments and establishes a
  * session via `onAuthStateChange`.
  */
+
+async function handleDeclineInvite(inviteId: string) {
+  try {
+    await declineInvite(inviteId);
+    window.location.href = "/login?message=" + encodeURIComponent(
+      "You have declined the invitation. You can safely close this page."
+    );
+  } catch (error) {
+    console.error('[InviteCallback] Failed to decline invite:', error);
+    window.location.href = "/login?error=decline_failed&message=" + encodeURIComponent(
+      "Failed to decline invitation. Please try again or contact support."
+    );
+  }
+}
 function InviteCallbackContent() {
   const searchParams = useSearchParams();
   const handled = useRef(false);
@@ -29,6 +44,15 @@ function InviteCallbackContent() {
     console.log('[InviteCallback] URL:', window.location.href);
     console.log('[InviteCallback] Hash:', window.location.hash);
     console.log('[InviteCallback] Search:', window.location.search);
+
+    // Check for decline action first
+    const action = searchParams.get("action");
+    const inviteId = searchParams.get("invite_id") || searchParams.get("invite");
+    
+    if (action === "decline" && inviteId) {
+      handleDeclineInvite(inviteId);
+      return;
+    }
 
     const supabase = createClient();
     if (!supabase) {
