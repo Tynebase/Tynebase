@@ -24,9 +24,9 @@ const outputOptions = [
 
 
 const aiProviders = [
-  { id: 'deepseek', name: 'DeepSeek', desc: 'Fast and efficient via AWS Bedrock', badge: 'Recommended', credits: 0.2 },
-  { id: 'gemini', name: 'Gemini 2.5', desc: 'Advanced reasoning via Google Vertex', badge: null, credits: 1 },
-  { id: 'claude', name: 'Claude Sonnet 4.5', desc: 'Best for analysis & nuanced writing', badge: null, credits: 2 },
+  { id: 'deepseek', name: 'DeepSeek', desc: 'Fast and efficient via AWS Bedrock', badge: 'Recommended', credits: 1 },
+  { id: 'gemini', name: 'Gemini 2.5', desc: 'Advanced reasoning via Google Vertex', badge: null, credits: 2 },
+  { id: 'claude', name: 'Claude Sonnet 4.5', desc: 'Best for analysis & nuanced writing', badge: null, credits: 5 },
 ];
 
 export default function AIAssistantPage() {
@@ -236,7 +236,9 @@ export default function AIAssistantPage() {
         
         router.push(`/dashboard/knowledge/${docId}`);
       } else if (completedJob.status === 'failed') {
-        setError(completedJob.error_message || 'Generation failed');
+        setError(completedJob.error_message || 'Generation failed. Please check your credits and try again.');
+      } else if (completedJob.status === 'completed' && !completedJob.result?.document_id) {
+        setError('Document was generated but could not be saved. Please try again.');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate content');

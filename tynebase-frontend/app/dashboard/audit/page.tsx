@@ -315,6 +315,20 @@ export default function AuditPage() {
     if (action === 'archive') {
       await handleArchiveDocument(finding.document_id, finding.title);
     }
+    // Optimistically remove this finding from the audit results panel after action
+    setAuditResult(prev => {
+      if (!prev) return null;
+      const updatedFindings = prev.findings.filter(f => f.document_id !== finding.document_id);
+      return {
+        ...prev,
+        findings: updatedFindings,
+        summary: {
+          ...prev.summary,
+          issues_found: updatedFindings.length,
+          healthy: prev.summary.healthy + 1,
+        },
+      };
+    });
   };
 
   const handleExport = () => {
@@ -570,7 +584,7 @@ export default function AuditPage() {
               <p className="text-xs text-[var(--dash-text-tertiary)] mt-1">Healthy</p>
             </div>
             <div className="bg-amber-500/5 rounded-lg p-4 text-center">
-              <p className="text-2xl font-bold text-amber-600">{auditResult.summary.issues_found}</p>
+              <p className="text-2xl font-bold text-amber-600">{auditResult.findings.length}</p>
               <p className="text-xs text-[var(--dash-text-tertiary)] mt-1">Issues Found</p>
             </div>
             <div className="bg-blue-500/5 rounded-lg p-4 text-center">

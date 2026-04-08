@@ -1865,8 +1865,9 @@ export default function KnowledgePage() {
                 <select
                   value={selectedCollectionId || ''}
                   onChange={(e) => setSelectedCollectionId(e.target.value || null)}
-                  className="w-full px-3 py-2 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
+                  className="w-full px-3 pr-8 py-2 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20"
                 >
+                  <option value="">— Select a collection —</option>
                   {collections.map((collection) => (
                     <option key={collection.id} value={collection.id}>{collection.name}</option>
                   ))}

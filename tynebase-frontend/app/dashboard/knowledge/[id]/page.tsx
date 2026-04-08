@@ -33,15 +33,16 @@ import Link from "next/link";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/Card";
 import { DeleteConfirmationModal } from "@/components/ui/DeleteConfirmationModal";
 import { Modal } from "@/components/ui/Modal";
-import { 
-  getDocument, 
-  updateDocument, 
-  publishDocument, 
+import {
+  getDocument,
+  updateDocument,
+  publishDocument,
   deleteDocument,
   discardDraft,
   createDocument,
-  type Document 
+  type Document
 } from "@/lib/api/documents";
+import { trackDocumentView } from "@/lib/api/audit";
 import { listCategories, type Category as APICategory } from "@/lib/api/folders";
 import { ShareModal } from "@/components/docs/ShareModal";
 import { listTags, createTag, addTagToDocuments, removeTagFromDocument, type Tag as APITag } from "@/lib/api/tags";
@@ -133,6 +134,7 @@ export default function EditDocumentPage() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(false);
   const hasFetched = useRef(false);
+  const hasTrackedView = useRef(false);
   const editorRef = useRef<any>(null);
   const [contentIsHtml, setContentIsHtml] = useState(false);
 
@@ -156,7 +158,8 @@ export default function EditDocumentPage() {
         setIsLoading(true);
         setError(null);
         
-        const response = await getDocument(documentId);
+        // Skip view increment on initial load — views are tracked separately in read mode
+        const response = await getDocument(documentId, true);
         const uiDoc = mapDocumentToUI(response.document);
         
         // Check if this is a cross-tenant read-only document or viewer role
@@ -190,6 +193,14 @@ export default function EditDocumentPage() {
 
     fetchDocument();
   }, [documentId]);
+
+  // Track document view when user switches to read mode (not in edit mode)
+  useEffect(() => {
+    if (mode === 'read' && document && !hasTrackedView.current) {
+      hasTrackedView.current = true;
+      trackDocumentView(documentId).catch(() => {});
+    }
+  }, [mode, document, documentId]);
 
   // Fetch categories on mount
   useEffect(() => {

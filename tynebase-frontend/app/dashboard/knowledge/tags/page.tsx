@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Hash, Plus, Search, Sparkles, FileText, ArrowRight, TrendingUp, Filter, Loader2, AlertCircle, Trash2, ChevronDown, RotateCcw, Pencil, Tag as TagIcon, X, CheckCircle, GripVertical } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { listTags, createTag, deleteTag, updateTag, addTagToDocuments, reorderTags, type Tag as APITag } from "@/lib/api/tags";
+import { listDocuments } from "@/lib/api/documents";
 import {
   DndContext,
   closestCenter,
@@ -366,16 +367,13 @@ export default function TagsPage() {
     // Fetch available documents
     try {
       setLoadingDocs(true);
-      const response = await fetch('/api/documents?limit=50');
-      if (response.ok) {
-        const data = await response.json();
-        const docs = data.documents || [];
-        setAvailableDocs(docs.map((d: {id: string; title: string}) => ({ 
-          id: d.id, 
-          title: d.title, 
-          selected: false 
-        })));
-      }
+      const data = await listDocuments({ limit: 100 });
+      const docs = data.documents || [];
+      setAvailableDocs(docs.map((d: { id: string; title: string }) => ({
+        id: d.id,
+        title: d.title,
+        selected: false,
+      })));
     } catch (err) {
       console.error('Failed to fetch documents:', err);
     } finally {

@@ -113,37 +113,6 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Team */}
-      <section className="section py-20">
-        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 24px' }}>
-          <div style={{ textAlign: 'center', marginBottom: '64px' }}>
-            <h2 style={{ fontSize: '1.875rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>Meet the Team</h2>
-            <p style={{ fontSize: '1.125rem', color: 'var(--text-secondary)' }}>The people behind TyneBase.</p>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8" style={{ width: '100%', maxWidth: '896px' }}>
-            {team.map((member) => (
-              <div key={member.name} className="text-center" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                {member.image === "/Mai_headshoot.webp" ? (
-                  <div className="w-24 h-24 rounded-full overflow-hidden mx-auto mb-4" style={{ marginBottom: '20px' }}>
-                    <img 
-                      src={member.image} 
-                      alt={member.name} 
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                ) : (
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[var(--brand)] to-[var(--accent-pink)] mx-auto mb-4 flex items-center justify-center" style={{ marginBottom: '20px' }}>
-                    <span className="text-2xl font-bold text-white">{member.name.split(' ').map(n => n[0]).join('')}</span>
-                  </div>
-                )}
-                <h4 className="font-semibold text-[var(--text-primary)]" style={{ marginBottom: '4px' }}>{member.name}</h4>
-                <p className="text-sm text-[var(--text-muted)]">{member.role}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* CTA */}
       <section className="section py-20">
         <div style={{ width: '100%', display: 'flex', justifyContent: 'center', padding: '0 24px' }}>

@@ -324,6 +324,10 @@ export default function TeamChatPage() {
         setDmMessages((prev) => [...response.messages, ...prev]);
       } else {
         setDmMessages(response.messages);
+        // Scroll to bottom when initially loading DM messages
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+        }, 50);
       }
       setDmHasMore(response.has_more);
     } catch (err: any) {
@@ -460,6 +464,10 @@ export default function TeamChatPage() {
         setMessages((prev) => [...response.messages, ...prev]);
       } else {
         setMessages(response.messages);
+        // Scroll to bottom when initially loading channel messages
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+        }, 50);
       }
       setHasMore(response.has_more);
     } catch (err: any) {
@@ -1097,9 +1105,6 @@ export default function TeamChatPage() {
                   </span>
                 )}
               </button>
-              <button className="p-2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] rounded-lg">
-                <Users className="w-5 h-5" />
-              </button>
             </header>
 
             {/* Messages Area */}
@@ -1548,7 +1553,7 @@ export default function TeamChatPage() {
                 <select
                   value={assignTo}
                   onChange={(e) => setAssignTo(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
+                  className="w-full px-3 pr-8 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
                 >
                   <option value="">Select team member...</option>
                   {teamUsers.filter(m => m.id !== user?.id).map((m) => (

@@ -927,13 +927,6 @@ export default function Home() {
                       <p style={{ margin: '0', lineHeight: '1.4' }}>Type in Markdown and export to .md anytime</p>
                     </div>
                   </div>
-                  <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'flex-start', gap: '14px', margin: '0 0 16px 0', padding: '0' }}>
-                    <Zap className="w-5 h-5 text-[var(--brand)] flex-shrink-0" style={{ marginTop: '0' }} />
-                    <div style={{ marginTop: '0', marginBottom: '0' }}>
-                      <strong style={{ display: 'block', marginBottom: '2px', color: '#ffffff' }}>Keyboard shortcuts</strong>
-                      <p style={{ margin: '0', lineHeight: '1.4' }}>Power-user combos for everything</p>
-                    </div>
-                  </div>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', margin: '0', padding: '0' }}>
                     <Clock className="w-5 h-5 text-[var(--brand)] flex-shrink-0" style={{ marginTop: '0' }} />
                     <div style={{ marginTop: '0', marginBottom: '0' }}>

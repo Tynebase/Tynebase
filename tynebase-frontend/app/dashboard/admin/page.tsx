@@ -444,7 +444,7 @@ export default function SuperAdminPage() {
               <select
                 value={usersStatus}
                 onChange={(e) => { setUsersStatus(e.target.value as any); setUsersPage(1); }}
-                className="px-4 py-2.5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-sm text-[var(--dash-text-primary)] focus:outline-none focus:border-[var(--brand)]"
+                className="px-4 pr-9 py-2.5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-sm text-[var(--dash-text-primary)] focus:outline-none focus:border-[var(--brand)]"
               >
                 <option value="all">All statuses</option>
                 <option value="active">Active</option>
