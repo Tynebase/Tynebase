@@ -117,8 +117,41 @@ export async function GET(request: Request) {
   }
 
   if (userData?.tenant_id && userData.tenants && typeof userData.tenants === 'object' && 'subdomain' in userData.tenants) {
-    console.log('[Auth Callback] User has tenant, redirecting through oauth-login to store tokens');
-    return NextResponse.redirect(`${origin}/auth/oauth-login?redirect=${encodeURIComponent(redirect)}`);
+    const subdomain = (userData.tenants as { subdomain: string }).subdomain;
+    const accessToken = data.session?.access_token;
+    const refreshToken = data.session?.refresh_token;
+
+    console.log('[Auth Callback] User has tenant, setting app cookies and redirecting to oauth-login');
+
+    const oauthLoginUrl = `${origin}/auth/oauth-login?redirect=${encodeURIComponent(redirect)}`;
+    const response = NextResponse.redirect(oauthLoginUrl);
+
+    const secure = origin.startsWith('https');
+
+    if (accessToken) {
+      response.cookies.set('access_token', accessToken, {
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60,
+        sameSite: 'lax',
+        secure,
+      });
+    }
+    if (refreshToken) {
+      response.cookies.set('refresh_token', refreshToken, {
+        path: '/',
+        maxAge: 30 * 24 * 60 * 60,
+        sameSite: 'lax',
+        secure,
+      });
+    }
+    response.cookies.set('tenant_subdomain', subdomain, {
+      path: '/',
+      maxAge: 365 * 24 * 60 * 60,
+      sameSite: 'lax',
+      secure,
+    });
+
+    return response;
   }
 
   // User exists in auth but has no tenant record - might need to complete signup

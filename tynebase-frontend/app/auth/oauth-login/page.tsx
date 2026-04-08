@@ -2,9 +2,14 @@
 
 import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { setAuthTokens, setTenantSubdomain } from "@/lib/api/client";
 import { Loader2 } from "lucide-react";
+
+function getCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(new RegExp("(?:^|; )" + name + "=([^;]*)"));
+  return match ? decodeURIComponent(match[1]) : null;
+}
 
 function OAuthLoginContent() {
   const router = useRouter();
@@ -13,58 +18,26 @@ function OAuthLoginContent() {
   useEffect(() => {
     const redirect = searchParams.get("redirect") || "/dashboard";
 
-    async function finishOAuthLogin() {
-      const supabase = createClient();
-      if (!supabase) {
-        router.replace("/login?error=auth_failed");
-        return;
-      }
+    const accessToken = getCookie("access_token");
+    const refreshToken = getCookie("refresh_token");
+    const tenantSubdomain = getCookie("tenant_subdomain");
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      const session = sessionData?.session;
-
-      if (!session?.access_token) {
-        router.replace(
-          "/login?error=auth_failed&message=" +
-            encodeURIComponent("Session not found. Please try signing in again.")
-        );
-        return;
-      }
-
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
-      try {
-        const res = await fetch(`${apiBase}/api/auth/me`, {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          const code = body?.error?.code;
-          if (code === "ACCOUNT_DELETED") {
-            router.replace("/login?error=account_deleted");
-          } else if (code === "ACCOUNT_SUSPENDED") {
-            router.replace("/login?error=account_suspended");
-          } else {
-            router.replace("/login?error=auth_failed");
-          }
-          return;
-        }
-
-        const result = await res.json();
-        const tenant = result?.data?.tenant;
-
-        setAuthTokens(session.access_token, session.refresh_token || "");
-        if (tenant?.subdomain) {
-          setTenantSubdomain(tenant.subdomain);
-        }
-
-        window.location.href = redirect;
-      } catch {
-        router.replace("/login?error=auth_failed");
-      }
+    if (!accessToken) {
+      // Tokens not present — send back to login
+      router.replace(
+        "/login?error=auth_failed&message=" +
+          encodeURIComponent("Session not found. Please try signing in again.")
+      );
+      return;
     }
 
-    finishOAuthLogin();
+    // Sync server-set cookies into localStorage so the app's auth helpers can read them
+    setAuthTokens(accessToken, refreshToken || "");
+    if (tenantSubdomain) {
+      setTenantSubdomain(tenantSubdomain);
+    }
+
+    window.location.href = redirect;
   }, [router, searchParams]);
 
   return (

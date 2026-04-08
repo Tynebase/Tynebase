@@ -12,6 +12,9 @@ const PUBLIC_ROUTES = [
   "/auth/callback",
   "/auth/verify",
   "/auth/reset-password",
+  "/auth/oauth-login",
+  "/auth/accept-invite",
+  "/auth/complete-signup",
   "/docs",
 ];
 
