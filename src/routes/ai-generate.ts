@@ -210,18 +210,18 @@ export default async function aiGenerateRoutes(fastify: FastifyInstance) {
         (async () => {
           try {
             const { data: creditData } = await supabaseAdmin
-              .from('credit_allocations')
-              .select('credits_remaining, credits_total')
+              .from('credit_pools')
+              .select('total_credits, used_credits')
               .eq('tenant_id', tenant.id)
               .eq('month_year', currentMonth)
               .single();
 
             if (creditData) {
-              const remaining = creditData.credits_remaining;
-              const total = creditData.credits_total;
+              const remaining = Number(creditData.total_credits) - Number(creditData.used_credits);
+              const total = Number(creditData.total_credits);
               if (remaining <= 0) {
                 await notifyCreditsExhausted({ userId: user.id, tenantId: tenant.id });
-              } else if (remaining <= 3) {
+              } else if (remaining <= Math.max(3, total * 0.1)) {
                 await notifyCreditsLow({ userId: user.id, tenantId: tenant.id, creditsRemaining: remaining, creditsTotal: total });
               }
             }

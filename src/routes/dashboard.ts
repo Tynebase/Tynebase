@@ -4,12 +4,12 @@ import { tenantContextMiddleware } from '../middleware/tenantContext';
 import { authMiddleware } from '../middleware/auth';
 import { supabaseAdmin } from '../lib/supabase';
 
-// Tier credit allocations (must match auth.ts)
+// Tier credit allocations (must match auth.ts and creditGuard.ts)
 const TIER_CREDITS: Record<string, number> = {
   free: 10,
   base: 100,
   pro: 500,
-  enterprise: 2000,
+  enterprise: 1000,
 };
 
 /**
@@ -136,6 +136,17 @@ export default async function dashboardRoutes(fastify: FastifyInstance) {
         // Debug: Log storage data
         request.log.info({ storageData, storageError, tenantId: tenant.id }, 'Storage usage result');
 
+        // Get content health stats using the same function as audit dashboard
+        const { data: healthStats, error: healthError } = await supabaseAdmin
+          .rpc('get_content_health_stats', {
+            tenant_id_param: tenant.id,
+            days_threshold: 90, // Use 90 days as default
+          });
+
+        if (healthError) {
+          request.log.error({ error: healthError }, 'Failed to get content health stats');
+        }
+
         const totalCredits = creditPool?.total_credits || 0;
         const usedCredits = creditPool?.used_credits || 0;
         const remainingCredits = totalCredits - usedCredits;
@@ -149,6 +160,15 @@ export default async function dashboardRoutes(fastify: FastifyInstance) {
         const storageUsedGB = storageUsedBytes / (1024 * 1024 * 1024);
         const storageLimitMB = storageLimitBytes / (1024 * 1024);
         const storageLimitGB = storageLimitBytes / (1024 * 1024 * 1024);
+
+        // Calculate content health percentage using the same logic as audit dashboard
+        const healthStatsRow = Array.isArray(healthStats) ? healthStats[0] : healthStats;
+        const totalDocs = Number(healthStatsRow?.total_documents) || 0;
+        const excellentDocs = Number(healthStatsRow?.excellent_health) || 0;
+        const goodDocs = Number(healthStatsRow?.good_health) || 0;
+        const contentHealthPercentage = totalDocs > 0 
+          ? Math.round(((excellentDocs + goodDocs) / totalDocs) * 100) 
+          : 0;
 
         return reply.status(200).send({
           success: true,
@@ -173,6 +193,9 @@ export default async function dashboardRoutes(fastify: FastifyInstance) {
               limit_mb: parseFloat(storageLimitMB.toFixed(0)),
               limit_gb: parseFloat(storageLimitGB.toFixed(2)),
               percentage: storageLimitGB > 0 ? parseFloat(((storageUsedGB / storageLimitGB) * 100).toFixed(1)) : 0,
+            },
+            content_health: {
+              percentage: contentHealthPercentage,
             },
           },
         });

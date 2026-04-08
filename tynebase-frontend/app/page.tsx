@@ -838,30 +838,35 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Query Top-ups Section */}
+          {/* Credit Top-ups Section */}
           <div className="mt-20 max-w-4xl mx-auto p-8 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] relative overflow-hidden group hover:border-[var(--brand)] transition-all">
             <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--brand)] opacity-5 blur-3xl -mr-16 -mt-16 group-hover:opacity-10 transition-opacity" />
             <div className="flex flex-col md:flex-row items-center justify-between gap-8 relative z-10">
               <div className="flex-1 text-center md:text-left">
                 <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-2 flex items-center justify-center md:justify-start gap-2">
                   <Sparkles className="w-5 h-5 text-[var(--brand)]" />
-                  Need more queries?
+                  Need more credits?
                 </h3>
                 <p className="text-[var(--text-secondary)]">
-                  Purchase query top-ups anytime. Never run out of AI power for your team.
-                  <span className="block mt-1 text-xs text-[var(--text-muted)]">Available for all paid plans. Expires at month end.</span>
+                  Purchase credit top-ups anytime. Never run out of AI power for your team.
+                  <span className="block mt-1 text-xs text-[var(--text-muted)]">Available for Base, Pro &amp; Enterprise plans. Credits expire at month end.</span>
                 </p>
               </div>
               <div className="flex flex-col items-center gap-4">
                 <div className="flex items-center gap-6">
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-[var(--text-primary)]">£9.99</p>
+                    <p className="text-2xl font-bold text-[var(--text-primary)]">£10</p>
                     <p className="text-xs text-[var(--text-muted)]">100 Credits</p>
                   </div>
                   <div className="w-px h-8 bg-[var(--border-subtle)]" />
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-[var(--text-primary)]">£39.99</p>
+                    <p className="text-2xl font-bold text-[var(--text-primary)]">£40</p>
                     <p className="text-xs text-[var(--text-muted)]">500 Credits</p>
+                  </div>
+                  <div className="w-px h-8 bg-[var(--border-subtle)]" />
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-[var(--text-primary)]">£70</p>
+                    <p className="text-xs text-[var(--text-muted)]">1000 Credits</p>
                   </div>
                 </div>
               </div>

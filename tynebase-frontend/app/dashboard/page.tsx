@@ -115,7 +115,7 @@ export default function DashboardPage() {
     return "Very Poor";
   };
 
-  const contentHealthPct = 100 - (stats?.storage.percentage || 0);
+  const contentHealthPct = stats?.content_health?.percentage || 0;
   const contentHealthLabel = getContentHealthLabel(contentHealthPct);
 
   // Customize stats based on user type

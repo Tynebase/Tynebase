@@ -22,6 +22,9 @@ export interface DashboardStats {
     limit_gb: number;
     percentage: number;
   };
+  content_health: {
+    percentage: number;
+  };
 }
 
 export interface RecentDocument {

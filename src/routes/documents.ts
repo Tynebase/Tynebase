@@ -2343,14 +2343,19 @@ export default async function documentRoutes(fastify: FastifyInstance) {
         
         const totalCredits = videos.length * creditsPerVideo;
 
-        // Check user's credit balance
+        // Check current month's credit balance
+        const currentMonth = new Date().toISOString().slice(0, 7);
         const { data: creditData } = await supabaseAdmin
-          .from('tenant_credits')
-          .select('credits_remaining')
+          .from('credit_pools')
+          .select('total_credits, used_credits')
           .eq('tenant_id', tenant.id)
+          .eq('month_year', currentMonth)
           .single();
 
-        const creditsRemaining = creditData?.credits_remaining || 0;
+        const creditsRemaining = creditData
+          ? Number(creditData.total_credits) - Number(creditData.used_credits)
+          : 0;
+
         if (creditsRemaining < totalCredits) {
           return reply.code(402).send({
             error: {

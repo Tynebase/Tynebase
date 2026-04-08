@@ -101,24 +101,38 @@ TyneBase uses Supabase for authentication with Google OAuth as an external provi
    - Go to your Supabase project: https://app.supabase.com
    - Select your TyneBase project
 
-2. **Enable Google provider**
-   - Go to "Authentication" > "Providers"
-   - Find "Google" in the list
-   - Click the toggle to enable it
+2. **Navigate to Google Provider Configuration**
+   - Go to the **Google provider page on the Dashboard**: 
+     https://supabase.com/dashboard/project/_/auth/providers?provider=Google
+   - This is the new OAuth Apps interface that replaces the old "Providers" section
 
 3. **Configure Google provider**
-   - **Client ID**: Paste your Google Client ID
-   - **Client Secret**: Paste your Google Client Secret
-   - **Enable signups**: Keep checked
+   - **Client ID**: Paste your Google Client ID from Step 3
+   - **Client Secret**: Paste your Google Client Secret from Step 3
+   - **Enable signups**: Keep this checked to allow new user registration
    - Click "Save"
 
-4. **Update redirect URLs in Supabase**
-   - Go to "Authentication" > "URL Configuration"
+4. **Get your Supabase callback URL**
+   - On the same Google provider page, you'll find your **Supabase callback URL**
+   - For local development: `http://127.0.0.1:54321/auth/v1/callback`
+   - For production: [`https://your-project-ref.supabase.co/auth/v1/callback`](https://fsybthuvikyetueizado.supabase.co/auth/v1/callback)
+
+5. **Update Google Console with Supabase callback**
+   - Go back to Google Cloud Console: https://console.cloud.google.com/auth/clients
+   - Find your OAuth client from Step 3
+   - Click to edit it
+   - Under **Authorized redirect URIs**, add your Supabase callback URL:
+     - Local: `http://127.0.0.1:54321/auth/v1/callback`
+     - Production: `https://your-project-ref.supabase.co/auth/v1/callback`
+   - Click "Save"
+
+6. **Configure redirect URLs in Supabase**
+   - In Supabase Dashboard, go to "Authentication" > "URL Configuration"
    - **Site URL**: Set to your production URL (e.g., `https://yourdomain.com`)
-   - **Redirect URLs**: Add the same URLs from Step 3:
+   - **Redirect URLs**: Add your application's callback URLs:
      ```
-     http://127.0.0.1:3000/auth/callback
      http://localhost:3000/auth/callback
+     http://127.0.0.1:3000/auth/callback
      https://yourdomain.com/auth/callback
      ```
 
@@ -126,20 +140,39 @@ TyneBase uses Supabase for authentication with Google OAuth as an external provi
 
 ## Step 5: Update Environment Variables
 
-1. **Update `.env.local` in frontend**
+1. **For local development with Supabase CLI**
+   - Add the Google Client Secret to your environment:
+   ```bash
+   GOOGLE_CLIENT_SECRET="your-google-client-secret-here"
+   ```
+
+2. **Update Supabase config for local development**
+   - In `supabase/config.toml`, ensure Google is configured:
+   ```toml
+   [auth.external.google]
+   enabled = true
+   client_id = "your-google-client-id-here"
+   secret = "env(GOOGLE_CLIENT_SECRET)"
+   skip_nonce_check = false
+   ```
+
+3. **For frontend application**
+   - Update your frontend `.env.local` with the Google credentials:
    ```bash
    # Google OAuth Configuration
    GOOGLE_CLIENT_ID=your-google-client-id-here
    GOOGLE_CLIENT_SECRET=your-google-client-secret-here
+   
+   # Supabase Configuration (if not already set)
+   NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
    ```
 
-2. **Update Supabase config (if needed)**
-   - In `supabase/config.toml`, ensure Google is enabled:
-   ```toml
-   [auth.external.google]
-   enabled = true
-   client_id = "env(GOOGLE_CLIENT_ID)"
-   secret = "env(GOOGLE_CLIENT_SECRET)"
+4. **For Vercel production deployment**
+   - Add these environment variables in Vercel project settings:
+   ```bash
+   GOOGLE_CLIENT_ID=your-google-client-id-here
+   GOOGLE_CLIENT_SECRET=your-google-client-secret-here
    ```
 
 ---
@@ -189,10 +222,12 @@ TyneBase uses Supabase for authentication with Google OAuth as an external provi
 ## Troubleshooting Common Issues
 
 ### "redirect_uri_mismatch" Error
-- **Cause**: Redirect URI in request doesn't match authorized URIs
+- **Cause**: Redirect URI doesn't match authorized URIs in Google Console
 - **Solution**: 
   1. Check the exact URI in the error message
-  2. Add it to Google Console under "Authorized redirect URIs"
+  2. Ensure your Google Console has the correct Supabase callback URL:
+     - Local: `http://127.0.0.1:54321/auth/v1/callback`
+     - Production: `https://your-project-ref.supabase.co/auth/v1/callback`
   3. Ensure no trailing slashes or protocol differences
 
 ### "invalid_client" Error
@@ -246,23 +281,36 @@ TyneBase uses Supabase for authentication with Google OAuth as an external provi
 **Google Cloud Console Setup:**
 - Project: `TyneBase Auth`
 - OAuth consent: External
-- Scopes: `email`, `profile`, `openid`
-- Redirect URIs: `http://localhost:3000/auth/callback` (dev), `https://yourdomain.com/auth/callback` (prod)
+- Scopes: `openid`, `../auth/userinfo.email`, `../auth/userinfo.profile`
+- **Authorized redirect URIs**: 
+  - Local: `http://127.0.0.1:54321/auth/v1/callback`
+  - Production: `https://your-project-ref.supabase.co/auth/v1/callback`
+- **Authorized JavaScript origins**: Your app URLs (e.g., `https://yourdomain.com`)
 
 **Supabase Configuration:**
-- Enable Google provider in Authentication > Providers
-- Add Client ID and Secret
-- Configure redirect URLs in URL Configuration
+- Go to: https://supabase.com/dashboard/project/_/auth/providers?provider=Google
+- Enable Google provider
+- Add Client ID and Client Secret from Google Console
+- Configure Site URL and redirect URLs in Authentication > URL Configuration
 
 **Environment Variables:**
 ```bash
-GOOGLE_CLIENT_ID=from-google-console
-GOOGLE_CLIENT_SECRET=from-google-console
+# For local development and Vercel production
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+
+# For supabase/config.toml (local development)
+[auth.external.google]
+enabled = true
+client_id = "your-google-client-id"
+secret = "env(GOOGLE_CLIENT_SECRET)"
+skip_nonce_check = false
 ```
 
 **Testing:**
 - Local: `http://localhost:3000/login`
 - Production: `https://yourdomain.com/login`
+- Supabase callback URLs are different from app URLs!
 
 ---
 
