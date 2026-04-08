@@ -100,6 +100,8 @@ $$ LANGUAGE plpgsql;
 -- =====================================================
 -- 4. get_credit_balance() — return NUMERIC columns
 -- =====================================================
+DROP FUNCTION IF EXISTS get_credit_balance(UUID, TEXT);
+
 CREATE OR REPLACE FUNCTION get_credit_balance(
     p_tenant_id  UUID,
     p_month_year TEXT DEFAULT TO_CHAR(NOW(), 'YYYY-MM')
