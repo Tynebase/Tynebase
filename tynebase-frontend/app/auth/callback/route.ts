@@ -103,40 +103,30 @@ export async function GET(request: Request) {
     }
   }
 
-  // Fetch user's tenant context for redirect
-  const { data: userData } = await supabase
-    .from('users')
-    .select('tenant_id, status, tenants!inner(subdomain)')
-    .eq('id', data.user.id)
-    .maybeSingle();
+  // We have a valid session. Pass tokens via URL fragment to the oauth-login
+  // page which will sync them into localStorage. We avoid a database query here
+  // because the Supabase client may not be fully authenticated in all browsers
+  // (e.g. Firefox Total Cookie Protection can interfere with the PKCE verifier
+  // cookie, causing RLS-protected queries to fail silently).
+  // The oauth-login page calls /api/auth/me (backend, service-role) which
+  // handles tenant lookup and will redirect to login if the account is invalid.
+  const accessToken = data.session?.access_token;
+  const refreshToken = data.session?.refresh_token;
 
-  if (userData?.status === 'deleted') {
-    return NextResponse.redirect(
-      `${origin}/login?error=account_deleted&message=${encodeURIComponent('Your account has been removed from this workspace.')}`
-    );
+  if (!accessToken) {
+    console.error('[Auth Callback] No access token in session');
+    return NextResponse.redirect(`${origin}/login?error=auth_failed`);
   }
 
-  if (userData?.tenant_id && userData.tenants && typeof userData.tenants === 'object' && 'subdomain' in userData.tenants) {
-    const subdomain = (userData.tenants as { subdomain: string }).subdomain;
-    const accessToken = data.session?.access_token;
-    const refreshToken = data.session?.refresh_token;
+  console.log('[Auth Callback] Session obtained, passing tokens via URL fragment to oauth-login');
 
-    console.log('[Auth Callback] User has tenant, passing tokens via URL fragment to oauth-login');
+  // URL fragments never leave the browser — not sent to servers, not logged,
+  // and unaffected by cross-site cookie restrictions.
+  const payload = Buffer.from(JSON.stringify({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+    redirect,
+  })).toString('base64url');
 
-    // Pass tokens via URL fragment — fragments never leave the browser so they
-    // aren't affected by Firefox Total Cookie Protection or cross-site cookie
-    // restrictions that apply to Set-Cookie headers in redirect responses.
-    const payload = Buffer.from(JSON.stringify({
-      access_token: accessToken,
-      refresh_token: refreshToken,
-      tenant_subdomain: subdomain,
-      redirect,
-    })).toString('base64url');
-
-    return NextResponse.redirect(`${origin}/auth/oauth-login#t=${payload}`);
-  }
-
-  // User exists in auth but has no tenant record - might need to complete signup
-  console.log('[Auth Callback] User has no tenant record, redirecting to dashboard');
-  return NextResponse.redirect(`${origin}/dashboard`);
+  return NextResponse.redirect(`${origin}/auth/oauth-login#t=${payload}`);
 }
