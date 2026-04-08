@@ -31,7 +31,7 @@ import {
   CreditCard,
   Activity,
   Search,
-  Trash2,
+  ArchiveX,
   KeyRound,
   Coins,
   LogIn,
@@ -46,6 +46,7 @@ import {
   PlayCircle,
   ArrowUpDown,
   UserCheck,
+  RotateCcw,
 } from "lucide-react";
 
 type Tab = "kpis" | "users" | "tenants";
@@ -517,52 +518,58 @@ export default function SuperAdminPage() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-1">
-                              {/* Restore (deleted users only) */}
+                              {/* Re-instate (archived/deleted users only) */}
                               {u.status === "deleted" && (
                                 <button
                                   onClick={() => handleRestoreUser(u)}
                                   disabled={actionLoading === `restore-${u.id}`}
-                                  className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-emerald-500 transition-colors disabled:opacity-30"
-                                  title="Restore user"
+                                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/40 text-xs font-medium transition-colors disabled:opacity-30"
+                                  title="Re-instate user (restore access)"
                                 >
                                   {actionLoading === `restore-${u.id}` ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <RotateCcw className="w-3.5 h-3.5" />
+                                  )}
+                                  Re-instate
+                                </button>
+                              )}
+                              {/* Send Recovery Email (active/suspended users only) */}
+                              {u.status !== "deleted" && (
+                                <button
+                                  onClick={() => handleSendRecovery(u)}
+                                  disabled={actionLoading === `recovery-${u.id}`}
+                                  className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-[var(--brand)] transition-colors disabled:opacity-30"
+                                  title="Send password reset email"
+                                >
+                                  {actionLoading === `recovery-${u.id}` ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
                                   ) : (
-                                    <UserCheck className="w-4 h-4" />
+                                    <KeyRound className="w-4 h-4" />
                                   )}
                                 </button>
                               )}
-                              {/* Send Recovery */}
-                              <button
-                                onClick={() => handleSendRecovery(u)}
-                                disabled={actionLoading === `recovery-${u.id}` || u.status === "deleted"}
-                                className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-[var(--brand)] transition-colors disabled:opacity-30"
-                                title="Send password recovery"
-                              >
-                                {actionLoading === `recovery-${u.id}` ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <KeyRound className="w-4 h-4" />
-                                )}
-                              </button>
-                              {/* Assign Credits */}
-                              <button
-                                onClick={() => setCreditsModal({ user: u, credits: "" })}
-                                disabled={u.status === "deleted" || u.is_super_admin}
-                                className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-emerald-500 transition-colors disabled:opacity-30"
-                                title={u.is_super_admin ? "Cannot assign credits to super admin" : "Assign AI credits"}
-                              >
-                                <Coins className="w-4 h-4" />
-                              </button>
-                              {/* Delete */}
-                              <button
-                                onClick={() => setConfirmDelete(u)}
-                                disabled={u.is_super_admin || u.status === "deleted"}
-                                className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-red-500 transition-colors disabled:opacity-30"
-                                title="Delete user"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              {/* Assign Credits (active users only) */}
+                              {u.status !== "deleted" && (
+                                <button
+                                  onClick={() => setCreditsModal({ user: u, credits: "" })}
+                                  disabled={u.is_super_admin}
+                                  className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-emerald-500 transition-colors disabled:opacity-30"
+                                  title={u.is_super_admin ? "Cannot assign credits to super admin" : "Assign AI credits"}
+                                >
+                                  <Coins className="w-4 h-4" />
+                                </button>
+                              )}
+                              {/* Archive (soft-delete active/suspended users) */}
+                              {u.status !== "deleted" && !u.is_super_admin && (
+                                <button
+                                  onClick={() => setConfirmDelete(u)}
+                                  className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-orange-500 transition-colors"
+                                  title="Archive user (revoke access)"
+                                >
+                                  <ArchiveX className="w-4 h-4" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -801,15 +808,15 @@ export default function SuperAdminPage() {
         </div>
       )}
 
-      {/* ==================== DELETE CONFIRM MODAL ==================== */}
+      {/* ==================== ARCHIVE CONFIRM MODAL ==================== */}
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setConfirmDelete(null)} />
           <div className="relative w-full max-w-md bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl shadow-xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--dash-border-subtle)]">
-              <h2 className="text-lg font-semibold text-red-500 flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5" />
-                Confirm Delete
+              <h2 className="text-lg font-semibold text-orange-500 flex items-center gap-2">
+                <ArchiveX className="w-5 h-5" />
+                Archive User
               </h2>
               <button onClick={() => setConfirmDelete(null)} className="p-1.5 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)]">
                 <X className="w-5 h-5" />
@@ -817,8 +824,10 @@ export default function SuperAdminPage() {
             </div>
             <div className="px-6 py-5 space-y-4">
               <p className="text-sm text-[var(--dash-text-secondary)]">
-                Are you sure you want to delete <strong>{confirmDelete.email}</strong>?
-                This will soft-delete the user, blocking their access.
+                Archive <strong>{confirmDelete.email}</strong>?
+              </p>
+              <p className="text-xs text-[var(--dash-text-muted)] bg-[var(--surface-ground)] rounded-lg px-3 py-2">
+                This revokes their access immediately. The user and their data are preserved — you can re-instate them at any time from the Users table.
               </p>
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button
@@ -830,10 +839,10 @@ export default function SuperAdminPage() {
                 <button
                   onClick={() => handleDeleteUser(confirmDelete)}
                   disabled={actionLoading === confirmDelete.id}
-                  className="flex items-center gap-2 px-5 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50"
+                  className="flex items-center gap-2 px-5 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors disabled:opacity-50"
                 >
-                  {actionLoading === confirmDelete.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                  Delete User
+                  {actionLoading === confirmDelete.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArchiveX className="w-4 h-4" />}
+                  Archive User
                 </button>
               </div>
             </div>

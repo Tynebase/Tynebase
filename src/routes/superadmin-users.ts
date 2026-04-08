@@ -208,9 +208,76 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
   );
 
   /**
+   * POST /api/superadmin/users/:userId/restore
+   *
+   * Re-instates a soft-deleted user, setting their status back to 'active'
+   */
+  fastify.post(
+    '/api/superadmin/users/:userId/restore',
+    {
+      preHandler: [authMiddleware, superAdminGuard],
+    },
+    async (request, reply) => {
+      try {
+        const { userId } = userIdParamsSchema.parse(request.params);
+
+        const { data: targetUser, error: fetchError } = await supabaseAdmin
+          .from('users')
+          .select('id, email, full_name, status, is_super_admin')
+          .eq('id', userId)
+          .single();
+
+        if (fetchError || !targetUser) {
+          return reply.status(404).send({
+            error: { code: 'USER_NOT_FOUND', message: 'User not found' },
+          });
+        }
+
+        if (targetUser.status !== 'deleted') {
+          return reply.status(400).send({
+            error: { code: 'NOT_DELETED', message: `User is not archived (current status: ${targetUser.status})` },
+          });
+        }
+
+        const { error: updateError } = await supabaseAdmin
+          .from('users')
+          .update({ status: 'active' })
+          .eq('id', userId);
+
+        if (updateError) {
+          request.log.error({ error: updateError, userId }, 'Failed to restore user');
+          throw updateError;
+        }
+
+        request.log.info(
+          { superAdminId: request.user?.id, restoredUserId: userId, restoredEmail: targetUser.email },
+          'Super admin re-instated user'
+        );
+
+        return {
+          success: true,
+          message: `${targetUser.email} has been re-instated`,
+          data: { id: userId, email: targetUser.email, status: 'active' },
+        };
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.status(400).send({
+            error: { code: 'INVALID_PARAMS', message: 'Invalid parameters' },
+          });
+        }
+        request.log.error({ error }, 'Error restoring user');
+        return reply.status(500).send({
+          error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to re-instate user' },
+        });
+      }
+    }
+  );
+
+  /**
    * POST /api/superadmin/users/:userId/recovery
-   * 
-   * Sends a password recovery email to the user via Supabase Auth
+   *
+   * Sends a password reset email to the user via Supabase Auth SMTP.
+   * Uses resetPasswordForEmail which triggers Supabase's email delivery.
    */
   fastify.post(
     '/api/superadmin/users/:userId/recovery',
@@ -221,7 +288,6 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
       try {
         const { userId } = userIdParamsSchema.parse(request.params);
 
-        // Get user email
         const { data: targetUser, error: fetchError } = await supabaseAdmin
           .from('users')
           .select('id, email, status')
@@ -236,34 +302,32 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
 
         if (targetUser.status === 'deleted') {
           return reply.status(400).send({
-            error: { code: 'USER_DELETED', message: 'Cannot send recovery to a deleted user' },
+            error: { code: 'USER_ARCHIVED', message: 'Cannot send recovery email to an archived user. Re-instate them first.' },
           });
         }
 
-        // Send password recovery via Supabase Auth Admin API
-        const { error: resetError } = await supabaseAdmin.auth.admin.generateLink({
-          type: 'recovery',
-          email: targetUser.email,
-        });
+        // resetPasswordForEmail triggers Supabase's SMTP delivery via email template.
+        // Note: admin.generateLink() only returns a token — it does NOT send an email.
+        const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(
+          targetUser.email,
+          {
+            redirectTo: `${process.env.FRONTEND_URL || 'https://www.tynebase.com'}/auth/update-password`,
+          }
+        );
 
         if (resetError) {
-          request.log.error({ error: resetError, email: targetUser.email }, 'Failed to send recovery email');
-          
-          // Fallback: try resetPasswordForEmail
-          const { error: fallbackError } = await supabaseAdmin.auth.resetPasswordForEmail(
-            targetUser.email,
-            { redirectTo: `${process.env.FRONTEND_URL || 'https://www.tynebase.com'}/auth/reset-password` }
+          request.log.error(
+            { error: resetError, email: targetUser.email },
+            'Failed to send password recovery email'
           );
-
-          if (fallbackError) {
-            request.log.error({ error: fallbackError }, 'Fallback recovery also failed');
-            throw fallbackError;
-          }
+          return reply.status(500).send({
+            error: { code: 'EMAIL_SEND_FAILED', message: `Failed to send recovery email: ${resetError.message}` },
+          });
         }
 
         request.log.info(
           { superAdminId: request.user?.id, targetUserId: userId, targetEmail: targetUser.email },
-          'Super admin sent password recovery'
+          'Super admin sent password recovery email'
         );
 
         return {
