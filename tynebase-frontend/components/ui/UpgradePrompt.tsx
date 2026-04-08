@@ -22,7 +22,7 @@ const FEATURE_INFO: Record<string, { title: string; description: string; require
   customDomain: {
     title: "Custom Domain",
     description: "Use your own domain for a fully branded experience.",
-    requiredTier: "pro",
+    requiredTier: "base",
   },
   aiFeatures: {
     title: "AI Features",
