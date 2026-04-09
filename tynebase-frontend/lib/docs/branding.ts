@@ -5,7 +5,7 @@ export const brandingArticles: DocArticle[] = [
     id: 'branding-overview',
     slug: 'branding-overview',
     title: 'Branding Overview',
-    description: 'Customize your workspace with your company\'s branding and white-label options.',
+    description: 'Customise your workspace with your company\'s branding and white-label options.',
     content: `# Branding Overview
 
 TyneBase offers comprehensive white-labeling capabilities to make the platform truly yours. From custom logos and color schemes to personalized domains, you can create a workspace that reflects your brand identity.

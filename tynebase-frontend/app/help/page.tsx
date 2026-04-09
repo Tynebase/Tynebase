@@ -38,7 +38,7 @@ const categories = [
   { 
     icon: Palette, 
     title: "Branding & White-Label", 
-    description: "Customize your workspace branding", 
+    description: "Customise your workspace branding", 
     count: 6,
     href: "/docs?slug=branding-overview"
   },

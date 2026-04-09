@@ -255,7 +255,7 @@ Control who can access your workspace and how they interact with your content.
     content: `
 # Workspace Settings
 
-Customize your workspace to match your team's needs and brand.
+Customise your workspace to match your team's needs and brand.
 
 ## General Settings
 
@@ -633,7 +633,7 @@ Work together efficiently with TyneBase's real-time collaboration tools.
     content: `
 # Notifications & Preferences
 
-Customize how you receive updates and manage your workspace experience.
+Customise how you receive updates and manage your workspace experience.
 
 ## Notification Types
 

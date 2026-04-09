@@ -62,7 +62,7 @@ export const categories = [
     id: 'branding',
     slug: 'branding',
     title: 'Branding & White-Label',
-    description: 'Customize your workspace with your company\'s branding.',
+    description: 'Customise your workspace with your company\'s branding.',
     icon: 'Palette',
     color: 'pink',
     articles: brandingArticles,
