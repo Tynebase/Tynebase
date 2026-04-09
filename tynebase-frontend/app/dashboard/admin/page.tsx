@@ -900,7 +900,7 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                 {confirmSuspend.status === "archived" ? (
                   <PlayCircle className="w-5 h-5" />
                 ) : (
-                  <PauseCircle className="w-5 h-5" />
+                  <ArchiveX className="w-5 h-5" />
                 )}
                 {confirmSuspend.status === "archived" ? "Reactivate Workspace" : "Archive Workspace"}
               </h2>
@@ -937,14 +937,14 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                   {actionLoading === `suspend-${confirmSuspend.id}` ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <span>
+                    <>
                       {confirmSuspend.status === "archived" ? (
                         <PlayCircle className="w-4 h-4" />
                       ) : (
-                        <PauseCircle className="w-4 h-4" />
+                        <ArchiveX className="w-4 h-4" />
                       )}
                       {confirmSuspend.status === "archived" ? "Reactivate" : "Archive"}
-                    </span>
+                    </>
                   )}
                 </button>
               </div>
