@@ -524,7 +524,7 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                                 ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
                                 : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
                             }`}>
-                              {u.status ? u.status.charAt(0).toUpperCase() + u.status.slice(1) : "—"}
+                              {u.status === "deleted" ? "Deleted" : u.status ? u.status.charAt(0).toUpperCase() + u.status.slice(1) : "—"}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-[var(--dash-text-muted)]">
@@ -548,8 +548,24 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                                   Re-instate
                                 </button>
                               )}
+                              {/* Re-instate (deleted users only) */}
+                              {u.status === "deleted" && (
+                                <button
+                                  onClick={() => handleRestoreUser(u)}
+                                  disabled={actionLoading === `restore-${u.id}`}
+                                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/40 text-xs font-medium transition-colors disabled:opacity-30"
+                                  title="Re-instate user (restore access)"
+                                >
+                                  {actionLoading === `restore-${u.id}` ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <RotateCcw className="w-3.5 h-3.5" />
+                                  )}
+                                  Re-instate
+                                </button>
+                              )}
                               {/* Send Recovery Email (active users only) */}
-                              {u.status !== "archived" && (
+                              {u.status !== "archived" && u.status !== "deleted" && (
                                 <button
                                   onClick={() => handleSendRecovery(u)}
                                   disabled={actionLoading === `recovery-${u.id}`}
@@ -680,7 +696,7 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                                   ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300"
                                   : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
                               }`}>
-                                {isArchived ? "Archived" : "Active"}
+                                {isArchived ? "Suspended" : "Active"}
                               </span>
                               {isArchived && (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">
