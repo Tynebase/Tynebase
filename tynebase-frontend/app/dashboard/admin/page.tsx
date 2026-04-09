@@ -190,7 +190,7 @@ export default function SuperAdminPage() {
     setActionLoading(`restore-${targetUser.id}`);
     try {
       await restoreUser(targetUser.id);
-      addToast({ type: "success", title: `${targetUser.email} has been re-instated`, persistent: true });
+      addToast({ type: "success", title: `${targetUser.email} has been reactivated`, persistent: true });
       fetchUsers();
     } catch (err: any) {
       addToast({ type: "error", title: err.message || "Failed to re-instate user" });
@@ -524,7 +524,7 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                                 ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
                                 : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
                             }`}>
-                              {u.status === "deleted" ? "Deleted" : u.status ? u.status.charAt(0).toUpperCase() + u.status.slice(1) : "—"}
+                              {u.status === "deleted" ? "Deleted" : u.status === "active" ? "Active" : u.status ? u.status.charAt(0).toUpperCase() + u.status.slice(1) : "—"}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-[var(--dash-text-muted)]">

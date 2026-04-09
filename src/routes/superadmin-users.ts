@@ -269,7 +269,7 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
 
         return {
           success: true,
-          message: `${targetUser.email} has been re-instated`,
+          message: `${targetUser.email} has been reactivated`,
           data: { id: userId, email: targetUser.email, status: 'active' },
         };
       } catch (error) {
