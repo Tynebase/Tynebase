@@ -180,16 +180,16 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
           });
         }
 
-        if (targetUser.status === 'deleted') {
+        if (targetUser.status === 'archived') {
           return reply.status(400).send({
-            error: { code: 'ALREADY_DELETED', message: 'User is already deleted' },
+            error: { code: 'ALREADY_ARCHIVED', message: 'User is already archived' },
           });
         }
 
         // Soft delete
         const { error: updateError } = await supabaseAdmin
           .from('users')
-          .update({ status: 'deleted' })
+          .update({ status: 'archived' })
           .eq('id', userId);
 
         if (updateError) {
@@ -198,13 +198,13 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
         }
 
         request.log.info(
-          { superAdminId: request.user?.id, deletedUserId: userId, deletedEmail: targetUser.email },
-          'Super admin deleted user'
+          { superAdminId: request.user?.id, archivedUserId: userId, archivedEmail: targetUser.email },
+          'Super admin archived user'
         );
 
         return {
           success: true,
-          message: `User ${targetUser.email} has been deleted`,
+          message: `User ${targetUser.email} has been archived`,
         };
       } catch (error) {
         if (error instanceof z.ZodError) {
@@ -246,9 +246,9 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
           });
         }
 
-        if (targetUser.status !== 'deleted') {
+        if (targetUser.status !== 'archived') {
           return reply.status(400).send({
-            error: { code: 'NOT_DELETED', message: `User is not deleted (current status: ${targetUser.status})` },
+            error: { code: 'NOT_ARCHIVED', message: `User is not archived (current status: ${targetUser.status})` },
           });
         }
 
