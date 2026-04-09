@@ -42,7 +42,7 @@ import {
   AlertTriangle,
   X,
   Sparkles,
-  PauseCircle,
+  Pause,
   PlayCircle,
   ArrowUpDown,
   UserCheck,
@@ -738,14 +738,14 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                                     ? "hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-emerald-500"
                                     : "hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-yellow-500"
                                 }`}
-                                title={isArchived ? "Reactivate workspace (restore access)" : "Archive workspace (suspend access)"}
+                                title={isArchived ? "Activate workspace (restore access)" : "Suspend workspace (suspend access)"}
                               >
                                 {actionLoading === `suspend-${t.id}` ? (
                                   <Loader2 className="w-4 h-4 animate-spin" />
                                 ) : isArchived ? (
                                   <PlayCircle className="w-4 h-4" />
                                 ) : (
-                                  <PauseCircle className="w-4 h-4" />
+                                  <Pause className="w-4 h-4" />
                                 )}
                               </button>
                               {/* Enter Workspace */}
@@ -900,9 +900,9 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                 {confirmSuspend.status === "archived" ? (
                   <PlayCircle className="w-5 h-5" />
                 ) : (
-                  <ArchiveX className="w-5 h-5" />
+                  <Pause className="w-5 h-5" />
                 )}
-                {confirmSuspend.status === "archived" ? "Reactivate Workspace" : "Archive Workspace"}
+                {confirmSuspend.status === "archived" ? "Activate Workspace" : "Suspend Workspace"}
               </h2>
               <button onClick={() => setConfirmSuspend(null)} className="p-1.5 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)]">
                 <X className="w-5 h-5" />
@@ -911,11 +911,11 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
             <div className="px-6 py-5 space-y-4">
               {confirmSuspend.status === "archived" ? (
                 <p className="text-sm text-[var(--dash-text-secondary)]">
-                  Reactivate <strong>{confirmSuspend.name}</strong>? Users will regain full access to their workspace.
+                  Activate <strong>{confirmSuspend.name}</strong>? Users will regain full access to their workspace.
                 </p>
               ) : (
                 <p className="text-sm text-[var(--dash-text-secondary)]">
-                  Archive <strong>{confirmSuspend.name}</strong>? All users in this workspace will lose access to the platform until they have been reactivated.
+                  Suspend <strong>{confirmSuspend.name}</strong>? All users in this workspace will lose access to the platform until they have been reactivated.
                 </p>
               )}
               <div className="flex items-center justify-end gap-3 pt-2">
@@ -941,9 +941,9 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                       {confirmSuspend.status === "archived" ? (
                         <PlayCircle className="w-4 h-4" />
                       ) : (
-                        <ArchiveX className="w-4 h-4" />
+                        <Pause className="w-4 h-4" />
                       )}
-                      {confirmSuspend.status === "archived" ? "Reactivate" : "Archive"}
+                      {confirmSuspend.status === "archived" ? "Activate" : "Suspend"}
                     </>
                   )}
                 </button>
