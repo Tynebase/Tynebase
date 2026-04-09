@@ -11,7 +11,7 @@ const listUsersQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(50),
   search: z.string().optional(),
-  status: z.enum(['active', 'suspended', 'deleted', 'all']).default('all'),
+  status: z.enum(['active', 'suspended', 'archived', 'all']).default('all'),
   filter: z.enum(['new30d', 'active7d']).optional(),
 });
 
@@ -149,7 +149,7 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
   /**
    * DELETE /api/superadmin/users/:userId
    * 
-   * Soft-deletes a user by setting status to 'deleted'
+   * Soft-deletes a user by setting status to 'archived'
    */
   fastify.delete(
     '/api/superadmin/users/:userId',
@@ -180,7 +180,7 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
           });
         }
 
-        if (targetUser.status === 'deleted') {
+        if (targetUser.status === 'archived') {
           return reply.status(400).send({
             error: { code: 'ALREADY_DELETED', message: 'User is already deleted' },
           });
@@ -189,7 +189,7 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
         // Soft delete
         const { error: updateError } = await supabaseAdmin
           .from('users')
-          .update({ status: 'deleted' })
+          .update({ status: 'archived' })
           .eq('id', userId);
 
         if (updateError) {
@@ -313,7 +313,7 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
           });
         }
 
-        if (targetUser.status === 'deleted') {
+        if (targetUser.status === 'archived') {
           return reply.status(400).send({
             error: { code: 'USER_ARCHIVED', message: 'Cannot send recovery email to an archived user. Re-instate them first.' },
           });

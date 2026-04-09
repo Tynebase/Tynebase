@@ -81,7 +81,7 @@ export default function SuperAdminPage() {
   const [usersTotalPages, setUsersTotalPages] = useState(1);
   const [usersTotal, setUsersTotal] = useState(0);
   const [usersSearch, setUsersSearch] = useState("");
-  const [usersStatus, setUsersStatus] = useState<"all" | "active" | "suspended" | "deleted">("all");
+  const [usersStatus, setUsersStatus] = useState<"all" | "active" | "suspended" | "archived">("all");
   const [usersFilter, setUsersFilter] = useState<"all" | "new30d" | "active7d">("all");
   const [usersLoading, setUsersLoading] = useState(false);
 
@@ -452,7 +452,7 @@ export default function SuperAdminPage() {
                 <option value="all">All statuses</option>
                 <option value="active">Active</option>
                 <option value="suspended">Suspended</option>
-                <option value="deleted">Archived</option>
+                <option value="archived">Archived</option>
               </select>
               {usersFilter !== "all" && (
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--brand)]/10 text-[var(--brand)] rounded-lg text-sm font-medium">
@@ -534,7 +534,7 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-1">
                               {/* Re-instate (archived users only) */}
-                              {u.status === "deleted" && (
+                              {u.status === "archived" && (
                                 <button
                                   onClick={() => handleRestoreUser(u)}
                                   disabled={actionLoading === `restore-${u.id}`}
@@ -550,7 +550,7 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                                 </button>
                               )}
                               {/* Send Recovery Email (active/suspended users only) */}
-                              {u.status !== "deleted" && (
+                              {u.status !== "archived" && (
                                 <button
                                   onClick={() => handleSendRecovery(u)}
                                   disabled={actionLoading === `recovery-${u.id}`}
@@ -565,7 +565,7 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                                 </button>
                               )}
                               {/* Assign Credits (active users only) */}
-                              {u.status !== "deleted" && (
+                              {u.status !== "archived" && (
                                 <button
                                   onClick={() => setCreditsModal({ user: u, credits: "" })}
                                   disabled={u.is_super_admin}
@@ -576,7 +576,7 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                                 </button>
                               )}
                               {/* Archive (soft-delete active/suspended users) */}
-                              {u.status !== "deleted" && !u.is_super_admin && (
+                              {u.status !== "archived" && !u.is_super_admin && (
                                 <button
                                   onClick={() => setConfirmDelete(u)}
                                   className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-orange-500 transition-colors"
