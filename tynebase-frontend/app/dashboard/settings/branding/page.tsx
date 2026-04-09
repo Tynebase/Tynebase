@@ -218,10 +218,10 @@ function WhiteLabelBrandingSection() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Palette className="h-5 w-5 text-[var(--brand)]" />
-            Brand Colors
+            Brand Colours
           </CardTitle>
           <CardDescription>
-            Set your brand colours — applied to buttons, links, and accents throughout your workspace
+            Set your brand colours - applied to buttons, links and accents throughout your workspace
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
