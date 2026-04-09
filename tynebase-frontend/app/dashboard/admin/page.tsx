@@ -268,16 +268,17 @@ export default function SuperAdminPage() {
     try {
       if (isArchived) {
         await unsuspendTenant(tenant.id);
-        addToast({ type: "success", title: `Workspace "${tenant.name}" reactivated` });
+        addToast({ type: "success", title: `Workspace "${tenant.name}" reactivated successfully` });
       } else {
         await suspendTenant(tenant.id);
-        addToast({ type: "success", title: `Workspace "${tenant.name}" archived` });
+        addToast({ type: "success", title: `Workspace "${tenant.name}" archived successfully` });
       }
       setConfirmSuspend(null);
       fetchTenants();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to toggle tenant suspension:", error);
-      addToast({ type: "error", title: "Failed to update workspace status" });
+      const errorMessage = error?.message || "Failed to update workspace status";
+      addToast({ type: "error", title: errorMessage });
     } finally {
       setActionLoading(null);
     }
@@ -669,17 +670,24 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                               title="Change tier"
                             >
                               {t.tier ? t.tier.charAt(0).toUpperCase() + t.tier.slice(1) : "—"}
-                              <ArrowUpDown className="w-2.5 h-2.5 opacity-60" />
+                              <ArrowUpDown className="w-2.5 h-2.5 opacity-60 ml-1" />
                             </button>
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                              isArchived
-                                ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300"
-                                : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
-                            }`}>
-                              {isArchived ? "Archived" : "Active"}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                                isArchived
+                                  ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300"
+                                  : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                              }`}>
+                                {isArchived ? "Archived" : "Active"}
+                              </span>
+                              {isArchived && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">
+                                  Suspended
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3 text-[var(--dash-text-secondary)]">{t.userCount}</td>
                           <td className="px-4 py-3 text-[var(--dash-text-secondary)]">{t.documentCount}</td>
@@ -711,7 +719,7 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                                     ? "hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-emerald-500"
                                     : "hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-yellow-500"
                                 }`}
-                                title={isArchived ? "Reactivate workspace" : "Archive workspace"}
+                                title={isArchived ? "Reactivate workspace (restore access)" : "Archive workspace (suspend access)"}
                               >
                                 {actionLoading === `suspend-${t.id}` ? (
                                   <Loader2 className="w-4 h-4 animate-spin" />
