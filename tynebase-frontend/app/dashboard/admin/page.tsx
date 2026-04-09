@@ -189,10 +189,13 @@ export default function SuperAdminPage() {
   const handleRestoreUser = async (targetUser: PlatformUser) => {
     setActionLoading(`restore-${targetUser.id}`);
     try {
-      await restoreUser(targetUser.id);
+      console.log('Attempting to restore user:', targetUser.email, targetUser.id);
+      const response = await restoreUser(targetUser.id);
+      console.log('Restore API response:', response);
       addToast({ type: "success", title: `${targetUser.email} has been reactivated`, persistent: true });
       fetchUsers();
     } catch (err: any) {
+      console.error('Failed to restore user:', err);
       addToast({ type: "error", title: err.message || "Failed to re-instate user" });
     } finally {
       setActionLoading(null);
