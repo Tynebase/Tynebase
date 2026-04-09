@@ -11,6 +11,7 @@ interface Toast {
   type: ToastType;
   title: string;
   description?: string;
+  persistent?: boolean;
 }
 
 interface ToastContextType {
@@ -35,7 +36,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     const newToast = { ...toast, id };
     setToasts((prev) => [...prev, newToast]);
 
-    if (toast.type === "success" || toast.type === "info") {
+    // Only auto-dismiss if not persistent
+    if (!toast.persistent && (toast.type === "success" || toast.type === "info")) {
       setTimeout(() => {
         removeToast(id);
       }, toast.type === "success" ? 3000 : 5000);

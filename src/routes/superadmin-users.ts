@@ -12,6 +12,7 @@ const listUsersQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(50),
   search: z.string().optional(),
   status: z.enum(['active', 'suspended', 'deleted', 'all']).default('all'),
+  filter: z.enum(['new30d', 'active7d']).optional(),
 });
 
 /**
@@ -51,8 +52,13 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       try {
         const query = listUsersQuerySchema.parse(request.query);
-        const { page, limit, search, status } = query;
+        const { page, limit, search, status, filter } = query;
         const offset = (page - 1) * limit;
+
+        // Calculate date ranges for filters
+        const now = new Date();
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
         let dbQuery = supabaseAdmin
           .from('users')
@@ -69,6 +75,13 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
           `, { count: 'exact' })
           .order('created_at', { ascending: false })
           .range(offset, offset + limit - 1);
+
+        // Apply time-based filters
+        if (filter === 'new30d') {
+          dbQuery = dbQuery.gte('created_at', thirtyDaysAgo.toISOString());
+        } else if (filter === 'active7d') {
+          dbQuery = dbQuery.gte('last_active_at', sevenDaysAgo.toISOString());
+        }
 
         if (status !== 'all') {
           dbQuery = dbQuery.eq('status', status);

@@ -88,6 +88,7 @@ export interface ListUsersParams {
   limit?: number;
   search?: string;
   status?: 'active' | 'suspended' | 'deleted' | 'all';
+  filter?: 'new30d' | 'active7d';
 }
 
 export interface ListUsersResponse {
@@ -106,6 +107,7 @@ export async function listAllUsers(params: ListUsersParams = {}): Promise<ListUs
   if (params.limit) searchParams.append('limit', params.limit.toString());
   if (params.search) searchParams.append('search', params.search);
   if (params.status) searchParams.append('status', params.status);
+  if (params.filter) searchParams.append('filter', params.filter);
 
   const qs = searchParams.toString();
   const response = await apiGet<{ data: ListUsersResponse }>(`/api/superadmin/users${qs ? `?${qs}` : ''}`);

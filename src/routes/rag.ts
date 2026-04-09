@@ -967,7 +967,7 @@ export default async function ragRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Step 2: Deduct credits based on model (default: deepseek = 0.2 credits)
+        // Step 2: Deduct credits based on model (default: deepseek = 1 credit)
         const currentMonth = new Date().toISOString().slice(0, 7);
         const creditsToDeduct = getModelCreditCost(model || 'deepseek');
 

@@ -82,6 +82,7 @@ export default function SuperAdminPage() {
   const [usersTotal, setUsersTotal] = useState(0);
   const [usersSearch, setUsersSearch] = useState("");
   const [usersStatus, setUsersStatus] = useState<"all" | "active" | "suspended" | "deleted">("all");
+  const [usersFilter, setUsersFilter] = useState<"all" | "new30d" | "active7d">("all");
   const [usersLoading, setUsersLoading] = useState(false);
 
   // Tenants state
@@ -132,6 +133,7 @@ export default function SuperAdminPage() {
         limit: 20,
         search: usersSearch || undefined,
         status: usersStatus,
+        filter: usersFilter !== "all" ? usersFilter : undefined,
       });
       setUsers(data.users);
       setUsersTotalPages(data.pagination.totalPages);
@@ -141,7 +143,7 @@ export default function SuperAdminPage() {
     } finally {
       setUsersLoading(false);
     }
-  }, [usersPage, usersSearch, usersStatus]);
+  }, [usersPage, usersSearch, usersStatus, usersFilter]);
 
   useEffect(() => {
     if (activeTab === "users") {
@@ -174,11 +176,11 @@ export default function SuperAdminPage() {
     setActionLoading(targetUser.id);
     try {
       await deleteUser(targetUser.id);
-      addToast({ type: "success", title: `Deleted ${targetUser.email}` });
+      addToast({ type: "success", title: `${targetUser.email} has been archived successfully`, persistent: true });
       setConfirmDelete(null);
       fetchUsers();
     } catch (err: any) {
-      addToast({ type: "error", title: err.message || "Failed to delete user" });
+      addToast({ type: "error", title: err.message || "Failed to archive user" });
     } finally {
       setActionLoading(null);
     }
@@ -188,10 +190,10 @@ export default function SuperAdminPage() {
     setActionLoading(`restore-${targetUser.id}`);
     try {
       await restoreUser(targetUser.id);
-      addToast({ type: "success", title: `${targetUser.email} has been restored` });
+      addToast({ type: "success", title: `${targetUser.email} has been re-instated`, persistent: true });
       fetchUsers();
     } catch (err: any) {
-      addToast({ type: "error", title: err.message || "Failed to restore user" });
+      addToast({ type: "error", title: err.message || "Failed to re-instate user" });
     } finally {
       setActionLoading(null);
     }
@@ -316,10 +318,10 @@ export default function SuperAdminPage() {
   const kpiCards = kpis
     ? [
         { label: "Total Tenants", value: kpis.totalTenants, icon: Building2, color: "#8b5cf6", glow: "rgba(139,92,246,0.15)" },
-        { label: "Total Users", value: kpis.totalUsers, icon: Users, color: "#3b82f6", glow: "rgba(59,130,246,0.15)", onClick: () => { setActiveTab("users"); setUsersStatus("all"); } },
-        { label: "Active Users (7d)", value: kpis.activeUsers7d, icon: Activity, color: "#10b981", glow: "rgba(16,185,129,0.15)", onClick: () => { setActiveTab("users"); setUsersStatus("active"); } },
+        { label: "Total Users", value: kpis.totalUsers, icon: Users, color: "#3b82f6", glow: "rgba(59,130,246,0.15)", onClick: () => { setActiveTab("users"); setUsersStatus("all"); setUsersFilter("all"); setUsersPage(1); } },
+        { label: "Active Users (7d)", value: kpis.activeUsers7d, icon: Activity, color: "#10b981", glow: "rgba(16,185,129,0.15)", onClick: () => { setActiveTab("users"); setUsersStatus("active"); setUsersFilter("active7d"); setUsersPage(1); } },
         { label: "Total Documents", value: kpis.totalDocuments, icon: FileText, color: "#f59e0b", glow: "rgba(245,158,11,0.15)" },
-        { label: "New Users (30d)", value: kpis.newUsersLast30d, icon: TrendingUp, color: "#06b6d4", glow: "rgba(6,182,212,0.15)", onClick: () => { setActiveTab("users"); setUsersStatus("active"); } },
+        { label: "New Users (30d)", value: kpis.newUsersLast30d, icon: TrendingUp, color: "#06b6d4", glow: "rgba(6,182,212,0.15)", onClick: () => { setActiveTab("users"); setUsersStatus("active"); setUsersFilter("new30d"); setUsersPage(1); } },
         { label: "New Docs (30d)", value: kpis.newDocsLast30d, icon: FileText, color: "#ec4899", glow: "rgba(236,72,153,0.15)" },
         { label: "AI Queries (30d)", value: kpis.aiQueriesLast30d, icon: Sparkles, color: "#8b5cf6", glow: "rgba(139,92,246,0.15)" },
         { label: "Credits Used", value: `${kpis.totalCreditsUsed} / ${kpis.totalCreditsAllocated}`, icon: CreditCard, color: "#ef4444", glow: "rgba(239,68,68,0.15)", subtitle: `${kpis.creditUtilization}% utilization` },
@@ -438,20 +440,33 @@ export default function SuperAdminPage() {
                   type="text"
                   placeholder="Search by email or name..."
                   value={usersSearch}
-                  onChange={(e) => { setUsersSearch(e.target.value); setUsersPage(1); }}
+                  onChange={(e) => { setUsersSearch(e.target.value); setUsersFilter("all"); setUsersPage(1); }}
                   className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-sm text-[var(--dash-text-primary)] placeholder-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)]"
                 />
               </div>
               <select
                 value={usersStatus}
-                onChange={(e) => { setUsersStatus(e.target.value as any); setUsersPage(1); }}
+                onChange={(e) => { setUsersStatus(e.target.value as any); setUsersFilter("all"); setUsersPage(1); }}
                 className="px-4 pr-9 py-2.5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-sm text-[var(--dash-text-primary)] focus:outline-none focus:border-[var(--brand)]"
               >
                 <option value="all">All statuses</option>
                 <option value="active">Active</option>
                 <option value="suspended">Suspended</option>
-                <option value="deleted">Deleted</option>
+                <option value="deleted">Archived</option>
               </select>
+              {usersFilter !== "all" && (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--brand)]/10 text-[var(--brand)] rounded-lg text-sm font-medium">
+                  <span>
+Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</span>
+                  <button
+                    onClick={() => { setUsersFilter("all"); setUsersPage(1); }}
+                    className="p-0.5 rounded hover:bg-[var(--brand)]/20 transition-colors"
+                    title="Clear filter"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
               <span className="text-sm text-[var(--dash-text-muted)]">
                 {usersTotal} user{usersTotal !== 1 ? "s" : ""}
               </span>
@@ -518,7 +533,7 @@ export default function SuperAdminPage() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-1">
-                              {/* Re-instate (archived/deleted users only) */}
+                              {/* Re-instate (archived users only) */}
                               {u.status === "deleted" && (
                                 <button
                                   onClick={() => handleRestoreUser(u)}
@@ -827,7 +842,7 @@ export default function SuperAdminPage() {
                 Archive <strong>{confirmDelete.email}</strong>?
               </p>
               <p className="text-xs text-[var(--dash-text-muted)] bg-[var(--surface-ground)] rounded-lg px-3 py-2">
-                This revokes their access immediately. The user and their data are preserved — you can re-instate them at any time from the Users table.
+                This immediately revokes this user's access. This user and their data are preserved and you can re-instate them at any time from the Users tab.
               </p>
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button

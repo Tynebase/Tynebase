@@ -151,7 +151,7 @@ export default async function aiApplySuggestionRoutes(fastify: FastifyInstance) 
         }
 
         const currentMonth = new Date().toISOString().slice(0, 7);
-        // Apply suggestion uses DeepSeek = 0.2 credits
+        // Apply suggestion uses DeepSeek = 1 credit
         const creditsToDeduct = getModelCreditCost('deepseek');
 
         const { data: deductResult, error: deductError } = await supabaseAdmin.rpc(

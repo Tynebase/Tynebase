@@ -2332,11 +2332,11 @@ export default async function documentRoutes(fastify: FastifyInstance) {
         
         // Add model costs for summary/article
         const modelCosts: Record<string, number> = {
-          'deepseek': 0.2,
-          'gemini': 1,
-          'claude': 2,
+          'deepseek': 1,
+          'gemini': 2,
+          'claude': 5,
         };
-        const modelCost = modelCosts[options.ai_model] || 0.2;
+        const modelCost = modelCosts[options.ai_model] || 1;
         
         if (options.generate_summary) creditsPerVideo += modelCost;
         if (options.generate_article) creditsPerVideo += modelCost;

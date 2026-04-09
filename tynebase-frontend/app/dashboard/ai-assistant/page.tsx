@@ -669,12 +669,12 @@ export default function AIAssistantPage() {
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--brand-primary-muted)] rounded-lg">
                   <Sparkles className="w-4 h-4 text-[var(--brand)]" />
                   <span className="text-sm font-medium text-[var(--brand)]">
-                    {2 + (aiProviders.find(p => p.id === selectedProvider)?.credits || 0.2) * Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length} credits
+                    {2 + (aiProviders.find(p => p.id === selectedProvider)?.credits || 1) * Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length} credits
                   </span>
                 </div>
               </div>
               <p className="text-xs text-[var(--dash-text-muted)] mb-3">
-                Base: 2 credits (Tavily scrape) + AI: {(aiProviders.find(p => p.id === selectedProvider)?.credits || 0.2)} {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1) === 1 ? 'credit' : 'credits'} ({selectedProvider}) × {Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length} AI output{Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length !== 1 ? 's' : ''}
+                Base: 2 credits (Tavily scrape) + AI: {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1)} {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1) === 1 ? 'credit' : 'credits'} ({selectedProvider}) × {Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length} AI output{Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length !== 1 ? 's' : ''}
               </p>
               <div className="grid grid-cols-2 gap-3">
                 {[
@@ -794,8 +794,8 @@ export default function AIAssistantPage() {
                   <>
                     <LinkIcon className="w-4 h-4" />
                     {selectedScrapeOutputTypes.size > 1 
-                      ? `Extract & Generate ${selectedScrapeOutputTypes.size} Documents (${2 + (aiProviders.find(p => p.id === selectedProvider)?.credits || 0.2) * Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length} credits)`
-                      : `Extract Content (${2 + (aiProviders.find(p => p.id === selectedProvider)?.credits || 0.2) * Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length} credits)`
+                      ? `Extract & Generate ${selectedScrapeOutputTypes.size} Documents (${2 + (aiProviders.find(p => p.id === selectedProvider)?.credits || 1) * Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length} credits)`
+                      : `Extract Content (${2 + (aiProviders.find(p => p.id === selectedProvider)?.credits || 1) * Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length} credits)`
                     }
                   </>
                 )}

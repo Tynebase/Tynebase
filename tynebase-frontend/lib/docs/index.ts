@@ -6,6 +6,7 @@ import { securityArticles } from './security';
 import { apiReferenceArticles } from './api-reference';
 import { brandingArticles } from './branding';
 import { billingArticles } from './billing';
+import { teamManagementArticles } from './team-management';
 
 export * from './types';
 
@@ -13,6 +14,7 @@ export const allArticles: DocArticle[] = [
   ...quickStartArticles,
   ...aiFeatureArticles,
   ...coreConceptsArticles,
+  ...teamManagementArticles,
   ...securityArticles,
   ...apiReferenceArticles,
   ...brandingArticles,
@@ -23,7 +25,7 @@ export const categories = [
   {
     id: 'quick-start',
     slug: 'quick-start',
-    title: 'Quick start',
+    title: 'Getting Started',
     description: 'Get up and running with TyneBase in under 5 minutes.',
     icon: 'Zap',
     color: 'brand',
@@ -32,11 +34,20 @@ export const categories = [
   {
     id: 'core-concepts',
     slug: 'core-concepts',
-    title: 'Core Concepts',
+    title: 'Documentation',
     description: 'Understand workspaces, documents, and how TyneBase works.',
     icon: 'BookOpen',
     color: 'blue',
     articles: coreConceptsArticles,
+  },
+  {
+    id: 'team-management',
+    slug: 'team-management',
+    title: 'Team Management',
+    description: 'Manage users, roles, and permissions in your workspace.',
+    icon: 'Users',
+    color: 'green',
+    articles: teamManagementArticles,
   },
   {
     id: 'ai-features',
@@ -68,7 +79,7 @@ export const categories = [
   {
     id: 'security',
     slug: 'security',
-    title: 'Security & Compliance',
+    title: 'Security & Privacy',
     description: 'SSO, GDPR, SOC 2, and enterprise security features.',
     icon: 'Shield',
     color: 'brand',

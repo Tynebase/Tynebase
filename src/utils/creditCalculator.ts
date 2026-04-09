@@ -1,7 +1,7 @@
 /**
  * Credit calculation utilities for TyneBase operations
- * Pricing (v2 — March 2026):
- *   DeepSeek 0.2 · Gemini 1 · Claude 2
+ * Pricing (v1 - reverted to whole numbers):
+ *   DeepSeek 1 · Gemini 2 · Claude 5
  *   Media base: 5 (Gemini/DeepSeek) or 6 (Claude)
  */
 
@@ -32,55 +32,55 @@ export type AIModel =
   | 'gemini-3-flash';
 
 /**
- * Model credit costs (v2 pricing)
- * - DeepSeek: 0.2 credits (cheapest, great for bulk ops)
- * - Gemini: 1 credit (good balance of cost/quality)
- * - Claude: 2 credits (highest quality)
+ * Model credit costs (v1 pricing - whole numbers)
+ * - DeepSeek: 1 credit (cheapest, great for bulk ops)
+ * - Gemini: 2 credits (good balance of cost/quality)
+ * - Claude: 5 credits (highest quality)
  */
 const MODEL_CREDITS: Record<string, number> = {
-  // DeepSeek models: 0.2 credits
-  'deepseek-v3': 0.2,
-  'deepseek': 0.2,
+  // DeepSeek models: 1 credit
+  'deepseek-v3': 1,
+  'deepseek': 1,
   
-  // Gemini models: 1 credit
-  'gemini-2.5-flash': 1,
-  'gemini-2.5': 1,
-  'gemini': 1,
-  'gemini-3-flash': 1,
+  // Gemini models: 2 credits
+  'gemini-2.5-flash': 2,
+  'gemini-2.5': 2,
+  'gemini': 2,
+  'gemini-3-flash': 2,
   
-  // Claude models: 2 credits
-  'claude-sonnet-4.5': 2,
-  'claude-3-sonnet': 2,
-  'claude-3-opus': 2,
-  'claude-3-haiku': 1,
-  'claude': 2,
+  // Claude models: 5 credits
+  'claude-sonnet-4.5': 5,
+  'claude-3-sonnet': 5,
+  'claude-3-opus': 5,
+  'claude-3-haiku': 3,
+  'claude': 5,
   
   // GPT models (legacy): 1 credit
   'gpt-4': 1,
   'gpt-4-turbo': 1,
-  'gpt-3.5-turbo': 0.2,
+  'gpt-3.5-turbo': 1,
 };
 
 /**
  * Get credit cost for a model
  * @param model - AI model name
- * @returns Credit cost (defaults to 0.2 if unknown)
+ * @returns Credit cost (defaults to 1 if unknown)
  */
 export function getModelCreditCost(model: string): number {
-  return MODEL_CREDITS[model] ?? 0.2;
+  return MODEL_CREDITS[model] ?? 1;
 }
 
 /**
  * Model multipliers (kept for backward compat, mirrors MODEL_CREDITS)
  */
 const MODEL_MULTIPLIERS: Record<string, number> = {
-  'deepseek-v3': 0.2,
-  'deepseek': 0.2,
-  'gemini-2.5-flash': 1,
-  'gemini-2.5': 1,
-  'gemini': 1,
-  'claude-sonnet-4.5': 2,
-  'claude': 2,
+  'deepseek-v3': 1,
+  'deepseek': 1,
+  'gemini-2.5-flash': 2,
+  'gemini-2.5': 2,
+  'gemini': 2,
+  'claude-sonnet-4.5': 5,
+  'claude': 5,
 };
 
 /**
@@ -100,9 +100,9 @@ const MEDIA_EXTRA_MINUTES_PER_CREDIT = 5;
 /**
  * Calculate credits for text generation based on model
  * Uses fixed credit costs per model:
- * - DeepSeek: 0.2 credits
- * - Gemini: 1 credit
- * - Claude: 2 credits
+ * - DeepSeek: 1 credit
+ * - Gemini: 2 credits
+ * - Claude: 5 credits
  * 
  * @param _inputTokens - Number of input tokens (unused, kept for API compatibility)
  * @param _outputTokens - Number of output tokens (unused, kept for API compatibility)
@@ -214,18 +214,18 @@ export function calculateMediaIngestionCredits(
 
 /**
  * Calculate credits for URL conversion (flat rate)
- * @returns Number of credits to deduct (always 0.5)
+ * @returns Number of credits to deduct (always 1)
  */
 export function calculateURLConversionCredits(): number {
-  return 0.5;
+  return 1;
 }
 
 /**
  * Calculate credits for PDF conversion (flat rate)
- * @returns Number of credits to deduct (always 0.5)
+ * @returns Number of credits to deduct (always 1)
  */
 export function calculatePDFConversionCredits(): number {
-  return 0.5;
+  return 1;
 }
 
 /**
