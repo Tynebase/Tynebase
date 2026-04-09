@@ -224,10 +224,10 @@ export default function SuperAdminPage() {
     setActionLoading(`credits-${creditsModal.user.id}`);
     try {
       await assignCredits(creditsModal.user.id, amount);
-      addToast({ type: "success", title: `${amount} credits assigned to ${creditsModal.user.email}'s workspace` });
+      addToast({ type: "success", title: "Success", description: `${amount} credits assigned to ${creditsModal.user.email}'s workspace` });
       setCreditsModal(null);
     } catch (err: any) {
-      addToast({ type: "error", title: err.message || "Failed to assign credits" });
+      addToast({ type: "error", title: "Error", description: err.message || "Failed to assign credits" });
     } finally {
       setActionLoading(null);
     }
@@ -266,22 +266,35 @@ export default function SuperAdminPage() {
   };
 
   const handleSuspendToggle = async (tenant: TenantListItem) => {
-    const isArchived = (tenant as any).status === "archived" || (tenant as any).status === "deleted";
+    const isSuspended = (tenant as any).status === "suspended";
     setActionLoading(`suspend-${tenant.id}`);
     try {
-      if (isArchived) {
+      if (isSuspended) {
         await unsuspendTenant(tenant.id);
-        addToast({ type: "success", title: `Workspace "${tenant.name}" reactivated successfully` });
+        addToast({ type: "success", title: "Workspace Activated", description: `"${tenant.name}" has been reactivated successfully` });
       } else {
         await suspendTenant(tenant.id);
-        addToast({ type: "success", title: `Workspace "${tenant.name}" archived successfully` });
+        addToast({ type: "success", title: "Workspace Suspended", description: `"${tenant.name}" has been suspended successfully` });
       }
       setConfirmSuspend(null);
       fetchTenants();
     } catch (error: any) {
       console.error("Failed to toggle tenant suspension:", error);
       const errorMessage = error?.message || "Failed to update workspace status";
-      addToast({ type: "error", title: errorMessage });
+      addToast({ type: "error", title: "Update Failed", description: errorMessage });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeleteTenant = async (tenantId: string) => {
+    setActionLoading(`delete-${tenantId}`);
+    try {
+      await deleteTenant(tenantId);
+      addToast({ type: "success", title: "Workspace Deleted", description: "The workspace has been permanently removed" });
+      fetchTenants();
+    } catch (err: any) {
+      addToast({ type: "error", title: "Deletion Failed", description: err.message || "Failed to delete workspace" });
     } finally {
       setActionLoading(null);
     }
@@ -322,7 +335,7 @@ export default function SuperAdminPage() {
 
   const kpiCards = kpis
     ? [
-        { label: "Total Tenants", value: kpis.totalTenants, icon: Building2, color: "#8b5cf6", glow: "rgba(139,92,246,0.15)" },
+        { label: "Total Tenants", value: kpis.totalTenants, icon: Building2, color: "#8b5cf6", glow: "rgba(139,92,246,0.15)", onClick: () => { setActiveTab("tenants"); setTenantsPage(1); } },
         { label: "Total Users", value: kpis.totalUsers, icon: Users, color: "#3b82f6", glow: "rgba(59,130,246,0.15)", onClick: () => { setActiveTab("users"); setUsersStatus("all"); setUsersFilter("all"); setUsersPage(1); } },
         { label: "Active Users (7d)", value: kpis.activeUsers7d, icon: Activity, color: "#10b981", glow: "rgba(16,185,129,0.15)", onClick: () => { setActiveTab("users"); setUsersStatus("active"); setUsersFilter("active7d"); setUsersPage(1); } },
         { label: "Total Documents", value: kpis.totalDocuments, icon: FileText, color: "#f59e0b", glow: "rgba(245,158,11,0.15)" },
@@ -654,6 +667,7 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                     <thead>
                       <tr className="border-b border-[var(--dash-border-subtle)] bg-[var(--surface-ground)]/40">
                         <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)] text-xs uppercase tracking-wide">Workspace</th>
+                        <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)] text-xs uppercase tracking-wide">Location</th>
                         <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)] text-xs uppercase tracking-wide">Tier</th>
                         <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)] text-xs uppercase tracking-wide">Status</th>
                         <th className="text-left px-4 py-3 font-medium text-[var(--dash-text-tertiary)] text-xs uppercase tracking-wide">Users</th>
@@ -666,6 +680,8 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                     <tbody className="divide-y divide-[var(--dash-border-subtle)]">
                       {tenants.map((t) => {
                         const isArchived = t.status === "archived" || t.status === "suspended";
+                        // Mock location if not available (UK default based on Tyne)
+                        const locationFlag = (t as any).location_flag || "🇬🇧"; 
                         return (
                         <tr key={t.id} className="hover:bg-[var(--surface-hover)] transition-colors">
                           <td className="px-4 py-3">
@@ -675,9 +691,12 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                             </div>
                           </td>
                           <td className="px-4 py-3">
+                            <span className="text-lg" title="United Kingdom">{locationFlag}</span>
+                          </td>
+                          <td className="px-4 py-3">
                             <button
                               onClick={() => setTierModal({ tenant: t, selectedTier: t.tier, customCredits: "" })}
-                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors hover:ring-1 hover:ring-offset-1 ${
+                              className={`inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all hover:ring-2 hover:ring-offset-1 ring-offset-[var(--surface-hover)] ${
                                 t.tier === "enterprise"
                                   ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 hover:ring-purple-400"
                                   : t.tier === "pro"
@@ -688,24 +707,19 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                               }`}
                               title="Change tier"
                             >
-                              {t.tier ? t.tier.charAt(0).toUpperCase() + t.tier.slice(1) : "—"}
-                              <ArrowUpDown className="w-2.5 h-2.5 opacity-60 ml-1" />
+                              <span className="capitalize">{t.tier || "—"}</span>
+                              <ChevronDown className="w-3 h-3 flex-shrink-0" />
                             </button>
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
                               <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
                                 isArchived
-                                  ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300"
+                                  ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
                                   : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
                               }`}>
                                 {isArchived ? "Suspended" : "Active"}
                               </span>
-                              {isArchived && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">
-                                  Suspended
-                                </span>
-                              )}
                             </div>
                           </td>
                           <td className="px-4 py-3 text-[var(--dash-text-secondary)]">{t.userCount}</td>
@@ -726,38 +740,54 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                               )}
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-[var(--dash-text-muted)]">{formatDate(t.lastActive)}</td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center justify-end gap-1">
+                          <td className="px-4 py-3 text-[var(--dash-text-muted)]">{formatDate(t.last                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end gap-2">
+                              {/* Impersonate */}
+                              <button
+                                onClick={() => handleImpersonate(t.id, t.name)}
+                                disabled={!!actionLoading}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--brand)]/10 text-[var(--brand)] hover:bg-[var(--brand)]/20 text-xs font-medium transition-all disabled:opacity-30"
+                                title={`Login as admin of ${t.name}`}
+                              >
+                                {actionLoading === `impersonate-${t.id}` ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <LogIn className="w-3.5 h-3.5" />
+                                )}
+                                <span>Switch</span>
+                              </button>
+
                               {/* Suspend / Unsuspend */}
                               <button
                                 onClick={() => setConfirmSuspend(t)}
                                 disabled={!!actionLoading}
-                                className={`p-2 rounded-lg transition-colors disabled:opacity-30 ${
-                                  isArchived
-                                    ? "hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-emerald-500"
-                                    : "hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-yellow-500"
+                                className={`p-2 rounded-lg transition-colors border ${
+                                  (t as any).status === "suspended"
+                                    ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/20"
+                                    : "bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/20"
                                 }`}
-                                title={isArchived ? "Activate workspace (restore access)" : "Suspend workspace (suspend access)"}
+                                title={(t as any).status === "suspended" ? "Activate workspace" : "Suspend workspace"}
                               >
                                 {actionLoading === `suspend-${t.id}` ? (
                                   <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : isArchived ? (
+                                ) : (t as any).status === "suspended" ? (
                                   <PlayCircle className="w-4 h-4" />
                                 ) : (
                                   <Pause className="w-4 h-4" />
                                 )}
                               </button>
-                              {/* Enter Workspace */}
+
+                              {/* Delete */}
                               <button
-                                onClick={() => handleImpersonate(t.id, t.name)}
-                                disabled={actionLoading === `impersonate-${t.id}`}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--brand)]/10 text-[var(--brand)] hover:bg-[var(--brand)]/20 text-xs font-medium transition-colors disabled:opacity-50"
-                                title="Switch to this workspace"
+                                onClick={() => { if(window.confirm(`Are you sure you want to PERMANENTLY delete workspace ${t.name}?`)) handleDeleteTenant(t.id) }}
+                                disabled={!!actionLoading}
+                                className="p-2 rounded-lg bg-red-500/10 text-red-600 border border-red-500/20 hover:bg-red-500/20 transition-colors disabled:opacity-30"
+                                title="Delete workspace permanently"
                               >
-                                {actionLoading === `impersonate-${t.id}` ? (
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                ) : (
+                                {actionLoading === `delete-${t.id}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                              </button>
+                            </div>
+                          </td>         ) : (
                                   <LogIn className="w-3.5 h-3.5" />
                                 )}
                                 Enter
@@ -896,26 +926,26 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setConfirmSuspend(null)} />
           <div className="relative w-full max-w-md bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl shadow-xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--dash-border-subtle)]">
-              <h2 className={`text-lg font-semibold flex items-center gap-2 ${confirmSuspend.status === "archived" ? "text-emerald-500" : "text-yellow-500"}`}>
-                {confirmSuspend.status === "archived" ? (
+              <h2 className={`text-lg font-semibold flex items-center gap-2 ${confirmSuspend.status === "suspended" ? "text-emerald-500" : "text-yellow-500"}`}>
+                {confirmSuspend.status === "suspended" ? (
                   <PlayCircle className="w-5 h-5" />
                 ) : (
                   <Pause className="w-5 h-5" />
                 )}
-                {confirmSuspend.status === "archived" ? "Activate Workspace" : "Suspend Workspace"}
+                {confirmSuspend.status === "suspended" ? "Activate Workspace" : "Suspend Workspace"}
               </h2>
               <button onClick={() => setConfirmSuspend(null)} className="p-1.5 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)]">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="px-6 py-5 space-y-4">
-              {confirmSuspend.status === "archived" ? (
+              {confirmSuspend.status === "suspended" ? (
                 <p className="text-sm text-[var(--dash-text-secondary)]">
                   Activate <strong>{confirmSuspend.name}</strong>? Users will regain full access to their workspace.
                 </p>
               ) : (
                 <p className="text-sm text-[var(--dash-text-secondary)]">
-                  Suspend <strong>{confirmSuspend.name}</strong>? All users in this workspace will lose access to the platform until they have been reactivated.
+                  Suspend &apos;{confirmSuspend.name}&apos;? All users in this workspace will lose access to the platform until they have been reactivated.
                 </p>
               )}
               <div className="flex items-center justify-end gap-3 pt-2">
@@ -929,7 +959,7 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                   onClick={() => handleSuspendToggle(confirmSuspend)}
                   disabled={actionLoading === `suspend-${confirmSuspend.id}`}
                   className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
-                    confirmSuspend.status === "archived"
+                    confirmSuspend.status === "suspended"
                       ? "bg-emerald-500 hover:bg-emerald-600 text-white"
                       : "bg-yellow-500 hover:bg-yellow-600 text-white"
                   }`}
@@ -938,12 +968,12 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <>
-                      {confirmSuspend.status === "archived" ? (
+                      {confirmSuspend.status === "suspended" ? (
                         <PlayCircle className="w-4 h-4" />
                       ) : (
                         <Pause className="w-4 h-4" />
                       )}
-                      {confirmSuspend.status === "archived" ? "Activate" : "Suspend"}
+                      {confirmSuspend.status === "suspended" ? "Activate" : "Suspend"}
                     </>
                   )}
                 </button>

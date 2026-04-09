@@ -58,8 +58,8 @@ export default function AuditPage() {
   const [contentHealth, setContentHealth] = useState<HealthItem[]>([]);
   const [staleDocuments, setStaleDocuments] = useState<StaleDocument[]>([]);
   const [topPerformers, setTopPerformers] = useState<TopPerformer[]>([]);
-  const [reviewQueue, setReviewQueue] = useState<DocumentReview[]>([]);
   const [lastAuditTime, setLastAuditTime] = useState<string>("Never");
+  const [activeTab, setActiveTab] = useState<"review-queue" | "library" | "settings">("review-queue");
 
   // Full audit states
   const [runningAudit, setRunningAudit] = useState(false);
@@ -419,8 +419,6 @@ export default function AuditPage() {
   }
 
   return (
-    <div className="min-h-full flex flex-col space-y-10 pb-2">
-      {/* Header */}
       <DashboardPageHeader
         title={<h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">Content audit</h1>}
         description={
@@ -456,348 +454,351 @@ export default function AuditPage() {
         }
       />
 
+      {/* Tabs */}
+      <div className="flex items-center gap-1 border-b border-[var(--dash-border-subtle)]">
+        <button
+          onClick={() => setActiveTab("review-queue")}
+          className={`px-6 py-3 text-sm font-medium transition-all relative ${
+            activeTab === "review-queue"
+              ? "text-[var(--brand)]"
+              : "text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)]"
+          }`}
+        >
+          Review Queue
+          {activeTab === "review-queue" && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--brand)]" />
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab("library")}
+          className={`px-6 py-3 text-sm font-medium transition-all relative ${
+            activeTab === "library"
+              ? "text-[var(--brand)]"
+              : "text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)]"
+          }`}
+        >
+          Audit Library
+          {activeTab === "library" && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--brand)]" />
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab("settings")}
+          className={`px-6 py-3 text-sm font-medium transition-all relative ${
+            activeTab === "settings"
+              ? "text-[var(--brand)]"
+              : "text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)]"
+          }`}
+        >
+          Settings
+          {activeTab === "settings" && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--brand)]" />
+          )}
+        </button>
+      </div>
+
       <div className="flex-1 min-h-0 flex flex-col gap-10">
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {auditStats.map((stat) => (
-          <div key={stat.label} className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[var(--dash-text-tertiary)]">{stat.label}</p>
-                <p className="text-2xl font-bold text-[var(--dash-text-primary)] mt-1">{stat.value}</p>
-                <p className={`text-xs mt-1 flex items-center gap-1 ${stat.positive ? 'text-[var(--status-success)]' : 'text-[var(--dash-text-muted)]'}`}>
-                  {stat.positive && <TrendingUp className="w-3 h-3" />}
-                  {stat.change}
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: `${stat.color}15` }}>
-                <stat.icon className="w-6 h-6" style={{ color: stat.color }} />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Content Health Distribution + Run Audit */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl">
-          <div className="px-6 py-5 border-b border-[var(--dash-border-subtle)]">
-            <h2 className="font-semibold text-[var(--dash-text-primary)]">Content Health Distribution</h2>
-            <p className="text-sm text-[var(--dash-text-tertiary)]">Analyse content health</p>
-          </div>
-          <div className="p-6 space-y-4">
-            {contentHealth.map((item) => (
-              <div key={item.label} className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-[var(--dash-text-secondary)]">{item.label}</span>
-                  <span className="text-[var(--dash-text-primary)] font-medium">{item.count} docs ({item.percentage}%)</span>
-                </div>
-                <div className="h-2 bg-[var(--surface-ground)] rounded-full overflow-hidden">
-                  <div className="h-full rounded-full transition-all" style={{ width: `${item.percentage}%`, backgroundColor: item.color }} />
-                </div>
-              </div>
-            ))}
-            <div className="mt-6 pt-6 border-t border-[var(--dash-border-subtle)] flex items-center justify-between">
-              <span className="text-sm text-[var(--dash-text-muted)]">Last audit: {lastAuditTime}</span>
-              <button 
-                onClick={handleRunFullAudit}
-                disabled={runningAudit}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-all"
-              >
-                {runningAudit ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Shield className="w-4 h-4" />
-                )}
-                {runningAudit ? 'Running Audit...' : 'Run Full Audit'}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl">
-          <div className="px-6 py-5 border-b border-[var(--dash-border-subtle)]">
-            <h2 className="font-semibold text-[var(--dash-text-primary)]">Top Performing</h2>
-            <p className="text-sm text-[var(--dash-text-tertiary)]">Most viewed this month</p>
-          </div>
-          <div className="p-6 space-y-4">
-            {topPerformers.length === 0 ? (
-              <p className="text-sm text-[var(--dash-text-muted)] text-center py-4">No documents found. Create your first document to see performance data here.</p>
-            ) : (
-              topPerformers.map((doc, index) => (
-                <div 
-                  key={doc.id} 
-                  className="flex items-center gap-3 cursor-pointer hover:bg-[var(--surface-hover)] -mx-2 px-2 py-1 rounded-lg transition-colors"
-                  onClick={() => handleDocumentClick(doc.id)}
-                >
-                  <span className="w-6 h-6 rounded-full bg-[var(--surface-ground)] flex items-center justify-center text-xs font-medium text-[var(--dash-text-tertiary)]">
-                    {index + 1}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[var(--dash-text-primary)] truncate">{doc.title}</p>
-                    <p className="text-xs text-[var(--dash-text-muted)]">{doc.views.toLocaleString()} views</p>
+        {activeTab === "review-queue" && (
+          <>
+            {/* Stats - Focus on Review Queue */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {auditStats.map((stat) => (
+                <div key={stat.label} className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-[var(--dash-text-tertiary)]">{stat.label}</p>
+                      <p className="text-2xl font-bold text-[var(--dash-text-primary)] mt-1">{stat.value}</p>
+                      <p className={`text-xs mt-1 flex items-center gap-1 ${stat.positive ? 'text-[var(--status-success)]' : 'text-[var(--dash-text-muted)]'}`}>
+                        {stat.positive && <TrendingUp className="w-3 h-3" />}
+                        {stat.change}
+                      </p>
+                    </div>
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: `${stat.color}15` }}>
+                      <stat.icon className="w-6 h-6" style={{ color: stat.color }} />
+                    </div>
                   </div>
-                  <span className={`text-xs font-medium flex items-center gap-1 ${doc.positive ? 'text-[var(--status-success)]' : 'text-[var(--status-error)]'}`}>
-                    {doc.positive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                    {doc.trend}
-                  </span>
                 </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
+              ))}
+            </div>
 
-      {/* ═══ AUDIT RESULTS PANEL ═══ */}
-      {showAuditResults && auditResult && (
-        <div ref={auditResultsRef} className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl overflow-hidden">
-          {/* Results Header */}
-          <div className="px-6 py-5 border-b border-[var(--dash-border-subtle)] flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-[var(--brand)]/10 flex items-center justify-center">
-                <Shield className="w-5 h-5 text-[var(--brand)]" />
-              </div>
-              <div>
-                <h2 className="font-semibold text-[var(--dash-text-primary)]">Audit Results</h2>
-                <p className="text-sm text-[var(--dash-text-tertiary)]">
-                  Ran at {new Date(auditResult.ran_at).toLocaleString()}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowAuditResults(false)}
-              className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)]"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Summary Cards */}
-          <div className="px-6 py-5 grid grid-cols-2 sm:grid-cols-4 gap-4 border-b border-[var(--dash-border-subtle)]">
-            <div className="bg-[var(--surface-ground)] rounded-lg p-4 text-center">
-              <p className="text-2xl font-bold text-[var(--dash-text-primary)]">{auditResult.summary.total_documents}</p>
-              <p className="text-xs text-[var(--dash-text-tertiary)] mt-1">Total Scanned</p>
-            </div>
-            <div className="bg-green-500/5 rounded-lg p-4 text-center">
-              <p className="text-2xl font-bold text-green-600">{auditResult.summary.healthy}</p>
-              <p className="text-xs text-[var(--dash-text-tertiary)] mt-1">Healthy</p>
-            </div>
-            <div className="bg-amber-500/5 rounded-lg p-4 text-center">
-              <p className="text-2xl font-bold text-amber-600">{auditResult.findings.length}</p>
-              <p className="text-xs text-[var(--dash-text-tertiary)] mt-1">Issues Found</p>
-            </div>
-            <div className="bg-blue-500/5 rounded-lg p-4 text-center">
-              <p className="text-2xl font-bold text-blue-600">{auditResult.summary.reviews_created}</p>
-              <p className="text-xs text-[var(--dash-text-tertiary)] mt-1">Reviews Created</p>
-            </div>
-          </div>
-
-          {/* Breakdown */}
-          <div className="px-6 py-4 border-b border-[var(--dash-border-subtle)] flex flex-wrap gap-3">
-            {auditResult.summary.breakdown.stale > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-red-500/10 text-red-600">
-                <Clock className="w-3 h-3" /> {auditResult.summary.breakdown.stale} stale
-              </span>
-            )}
-            {auditResult.summary.breakdown.empty_content > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-red-500/10 text-red-600">
-                <FileText className="w-3 h-3" /> {auditResult.summary.breakdown.empty_content} empty
-              </span>
-            )}
-            {auditResult.summary.breakdown.uncategorised > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-600">
-                <AlertCircle className="w-3 h-3" /> {auditResult.summary.breakdown.uncategorised} uncategorised
-              </span>
-            )}
-            {auditResult.summary.breakdown.stuck_in_draft > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-600">
-                <Edit3 className="w-3 h-3" /> {auditResult.summary.breakdown.stuck_in_draft} drafts
-              </span>
-            )}
-            {auditResult.summary.breakdown.zero_views > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-600">
-                <TrendingDown className="w-3 h-3" /> {auditResult.summary.breakdown.zero_views} zero views
-              </span>
-            )}
-            {auditResult.summary.issues_found === 0 && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-green-500/10 text-green-600">
-                <CheckCircle2 className="w-3 h-3" /> All documents are healthy
-              </span>
-            )}
-          </div>
-
-          {/* Findings list */}
-          {auditResult.findings.length > 0 && (
-            <>
-              {/* Filter tabs */}
-              <div className="px-6 py-3 border-b border-[var(--dash-border-subtle)] flex items-center gap-2">
-                <span className="text-xs text-[var(--dash-text-tertiary)] mr-2">Filter:</span>
-                {(['all', 'critical', 'warning', 'info'] as const).map(f => {
-                  const count = f === 'all' 
-                    ? auditResult.findings.length 
-                    : auditResult.findings.filter(fin => fin.severity === f).length;
-                  if (count === 0 && f !== 'all') return null;
-                  return (
-                    <button
-                      key={f}
-                      onClick={() => setFindingFilter(f)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                        findingFilter === f
-                          ? 'bg-[var(--brand)] text-white'
-                          : 'bg-[var(--surface-ground)] text-[var(--dash-text-secondary)] hover:text-[var(--dash-text-primary)]'
-                      }`}
-                    >
-                      {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)} ({count})
-                    </button>
-                  );
-                })}
+            {/* Review Queue Table - Redesigned */}
+            <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl overflow-hidden">
+              <div className="px-6 py-5 border-b border-[var(--dash-border-subtle)] flex items-center justify-between">
+                <div>
+                  <h2 className="font-semibold text-[var(--dash-text-primary)] flex items-center gap-2">
+                    <ClipboardCheck className="w-5 h-5 text-[var(--brand)]" />
+                    Pending Reviews
+                  </h2>
+                  <p className="text-sm text-[var(--dash-text-tertiary)]">Documents queued for manual review</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select 
+                    value={reviewFilter}
+                    onChange={(e) => setReviewFilter(e.target.value as any)}
+                    className="bg-transparent text-sm font-medium text-[var(--dash-text-secondary)] outline-none cursor-pointer border-none focus:ring-0"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                    <option value="all">All Statuses</option>
+                  </select>
+                </div>
               </div>
 
-              <div className="divide-y divide-[var(--dash-border-subtle)] max-h-[400px] overflow-y-auto">
-                {filteredFindings.map((finding) => (
-                  <div key={finding.document_id} className="px-6 py-4 flex items-start justify-between gap-4 hover:bg-[var(--surface-hover)] transition-colors">
-                    <div className="flex items-start gap-3 flex-1 min-w-0">
-                      <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${severityDot(finding.severity)}`} />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-[var(--dash-text-primary)] truncate">{finding.title}</p>
-                        <div className="flex flex-wrap gap-1.5 mt-1.5">
-                          {finding.issues.map((issue, i) => (
-                            <span key={i} className={`inline-flex items-center px-2 py-0.5 rounded text-xs border ${severityColor(finding.severity)}`}>
-                              {issue ? issue.charAt(0).toUpperCase() + issue.slice(1) : issue}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-[var(--bg-tertiary)] border-b border-[var(--dash-border-subtle)]">
+                      <th className="px-6 py-4 text-xs font-semibold text-[var(--dash-text-muted)] uppercase tracking-wider">Document</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-[var(--dash-text-muted)] uppercase tracking-wider">Reason</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-[var(--dash-text-muted)] uppercase tracking-wider">Priority</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-[var(--dash-text-muted)] uppercase tracking-wider">Due Date</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-[var(--dash-text-muted)] uppercase tracking-wider text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--dash-border-subtle)]">
+                    {reviewQueue.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-12 text-center text-[var(--dash-text-muted)]">
+                          No items in the review queue.
+                        </td>
+                      </tr>
+                    ) : (
+                      reviewQueue.map((review) => (
+                        <tr key={review.id} className="hover:bg-[var(--surface-hover)] transition-colors group">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleDocumentClick(review.document_id)}>
+                              <div className="w-9 h-9 rounded-lg bg-[var(--brand)]/10 flex items-center justify-center text-[var(--brand)]">
+                                <FileText className="w-4.5 h-4.5" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-[var(--dash-text-primary)] truncate max-w-[200px]">{review.title}</p>
+                                <p className="text-xs text-[var(--dash-text-muted)]">ID: {review.document_id.slice(0, 8)}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <p className="text-sm text-[var(--dash-text-secondary)] line-clamp-1" title={review.reason}>{review.reason}</p>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${
+                              review.priority === 'high' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                              review.priority === 'medium' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
+                              'bg-blue-500/10 text-blue-500 border-blue-500/20'
+                            }`}>
+                              {review.priority}
                             </span>
-                          ))}
-                        </div>
-                        {finding.auto_review_created && (
-                          <p className="text-xs text-green-600 mt-1.5 flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3" /> Review auto-created
-                          </p>
-                        )}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col">
+                              <span className="text-sm text-[var(--dash-text-secondary)]">{review.due_date}</span>
+                              <span className={`text-[10px] ${
+                                new Date(review.due_date_raw) < new Date() ? 'text-red-500 font-medium' : 'text-[var(--dash-text-muted)]'
+                              }`}>
+                                {new Date(review.due_date_raw) < new Date() ? 'Overdue' : 'Upcoming'}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              {review.status === 'pending' && (
+                                <button
+                                  onClick={() => handleUpdateReviewStatus(review.id, 'in_progress', review.title)}
+                                  className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--brand)]"
+                                  title="Start Review"
+                                >
+                                  <Play className="w-4 h-4" />
+                                </button>
+                              )}
+                              <button
+                                onClick={() => router.push(`/dashboard/knowledge/${review.document_id}?from=audit`)}
+                                className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)]"
+                                title="Edit Document"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleUpdateReviewStatus(review.id, 'completed', review.title)}
+                                className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--status-success)]"
+                                title="Mark Completed"
+                              >
+                                <CheckCheck className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+
+        {activeTab === "library" && (
+          <div className="space-y-10">
+            {/* Health Distribution & Top Performance */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl">
+                <div className="px-6 py-5 border-b border-[var(--dash-border-subtle)]">
+                  <h2 className="font-semibold text-[var(--dash-text-primary)]">Content Health Distribution</h2>
+                  <p className="text-sm text-[var(--dash-text-tertiary)]">Analysis of all documents</p>
+                </div>
+                <div className="p-6 space-y-4">
+                  {contentHealth.map((item) => (
+                    <div key={item.label} className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-[var(--dash-text-secondary)]">{item.label}</span>
+                        <span className="text-[var(--dash-text-primary)] font-medium">{item.count} docs ({item.percentage}%)</span>
+                      </div>
+                      <div className="h-2 bg-[var(--surface-ground)] rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all" style={{ width: `${item.percentage}%`, backgroundColor: item.color }} />
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <button
-                        onClick={() => handleFindingAction(finding, 'edit')}
-                        className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)]"
-                        title="Edit document"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleFindingAction(finding, 'review')}
-                        disabled={actionInProgress === `review-${finding.document_id}`}
-                        className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-green-600 disabled:opacity-50"
-                        title="Mark as reviewed"
-                      >
-                        {actionInProgress === `review-${finding.document_id}` ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <CheckCheck className="w-4 h-4" />
-                        )}
-                      </button>
-                      <button
-                        onClick={() => handleFindingAction(finding, 'archive')}
-                        disabled={actionInProgress === `archive-${finding.document_id}`}
-                        className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-amber-600 disabled:opacity-50"
-                        title="Archive as draft"
-                      >
-                        {actionInProgress === `archive-${finding.document_id}` ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Archive className="w-4 h-4" />
-                        )}
+                  ))}
+                  <div className="mt-6 pt-6 border-t border-[var(--dash-border-subtle)] flex items-center justify-between">
+                    <span className="text-sm text-[var(--dash-text-muted)]">Last exhaustive audit: {lastAuditTime}</span>
+                    <button 
+                      onClick={handleRunFullAudit}
+                      disabled={runningAudit}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-all"
+                    >
+                      {runningAudit ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
+                      {runningAudit ? 'Running Audit...' : 'Run Full Audit Scan'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl">
+                <div className="px-6 py-5 border-b border-[var(--dash-border-subtle)]">
+                  <h2 className="font-semibold text-[var(--dash-text-primary)]">Insights</h2>
+                  <p className="text-sm text-[var(--dash-text-tertiary)]">Top performers this period</p>
+                </div>
+                <div className="p-6 space-y-4">
+                  {topPerformers.map((doc, index) => (
+                    <div 
+                      key={doc.id} 
+                      className="flex items-center gap-3 cursor-pointer hover:bg-[var(--surface-hover)] -mx-2 px-2 py-1 rounded-lg transition-colors"
+                      onClick={() => handleDocumentClick(doc.id)}
+                    >
+                      <span className="w-6 h-6 rounded-full bg-[var(--surface-ground)] flex items-center justify-center text-xs font-medium text-[var(--dash-text-tertiary)]">{index + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-[var(--dash-text-primary)] truncate">{doc.title}</p>
+                        <p className="text-xs text-[var(--dash-text-muted)]">{doc.views.toLocaleString()} views</p>
+                      </div>
+                      <span className={`text-xs font-medium flex items-center gap-1 ${doc.positive ? 'text-[var(--status-success)]' : 'text-[var(--status-error)]'}`}>
+                        {doc.positive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                        {doc.trend}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Audit Scan Results (if ran) */}
+            {showAuditResults && auditResult && (
+              <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl overflow-hidden">
+                <div className="px-6 py-5 border-b border-[var(--dash-border-subtle)] flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Shield className="w-5 h-5 text-[var(--brand)]" />
+                    <div>
+                      <h2 className="font-semibold text-[var(--dash-text-primary)]">Last Scan Findings</h2>
+                      <p className="text-sm text-[var(--dash-text-tertiary)]">{auditResult.findings.length} issues identified</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => setFindingFilter('all')}
+                      className={`px-3 py-1 rounded-md text-xs font-medium ${findingFilter === 'all' ? 'bg-[var(--brand)] text-white' : 'bg-[var(--bg-tertiary)] text-[var(--dash-text-secondary)]'}`}
+                    >
+                      All
+                    </button>
+                    <button 
+                      onClick={() => setFindingFilter('critical')}
+                      className={`px-3 py-1 rounded-md text-xs font-medium ${findingFilter === 'critical' ? 'bg-red-500 text-white' : 'bg-[var(--bg-tertiary)] text-[var(--dash-text-secondary)]'}`}
+                    >
+                      Critical
+                    </button>
+                  </div>
+                </div>
+                <div className="divide-y divide-[var(--dash-border-subtle)] max-h-[400px] overflow-y-auto">
+                  {filteredFindings.map(finding => (
+                    <div key={finding.document_id} className="px-6 py-4 flex items-center justify-between group">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <div className={`w-2 h-2 rounded-full mt-2 ${severityDot(finding.severity)}`} />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-[var(--dash-text-primary)] truncate">{finding.title}</p>
+                          <div className="flex gap-1.5 mt-1">
+                            {finding.issues.map((issue, i) => (
+                              <span key={i} className={`text-[10px] px-1.5 py-0.5 rounded border ${severityColor(finding.severity)}`}>{issue}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      <button onClick={() => handleDocumentClick(finding.document_id)} className="p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Edit3 className="w-4 h-4 text-[var(--dash-text-tertiary)]" />
                       </button>
                     </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Stale Content */}
+            <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl">
+              <div className="px-6 py-5 border-b border-[var(--dash-border-subtle)] flex items-center justify-between">
+                <div>
+                  <h2 className="font-semibold text-[var(--dash-text-primary)] flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-amber-500" />
+                    Stale Content Library
+                  </h2>
+                  <p className="text-sm text-[var(--dash-text-tertiary)]">Documents that haven't been updated in 90+ days</p>
+                </div>
+              </div>
+              <div className="divide-y divide-[var(--dash-border-subtle)]">
+                {staleDocuments.map(doc => (
+                  <div key={doc.id} className="px-6 py-4 hover:bg-[var(--surface-hover)] transition-colors flex items-center justify-between group">
+                    <div className="flex-1 min-w-0" onClick={() => handleDocumentClick(doc.id)}>
+                      <p className="text-sm font-medium text-[var(--dash-text-primary)] truncate">{doc.title}</p>
+                      <p className="text-xs text-[var(--dash-text-muted)]">Last updated {doc.last_updated} &middot; {doc.views} views</p>
+                    </div>
+                    <button 
+                      onClick={() => handleScheduleReview(doc.id, doc.title)}
+                      className="px-3 py-1.5 bg-[var(--bg-tertiary)] hover:bg-[var(--brand)] hover:text-white rounded-lg text-xs font-medium transition-all"
+                    >
+                      Schedule Review
+                    </button>
                   </div>
                 ))}
               </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Stale Content & Review Queue */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* ── Stale Content ── */}
-        <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl">
-          <div className="px-6 py-5 border-b border-[var(--dash-border-subtle)] flex items-center justify-between">
-            <div>
-              <h2 className="font-semibold text-[var(--dash-text-primary)] flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-[var(--status-warning)]" />
-                Stale Content
-              </h2>
-              <p className="text-sm text-[var(--dash-text-tertiary)]">Documents needing updates</p>
             </div>
-            <button 
-              onClick={() => setShowAllStale(!showAllStale)}
-              className="text-sm text-[var(--brand)] hover:underline px-2 py-1 rounded-md hover:bg-[var(--surface-hover)] flex items-center gap-1"
-            >
-              {showAllStale ? 'Show Less' : 'View All'}
-              {showAllStale ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            </button>
           </div>
-          <div className={`divide-y divide-[var(--dash-border-subtle)] ${showAllStale ? 'max-h-[500px] overflow-y-auto' : ''}`}>
-            {staleDocuments.length === 0 ? (
-              <div className="px-6 py-8 text-center">
-                <CheckCircle2 className="w-8 h-8 text-[var(--status-success)] mx-auto mb-2" />
-                <p className="text-sm text-[var(--dash-text-muted)]">All content is up to date!</p>
-              </div>
-            ) : (
-              staleDocuments.map((doc) => (
-                <div 
-                  key={doc.id} 
-                  className="px-6 py-4 flex items-center justify-between hover:bg-[var(--surface-hover)] transition-colors group"
-                >
-                  <div 
-                    className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
-                    onClick={() => handleDocumentClick(doc.id)}
-                  >
-                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${doc.status === 'critical' ? 'bg-[var(--status-error)]' : doc.status === 'warning' ? 'bg-[var(--status-warning)]' : 'bg-[var(--status-info)]'}`} />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-[var(--dash-text-primary)] truncate">{doc.title}</p>
-                      <p className="text-xs text-[var(--dash-text-muted)]">Updated {doc.last_updated} &middot; {doc.views} views</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 flex-shrink-0 relative">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleMarkReviewed(doc.id, doc.title);
-                      }}
-                      disabled={actionInProgress?.startsWith(`review-${doc.id}`) || actionInProgress?.startsWith(`archive-${doc.id}`) || actionInProgress?.startsWith(`schedule-${doc.id}`)}
-                      className="p-1.5 rounded-lg hover:bg-green-500/10 text-[var(--dash-text-tertiary)] hover:text-green-600 opacity-0 group-hover:opacity-100 transition-all disabled:opacity-50"
-                      title="Mark as reviewed"
-                    >
-                      {actionInProgress === `review-${doc.id}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCheck className="w-4 h-4" />}
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDocumentClick(doc.id);
-                      }}
-                      className="p-1.5 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)] opacity-0 group-hover:opacity-100 transition-all"
-                      title="Edit document"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </button>
-                    <div className="relative">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenMenuId(openMenuId === `stale-${doc.id}` ? null : `stale-${doc.id}`);
-                        }}
-                        className="p-1.5 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] opacity-0 group-hover:opacity-100 transition-all"
-                      >
-                        <MoreHorizontal className="w-4 h-4" />
-                      </button>
-                      {openMenuId === `stale-${doc.id}` && (
-                        <div className="absolute right-0 top-full mt-1 w-48 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg shadow-lg z-20 py-1">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleScheduleReview(doc.id, doc.title, doc.status === 'critical' ? 'high' : 'medium'); }}
-                            disabled={!!actionInProgress}
-                            className="w-full px-3 py-2 text-left text-sm text-[var(--dash-text-secondary)] hover:bg-[var(--surface-hover)] flex items-center gap-2 disabled:opacity-50"
-                          >
-                            <ClipboardCheck className="w-4 h-4" />
+        )}
+
+        {activeTab === "settings" && (
+          <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-8 text-center">
+            <Settings className="w-12 h-12 text-[var(--dash-text-muted)] mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-[var(--dash-text-primary)]">Audit Configurations</h3>
+            <p className="text-sm text-[var(--dash-text-tertiary)] mt-2">
+              Automate your content audit process. Settings such as scan frequency and review notification preferences will be available here soon.
+            </p>
+            <div className="mt-8 flex justify-center gap-4">
+              <button disabled className="px-5 py-2.5 bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] rounded-lg text-sm font-medium cursor-not-allowed">
+                Configure Schedule
+              </button>
+              <button disabled className="px-5 py-2.5 bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] rounded-lg text-sm font-medium cursor-not-allowed">
+                Notification Rules
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
                             Schedule Review
                           </button>
                           <button

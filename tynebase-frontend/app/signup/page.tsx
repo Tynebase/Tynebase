@@ -18,24 +18,32 @@ const PLANS = {
     price: "£0",
     period: "/month",
     tagline: "Get started",
-    features: ["1 user", "[10] AI credits", "500MB storage"],
+    features: ["1 user", "10 AI credits", "500MB storage"],
     highlight: false,
   },
   base: {
     name: "Base",
-    price: "£29",
+    price: "£49",
     period: "/month",
     tagline: "Small teams",
-    features: ["10 users", "[100] AI credits", "5GB storage", "Collaboration"],
+    features: ["10 users", "100 AI credits", "5GB storage", "Collaboration"],
     highlight: false,
   },
   pro: {
     name: "Pro",
-    price: "£99",
+    price: "£249",
     period: "/month",
     tagline: "Scale up",
-    features: ["50 users", "[500] AI credits", "50GB storage", "White-label", "Branded subdomain", "Priority support"],
+    features: ["50 users", "500 AI credits", "50GB storage", "White-label", "Branded subdomain", "Priority support"],
     highlight: true,
+  },
+  enterprise: {
+    name: "Enterprise",
+    price: "£999",
+    period: "/month",
+    tagline: "Total power",
+    features: ["Unlimited users", "1000 AI credits", "Unlimited storage", "SLA guarantee", "Dedicated support"],
+    highlight: false,
   },
 };
 
@@ -107,12 +115,8 @@ export default function SignupPage() {
   // Plan selected → submit or subdomain step
   const handlePlanSelect = (selectedTier: TierType) => {
     setTier(selectedTier);
-    if (selectedTier === "enterprise") {
-      addToast({ type: "info", title: "Enterprise", description: "Contact sales@tynebase.com for custom enterprise pricing." });
-      return;
-    }
-    if (selectedTier === "pro" || selectedTier === "base") {
-      setStep(3); // Need subdomain for base and pro
+    if (selectedTier === "pro" || selectedTier === "base" || selectedTier === "enterprise") {
+      setStep(3); // Need subdomain for base/pro/enterprise
     } else {
       doSignup(selectedTier);
     }
@@ -370,7 +374,7 @@ export default function SignupPage() {
                   <div className="bg-[var(--bg-secondary)] rounded-xl p-3.5 border border-[var(--border-subtle)]">
                     <p className="text-[11px] font-medium text-[var(--text-muted)] uppercase tracking-wider mb-2">Free plan includes</p>
                     <div className="flex flex-wrap gap-2">
-                      {["1 user", "[10] AI credits", "500MB storage"].map(f => (
+                      {["1 user", "10 AI credits", "500MB storage"].map(f => (
                         <span key={f} className="inline-flex items-center gap-1 text-xs text-[var(--text-secondary)] bg-[var(--bg-tertiary)] px-2 py-1 rounded-md">
                           <Check className="w-3 h-3 text-[var(--brand)]" />{f}
                         </span>
@@ -396,7 +400,7 @@ export default function SignupPage() {
                   </p>
                 </div>
 
-                {(["free", "base", "pro"] as TierType[]).map((t) => {
+                {(["free", "base", "pro", "enterprise"] as TierType[]).map((t) => {
                   const plan = PLANS[t as keyof typeof PLANS];
                   return (
                     <button
@@ -438,22 +442,7 @@ export default function SignupPage() {
                   );
                 })}
 
-                {/* Enterprise */}
-                <button
-                  type="button"
-                  onClick={() => setShowEnterpriseModal(true)}
-                  className="flex items-center justify-between px-5 py-4 rounded-2xl border border-[var(--border-subtle)] hover:border-[var(--brand)] transition-all cursor-pointer"
-                  style={{ background: "linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%)" }}
-                >
-                  <div className="flex items-center gap-3">
-                    <Crown className="w-5 h-5 text-[var(--brand)]" />
-                    <div className="text-left">
-                      <span className="text-sm font-semibold text-[var(--text-primary)]">Enterprise</span>
-                      <p className="text-xs text-[var(--text-muted)]">Unlimited everything, custom pricing</p>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-[var(--text-muted)]" />
-                </button>
+
 
                 <button
                   type="button"

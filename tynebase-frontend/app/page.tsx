@@ -738,11 +738,11 @@ export default function Home() {
               <div style={{ marginBottom: '24px' }}>
                 <div className="mt-4">
                   <span className="text-4xl font-bold text-[var(--text-primary)]">
-                    £{billingPeriod === 'monthly' ? '29' : '23'}
+                    £{billingPeriod === 'monthly' ? '49' : '39'}
                   </span>
                   <span style={{ color: 'var(--text-primary)' }}>/month</span>
                   {billingPeriod === 'yearly' && (
-                    <p className="text-xs text-[var(--text-muted)] mt-1">Billed annually (£276/year)</p>
+                    <p className="text-xs text-[var(--text-muted)] mt-1">Billed annually (£468/year)</p>
                   )}
                 </div>
               </div>
@@ -773,11 +773,11 @@ export default function Home() {
               <div style={{ marginBottom: '24px' }}>
                 <div className="mt-4">
                   <span className="text-4xl font-bold text-[var(--text-primary)]">
-                    £{billingPeriod === 'monthly' ? '99' : '79'}
+                    £{billingPeriod === 'monthly' ? '249' : '199'}
                   </span>
                   <span style={{ color: 'var(--text-primary)' }}>/month</span>
                   {billingPeriod === 'yearly' && (
-                    <p className="text-xs text-[var(--text-muted)] mt-1">Billed annually (£948/year)</p>
+                    <p className="text-xs text-[var(--text-muted)] mt-1">Billed annually (£2,388/year)</p>
                   )}
                 </div>
               </div>
@@ -811,9 +811,10 @@ export default function Home() {
                 {/* Section 2: Price and description */}
                 <div style={{ marginBottom: '24px' }}>
                   <div style={{ marginBottom: '12px' }}>
-                    <span className="text-4xl font-bold text-[var(--text-primary)]">Custom</span>
+                    <span className="text-4xl font-bold text-[var(--text-primary)]">£999</span>
+                    <span style={{ color: 'var(--text-primary)' }}>/month</span>
                   </div>
-                  <p className="text-sm text-[var(--text-muted)]">Tailored for your organization</p>
+                  <p className="text-sm text-[var(--text-muted)]">Perfect for large organizations</p>
                 </div>
 
                 {/* Section 3: Features */}
@@ -865,7 +866,7 @@ export default function Home() {
                   </div>
                   <div className="w-px h-8 bg-[var(--border-subtle)]" />
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-[var(--text-primary)]">£70</p>
+                    <p className="text-2xl font-bold text-[var(--text-primary)]">£75</p>
                     <p className="text-xs text-[var(--text-muted)]">1000 Credits</p>
                   </div>
                 </div>

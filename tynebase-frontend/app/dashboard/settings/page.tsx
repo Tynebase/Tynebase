@@ -11,7 +11,10 @@ import {
   Shield, 
   Globe,
   ArrowRight,
-  Settings
+  Settings,
+  ShieldCheck,
+  Palette,
+  History
 } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -57,6 +60,20 @@ export default function SettingsPage() {
       icon: Globe,
       href: '/dashboard/settings/integrations',
       color: 'text-indigo-600'
+    },
+    {
+      title: 'Branding',
+      description: 'Customise your workspace appearance and logo',
+      icon: Palette,
+      href: '/dashboard/settings/branding',
+      color: 'text-pink-600'
+    },
+    {
+      title: 'Audit Logs',
+      description: 'View administrative activity and security logs',
+      icon: History,
+      href: '/dashboard/settings/audit-logs',
+      color: 'text-amber-600'
     }
   ];
 

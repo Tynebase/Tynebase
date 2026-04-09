@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { RichTextEditor } from "@/components/editor/RichTextEditor";
 import { VersionHistoryPanel } from "@/components/editor/VersionHistoryPanel";
 import { TiptapReader } from "@/components/ui/TiptapReader";
@@ -104,7 +104,9 @@ function mapDocumentToUI(doc: Document): UIDocument {
 export default function EditDocumentPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const documentId = params.id as string;
+  const isFromAudit = searchParams.get('from') === 'audit';
   const { user } = useAuth();
   const { addToast } = useToast();
   const isViewer = user?.role === 'viewer' && !user?.is_super_admin;
@@ -458,12 +460,23 @@ export default function EditDocumentPage() {
         {/* Top row: Back button and breadcrumb */}
         <div className="flex items-center justify-between gap-2 min-w-0">
           <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
-            <Link href="/dashboard/knowledge" className="flex-shrink-0">
-              <Button variant="ghost" className="gap-2 px-2 sm:px-3">
+            {isFromAudit ? (
+              <Button 
+                variant="ghost" 
+                className="gap-2 px-2 sm:px-3 text-[var(--brand)] hover:bg-[var(--brand)]/10"
+                onClick={() => router.push('/dashboard/audit')}
+              >
                 <ArrowLeft className="w-4 h-4" />
-                <span className="hidden sm:inline">Back</span>
+                <span>Back to Audit</span>
               </Button>
-            </Link>
+            ) : (
+              <Link href="/dashboard/knowledge" className="flex-shrink-0">
+                <Button variant="ghost" className="gap-2 px-2 sm:px-3">
+                  <ArrowLeft className="w-4 h-4" />
+                  <span className="hidden sm:inline">Back</span>
+                </Button>
+              </Link>
+            )}
             <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-[var(--dash-text-tertiary)] min-w-0 overflow-hidden">
               <span className="text-[var(--dash-text-muted)] hidden md:inline">Knowledge Base</span>
               <span className="hidden md:inline">/</span>

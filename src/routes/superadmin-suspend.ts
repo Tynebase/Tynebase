@@ -111,7 +111,7 @@ export default async function superAdminSuspendRoutes(fastify: FastifyInstance) 
           );
           return reply.status(500).send({
             error: {
-              code: 'ARCHIVE_FAILED',
+              code: 'SUSPEND_FAILED',
               message: 'Failed to suspend tenant',
             },
           });

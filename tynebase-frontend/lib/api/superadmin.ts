@@ -188,6 +188,10 @@ export async function unsuspendTenant(tenantId: string): Promise<{ message: stri
   return apiPost<{ message: string }>(`/api/superadmin/tenants/${tenantId}/unsuspend`);
 }
 
+export async function deleteTenant(tenantId: string): Promise<{ message: string }> {
+  return apiDelete<{ message: string }>(`/api/superadmin/tenants/${tenantId}`);
+}
+
 // ============================================================================
 // CHANGE TIER
 // ============================================================================

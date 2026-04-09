@@ -57,8 +57,8 @@ const PLANS = [
   {
     key: 'base' as const,
     name: 'Base',
-    priceMonthly: 29,
-    priceYearly: 23,
+    priceMonthly: 49,
+    priceYearly: 39,
     credits: 100,
     maxUsers: 10,
     storage: '1 GB',
@@ -78,8 +78,8 @@ const PLANS = [
   {
     key: 'pro' as const,
     name: 'Pro',
-    priceMonthly: 99,
-    priceYearly: 79,
+    priceMonthly: 249,
+    priceYearly: 199,
     credits: 500,
     maxUsers: 50,
     storage: '10 GB',
@@ -100,8 +100,8 @@ const PLANS = [
   {
     key: 'enterprise' as const,
     name: 'Enterprise',
-    priceMonthly: null,
-    priceYearly: null,
+    priceMonthly: 999,
+    priceYearly: 799,
     credits: 1000,
     maxUsers: -1,
     storage: 'Unlimited',
@@ -117,7 +117,7 @@ const PLANS = [
       'On-premise option',
     ],
     icon: Building2,
-    cta: 'Contact Sales',
+    cta: 'Upgrade to Enterprise',
   },
 ];
 
@@ -135,7 +135,7 @@ const CREDIT_PACKS: Array<{
 }> = [
   { pack: '100', credits: 100, price: 10, pricePer: '£0.10 / credit' },
   { pack: '500', credits: 500, price: 40, pricePer: '£0.08 / credit', popular: true },
-  { pack: '1000', credits: 1000, price: 70, pricePer: '£0.07 / credit' },
+  { pack: '1000', credits: 1000, price: 75, pricePer: '£0.07 / credit' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -198,7 +198,7 @@ function BillingPageInner() {
 
   // Plans that are available to upgrade to
   const upgradablePlans = PLANS.filter(
-    (p) => TIER_ORDER[p.key] > currentOrder && p.key !== 'enterprise'
+    (p) => TIER_ORDER[p.key] > currentOrder
   );
 
   const creditUsed = creditsTotal - creditsRemaining;
@@ -523,7 +523,9 @@ function BillingPageInner() {
                     <CardDescription>
                       {plan.key === 'base'
                         ? 'For small teams that need full AI power'
-                        : 'For growing organisations with advanced needs'}
+                        : plan.key === 'pro'
+                        ? 'For growing organisations with advanced needs'
+                        : 'Full-scale custom solution for organisations'}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -571,38 +573,7 @@ function BillingPageInner() {
               );
             })}
 
-            {/* Enterprise card — always shown if not on enterprise */}
-            {currentTier !== 'enterprise' && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Building2 className="h-5 w-5 text-[var(--brand)]" />
-                    Enterprise
-                  </CardTitle>
-                  <CardDescription>Custom solutions for large organisations</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold mb-4">
-                    Custom
-                    <span className="text-sm font-normal text-muted-foreground ml-2">pricing</span>
-                  </div>
-                  <ul className="space-y-2 mb-5">
-                    {['All Pro features', 'Unlimited users & documents', 'Custom AI credit pools', 'Rollover credits', 'Dedicated support', 'SLA guarantee', 'On-premise option'].map(
-                      (f) => (
-                        <li key={f} className="flex items-center gap-2 text-sm">
-                          <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-                          {f}
-                        </li>
-                      )
-                    )}
-                  </ul>
-                  <Button className="w-full" variant="outline" onClick={() => window.location.href = 'mailto:sales@tynebase.com?subject=Enterprise Plan Inquiry'}>
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Contact Sales
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
+
           </div>
         </div>
       )}
@@ -628,7 +599,7 @@ function BillingPageInner() {
               <Sparkles className="h-10 w-10 mx-auto mb-3 text-[var(--brand)] opacity-60" />
               <h3 className="font-semibold mb-1">Upgrade to buy credit top-ups</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Credit packs are available on the Base plan (£29/mo) and above.
+                Credit packs are available on the Base plan (£49/mo) and above.
               </p>
               {isAdmin && (
                 <Button onClick={() => handleUpgrade('base')} disabled={!!upgradingTo}>
@@ -637,7 +608,7 @@ function BillingPageInner() {
                   ) : (
                     <ArrowRight className="h-4 w-4 mr-2" />
                   )}
-                  Upgrade to Base — £29/mo
+                  Upgrade to Base — £49/mo
                 </Button>
               )}
             </CardContent>
