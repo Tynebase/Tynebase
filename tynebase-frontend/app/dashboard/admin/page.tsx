@@ -263,7 +263,7 @@ export default function SuperAdminPage() {
   };
 
   const handleSuspendToggle = async (tenant: TenantListItem) => {
-    const isArchived = (tenant as any).status === "archived";
+    const isArchived = (tenant as any).status === "archived" || (tenant as any).status === "deleted";
     setActionLoading(`suspend-${tenant.id}`);
     try {
       if (isArchived) {
@@ -646,7 +646,7 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                     </thead>
                     <tbody className="divide-y divide-[var(--dash-border-subtle)]">
                       {tenants.map((t) => {
-                        const isArchived = t.status === "archived";
+                        const isArchived = t.status === "archived" || t.status === "suspended";
                         return (
                         <tr key={t.id} className="hover:bg-[var(--surface-hover)] transition-colors">
                           <td className="px-4 py-3">

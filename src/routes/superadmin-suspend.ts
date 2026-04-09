@@ -67,15 +67,15 @@ export default async function superAdminSuspendRoutes(fastify: FastifyInstance) 
           });
         }
 
-        // Check if already archived
-        if (tenant.status === 'archived') {
+        // Check if already suspended
+        if (tenant.status === 'suspended') {
           request.log.info(
             {
               superAdminId,
               tenantId,
               tenantSubdomain: tenant.subdomain,
             },
-            'Tenant already archived'
+            'Tenant already suspended'
           );
           return {
             success: true,
@@ -87,15 +87,15 @@ export default async function superAdminSuspendRoutes(fastify: FastifyInstance) 
                 tier: tenant.tier,
                 status: tenant.status,
               },
-              message: 'Tenant is already archived',
+              message: 'Tenant is already suspended',
             },
           };
         }
 
-        // Update tenant status to archived
+        // Update tenant status to suspended
         const { data: updatedTenant, error: updateError } = await supabaseAdmin
           .from('tenants')
-          .update({ status: 'archived' })
+          .update({ status: 'suspended' })
           .eq('id', tenantId)
           .select('id, subdomain, name, tier, status')
           .single();
@@ -107,12 +107,12 @@ export default async function superAdminSuspendRoutes(fastify: FastifyInstance) 
               tenantId,
               error: updateError,
             },
-            'Failed to archive tenant'
+            'Failed to suspend tenant'
           );
           return reply.status(500).send({
             error: {
               code: 'ARCHIVE_FAILED',
-              message: 'Failed to archive tenant',
+              message: 'Failed to suspend tenant',
             },
           });
         }
@@ -126,9 +126,9 @@ export default async function superAdminSuspendRoutes(fastify: FastifyInstance) 
             tenantSubdomain: tenant.subdomain,
             tenantName: tenant.name,
             previousStatus: tenant.status,
-            newStatus: 'archived',
+            newStatus: 'suspended',
           },
-          'Tenant archived by super admin'
+          'Tenant suspended by super admin'
         );
 
         return {
@@ -141,7 +141,7 @@ export default async function superAdminSuspendRoutes(fastify: FastifyInstance) 
               tier: updatedTenant.tier,
               status: updatedTenant.status,
             },
-            message: 'Tenant archived successfully',
+            message: 'Tenant suspended successfully',
           },
         };
       } catch (error) {
@@ -155,11 +155,11 @@ export default async function superAdminSuspendRoutes(fastify: FastifyInstance) 
           });
         }
 
-        request.log.error({ error }, 'Error archiving tenant');
+        request.log.error({ error }, 'Error suspending tenant');
         return reply.status(500).send({
           error: {
             code: 'INTERNAL_SERVER_ERROR',
-            message: 'Failed to archive tenant',
+            message: 'Failed to suspend tenant',
           },
         });
       }

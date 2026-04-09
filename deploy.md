@@ -1,0 +1,1 @@
+deploy, push git, fly deploy if needed and vercel --prod from the tynebase-frontend dir
