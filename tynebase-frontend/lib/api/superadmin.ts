@@ -87,7 +87,7 @@ export interface ListUsersParams {
   page?: number;
   limit?: number;
   search?: string;
-  status?: 'active' | 'suspended' | 'archived' | 'all';
+  status?: 'active' | 'archived' | 'all';
   filter?: 'new30d' | 'active7d';
 }
 

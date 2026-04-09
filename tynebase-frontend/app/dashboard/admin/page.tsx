@@ -81,7 +81,7 @@ export default function SuperAdminPage() {
   const [usersTotalPages, setUsersTotalPages] = useState(1);
   const [usersTotal, setUsersTotal] = useState(0);
   const [usersSearch, setUsersSearch] = useState("");
-  const [usersStatus, setUsersStatus] = useState<"all" | "active" | "suspended" | "archived">("all");
+  const [usersStatus, setUsersStatus] = useState<"all" | "active" | "archived">("all");
   const [usersFilter, setUsersFilter] = useState<"all" | "new30d" | "active7d">("all");
   const [usersLoading, setUsersLoading] = useState(false);
 
@@ -263,20 +263,21 @@ export default function SuperAdminPage() {
   };
 
   const handleSuspendToggle = async (tenant: TenantListItem) => {
-    const isSuspended = (tenant as any).status === "suspended";
+    const isArchived = (tenant as any).status === "archived";
     setActionLoading(`suspend-${tenant.id}`);
     try {
-      if (isSuspended) {
+      if (isArchived) {
         await unsuspendTenant(tenant.id);
         addToast({ type: "success", title: `Workspace "${tenant.name}" reactivated` });
       } else {
         await suspendTenant(tenant.id);
-        addToast({ type: "success", title: `Workspace "${tenant.name}" suspended` });
+        addToast({ type: "success", title: `Workspace "${tenant.name}" archived` });
       }
       setConfirmSuspend(null);
       fetchTenants();
-    } catch (err: any) {
-      addToast({ type: "error", title: err.message || "Failed to update tenant status" });
+    } catch (error) {
+      console.error("Failed to toggle tenant suspension:", error);
+      addToast({ type: "error", title: "Failed to update workspace status" });
     } finally {
       setActionLoading(null);
     }
@@ -451,7 +452,6 @@ export default function SuperAdminPage() {
               >
                 <option value="all">All statuses</option>
                 <option value="active">Active</option>
-                <option value="suspended">Suspended</option>
                 <option value="archived">Archived</option>
               </select>
               {usersFilter !== "all" && (
@@ -521,8 +521,6 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
                               u.status === "active"
                                 ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
-                                : u.status === "suspended"
-                                ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300"
                                 : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
                             }`}>
                               {u.status ? u.status.charAt(0).toUpperCase() + u.status.slice(1) : "—"}
@@ -549,7 +547,7 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                                   Re-instate
                                 </button>
                               )}
-                              {/* Send Recovery Email (active/suspended users only) */}
+                              {/* Send Recovery Email (active users only) */}
                               {u.status !== "archived" && (
                                 <button
                                   onClick={() => handleSendRecovery(u)}
@@ -575,7 +573,7 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                                   <Coins className="w-4 h-4" />
                                 </button>
                               )}
-                              {/* Archive (soft-delete active/suspended users) */}
+                              {/* Archive (soft-delete active users) */}
                               {u.status !== "archived" && !u.is_super_admin && (
                                 <button
                                   onClick={() => setConfirmDelete(u)}
@@ -647,7 +645,7 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                     </thead>
                     <tbody className="divide-y divide-[var(--dash-border-subtle)]">
                       {tenants.map((t) => {
-                        const isSuspended = (t as any).status === "suspended";
+                        const isArchived = (t as any).status === "archived";
                         return (
                         <tr key={t.id} className="hover:bg-[var(--surface-hover)] transition-colors">
                           <td className="px-4 py-3">
@@ -676,11 +674,11 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                           </td>
                           <td className="px-4 py-3">
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                              isSuspended
+                              isArchived
                                 ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300"
                                 : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
                             }`}>
-                              {isSuspended ? "Suspended" : "Active"}
+                              {isArchived ? "Suspended" : "Active"}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-[var(--dash-text-secondary)]">{t.userCount}</td>
@@ -709,15 +707,15 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                                 onClick={() => setConfirmSuspend(t)}
                                 disabled={!!actionLoading}
                                 className={`p-2 rounded-lg transition-colors disabled:opacity-30 ${
-                                  isSuspended
+                                  isArchived
                                     ? "hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-emerald-500"
                                     : "hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-yellow-500"
                                 }`}
-                                title={isSuspended ? "Reactivate workspace" : "Suspend workspace"}
+                                title={isArchived ? "Reactivate workspace" : "Suspend workspace"}
                               >
                                 {actionLoading === `suspend-${t.id}` ? (
                                   <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : isSuspended ? (
+                                ) : isArchived ? (
                                   <PlayCircle className="w-4 h-4" />
                                 ) : (
                                   <PauseCircle className="w-4 h-4" />
@@ -872,7 +870,7 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
           <div className="relative w-full max-w-md bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl shadow-xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--dash-border-subtle)]">
               <h2 className={`text-lg font-semibold flex items-center gap-2 ${(confirmSuspend as any).status === "suspended" ? "text-emerald-500" : "text-yellow-500"}`}>
-                {(confirmSuspend as any).status === "suspended" ? (
+                {(confirmSuspend as any).status === "archived" ? (
                   <PlayCircle className="w-5 h-5" />
                 ) : (
                   <PauseCircle className="w-5 h-5" />
@@ -884,13 +882,13 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
               </button>
             </div>
             <div className="px-6 py-5 space-y-4">
-              {(confirmSuspend as any).status === "suspended" ? (
+              {(confirmSuspend as any).status === "archived" ? (
                 <p className="text-sm text-[var(--dash-text-secondary)]">
                   Reactivate <strong>{confirmSuspend.name}</strong>? Users will regain full access to their workspace.
                 </p>
               ) : (
                 <p className="text-sm text-[var(--dash-text-secondary)]">
-                  Suspend <strong>{confirmSuspend.name}</strong>? All users in this workspace will lose access to the platform until they have been reactivated.
+                  Archive <strong>{confirmSuspend.name}</strong>? All users in this workspace will lose access to the platform until they have been reactivated.
                 </p>
               )}
               <div className="flex items-center justify-end gap-3 pt-2">
@@ -911,12 +909,12 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                 >
                   {actionLoading === `suspend-${confirmSuspend.id}` ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (confirmSuspend as any).status === "suspended" ? (
+                  ) : (confirmSuspend as any).status === "archived" ? (
                     <PlayCircle className="w-4 h-4" />
                   ) : (
                     <PauseCircle className="w-4 h-4" />
                   )}
-                  {(confirmSuspend as any).status === "suspended" ? "Reactivate" : "Suspend"}
+                  {(confirmSuspend as any).status === "archived" ? "Reactivate" : "Archive"}
                 </button>
               </div>
             </div>

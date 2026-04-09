@@ -11,7 +11,7 @@ const listUsersQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(50),
   search: z.string().optional(),
-  status: z.enum(['active', 'suspended', 'archived', 'all']).default('all'),
+  status: z.enum(['active', 'archived', 'all']).default('all'),
   filter: z.enum(['new30d', 'active7d']).optional(),
 });
 
@@ -494,10 +494,10 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
           creditPoolsResult,
         ] = await Promise.all([
           supabaseAdmin.from('tenants').select('*', { count: 'exact', head: true }),
-          supabaseAdmin.from('users').select('*', { count: 'exact', head: true }).neq('status', 'deleted'),
-          supabaseAdmin.from('users').select('*', { count: 'exact', head: true }).gte('last_active_at', sevenDaysAgo.toISOString()).neq('status', 'deleted'),
+          supabaseAdmin.from('users').select('*', { count: 'exact', head: true }).neq('status', 'archived'),
+          supabaseAdmin.from('users').select('*', { count: 'exact', head: true }).gte('last_active_at', sevenDaysAgo.toISOString()).neq('status', 'archived'),
           supabaseAdmin.from('documents').select('*', { count: 'exact', head: true }),
-          supabaseAdmin.from('users').select('*', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo.toISOString()).neq('status', 'deleted'),
+          supabaseAdmin.from('users').select('*', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo.toISOString()).neq('status', 'archived'),
           supabaseAdmin.from('documents').select('*', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo.toISOString()),
           supabaseAdmin.from('query_usage').select('credits_charged').gte('created_at', thirtyDaysAgo.toISOString()),
           supabaseAdmin.from('credit_pools').select('total_credits, used_credits'),
