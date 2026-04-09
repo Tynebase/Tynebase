@@ -204,10 +204,13 @@ export default function SuperAdminPage() {
 
   const handleSendRecovery = async (targetUser: PlatformUser) => {
     setActionLoading(`recovery-${targetUser.id}`);
+    console.log(`[Admin] Triggering password recovery for user: ${targetUser.email} (${targetUser.id})`);
     try {
-      await sendRecoveryEmail(targetUser.id);
+      const response = await sendRecoveryEmail(targetUser.id);
+      console.log(`[Admin] Recovery email response:`, response);
       addToast({ type: "success", title: `Password recovery email sent to ${targetUser.email}` });
     } catch (err: any) {
+      console.error(`[Admin] Failed to send recovery email:`, err);
       addToast({ type: "error", title: err.message || "Failed to send recovery email" });
     } finally {
       setActionLoading(null);
@@ -287,14 +290,18 @@ export default function SuperAdminPage() {
     }
   };
 
-  const handleDeleteTenant = async (tenantId: string) => {
-    setActionLoading(`delete-${tenantId}`);
+  const handleArchiveTenant = async (tenant: Tenant) => {
+    if (!window.confirm(`Are you sure you want to archive workspace "${tenant.name}"? Users will lose access immediately.`)) return;
+    
+    setActionLoading(`archive-${tenant.id}`);
     try {
-      await deleteTenant(tenantId);
-      addToast({ type: "success", title: "Workspace Deleted", description: "The workspace has been permanently removed" });
-      fetchTenants();
+      // deleteTenant is mapped to soft-delete (archive) in backend
+      await deleteTenant(tenant.id);
+      addToast({ type: "success", title: `Workspace "${tenant.name}" has been archived.` });
+      refreshKPIs();
+      setTenants(prev => prev.map(t => t.id === tenant.id ? { ...t, status: 'deleted' } : t));
     } catch (err: any) {
-      addToast({ type: "error", title: "Deletion Failed", description: err.message || "Failed to delete workspace" });
+      addToast({ type: "error", title: err.message || "Failed to archive workspace" });
     } finally {
       setActionLoading(null);
     }
@@ -679,9 +686,18 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                     </thead>
                     <tbody className="divide-y divide-[var(--dash-border-subtle)]">
                       {tenants.map((t) => {
-                        const isArchived = t.status === "archived" || t.status === "suspended";
-                        // Mock location if not available (UK default based on Tyne)
-                        const locationFlag = (t as any).location_flag || "🇬🇧"; 
+                        const isArchived = t.status === "archived" || t.status === "suspended" || t.status === "deleted";
+                        
+                        // Auto-detect location based on subdomain (mock implementation)
+                        const getAutoLocation = (subdomain: string) => {
+                          if (subdomain.includes('-us')) return { flag: "🇺🇸", label: "USA" };
+                          if (subdomain.includes('-eu')) return { flag: "🇪🇺", label: "Europe" };
+                          return { flag: "🇬🇧", label: "UK" };
+                        };
+                        const location = (t as any).location_flag 
+                          ? { flag: (t as any).location_flag, label: (t as any).location_name || "Custom" }
+                          : getAutoLocation(t.subdomain);
+                        
                         return (
                         <tr key={t.id} className="hover:bg-[var(--surface-hover)] transition-colors">
                           <td className="px-4 py-3">
@@ -691,7 +707,7 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <span className="text-lg" title="United Kingdom">{locationFlag}</span>
+                            <span className="text-lg" title={location.label}>{location.flag}</span>
                           </td>
                           <td className="px-4 py-3">
                             <button
@@ -777,14 +793,14 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                                 )}
                               </button>
 
-                              {/* Delete */}
+                              {/* Archive (Soft Delete) */}
                               <button
-                                onClick={() => { if(window.confirm(`Are you sure you want to PERMANENTLY delete workspace ${t.name}?`)) handleDeleteTenant(t.id) }}
+                                onClick={() => { if(window.confirm(`Are you sure you want to archive workspace ${t.name}?`)) handleArchiveTenant(t.id) }}
                                 disabled={!!actionLoading}
-                                className="p-2 rounded-lg bg-red-500/10 text-red-600 border border-red-500/20 hover:bg-red-500/20 transition-colors disabled:opacity-30"
-                                title="Delete workspace permanently"
+                                className="p-2 rounded-lg bg-orange-500/10 text-orange-600 border border-orange-500/20 hover:bg-orange-500/20 transition-colors disabled:opacity-30"
+                                title="Archive workspace (Soft delete)"
                               >
-                                {actionLoading === `delete-${t.id}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                {actionLoading === `archive-${t.id}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArchiveX className="w-4 h-4" />}
                               </button>
                             </div>
                           </td>         ) : (

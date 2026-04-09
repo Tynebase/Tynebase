@@ -198,16 +198,19 @@ export default function VideoPage() {
         }
       );
       
-      if (completedJob.status === 'completed' && completedJob.result?.document_id) {
+      const docId = completedJob.result?.document_id || completedJob.result?.doc_id || completedJob.result?.id;
+      
+      if (completedJob.status === 'completed' && docId) {
         const creditsCharged = typeof completedJob.result.credits_charged === 'number'
           ? completedJob.result.credits_charged
           : calculateCredits();
         decrementCredits(creditsCharged);
         refreshCredits();
         await refreshVideos();
-        router.push(`/dashboard/knowledge/${completedJob.result.document_id}`);
-      } else if (completedJob.status === 'failed') {
-        setError(completedJob.error_message || 'Video processing failed');
+        router.push(`/dashboard/knowledge/${docId}`);
+      } else if (completedJob.status === 'completed' && !docId) {
+        console.error('YouTube job completed but no document ID found in result:', completedJob.result);
+        setError('Video processed but could not be saved (missing ID). Please contact support.');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to process YouTube video');
@@ -246,16 +249,19 @@ export default function VideoPage() {
         }
       );
       
-      if (completedJob.status === 'completed' && completedJob.result?.document_id) {
+      const docId = completedJob.result?.document_id || completedJob.result?.doc_id || completedJob.result?.id;
+      
+      if (completedJob.status === 'completed' && docId) {
         const creditsCharged = typeof completedJob.result.credits_charged === 'number'
           ? completedJob.result.credits_charged
           : calculateCredits();
         decrementCredits(creditsCharged);
         refreshCredits();
         await refreshVideos();
-        router.push(`/dashboard/knowledge/${completedJob.result.document_id}`);
-      } else if (completedJob.status === 'failed') {
-        setError(completedJob.error_message || 'Video processing failed');
+        router.push(`/dashboard/knowledge/${docId}`);
+      } else if (completedJob.status === 'completed' && !docId) {
+        console.error('Direct URL job completed but no document ID found in result:', completedJob.result);
+        setError('Video processed but could not be saved (missing ID). Please contact support.');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to process video URL');
@@ -291,16 +297,19 @@ export default function VideoPage() {
         }
       );
       
-      if (completedJob.status === 'completed' && completedJob.result?.document_id) {
+      const docId = completedJob.result?.document_id || completedJob.result?.doc_id || completedJob.result?.id;
+      
+      if (completedJob.status === 'completed' && docId) {
         const creditsCharged = typeof completedJob.result.credits_charged === 'number'
           ? completedJob.result.credits_charged
           : calculateCredits();
         decrementCredits(creditsCharged);
         refreshCredits();
         await refreshVideos();
-        router.push(`/dashboard/knowledge/${completedJob.result.document_id}`);
-      } else if (completedJob.status === 'failed') {
-        setError(completedJob.error_message || 'Video upload failed');
+        router.push(`/dashboard/knowledge/${docId}`);
+      } else if (completedJob.status === 'completed' && !docId) {
+        console.error('Video job completed but no document ID found in result:', completedJob.result);
+        setError('Video processed but could not be saved (missing ID). Please contact support.');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to upload video');

@@ -217,28 +217,27 @@ export default function AIAssistantPage() {
         }
       );
       
-      if (completedJob.status === 'completed' && completedJob.result?.document_id) {
+      const docId = completedJob.result?.document_id || completedJob.result?.doc_id || completedJob.result?.id;
+      
+      if (completedJob.status === 'completed' && docId) {
         const creditCost = (aiProviders.find(p => p.id === selectedProvider)?.credits || 1) * selectedOutputTypes.size;
         decrementCredits(creditCost);
         refreshCredits();
         
         // If we came from a category, assign the document to that category
-        const docId = completedJob.result.document_id as string;
-        if (categoryId && docId) {
+        if (categoryId) {
           try {
             const { updateDocument } = await import('@/lib/api/documents');
-            await updateDocument(docId, { category_id: categoryId });
+            await updateDocument(docId as string, { category_id: categoryId });
           } catch (err) {
             console.error('Failed to assign category to document:', err);
-            // Continue to redirect even if category assignment fails
           }
         }
         
         router.push(`/dashboard/knowledge/${docId}`);
-      } else if (completedJob.status === 'failed') {
-        setError(completedJob.error_message || 'Generation failed. Please check your credits and try again.');
-      } else if (completedJob.status === 'completed' && !completedJob.result?.document_id) {
-        setError('Document was generated but could not be saved. Please try again.');
+      } else if (completedJob.status === 'completed' && !docId) {
+        console.error('Job completed but no document ID found in result:', completedJob.result);
+        setError('Document was generated but could not be saved (missing ID). Please contact support.');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate content');

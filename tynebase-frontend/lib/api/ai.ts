@@ -597,14 +597,27 @@ export async function pollJobUntilComplete(
   
   while (attempts < maxAttempts) {
     const response = await getJobStatus(jobId);
-    const job = response.job;
+    // Handle both { job: Job } and direct Job response format
+    const job = response.job || (response as any);
+    
+    if (!job || !job.status) {
+      console.warn('Invalid job response structure:', response);
+      attempts++;
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      continue;
+    }
     
     if (onProgress) {
       onProgress(job);
     }
     
-    if (job.status === 'completed' || job.status === 'failed') {
+    if (job.status === 'completed') {
       return job;
+    }
+    
+    if (job.status === 'failed') {
+      const errorMsg = job.error_message || 'Job execution failed on server';
+      throw new Error(`AI Job Failed: ${errorMsg}`);
     }
     
     await new Promise(resolve => setTimeout(resolve, pollInterval));
