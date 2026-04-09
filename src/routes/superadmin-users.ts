@@ -182,7 +182,7 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
 
         if (targetUser.status === 'archived') {
           return reply.status(400).send({
-            error: { code: 'ALREADY_DELETED', message: 'User is already deleted' },
+            error: { code: 'ALREADY_ARCHIVED', message: 'User is already archived' },
           });
         }
 
@@ -204,7 +204,7 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
 
         return {
           success: true,
-          message: `User ${targetUser.email} has been deleted`,
+          message: `User ${targetUser.email} has been archived`,
         };
       } catch (error) {
         if (error instanceof z.ZodError) {
@@ -212,9 +212,9 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
             error: { code: 'INVALID_PARAMS', message: 'Invalid parameters' },
           });
         }
-        request.log.error({ error }, 'Error deleting user');
+        request.log.error({ error }, 'Error archiving user');
         return reply.status(500).send({
-          error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to delete user' },
+          error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to archive user' },
         });
       }
     }
@@ -246,9 +246,9 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
           });
         }
 
-        if (targetUser.status !== 'deleted') {
+        if (targetUser.status !== 'archived') {
           return reply.status(400).send({
-            error: { code: 'NOT_DELETED', message: `User is not archived (current status: ${targetUser.status})` },
+            error: { code: 'NOT_ARCHIVED', message: `User is not archived (current status: ${targetUser.status})` },
           });
         }
 
