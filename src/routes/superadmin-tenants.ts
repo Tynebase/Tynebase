@@ -12,6 +12,7 @@ interface TenantListItem {
   subdomain: string;
   name: string;
   tier: string;
+  status: string;
   userCount: number;
   documentCount: number;
   creditsUsed: number;
@@ -63,7 +64,7 @@ export default async function superAdminTenantsRoutes(fastify: FastifyInstance) 
         // Query 1: Get all tenants with pagination
         const { data: tenants, error: tenantsError, count: totalCount } = await supabaseAdmin
           .from('tenants')
-          .select('id, subdomain, name, tier, created_at', { count: 'exact' })
+          .select('id, subdomain, name, tier, status, created_at', { count: 'exact' })
           .order('created_at', { ascending: false })
           .range(offset, offset + limit - 1);
 
@@ -229,6 +230,7 @@ export default async function superAdminTenantsRoutes(fastify: FastifyInstance) 
             subdomain: tenant.subdomain,
             name: tenant.name,
             tier: tenant.tier,
+            status: tenant.status || 'active',
             userCount: userCountMap.get(tenant.id) || 0,
             documentCount: documentCountMap.get(tenant.id) || 0,
             creditsUsed: credits.used,
@@ -278,6 +280,140 @@ export default async function superAdminTenantsRoutes(fastify: FastifyInstance) 
             code: 'INTERNAL_SERVER_ERROR',
             message: 'Failed to retrieve tenant list',
           },
+        });
+      }
+    }
+  );
+
+  /**
+   * POST /api/superadmin/tenants/:tenantId/suspend
+   * 
+   * Archives a tenant (sets status to 'archived')
+   */
+  fastify.post(
+    '/api/superadmin/tenants/:tenantId/suspend',
+    {
+      preHandler: [authMiddleware, superAdminGuard],
+    },
+    async (request, reply) => {
+      try {
+        const { tenantId } = z.object({ tenantId: z.string().uuid() }).parse(request.params);
+
+        // Get tenant info
+        const { data: tenant, error: fetchError } = await supabaseAdmin
+          .from('tenants')
+          .select('id, name, subdomain, status')
+          .eq('id', tenantId)
+          .single();
+
+        if (fetchError || !tenant) {
+          return reply.status(404).send({
+            error: { code: 'TENANT_NOT_FOUND', message: 'Tenant not found' },
+          });
+        }
+
+        if (tenant.status === 'archived') {
+          return reply.status(400).send({
+            error: { code: 'ALREADY_ARCHIVED', message: 'Tenant is already archived' },
+          });
+        }
+
+        // Archive tenant
+        const { error: updateError } = await supabaseAdmin
+          .from('tenants')
+          .update({ status: 'archived' })
+          .eq('id', tenantId);
+
+        if (updateError) {
+          request.log.error({ error: updateError }, 'Failed to archive tenant');
+          throw updateError;
+        }
+
+        request.log.info(
+          { superAdminId: request.user?.id, tenantId, tenantName: tenant.name },
+          'Super admin archived tenant'
+        );
+
+        return {
+          success: true,
+          message: `Tenant "${tenant.name}" has been archived`,
+        };
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.status(400).send({
+            error: { code: 'INVALID_PARAMS', message: 'Invalid parameters' },
+          });
+        }
+        request.log.error({ error }, 'Error archiving tenant');
+        return reply.status(500).send({
+          error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to archive tenant' },
+        });
+      }
+    }
+  );
+
+  /**
+   * POST /api/superadmin/tenants/:tenantId/unsuspend
+   * 
+   * Reactivates an archived tenant (sets status back to 'active')
+   */
+  fastify.post(
+    '/api/superadmin/tenants/:tenantId/unsuspend',
+    {
+      preHandler: [authMiddleware, superAdminGuard],
+    },
+    async (request, reply) => {
+      try {
+        const { tenantId } = z.object({ tenantId: z.string().uuid() }).parse(request.params);
+
+        // Get tenant info
+        const { data: tenant, error: fetchError } = await supabaseAdmin
+          .from('tenants')
+          .select('id, name, subdomain, status')
+          .eq('id', tenantId)
+          .single();
+
+        if (fetchError || !tenant) {
+          return reply.status(404).send({
+            error: { code: 'TENANT_NOT_FOUND', message: 'Tenant not found' },
+          });
+        }
+
+        if (tenant.status !== 'archived') {
+          return reply.status(400).send({
+            error: { code: 'NOT_ARCHIVED', message: `Tenant is not archived (current status: ${tenant.status})` },
+          });
+        }
+
+        // Reactivate tenant
+        const { error: updateError } = await supabaseAdmin
+          .from('tenants')
+          .update({ status: 'active' })
+          .eq('id', tenantId);
+
+        if (updateError) {
+          request.log.error({ error: updateError }, 'Failed to reactivate tenant');
+          throw updateError;
+        }
+
+        request.log.info(
+          { superAdminId: request.user?.id, tenantId, tenantName: tenant.name },
+          'Super admin reactivated tenant'
+        );
+
+        return {
+          success: true,
+          message: `Tenant "${tenant.name}" has been reactivated`,
+        };
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.status(400).send({
+            error: { code: 'INVALID_PARAMS', message: 'Invalid parameters' },
+          });
+        }
+        request.log.error({ error }, 'Error reactivating tenant');
+        return reply.status(500).send({
+          error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to reactivate tenant' },
         });
       }
     }

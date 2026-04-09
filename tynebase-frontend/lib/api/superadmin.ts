@@ -43,6 +43,7 @@ export interface TenantListItem {
   subdomain: string;
   name: string;
   tier: string;
+  status: string;
   userCount: number;
   documentCount: number;
   creditsUsed: number;

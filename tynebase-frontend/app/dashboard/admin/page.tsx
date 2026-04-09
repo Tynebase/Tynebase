@@ -645,7 +645,7 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                     </thead>
                     <tbody className="divide-y divide-[var(--dash-border-subtle)]">
                       {tenants.map((t) => {
-                        const isArchived = (t as any).status === "archived";
+                        const isArchived = t.status === "archived";
                         return (
                         <tr key={t.id} className="hover:bg-[var(--surface-hover)] transition-colors">
                           <td className="px-4 py-3">
@@ -678,7 +678,7 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                                 ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300"
                                 : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
                             }`}>
-                              {isArchived ? "Suspended" : "Active"}
+                              {isArchived ? "Archived" : "Active"}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-[var(--dash-text-secondary)]">{t.userCount}</td>
@@ -711,7 +711,7 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                                     ? "hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-emerald-500"
                                     : "hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-yellow-500"
                                 }`}
-                                title={isArchived ? "Reactivate workspace" : "Suspend workspace"}
+                                title={isArchived ? "Reactivate workspace" : "Archive workspace"}
                               >
                                 {actionLoading === `suspend-${t.id}` ? (
                                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -869,20 +869,20 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setConfirmSuspend(null)} />
           <div className="relative w-full max-w-md bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl shadow-xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--dash-border-subtle)]">
-              <h2 className={`text-lg font-semibold flex items-center gap-2 ${(confirmSuspend as any).status === "suspended" ? "text-emerald-500" : "text-yellow-500"}`}>
-                {(confirmSuspend as any).status === "archived" ? (
+              <h2 className={`text-lg font-semibold flex items-center gap-2 ${confirmSuspend.status === "archived" ? "text-emerald-500" : "text-yellow-500"}`}>
+                {confirmSuspend.status === "archived" ? (
                   <PlayCircle className="w-5 h-5" />
                 ) : (
                   <PauseCircle className="w-5 h-5" />
                 )}
-                {(confirmSuspend as any).status === "suspended" ? "Reactivate Workspace" : "Suspend Workspace"}
+                {confirmSuspend.status === "archived" ? "Reactivate Workspace" : "Archive Workspace"}
               </h2>
               <button onClick={() => setConfirmSuspend(null)} className="p-1.5 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)]">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="px-6 py-5 space-y-4">
-              {(confirmSuspend as any).status === "archived" ? (
+              {confirmSuspend.status === "archived" ? (
                 <p className="text-sm text-[var(--dash-text-secondary)]">
                   Reactivate <strong>{confirmSuspend.name}</strong>? Users will regain full access to their workspace.
                 </p>
@@ -902,19 +902,23 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                   onClick={() => handleSuspendToggle(confirmSuspend)}
                   disabled={actionLoading === `suspend-${confirmSuspend.id}`}
                   className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
-                    (confirmSuspend as any).status === "suspended"
+                    confirmSuspend.status === "archived"
                       ? "bg-emerald-500 hover:bg-emerald-600 text-white"
                       : "bg-yellow-500 hover:bg-yellow-600 text-white"
                   }`}
                 >
                   {actionLoading === `suspend-${confirmSuspend.id}` ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (confirmSuspend as any).status === "archived" ? (
-                    <PlayCircle className="w-4 h-4" />
                   ) : (
-                    <PauseCircle className="w-4 h-4" />
+                    <span>
+                      {confirmSuspend.status === "archived" ? (
+                        <PlayCircle className="w-4 h-4" />
+                      ) : (
+                        <PauseCircle className="w-4 h-4" />
+                      )}
+                      {confirmSuspend.status === "archived" ? "Reactivate" : "Archive"}
+                    </span>
                   )}
-                  {(confirmSuspend as any).status === "archived" ? "Reactivate" : "Archive"}
                 </button>
               </div>
             </div>
