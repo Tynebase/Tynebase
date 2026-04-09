@@ -7,7 +7,7 @@ import {
   AlertTriangle, CheckCircle2, Clock, FileText, TrendingUp, TrendingDown,
   Edit3, Calendar, Download, RefreshCw, ChevronRight, AlertCircle, Loader2,
   Play, CheckCheck, XCircle, Archive, ClipboardCheck, Shield, X,
-  ChevronDown, ChevronUp, MoreHorizontal
+  ChevronDown, ChevronUp, MoreHorizontal, Settings
 } from "lucide-react";
 import {
   getAuditStats,
@@ -58,6 +58,7 @@ export default function AuditPage() {
   const [contentHealth, setContentHealth] = useState<HealthItem[]>([]);
   const [staleDocuments, setStaleDocuments] = useState<StaleDocument[]>([]);
   const [topPerformers, setTopPerformers] = useState<TopPerformer[]>([]);
+  const [reviewQueue, setReviewQueue] = useState<DocumentReview[]>([]);
   const [lastAuditTime, setLastAuditTime] = useState<string>("Never");
   const [activeTab, setActiveTab] = useState<"review-queue" | "library" | "settings">("review-queue");
 
@@ -172,7 +173,7 @@ export default function AuditPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [timeRange, showAllStale]);
+  }, [timeRange, showAllStale, showAllReviews, reviewFilter]);
 
   useEffect(() => {
     fetchData();
@@ -419,6 +420,7 @@ export default function AuditPage() {
   }
 
   return (
+    <>
       <DashboardPageHeader
         title={<h1 className="text-2xl font-bold text-[var(--dash-text-primary)]">Content audit</h1>}
         description={
@@ -796,215 +798,6 @@ export default function AuditPage() {
           </div>
         )}
       </div>
-    </div>
-  );
-}
-                            Schedule Review
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleArchiveDocument(doc.id, doc.title); }}
-                            disabled={!!actionInProgress}
-                            className="w-full px-3 py-2 text-left text-sm text-[var(--dash-text-secondary)] hover:bg-[var(--surface-hover)] flex items-center gap-2 disabled:opacity-50"
-                          >
-                            <Archive className="w-4 h-4" />
-                            Archive as Draft
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* ── Review Queue ── */}
-        <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl">
-          <div className="px-6 py-5 border-b border-[var(--dash-border-subtle)]">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="font-semibold text-[var(--dash-text-primary)] flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-[var(--status-info)]" />
-                  Review Queue
-                </h2>
-                <p className="text-sm text-[var(--dash-text-tertiary)]">Scheduled reviews</p>
-              </div>
-              <button 
-                onClick={() => setShowAllReviews(!showAllReviews)}
-                className="text-sm text-[var(--brand)] hover:underline px-2 py-1 rounded-md hover:bg-[var(--surface-hover)] flex items-center gap-1"
-              >
-                {showAllReviews ? 'Show Less' : 'View All'}
-                {showAllReviews ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-            {/* Review status filter */}
-            <div className="flex items-center gap-2 mt-3">
-              {(['pending', 'in_progress', 'completed', 'all'] as const).map(s => (
-                <button
-                  key={s}
-                  onClick={() => setReviewFilter(s)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                    reviewFilter === s
-                      ? 'bg-[var(--brand)] text-white'
-                      : 'bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-secondary)]'
-                  }`}
-                >
-                  {s === 'in_progress' ? 'In Progress' : s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className={`divide-y divide-[var(--dash-border-subtle)] ${showAllReviews ? 'max-h-[500px] overflow-y-auto' : ''}`}>
-            {reviewQueue.length === 0 ? (
-              <div className="px-6 py-8 text-center">
-                <Calendar className="w-8 h-8 text-[var(--dash-text-muted)] mx-auto mb-2" />
-                <p className="text-sm text-[var(--dash-text-muted)]">
-                  {reviewFilter === 'pending' ? 'No pending reviews' : `No ${reviewFilter === 'all' ? '' : reviewFilter.replace('_', ' ')} reviews`}
-                </p>
-              </div>
-            ) : (
-              reviewQueue.map((item) => (
-                <div 
-                  key={item.id} 
-                  className="px-6 py-4 flex items-center justify-between hover:bg-[var(--surface-hover)] transition-colors group"
-                >
-                  <div 
-                    className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
-                    onClick={() => handleDocumentClick(item.document_id)}
-                  >
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ${item.priority === 'high' ? 'bg-red-500/10 text-red-500' : item.priority === 'medium' ? 'bg-amber-500/10 text-amber-500' : 'bg-blue-500/10 text-blue-500'}`}>
-                      {item.priority ? item.priority.charAt(0).toUpperCase() + item.priority.slice(1) : item.priority}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-[var(--dash-text-primary)] truncate">{item.title}</p>
-                      <p className="text-xs text-[var(--dash-text-muted)] truncate">{item.reason} &middot; {item.due_date}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    {item.status === 'pending' && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleUpdateReviewStatus(item.id, 'in_progress', item.title); }}
-                        disabled={!!actionInProgress}
-                        className="p-1.5 rounded-lg hover:bg-blue-500/10 text-[var(--dash-text-tertiary)] hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all disabled:opacity-50"
-                        title="Start review"
-                      >
-                        {actionInProgress === `review-status-${item.id}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                      </button>
-                    )}
-                    {(item.status === 'pending' || item.status === 'in_progress') && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleUpdateReviewStatus(item.id, 'completed', item.title); }}
-                        disabled={!!actionInProgress}
-                        className="p-1.5 rounded-lg hover:bg-green-500/10 text-[var(--dash-text-tertiary)] hover:text-green-600 opacity-0 group-hover:opacity-100 transition-all disabled:opacity-50"
-                        title="Complete review"
-                      >
-                        {actionInProgress === `review-status-${item.id}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCheck className="w-4 h-4" />}
-                      </button>
-                    )}
-                    {(item.status === 'pending' || item.status === 'in_progress') && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleUpdateReviewStatus(item.id, 'cancelled', item.title); }}
-                        disabled={!!actionInProgress}
-                        className="p-1.5 rounded-lg hover:bg-red-500/10 text-[var(--dash-text-tertiary)] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all disabled:opacity-50"
-                        title="Cancel review"
-                      >
-                        <XCircle className="w-4 h-4" />
-                      </button>
-                    )}
-                    {item.status === 'completed' && (
-                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-500/10 text-green-600">Done</span>
-                    )}
-                    {item.status === 'cancelled' && (
-                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-500/10 text-red-500">Cancelled</span>
-                    )}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDocumentClick(item.document_id); }}
-                      className="p-1.5 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)] opacity-0 group-hover:opacity-100 transition-all"
-                      title="Open document"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Bulk Actions */}
-      <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-6 mt-auto">
-        <h2 className="font-semibold text-[var(--dash-text-primary)] mb-4">Bulk Actions</h2>
-        <div className="flex flex-wrap gap-3">
-          <button
-            disabled={bulkAction !== null || staleDocuments.length === 0}
-            onClick={async () => {
-              setBulkAction('archive');
-              try {
-                let archived = 0;
-                for (const doc of staleDocuments) {
-                  await updateDocument(doc.id, { status: 'draft' });
-                  archived++;
-                }
-                addToast({ type: 'success', title: `Archived ${archived} stale document${archived !== 1 ? 's' : ''} as drafts` });
-                fetchData(true);
-              } catch (err) {
-                console.error('Archive stale content failed:', err);
-                addToast({ type: 'error', title: 'Failed to archive some documents' });
-              } finally {
-                setBulkAction(null);
-              }
-            }}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--surface-ground)] rounded-lg text-sm text-[var(--dash-text-secondary)] hover:text-[var(--dash-text-primary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {bulkAction === 'archive' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
-            {bulkAction === 'archive' ? 'Archiving...' : `Archive Stale Content${staleDocuments.length > 0 ? ` (${staleDocuments.length})` : ''}`}
-          </button>
-          <button
-            disabled={bulkAction !== null || staleDocuments.length === 0}
-            onClick={async () => {
-              setBulkAction('review');
-              try {
-                let scheduled = 0;
-                const dueDate = new Date();
-                dueDate.setDate(dueDate.getDate() + 7);
-                const dueDateStr = dueDate.toISOString().split('T')[0];
-                for (const doc of staleDocuments) {
-                  await createReview({
-                    document_id: doc.id,
-                    reason: 'Stale content — scheduled via bulk review',
-                    priority: doc.status === 'critical' ? 'high' : 'medium',
-                    due_date: dueDateStr,
-                  });
-                  scheduled++;
-                }
-                addToast({ type: 'success', title: `Scheduled reviews for ${scheduled} document${scheduled !== 1 ? 's' : ''}` });
-                fetchData(true);
-              } catch (err) {
-                console.error('Schedule batch review failed:', err);
-                addToast({ type: 'error', title: 'Failed to schedule some reviews' });
-              } finally {
-                setBulkAction(null);
-              }
-            }}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--surface-ground)] rounded-lg text-sm text-[var(--dash-text-secondary)] hover:text-[var(--dash-text-primary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {bulkAction === 'review' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calendar className="w-4 h-4" />}
-            {bulkAction === 'review' ? 'Scheduling...' : `Schedule Batch Review${staleDocuments.length > 0 ? ` (${staleDocuments.length})` : ''}`}
-          </button>
-          <button
-            disabled={bulkAction !== null}
-            onClick={handleExport}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--surface-ground)] rounded-lg text-sm text-[var(--dash-text-secondary)] hover:text-[var(--dash-text-primary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Download className="w-4 h-4" />
-            Generate Health Report
-          </button>
-        </div>
-      </div>
-
-      </div>
-    </div>
+    </>
   );
 }

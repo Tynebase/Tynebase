@@ -18,6 +18,7 @@ import {
   suspendTenant,
   unsuspendTenant,
   changeTenantTier,
+  deleteTenant,
   type PlatformKPIs,
   type PlatformUser,
   type TenantListItem,
@@ -36,6 +37,7 @@ import {
   Coins,
   LogIn,
   Loader2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   RefreshCw,
@@ -290,16 +292,13 @@ export default function SuperAdminPage() {
     }
   };
 
-  const handleArchiveTenant = async (tenant: Tenant) => {
-    if (!window.confirm(`Are you sure you want to archive workspace "${tenant.name}"? Users will lose access immediately.`)) return;
-    
-    setActionLoading(`archive-${tenant.id}`);
+  const handleArchiveTenant = async (tenantId: string) => {
+    setActionLoading(`archive-${tenantId}`);
     try {
-      // deleteTenant is mapped to soft-delete (archive) in backend
-      await deleteTenant(tenant.id);
-      addToast({ type: "success", title: `Workspace "${tenant.name}" has been archived.` });
-      refreshKPIs();
-      setTenants(prev => prev.map(t => t.id === tenant.id ? { ...t, status: 'deleted' } : t));
+      await deleteTenant(tenantId);
+      addToast({ type: "success", title: "Workspace archived successfully", persistent: true });
+      fetchTenants();
+      fetchKPIs();
     } catch (err: any) {
       addToast({ type: "error", title: err.message || "Failed to archive workspace" });
     } finally {
@@ -555,24 +554,8 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-1">
-                              {/* Re-instate (archived users only) */}
-                              {u.status === "archived" && (
-                                <button
-                                  onClick={() => handleRestoreUser(u)}
-                                  disabled={actionLoading === `restore-${u.id}`}
-                                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/40 text-xs font-medium transition-colors disabled:opacity-30"
-                                  title="Re-instate user (restore access)"
-                                >
-                                  {actionLoading === `restore-${u.id}` ? (
-                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                  ) : (
-                                    <RotateCcw className="w-3.5 h-3.5" />
-                                  )}
-                                  Re-instate
-                                </button>
-                              )}
-                              {/* Re-instate (deleted users only) */}
-                              {u.status === "deleted" && (
+                              {/* Re-instate (archived or deleted users) */}
+                              {(u.status === "archived" || u.status === "deleted") && (
                                 <button
                                   onClick={() => handleRestoreUser(u)}
                                   disabled={actionLoading === `restore-${u.id}`}
@@ -603,7 +586,7 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                                 </button>
                               )}
                               {/* Assign Credits (active users only) */}
-                              {u.status !== "archived" && (
+                              {u.status === "active" && (
                                 <button
                                   onClick={() => setCreditsModal({ user: u, credits: "" })}
                                   disabled={u.is_super_admin}
@@ -614,7 +597,7 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                                 </button>
                               )}
                               {/* Archive (soft-delete active users) */}
-                              {u.status !== "archived" && !u.is_super_admin && (
+                              {u.status === "active" && !u.is_super_admin && (
                                 <button
                                   onClick={() => setConfirmDelete(u)}
                                   className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-orange-500 transition-colors"
@@ -756,7 +739,8 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                               )}
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-[var(--dash-text-muted)]">{formatDate(t.last                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 text-[var(--dash-text-muted)]">{formatDate(t.lastActive)}</td>
+                          <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-2">
                               {/* Impersonate */}
                               <button
@@ -801,12 +785,6 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                                 title="Archive workspace (Soft delete)"
                               >
                                 {actionLoading === `archive-${t.id}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArchiveX className="w-4 h-4" />}
-                              </button>
-                            </div>
-                          </td>         ) : (
-                                  <LogIn className="w-3.5 h-3.5" />
-                                )}
-                                Enter
                               </button>
                             </div>
                           </td>
