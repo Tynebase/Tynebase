@@ -322,11 +322,27 @@ export default async function documentRoutes(fastify: FastifyInstance) {
           }
         }
 
-        // Enrich documents with collection and tag info
+        // Fetch user information for all authors
+        const authorIds = documents?.map(d => d.author_id).filter(Boolean) || [];
+        let usersMap: Record<string, any> = {};
+        if (authorIds.length > 0) {
+          const { data: users } = await supabaseAdmin
+            .from('users')
+            .select('id, email, full_name')
+            .in('id', authorIds);
+
+          usersMap = (users || []).reduce((acc: Record<string, any>, user: any) => {
+            acc[user.id] = user;
+            return acc;
+          }, {});
+        }
+
+        // Enrich documents with collection, tag, and user info
         const enrichedDocuments = documents?.map(doc => ({
           ...doc,
           collections: documentCollections[doc.id] || [],
           tags: documentTags[doc.id] || [],
+          users: usersMap[doc.author_id] || null,
         })) || [];
 
         // Calculate pagination metadata

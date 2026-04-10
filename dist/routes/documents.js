@@ -289,11 +289,25 @@ async function documentRoutes(fastify) {
                     });
                 }
             }
-            // Enrich documents with collection and tag info
+            // Fetch user information for all authors
+            const authorIds = documents?.map(d => d.author_id).filter(Boolean) || [];
+            let usersMap = {};
+            if (authorIds.length > 0) {
+                const { data: users } = await supabase_1.supabaseAdmin
+                    .from('users')
+                    .select('id, email, full_name')
+                    .in('id', authorIds);
+                usersMap = (users || []).reduce((acc, user) => {
+                    acc[user.id] = user;
+                    return acc;
+                }, {});
+            }
+            // Enrich documents with collection, tag, and user info
             const enrichedDocuments = documents?.map(doc => ({
                 ...doc,
                 collections: documentCollections[doc.id] || [],
                 tags: documentTags[doc.id] || [],
+                users: usersMap[doc.author_id] || null,
             })) || [];
             // Calculate pagination metadata
             const totalPages = count ? Math.ceil(count / limit) : 0;
