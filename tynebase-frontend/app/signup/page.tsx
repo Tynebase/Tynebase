@@ -39,8 +39,8 @@ const PLANS = {
   },
   enterprise: {
     name: "Enterprise",
-    price: "£999",
-    period: "/month",
+    price: "Contact Sales",
+    period: "",
     tagline: "Total power",
     features: ["Unlimited users", "1000 AI credits", "Unlimited storage", "SLA guarantee", "Dedicated support"],
     highlight: false,

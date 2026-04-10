@@ -7,6 +7,7 @@ import { BookOpen, Sparkles, Users, Palette, Check, ArrowRight, Zap, Shield, Glo
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { CookieConsent } from "@/components/ui/CookieConsent";
+import { CanvasImage } from "@/components/layout/CanvasImage";
 
 const enterpriseFeatures = [
   { category: 'security', title: 'SSO Integration', description: 'Enable secure, seamless access with single sign-on (SSO) through providers like Okta, Google Workspace and Azure AD.', icon: Key },
@@ -37,25 +38,25 @@ const knowledgeFeatures = [
     id: 'verification',
     title: 'Document verification with automated reminders',
     description: 'Keep your knowledge base accurate with scheduled review cycles and expiry alerts.',
-    image: '/images/feature-verification.png'
+    image: '/documentverification.png'
   },
   {
     id: 'bulk-ops',
     title: 'Bulk operations for knowledge management',
     description: 'Move, archive or update multiple documents at once with powerful batch actions.',
-    image: '/images/feature-bulk.png'
+    image: '/bulkops.png'
   },
   {
     id: 'ai-quality',
     title: 'AI-suggested actions to maintain quality',
     description: 'Get intelligent recommendations to improve outdated or incomplete documentation.',
-    image: '/images/feature-ai-quality.png'
+    image: '/aisuggestions.png'
   },
   {
     id: 'ownership',
     title: 'Ownership transfer when team members leave',
     description: 'Seamlessly reassign document ownership to maintain accountability.',
-    image: '/images/feature-ownership.png'
+    image: '/ownershiptransfer.png'
   }
 ];
 
@@ -202,13 +203,12 @@ export default function Home() {
             <div className="hero-image-container">
               <div className="hero-image-border" />
               <div className="hero-image-placeholder">
-                <div className="flex flex-col items-center justify-center h-full gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--brand)] to-[var(--accent-pink)] flex items-center justify-center">
-                    <BookOpen className="w-8 h-8 text-white" />
-                  </div>
-                  <p className="text-lg text-[var(--text-muted)]">Platform Preview Coming Soon</p>
-                  <p className="text-sm text-[var(--text-tertiary)]">Experience the future of knowledge management</p>
-                </div>
+                <CanvasImage
+                  src="/mainhero.png"
+                  alt="Platform Preview Coming Soon"
+                  containerWidth={1200}
+                  containerHeight={500}
+                />
               </div>
             </div>
           </div>
@@ -451,14 +451,12 @@ export default function Home() {
             {/* Feature Preview - Right Side */}
             <div className="feature-preview">
               <div className="feature-preview-placeholder">
-                <div className="flex flex-col items-center gap-4">
-                  {activeFeature === 0 && <FileCheck className="w-16 h-16 text-[var(--brand)] opacity-60" />}
-                  {activeFeature === 1 && <FolderSync className="w-16 h-16 text-[var(--brand)] opacity-60" />}
-                  {activeFeature === 2 && <Bot className="w-16 h-16 text-[var(--brand)] opacity-60" />}
-                  {activeFeature === 3 && <UserCog className="w-16 h-16 text-[var(--brand)] opacity-60" />}
-                  <span className="text-sm text-[var(--text-muted)]">Feature preview placeholder</span>
-                  <span className="text-xs text-[var(--text-muted)]">{knowledgeFeatures[activeFeature].title}</span>
-                </div>
+                <CanvasImage
+                  src={knowledgeFeatures[activeFeature].image}
+                  alt={knowledgeFeatures[activeFeature].title}
+                  containerWidth={800}
+                  containerHeight={500}
+                />
               </div>
             </div>
           </div>
@@ -855,7 +853,7 @@ export default function Home() {
                   </div>
                   <div className="w-px h-8 bg-[var(--border-subtle)]" />
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-[var(--text-primary)]">£75</p>
+                    <p className="text-2xl font-bold text-[var(--text-primary)]">£70</p>
                     <p className="text-xs text-[var(--text-muted)]">1000 Credits</p>
                   </div>
                 </div>
