@@ -717,12 +717,18 @@ async function authRoutes(fastify) {
                 userProfile = users?.[0];
             }
             else {
-                // Bare-domain fallback: prefer an active admin row, else any active row.
-                // DO NOT use document count for selection - this causes cross-tenant leakage
+                // Bare-domain fallback: prefer original_tenant_id (primary workspace), then admin role
                 const activeUsers = (users || []).filter((u) => u.status === 'active');
-                userProfile =
-                    activeUsers.find((u) => u.role === 'admin' || u.is_super_admin) ||
-                        activeUsers[0];
+                // First try to find the user's original/primary tenant
+                userProfile = activeUsers.find((u) => u.original_tenant_id === u.tenant_id);
+                // If no original tenant marked, prefer admin role
+                if (!userProfile) {
+                    userProfile = activeUsers.find((u) => u.role === 'admin' || u.is_super_admin);
+                }
+                // Fallback to first active user
+                if (!userProfile) {
+                    userProfile = activeUsers[0];
+                }
             }
             if (!userProfile) {
                 // User authenticated to Supabase but has no membership for this
