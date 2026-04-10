@@ -1257,12 +1257,7 @@ export default async function ragRoutes(fastify: FastifyInstance) {
             created_at,
             updated_at,
             last_indexed_at,
-            author_id,
-            users:author_id (
-              id,
-              email,
-              full_name
-            )
+            author_id
           `, { count: 'exact' })
           .eq('tenant_id', tenant.id)
           .order('updated_at', { ascending: false });
@@ -1290,8 +1285,30 @@ export default async function ragRoutes(fastify: FastifyInstance) {
           });
         }
 
+        // Fetch user information for all authors
+        const authorIds = (documents || []).map((d: any) => d.author_id).filter((id: string) => id);
+        let usersMap: Record<string, any> = {};
+
+        if (authorIds.length > 0) {
+          const { data: users } = await supabaseAdmin
+            .from('users')
+            .select('id, email, full_name')
+            .in('id', authorIds);
+
+          usersMap = (users || []).reduce((acc: Record<string, any>, user: any) => {
+            acc[user.id] = user;
+            return acc;
+          }, {});
+        }
+
+        // Merge user information into documents
+        const documentsWithUsers = (documents || []).map((doc: any) => ({
+          ...doc,
+          users: usersMap[doc.author_id] || null,
+        }));
+
         // Get chunk counts for each document
-        const docIds = (documents || []).map((d: any) => d.id);
+        const docIds = documentsWithUsers.map((d: any) => d.id);
         const { data: chunkCounts, error: chunkError } = await supabaseAdmin
           .from('document_embeddings')
           .select('document_id')
@@ -1322,7 +1339,7 @@ export default async function ragRoutes(fastify: FastifyInstance) {
         }
 
         // Transform documents with indexing status
-        const sources = (documents || []).map((doc: any) => {
+        const sources = documentsWithUsers.map((doc: any) => {
           let indexingStatus: 'indexed' | 'pending' | 'outdated' | 'failed' = 'pending';
           
           if (failedDocIds.has(doc.id)) {

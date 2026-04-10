@@ -68,12 +68,7 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
             parent_id,
             author_id,
             created_at,
-            updated_at,
-            users:author_id (
-              id,
-              email,
-              full_name
-            )
+            updated_at
           `, { count: 'exact' })
           .eq('tenant_id', tenant.id)
           .like('content', '__CATEGORY__%')
@@ -96,8 +91,30 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
           });
         }
 
+        // Fetch user information for all authors
+        const authorIds = categories?.map((c: any) => c.author_id).filter((id: string) => id) || [];
+        let usersMap: Record<string, any> = {};
+
+        if (authorIds.length > 0) {
+          const { data: users } = await supabaseAdmin
+            .from('users')
+            .select('id, email, full_name')
+            .in('id', authorIds);
+
+          usersMap = (users || []).reduce((acc: Record<string, any>, user: any) => {
+            acc[user.id] = user;
+            return acc;
+          }, {});
+        }
+
+        // Merge user information into categories
+        const categoriesWithUsers = categories?.map((cat: any) => ({
+          ...cat,
+          users: usersMap[cat.author_id] || null,
+        })) || [];
+
         // Get document counts for each category
-        const categoryIds = categories?.map(c => c.id) || [];
+        const categoryIds = categoriesWithUsers?.map(c => c.id) || [];
         let documentCounts: Record<string, number> = {};
         let subcategoryCounts: Record<string, number> = {};
 
@@ -136,7 +153,7 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
         }
 
         // Parse category metadata and enrich with counts
-        const enrichedCategories = categories?.map(category => {
+        const enrichedCategories = categoriesWithUsers?.map(category => {
           let metadata: { description?: string; color?: string } = {};
           try {
             const metaStr = category.content?.replace('__CATEGORY__', '') || '{}';
@@ -220,12 +237,7 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
             parent_id,
             author_id,
             created_at,
-            updated_at,
-            users:author_id (
-              id,
-              email,
-              full_name
-            )
+            updated_at
           `)
           .eq('id', id)
           .eq('tenant_id', tenant.id)
@@ -237,6 +249,23 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
             error: { code: 'CATEGORY_NOT_FOUND', message: 'Category not found', details: {} },
           });
         }
+
+        // Fetch user information for the author
+        let users: any = null;
+        if (category.author_id) {
+          const { data: userData } = await supabaseAdmin
+            .from('users')
+            .select('id, email, full_name')
+            .eq('id', category.author_id)
+            .single();
+
+          users = userData;
+        }
+
+        const categoryWithUser = {
+          ...category,
+          users,
+        };
 
         // Get subcategories
         const { data: subcategories } = await supabaseAdmin
@@ -279,17 +308,17 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
           success: true,
           data: {
             category: {
-              id: category.id,
-              name: category.title,
+              id: categoryWithUser.id,
+              name: categoryWithUser.title,
               description: metadata.description || null,
               color: metadata.color || '#3b82f6',
-              parent_id: category.parent_id,
+              parent_id: categoryWithUser.parent_id,
               document_count: docCount || 0,
               subcategories: enrichedSubcategories,
-              author_id: category.author_id,
-              created_at: category.created_at,
-              updated_at: category.updated_at,
-              users: category.users,
+              author_id: categoryWithUser.author_id,
+              created_at: categoryWithUser.created_at,
+              updated_at: categoryWithUser.updated_at,
+              users: categoryWithUser.users,
             },
           },
         });

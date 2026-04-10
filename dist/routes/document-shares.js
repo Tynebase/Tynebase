@@ -393,12 +393,7 @@ async function documentShareRoutes(fastify) {
               visibility,
               status,
               author_id,
-              tenant_id,
-              users:author_id (
-                id,
-                email,
-                full_name
-              )
+              tenant_id
             )
           `)
                 .eq('share_token', params.token)
@@ -414,13 +409,27 @@ async function documentShareRoutes(fastify) {
                     error: { code: 'EXPIRED', message: 'This share link has expired', details: {} },
                 });
             }
-            // Rewrite asset URLs so images work via persistent proxy (not expiring signed URLs)
+            // Fetch user information for the document author
             const doc = share.documents;
-            let rewrittenDoc = doc;
+            let users = null;
+            if (doc?.author_id) {
+                const { data: userData } = await supabase_1.supabaseAdmin
+                    .from('users')
+                    .select('id, email, full_name')
+                    .eq('id', doc.author_id)
+                    .single();
+                users = userData;
+            }
+            const docWithUser = {
+                ...doc,
+                users,
+            };
+            // Rewrite asset URLs so images work via persistent proxy (not expiring signed URLs)
+            let rewrittenDoc = docWithUser;
             if (doc?.content && doc?.id) {
                 const apiBaseUrl = process.env.API_BASE_URL || 'https://tynebase-backend.fly.dev';
                 rewrittenDoc = {
-                    ...doc,
+                    ...docWithUser,
                     content: rewriteAssetUrlsForPublicAccess(doc.content, doc.id, apiBaseUrl),
                 };
             }

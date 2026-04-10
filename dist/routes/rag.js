@@ -1098,12 +1098,7 @@ async function ragRoutes(fastify) {
             created_at,
             updated_at,
             last_indexed_at,
-            author_id,
-            users:author_id (
-              id,
-              email,
-              full_name
-            )
+            author_id
           `, { count: 'exact' })
                 .eq('tenant_id', tenant.id)
                 .order('updated_at', { ascending: false });
@@ -1124,8 +1119,26 @@ async function ragRoutes(fastify) {
                     },
                 });
             }
+            // Fetch user information for all authors
+            const authorIds = (documents || []).map((d) => d.author_id).filter((id) => id);
+            let usersMap = {};
+            if (authorIds.length > 0) {
+                const { data: users } = await supabase_1.supabaseAdmin
+                    .from('users')
+                    .select('id, email, full_name')
+                    .in('id', authorIds);
+                usersMap = (users || []).reduce((acc, user) => {
+                    acc[user.id] = user;
+                    return acc;
+                }, {});
+            }
+            // Merge user information into documents
+            const documentsWithUsers = (documents || []).map((doc) => ({
+                ...doc,
+                users: usersMap[doc.author_id] || null,
+            }));
             // Get chunk counts for each document
-            const docIds = (documents || []).map((d) => d.id);
+            const docIds = documentsWithUsers.map((d) => d.id);
             const { data: chunkCounts, error: chunkError } = await supabase_1.supabaseAdmin
                 .from('document_embeddings')
                 .select('document_id')
@@ -1152,7 +1165,7 @@ async function ragRoutes(fastify) {
                 });
             }
             // Transform documents with indexing status
-            const sources = (documents || []).map((doc) => {
+            const sources = documentsWithUsers.map((doc) => {
                 let indexingStatus = 'pending';
                 if (failedDocIds.has(doc.id)) {
                     indexingStatus = 'failed';
