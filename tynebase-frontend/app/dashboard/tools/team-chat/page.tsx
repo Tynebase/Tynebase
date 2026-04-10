@@ -1486,7 +1486,7 @@ export default function TeamChatPage() {
                       <button
                         onClick={() => {
                           if (a.assignment_type === 'document' && a.document_id) {
-                            window.open(`/docs/${a.document_id}`, '_blank');
+                            window.open(`/dashboard/knowledge/${a.document_id}`, '_blank');
                           } else if (a.assignment_type === 'task') {
                             alert(a.description || 'No description provided.');
                           }

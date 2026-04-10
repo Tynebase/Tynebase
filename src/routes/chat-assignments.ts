@@ -6,6 +6,7 @@ import { tenantContextMiddleware } from '../middleware/tenantContext';
 import { authMiddleware } from '../middleware/auth';
 import { membershipGuard } from '../middleware/membershipGuard';
 import { writeAuditLog, getClientIp } from '../lib/auditLog';
+import { notifyTaskAssigned } from '../services/notifications';
 
 /**
  * Schemas
@@ -318,6 +319,23 @@ export default async function chatAssignmentRoutes(fastify: FastifyInstance) {
               content: systemContent,
             });
         }
+
+        // Send notification to the assigned user
+        const taskUrl = body.channel_id
+          ? `/dashboard/tools/team-chat?channel=${body.channel_id}`
+          : '/dashboard/tools/team-chat';
+        
+        const taskTitle = body.assignment_type === 'document' ? docTitle : body.title;
+        
+        await notifyTaskAssigned({
+          userId: body.assigned_to,
+          tenantId: tenant.id,
+          assignedBy: user.full_name || user.email,
+          taskTitle: taskTitle || 'Task',
+          taskUrl: taskUrl,
+        }).catch((err) => {
+          fastify.log.error({ err }, 'Failed to send task assignment notification');
+        });
 
         writeAuditLog({
           tenantId: tenant.id,
