@@ -6,10 +6,11 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import {
-  FileText, Search, Eye, Clock, User, Loader2, FolderOpen, BookOpen
+  FileText, Search, Eye, Clock, User, Loader2, FolderOpen, BookOpen, Edit
 } from "lucide-react";
 import { listSharedDocuments, Document } from "@/lib/api/documents";
 import { listPublicTemplates, Template } from "@/lib/api/templates";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Strip markdown/HTML for plain text preview
 const stripMarkdown = (text: string): string => {
@@ -37,6 +38,7 @@ type TabType = "documents" | "templates";
 export default function SharedDocumentsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   const tabFromUrl = searchParams.get('tab') as TabType | null;
   const [activeTab, setActiveTab] = useState<TabType>(tabFromUrl === 'templates' ? 'templates' : 'documents');
 
@@ -253,10 +255,22 @@ export default function SharedDocumentsPage() {
                           <Clock className="w-3 h-3" />
                           {formatDate(doc.created_at)}
                         </span>
-                        <span className="flex items-center gap-1">
-                          <Eye className="w-3 h-3" />
-                          {doc.view_count || 0} views
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="flex items-center gap-1">
+                            <Eye className="w-3 h-3" />
+                            {doc.view_count || 0} views
+                          </span>
+                          {user?.is_super_admin && (
+                            <Link
+                              href={`/dashboard/knowledge/${doc.id}`}
+                              className="flex items-center gap-1 text-[var(--brand)] hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Edit className="w-3 h-3" />
+                              Edit
+                            </Link>
+                          )}
+                        </div>
                       </div>
                     </Link>
                   );

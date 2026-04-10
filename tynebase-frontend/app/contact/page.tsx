@@ -4,6 +4,7 @@ import { Mail, MessageSquare, MapPin, Phone } from "lucide-react";
 import { useState } from "react";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
+import { submitContactForm } from "@/lib/api/contact";
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -13,20 +14,33 @@ export default function ContactPage() {
     company: '',
     message: ''
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
-    // Handle form submission here
-    alert('Thank you for your message! We\'ll get back to you soon.');
-    // Reset form
-    setFormData({
-      firstName: '',
-      lastName: '',
-      email: '',
-      company: '',
-      message: ''
-    });
+    setIsSubmitting(true);
+    setSubmitStatus('idle');
+    setErrorMessage('');
+
+    try {
+      await submitContactForm(formData);
+      setSubmitStatus('success');
+      // Reset form
+      setFormData({
+        firstName: '',
+        lastName: '',
+        email: '',
+        company: '',
+        message: ''
+      });
+    } catch (error) {
+      setSubmitStatus('error');
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to send message. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -113,7 +127,23 @@ export default function ContactPage() {
                   />
                 </div>
                 <div style={{ paddingTop: '32px' }}>
-                  <button type="submit" className="btn btn-primary w-full">Send message</button>
+                  {submitStatus === 'success' && (
+                    <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <p className="text-green-800 text-sm">Thank you for your message! We'll get back to you soon.</p>
+                    </div>
+                  )}
+                  {submitStatus === 'error' && (
+                    <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-red-800 text-sm">{errorMessage}</p>
+                    </div>
+                  )}
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary w-full"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Sending...' : 'Send message'}
+                  </button>
                 </div>
               </form>
             </div>
@@ -129,19 +159,6 @@ export default function ContactPage() {
                     <h3 className="font-semibold text-[var(--text-primary)] mb-1">Email</h3>
                     <p className="text-[var(--text-secondary)]">support@tynebase.com</p>
                     <p className="text-sm text-[var(--text-muted)]">We'll respond within 48 hours</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bento-item" style={{ marginBottom: '32px' }}>
-                <div className="flex items-start gap-4">
-                  <div className="feature-icon feature-icon-blue">
-                    <MessageSquare className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-[var(--text-primary)] mb-1">Live Chat</h3>
-                    <p className="text-[var(--text-secondary)]">Chat with our support team</p>
-                    <p className="text-sm text-[var(--text-muted)]">Available Mon-Fri, 9am-6pm GMT</p>
                   </div>
                 </div>
               </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -66,6 +67,7 @@ const EMOJI_OPTIONS = ["👍", "❤️", "😂", "🎉", "🤔", "👀"];
 
 export default function TeamChatPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const supabase = createClient()!;
 
   // State - Channels
@@ -113,6 +115,7 @@ export default function TeamChatPage() {
   const [myAssignments, setMyAssignments] = useState<ChatAssignment[]>([]);
   const [showAssignments, setShowAssignments] = useState(false);
   const [documents, setDocuments] = useState<{id: string; title: string}[]>([]);
+  const [expandedAssignmentId, setExpandedAssignmentId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const threadEndRef = useRef<HTMLDivElement>(null);
@@ -1484,11 +1487,16 @@ export default function TeamChatPage() {
                     )}
                     <div className="flex-1 min-w-0">
                       <button
-                        onClick={() => {
+                        onClick={(e) => {
                           if (a.assignment_type === 'document' && a.document_id) {
-                            window.open(`/dashboard/knowledge/${a.document_id}`, '_blank');
+                            // Open in new tab if Ctrl/Cmd is pressed, otherwise navigate in same tab
+                            if (e.ctrlKey || e.metaKey) {
+                              window.open(`/dashboard/knowledge/${a.document_id}`, '_blank');
+                            } else {
+                              router.push(`/dashboard/knowledge/${a.document_id}`);
+                            }
                           } else if (a.assignment_type === 'task') {
-                            alert(a.description || 'No description provided.');
+                            setExpandedAssignmentId(expandedAssignmentId === a.id ? null : a.id);
                           }
                         }}
                         className={cn(
@@ -1498,6 +1506,11 @@ export default function TeamChatPage() {
                       >
                         {a.title || a.document?.title || 'Untitled'}
                       </button>
+                      {a.assignment_type === 'task' && expandedAssignmentId === a.id && a.description && (
+                        <p className="text-xs text-[var(--text-secondary)] mt-1.5 p-2 bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded">
+                          {a.description}
+                        </p>
+                      )}
                       {a.assigned_by_user && (
                         <p className="text-xs text-[var(--text-muted)] mt-0.5">
                           From: {a.assigned_by_user.full_name || a.assigned_by_user.email}
