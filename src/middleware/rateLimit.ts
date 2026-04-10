@@ -22,7 +22,7 @@ const aiConfig: RateLimitConfig = {
 
 const loginConfig: RateLimitConfig = {
   windowMs: 15 * 60 * 1000,
-  maxRequests: 100, // Production: 100 login attempts per 15 min per IP (supports testing + real usage)
+  maxRequests: 1000, // Temporarily increased for testing multi-tenant auth issues
 };
 
 const rateLimitStore = new Map<string, RateLimitEntry>();

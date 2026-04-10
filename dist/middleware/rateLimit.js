@@ -14,7 +14,7 @@ const aiConfig = {
 };
 const loginConfig = {
     windowMs: 15 * 60 * 1000,
-    maxRequests: 100, // Production: 100 login attempts per 15 min per IP (supports testing + real usage)
+    maxRequests: 1000, // Temporarily increased for testing multi-tenant auth issues
 };
 const rateLimitStore = new Map();
 const CLEANUP_INTERVAL = 5 * 60 * 1000;
