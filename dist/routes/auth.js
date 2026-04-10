@@ -718,10 +718,41 @@ async function authRoutes(fastify) {
             }
             else {
                 // Bare-domain fallback: prefer an active admin row, else any active row.
+                // If user has multiple active memberships, prefer the one with the most documents.
                 const activeUsers = (users || []).filter((u) => u.status === 'active');
-                userProfile =
-                    activeUsers.find((u) => u.role === 'admin' || u.is_super_admin) ||
-                        activeUsers[0];
+                if (activeUsers.length > 1) {
+                    // Get document counts for each tenant to determine the primary workspace
+                    const tenantIds = activeUsers.map((u) => u.tenant_id);
+                    const { data: docCounts } = await supabase_1.supabaseAdmin
+                        .from('documents')
+                        .select('tenant_id')
+                        .in('tenant_id', tenantIds);
+                    const tenantDocCounts = {};
+                    (docCounts || []).forEach((doc) => {
+                        tenantDocCounts[doc.tenant_id] = (tenantDocCounts[doc.tenant_id] || 0) + 1;
+                    });
+                    // Sort active users by document count (descending), then by admin role
+                    activeUsers.sort((a, b) => {
+                        const aCount = tenantDocCounts[a.tenant_id] || 0;
+                        const bCount = tenantDocCounts[b.tenant_id] || 0;
+                        if (aCount !== bCount)
+                            return bCount - aCount; // Prefer more documents
+                        // Tie-breaker: prefer admin role
+                        const aIsAdmin = a.role === 'admin' || a.is_super_admin;
+                        const bIsAdmin = b.role === 'admin' || b.is_super_admin;
+                        if (aIsAdmin && !bIsAdmin)
+                            return -1;
+                        if (!aIsAdmin && bIsAdmin)
+                            return 1;
+                        return 0;
+                    });
+                    userProfile = activeUsers[0];
+                }
+                else {
+                    userProfile =
+                        activeUsers.find((u) => u.role === 'admin' || u.is_super_admin) ||
+                            activeUsers[0];
+                }
             }
             if (!userProfile) {
                 // User authenticated to Supabase but has no membership for this
