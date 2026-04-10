@@ -23,7 +23,7 @@ const PLANS = {
   },
   base: {
     name: "Base",
-    price: "£49",
+    price: "£29",
     period: "/month",
     tagline: "Small teams",
     features: ["10 users", "100 AI credits", "5GB storage", "Collaboration"],
@@ -31,7 +31,7 @@ const PLANS = {
   },
   pro: {
     name: "Pro",
-    price: "£249",
+    price: "£99",
     period: "/month",
     tagline: "Scale up",
     features: ["50 users", "500 AI credits", "50GB storage", "White-label", "Branded subdomain", "Priority support"],

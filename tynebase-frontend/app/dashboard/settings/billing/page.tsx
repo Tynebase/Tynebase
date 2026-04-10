@@ -57,8 +57,8 @@ const PLANS = [
   {
     key: 'base' as const,
     name: 'Base',
-    priceMonthly: 49,
-    priceYearly: 39,
+    priceMonthly: 29,
+    priceYearly: 24,
     credits: 100,
     maxUsers: 10,
     storage: '1 GB',
@@ -78,8 +78,8 @@ const PLANS = [
   {
     key: 'pro' as const,
     name: 'Pro',
-    priceMonthly: 249,
-    priceYearly: 199,
+    priceMonthly: 99,
+    priceYearly: 79,
     credits: 500,
     maxUsers: 50,
     storage: '10 GB',
@@ -587,7 +587,7 @@ function BillingPageInner() {
               <Sparkles className="h-10 w-10 mx-auto mb-3 text-[var(--brand)] opacity-60" />
               <h3 className="font-semibold mb-1">Upgrade to buy credit top-ups</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Credit packs are available on the Base plan (£49/mo) and above.
+                Credit packs are available on the Base plan (£29/mo) and above.
               </p>
               {isAdmin && (
                 <Button onClick={() => handleUpgrade('base')} disabled={!!upgradingTo}>
@@ -596,7 +596,7 @@ function BillingPageInner() {
                   ) : (
                     <ArrowRight className="h-4 w-4 mr-2" />
                   )}
-                  Upgrade to Base — £49/mo
+                  Upgrade to Base — £29/mo
                 </Button>
               )}
             </CardContent>
