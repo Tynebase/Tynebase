@@ -66,7 +66,7 @@ Include sections on:
 
 TyneBase supports three EU-compliant AI providers:
 
-### DeepSeek V3 — 0.2 credits per generation
+### DeepSeek V3 — 1 credit per generation
 - **Best for**: Quick drafts, routine documentation
 - **Strengths**: Fastest, most economical
 - **Region**: eu-west-1 via AWS Bedrock
@@ -100,7 +100,7 @@ Every AI-generated document tracks:
   "prompt_hash": "sha256:abc123...",
   "model": "deepseek-v3",
   "tokens_used": 2847,
-  "credits_charged": 0.2,
+  "credits_charged": 1,
   "rag_sources": ["doc-123", "doc-456"],
   "generated_at": "2026-01-10T14:30:00Z"
 }
