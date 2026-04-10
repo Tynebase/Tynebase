@@ -731,6 +731,7 @@ async function authRoutes(fastify) {
                     (docCounts || []).forEach((doc) => {
                         tenantDocCounts[doc.tenant_id] = (tenantDocCounts[doc.tenant_id] || 0) + 1;
                     });
+                    fastify.log.info({ userId, tenantDocCounts }, '/me: document counts per tenant');
                     // Sort active users by document count (descending), then by admin role
                     activeUsers.sort((a, b) => {
                         const aCount = tenantDocCounts[a.tenant_id] || 0;
@@ -747,6 +748,7 @@ async function authRoutes(fastify) {
                         return 0;
                     });
                     userProfile = activeUsers[0];
+                    fastify.log.info({ userId, selectedTenantId: userProfile.tenant_id, selectedTenantDocCount: tenantDocCounts[userProfile.tenant_id] || 0 }, '/me: selected tenant based on document count');
                 }
                 else {
                     userProfile =
