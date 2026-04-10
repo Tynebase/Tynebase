@@ -1171,4 +1171,114 @@ export default async function authRoutes(fastify: FastifyInstance) {
       return reply.code(500).send({ error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' } });
     }
   });
+
+  /**
+   * POST /api/auth/community/finalize-oauth-join
+   * Finalizes community join for OAuth users (Google, etc.)
+   */
+  fastify.post('/api/auth/community/finalize-oauth-join', async (request, reply) => {
+    try {
+      const finalizeSchema = z.object({
+        subdomain: z.string(),
+      });
+
+      const { subdomain } = finalizeSchema.parse(request.body);
+
+      // Verify JWT from OAuth session
+      const authHeader = request.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return reply.code(401).send({
+          error: { code: 'UNAUTHORIZED', message: 'Missing authorization header' },
+        });
+      }
+
+      const token = authHeader.substring(7);
+      const { data: { user: authUser }, error: authError } = await supabaseAdmin.auth.getUser(token);
+
+      if (authError || !authUser) {
+        return reply.code(401).send({
+          error: { code: 'INVALID_TOKEN', message: 'Invalid or expired token' },
+        });
+      }
+
+      const userId = authUser.id;
+      const email = authUser.email!;
+
+      // Resolve tenant
+      const { data: tenant, error: tenantError } = await supabaseAdmin
+        .from('tenants')
+        .select('id, name, subdomain')
+        .eq('subdomain', subdomain.toLowerCase())
+        .single();
+
+      if (tenantError || !tenant) {
+        return reply.code(404).send({
+          error: { code: 'TENANT_NOT_FOUND', message: 'Tenant not found' },
+        });
+      }
+
+      // Check if user already has a profile (already a member of SOME workspace)
+      const { data: existingProfile } = await supabaseAdmin
+        .from('users')
+        .select('id, tenant_id, role')
+        .eq('id', userId)
+        .single();
+
+      if (existingProfile) {
+        // If already in this tenant, success
+        if (existingProfile.tenant_id === tenant.id) {
+          return reply.code(200).send({
+            success: true,
+            data: {
+              user: { id: userId, email, full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name, role: existingProfile.role },
+              tenant: tenant,
+            },
+            message: 'Already a member of this community',
+          });
+        }
+
+        // If in another tenant, error
+        return reply.code(403).send({
+          error: { 
+            code: 'ALREADY_MEMBER_OTHER', 
+            message: 'Your account is already associated with another workspace. Please use a different email or logout from the other workspace.' 
+          },
+        });
+      }
+
+      // Create community_contributor profile
+      const fullName = authUser.user_metadata?.full_name || authUser.user_metadata?.name || 'Community Member';
+      
+      const { error: profileError } = await supabaseAdmin
+        .from('users')
+        .insert({
+          id: userId,
+          tenant_id: tenant.id,
+          email: email.toLowerCase(),
+          full_name: fullName,
+          role: 'community_contributor',
+          status: 'active',
+        });
+
+      if (profileError) {
+        fastify.log.error({ error: profileError }, 'Failed to create community profile');
+        throw profileError;
+      }
+
+      return reply.code(201).send({
+        success: true,
+        data: {
+          user: { id: userId, email, full_name: fullName, role: 'community_contributor' },
+          tenant: tenant,
+        },
+        message: 'Joined community successfully',
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.code(400).send({ error: { code: 'VALIDATION_ERROR', message: 'Invalid input', details: error.errors } });
+      }
+      fastify.log.error({ error }, 'Unexpected error in community finalize-oauth-join');
+      return reply.code(500).send({ error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' } });
+    }
+  });
 }
