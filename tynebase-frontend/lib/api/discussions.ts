@@ -167,8 +167,7 @@ export async function listPublicDiscussions(
   const queryString = queryParams.toString();
   const endpoint = `/api/public/community/${subdomain}/discussions${queryString ? `?${queryString}` : ''}`;
   
-  const res = await apiGet<{ success: boolean; data: DiscussionListResponse }>(endpoint);
-  return res.data;
+  return apiGet<DiscussionListResponse>(endpoint);
 }
 
 /**
@@ -194,10 +193,9 @@ export async function getPublicDiscussion(
   subdomain: string, 
   id: string
 ): Promise<{ discussion: Discussion; replies: DiscussionReply[] }> {
-  const res = await apiGet<{ success: boolean; data: { discussion: Discussion; replies: DiscussionReply[] } }>(
+  return apiGet<{ discussion: Discussion; replies: DiscussionReply[] }>(
     `/api/public/community/${subdomain}/discussions/${id}`
   );
-  return res.data;
 }
 
 /**

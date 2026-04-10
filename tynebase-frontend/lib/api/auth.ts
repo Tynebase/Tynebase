@@ -77,11 +77,11 @@ export async function logout(): Promise<void> {
 /**
  * Check if user is authenticated
  * 
- * @returns True if access token exists in localStorage
+ * @returns True if access token exists in localStorage or cookies
  */
 export function isAuthenticated(): boolean {
   if (typeof window === 'undefined') return false;
-  return !!localStorage.getItem('access_token');
+  return !!(localStorage.getItem('access_token') || getCookie('access_token'));
 }
 
 /**
@@ -91,7 +91,11 @@ export function isAuthenticated(): boolean {
  */
 export function getAccessToken(): string | null {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('access_token');
+  
+  const localStorageToken = localStorage.getItem('access_token');
+  if (localStorageToken) return localStorageToken;
+  
+  return getCookie('access_token');
 }
 
 /**
@@ -101,7 +105,20 @@ export function getAccessToken(): string | null {
  */
 export function getRefreshToken(): string | null {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('refresh_token');
+  
+  const localStorageToken = localStorage.getItem('refresh_token');
+  if (localStorageToken) return localStorageToken;
+  
+  return getCookie('refresh_token');
+}
+
+/**
+ * Helper to get a cookie value by name
+ */
+function getCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(new RegExp('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)'));
+  return match ? decodeURIComponent(match[2]) : null;
 }
 
 /**

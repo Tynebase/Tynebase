@@ -44,8 +44,11 @@ function CommunityContent() {
           setTenant(tenantData);
 
           if (tenantData?.subdomain) {
-            const discussionsRes = await listPublicDiscussions(tenantData.subdomain, { limit: 5 });
-            setDiscussions(discussionsRes.discussions || []);
+            const discussionsRes = await listPublicDiscussions(tenantData.subdomain, { limit: 5 }).catch(err => {
+              console.error("[Community] Failed to fetch discussions:", err);
+              return null;
+            });
+            setDiscussions(discussionsRes?.discussions || []);
           }
         }
       } catch (err) {
