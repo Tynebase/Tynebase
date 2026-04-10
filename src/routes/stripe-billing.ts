@@ -9,6 +9,16 @@ import { rateLimitMiddleware } from '../middleware/rateLimit';
 import { writeAuditLog } from '../lib/auditLog';
 
 // ---------------------------------------------------------------------------
+// Credit allocations per tier (must match auth.ts and frontend TIER_CONFIG)
+// ---------------------------------------------------------------------------
+const TIER_CREDITS: Record<string, number> = {
+  free: 10,
+  base: 100,
+  pro: 500,
+  enterprise: 1000,
+};
+
+// ---------------------------------------------------------------------------
 // Stripe price mapping — create these in your Stripe dashboard (or via API)
 // Map each tier to its monthly & yearly Stripe Price ID
 // ---------------------------------------------------------------------------
@@ -254,6 +264,22 @@ export default async function stripeBillingRoutes(fastify: FastifyInstance) {
               { tenantId, from: previousTier, to: targetTier },
               'Tenant tier upgraded via Stripe checkout'
             );
+
+            // Upsert credit pool for the current month with the new tier's credits
+            const newCredits = TIER_CREDITS[targetTier] ?? 10;
+            const monthYear = new Date().toISOString().slice(0, 7); // YYYY-MM
+            const { error: creditError } = await supabaseAdmin
+              .from('credit_pools')
+              .upsert(
+                { tenant_id: tenantId, month_year: monthYear, total_credits: newCredits },
+                { onConflict: 'tenant_id,month_year', ignoreDuplicates: false }
+              );
+            if (creditError) {
+              fastify.log.warn({ error: creditError, tenantId }, 'Failed to upsert credit pool after tier upgrade');
+            } else {
+              fastify.log.info({ tenantId, monthYear, newCredits }, 'Credit pool updated after tier upgrade');
+            }
+
             writeAuditLog({
               tenantId,
               actorId: session.metadata?.user_id || 'stripe',
