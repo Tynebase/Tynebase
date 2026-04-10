@@ -1,11 +1,10 @@
--- Migration: Surgical Multi-Tenant Identity Transition
--- Objective: Safely upgrade public.users to a composite primary key by handling all dependent foreign keys.
+-- Migration: Surgical Multi-Tenant Identity Transition (Self-Healing version)
+-- Objective: Upgrade public.users to a composite primary key and REPAIR mis-tenant-linked data.
 
 DO $$ 
 DECLARE 
     r RECORD;
-    sql_drop TEXT;
-    sql_recreate TEXT;
+    target_admin_id UUID;
 BEGIN
     -- 1. Create a temporary table to store the constraints we need to drop and recreate
     CREATE TEMP TABLE constraint_backup (
@@ -44,32 +43,48 @@ BEGIN
         EXECUTE format('ALTER TABLE public.%I DROP CONSTRAINT IF EXISTS %I', r.table_name, r.constraint_name);
     END LOOP;
 
-    -- 4. Modify the users table primary key
-    -- Check if it's already composite to avoid errors
+    -- 4. REPAIR ORPHANED/MISALIGNED DATA
+    -- Before enforcing (id, tenant_id), we MUST ensure child records have a matching parent IN THE SAME TENANT.
+    FOR r IN (SELECT * FROM constraint_backup) LOOP
+        -- Only check tables that have a tenant_id column
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = r.table_name AND column_name = 'tenant_id') THEN
+            
+            -- Detect mismatches and re-assign them to the tenant's primary admin
+            EXECUTE format(
+                'UPDATE public.%I child
+                 SET %I = (
+                    SELECT id FROM public.users parent 
+                    WHERE parent.tenant_id = child.tenant_id 
+                    ORDER BY parent.created_at ASC LIMIT 1
+                 )
+                 WHERE NOT EXISTS (
+                    SELECT 1 FROM public.users p 
+                    WHERE p.id = child.%I AND p.tenant_id = child.tenant_id
+                 )',
+                r.table_name, r.column_name, r.column_name
+            );
+            
+            RAISE NOTICE 'Repaired mis-tenant-linked records in table %', r.table_name;
+        END IF;
+    END LOOP;
+
+    -- 5. Modify the users table primary key
     IF EXISTS (
         SELECT 1 FROM information_schema.table_constraints 
-        WHERE table_name = 'users' AND constraint_type = 'PRIMARY KEY'
+        WHERE table_schema = 'public' AND table_name = 'users' AND constraint_type = 'PRIMARY KEY'
     ) THEN
         ALTER TABLE public.users DROP CONSTRAINT IF EXISTS users_pkey;
     END IF;
     
     ALTER TABLE public.users ADD PRIMARY KEY (id, tenant_id);
 
-    -- 5. Re-create foreign keys as composite references (id, tenant_id)
+    -- 6. Re-create foreign keys as composite references
     FOR r IN (SELECT * FROM constraint_backup) LOOP
-        -- Case 1: The table has a tenant_id column (ideal for multi-tenant isolation)
-        IF EXISTS (
-            SELECT 1 FROM information_schema.columns 
-            WHERE table_schema = 'public' AND table_name = r.table_name AND column_name = 'tenant_id'
-        ) THEN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = r.table_name AND column_name = 'tenant_id') THEN
             EXECUTE format(
                 'ALTER TABLE public.%I ADD CONSTRAINT %I FOREIGN KEY (%I, tenant_id) REFERENCES public.users(id, tenant_id) ON DELETE %s',
                 r.table_name, r.constraint_name, r.column_name, r.on_delete_action
             );
-        -- Case 2: The table DOES NOT have a tenant_id (e.g. meta-tables)
-        -- We fall back to a join if we must, but in TyneBase, almost all should have tenant_id.
-        -- If it doesn't, we'll recreate the original ID-only FK if possible (but id is no longer unique).
-        -- NOTE: For this migration, we assume tenant_id exists or we skip and log.
         ELSE
             RAISE NOTICE 'Skipping recreation of % on % because tenant_id column is missing', r.constraint_name, r.table_name;
         END IF;
@@ -78,9 +93,7 @@ BEGIN
     DROP TABLE constraint_backup;
 END $$;
 
--- 6. Add Unique constraint for (email, tenant_id) if not exists
 ALTER TABLE public.users DROP CONSTRAINT IF EXISTS users_email_tenant_key;
 ALTER TABLE public.users ADD CONSTRAINT users_email_tenant_key UNIQUE (email, tenant_id);
 
--- 7. Update Comments
 COMMENT ON TABLE public.users IS 'Supports multi-tenant identities. A single Supabase ID can have multiple rows, one per tenant membership.';
