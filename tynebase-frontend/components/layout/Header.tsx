@@ -115,7 +115,7 @@ export function Header({ onOpenCommandPalette }: HeaderProps) {
                   <div className="p-2">
                     <button
                       onClick={() => {
-                        router.push("/dashboard/settings/profile");
+                        router.push("/dashboard/settings/account");
                         setShowUserMenu(false);
                       }}
                       className="flex w-full items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-ground)] hover:text-[var(--text-primary)] transition-colors"

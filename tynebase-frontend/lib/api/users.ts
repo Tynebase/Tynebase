@@ -97,8 +97,15 @@ export async function updateUser(
 }
 
 /**
- * Delete (soft delete) a user from the tenant
+ * Delete (soft delete) a user from the tenant.
+ * Optionally transfer document ownership to another user before removal.
  */
-export async function deleteUser(userId: string): Promise<{ message: string }> {
-  return apiDelete<{ message: string }>(`/api/users/${userId}`);
+export async function deleteUser(
+  userId: string,
+  transferOwnershipTo?: string
+): Promise<{ message: string }> {
+  const qs = transferOwnershipTo
+    ? `?transfer_ownership_to=${encodeURIComponent(transferOwnershipTo)}`
+    : '';
+  return apiDelete<{ message: string }>(`/api/users/${userId}${qs}`);
 }

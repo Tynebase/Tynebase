@@ -29,7 +29,8 @@ import {
   Loader2,
   ShieldOff,
   Crown,
-  ArrowRight
+  ArrowRight,
+  ArrowLeftRight
 } from "lucide-react";
 import { inviteUser, listPendingInvites, cancelInvite, resendInvite, PendingInvite, WorkspaceRole } from "@/lib/api/invites";
 import { useToast } from "@/components/ui/Toast";
@@ -266,6 +267,7 @@ export default function UsersPage() {
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [transferToUserId, setTransferToUserId] = useState<string>('');
 
   // Pending invites state
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
@@ -393,6 +395,7 @@ export default function UsersPage() {
   const handleDeleteClick = (member: User) => {
     setDeletingUser(member);
     setDeleteError(null);
+    setTransferToUserId('');
     setActiveDropdownId(null);
   };
 
@@ -402,11 +405,12 @@ export default function UsersPage() {
     try {
       setDeleting(true);
       setDeleteError(null);
-      await deleteUser(deletingUser.id);
+      await deleteUser(deletingUser.id, transferToUserId || undefined);
       
       // Remove from local state
       setUsers(users.filter(u => u.id !== deletingUser.id));
       setDeletingUser(null);
+      setTransferToUserId('');
       addToast({ type: "success", title: "User removed", description: `${deletingUser.full_name || deletingUser.email} has been removed from the workspace` });
     } catch (err: any) {
       console.error('Failed to delete user:', err);
@@ -748,9 +752,9 @@ export default function UsersPage() {
       {/* Delete Confirmation Modal */}
       <Modal
         isOpen={!!deletingUser}
-        onClose={() => setDeletingUser(null)}
+        onClose={() => { setDeletingUser(null); setTransferToUserId(''); }}
         title="Remove User"
-        size="sm"
+        size="md"
       >
         <div className="space-y-4">
           <div className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
@@ -759,6 +763,43 @@ export default function UsersPage() {
               This will remove <strong>{deletingUser?.full_name || deletingUser?.email}</strong> from your workspace. This action cannot be undone.
             </p>
           </div>
+
+          {/* Ownership Transfer — shown when the departing user owns documents */}
+          {(deletingUser?.documents_count ?? 0) > 0 && (
+            <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-ground)] p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <ArrowLeftRight className="w-4 h-4 text-[var(--brand-primary)] flex-shrink-0" />
+                <p className="text-sm font-semibold text-[var(--text-primary)]">
+                  Ownership transfer when team member leaves
+                </p>
+              </div>
+              <p className="text-xs text-[var(--text-tertiary)] leading-relaxed">
+                {deletingUser?.full_name || deletingUser?.email} owns{' '}
+                <strong>{deletingUser?.documents_count}</strong> document{deletingUser?.documents_count !== 1 ? 's' : ''}.
+                Seamlessly reassign document ownership to maintain accountability.
+              </p>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-[var(--text-secondary)]">
+                  Transfer documents to
+                </label>
+                <select
+                  value={transferToUserId}
+                  onChange={(e) => setTransferToUserId(e.target.value)}
+                  className="w-full px-3 py-2 bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]"
+                >
+                  <option value="">— Leave unassigned —</option>
+                  {users
+                    .filter(u => u.id !== deletingUser?.id && u.status === 'active')
+                    .map(u => (
+                      <option key={u.id} value={u.id}>
+                        {u.full_name || u.email} ({u.role})
+                      </option>
+                    ))}
+                </select>
+              </div>
+            </div>
+          )}
+
           {deleteError && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
               {deleteError}
@@ -766,7 +807,7 @@ export default function UsersPage() {
           )}
         </div>
         <ModalFooter className="gap-4">
-          <Button variant="ghost" className="px-6" onClick={() => setDeletingUser(null)}>
+          <Button variant="ghost" className="px-6" onClick={() => { setDeletingUser(null); setTransferToUserId(''); }}>
             Cancel
           </Button>
           <Button variant="destructive" className="gap-2 px-6" onClick={handleDeleteUser} disabled={deleting}>
