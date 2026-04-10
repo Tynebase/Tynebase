@@ -458,6 +458,13 @@ function renderMarkdown(content: string): string {
     return `\x02${idx}\x03`;
   });
 
+  // Protect image blocks before paragraph transform
+  md = md.replace(/^!\[([^\]]*)\]\(([^)]+)\)$/gm, (_, alt, src) => {
+    const idx = blocks.length;
+    blocks.push(`<figure style="margin:24px 0;"><img src="${src}" alt="${alt}" style="width:100%;border-radius:10px;border:1px solid var(--border-subtle);display:block;" />${alt ? `<figcaption style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:8px;">${alt}</figcaption>` : ''}</figure>`);
+    return `\x02${idx}\x03`;
+  });
+
   // Apply remaining inline/block transforms
   md = md
     .replace(/^### (.+)$/gm, '<h3 id="$1" style="font-size:17px;font-weight:600;color:var(--text-primary);margin:28px 0 12px;letter-spacing:-0.01em;">$1</h3>')

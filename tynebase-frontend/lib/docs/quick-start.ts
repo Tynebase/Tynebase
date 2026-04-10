@@ -29,7 +29,15 @@ For this guide, select **Blank Document**.
 
 ## Opening the Document Editor
 
-After signing in, you'll land on your workspace dashboard. Click **+ New Document** at the top right-hand side of the page to open the document editor. From here, you can start drafting your document.
+After signing in, you'll land on your workspace dashboard. Click **+ New Document** at the top right-hand side of the page:
+
+![New Document button](/newdocument.png)
+
+To open the document editor:
+
+![Document editor](/doceditor.png)
+
+From here, you can start drafting your document.
 
 ## Writing Your Content
 
@@ -45,6 +53,8 @@ Our editor supports:
 
 Before publishing, set the metadata for your document. These settings are found within the **Document settings** tab:
 
+![Document settings tab](/docsettingstab.png)
+
 | Field | Description |
 |-------|-------------|
 | **Title** | Clear, searchable document title |
@@ -54,7 +64,13 @@ Before publishing, set the metadata for your document. These settings are found 
 
 ## Publishing Your Document
 
-Once you are finished with your article, you can either save it as a **draft** to work on it later, or click **Save & Publish** to make your document live. It will immediately:
+Once you are finished with your article, you can either save it as a **draft** to work on it later or save and publish it.
+
+To publish your article, click **Save & Publish**:
+
+![Save and Publish button](/save_publish.png)
+
+To make your document live. It will immediately:
 
 - Appear in your knowledge base
 - Become searchable via AI-powered search
