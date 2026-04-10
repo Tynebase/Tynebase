@@ -132,9 +132,28 @@ export default async function dashboardRoutes(fastify: FastifyInstance) {
         if (storageError) {
           request.log.error({ error: storageError }, 'Failed to get storage usage');
         }
-        
+
         // Debug: Log storage data
         request.log.info({ storageData, storageError, tenantId: tenant.id }, 'Storage usage result');
+
+        // Get content health stats (same logic as audit page)
+        const { data: healthStats, error: healthError } = await supabaseAdmin
+          .rpc('get_content_health_stats', {
+            tenant_id_param: tenant.id,
+            days_threshold: 90,
+          });
+
+        if (healthError) {
+          request.log.error({ error: healthError }, 'Failed to get content health stats');
+        }
+
+        const healthRow = healthStats?.[0] || { total_documents: 0, excellent_health: 0, good_health: 0 };
+        const healthTotal = Number(healthRow.total_documents) || 0;
+        const healthExcellent = Number(healthRow.excellent_health) || 0;
+        const healthGood = Number(healthRow.good_health) || 0;
+        const contentHealthPercentage = healthTotal > 0
+          ? Math.round(((healthExcellent + healthGood) / healthTotal) * 100)
+          : 0;
 
         const totalCredits = creditPool?.total_credits || 0;
         const usedCredits = creditPool?.used_credits || 0;
@@ -173,6 +192,9 @@ export default async function dashboardRoutes(fastify: FastifyInstance) {
               limit_mb: parseFloat(storageLimitMB.toFixed(0)),
               limit_gb: parseFloat(storageLimitGB.toFixed(2)),
               percentage: storageLimitGB > 0 ? parseFloat(((storageUsedGB / storageLimitGB) * 100).toFixed(1)) : 0,
+            },
+            content_health: {
+              percentage: contentHealthPercentage,
             },
           },
         });
