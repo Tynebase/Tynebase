@@ -283,6 +283,12 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
         }
       }
 
+      if (!tenant) {
+        return reply.code(404).send({
+          error: { code: 'TENANT_NOT_FOUND', message: 'Workspace not found' },
+        });
+      }
+
       return reply.code(200).send({
         success: true,
         data: {
