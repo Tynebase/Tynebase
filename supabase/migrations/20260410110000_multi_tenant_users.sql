@@ -87,7 +87,7 @@ BEGIN
     -- If we used the global_fallback_id in a tenant where it didn't exist, 
     -- we MUST create a shadow membership for that user in that tenant now.
     INSERT INTO public.users (id, tenant_id, email, full_name, role, status)
-    SELECT DISTINCT global_fallback_id, t.id, u.email, u.full_name, ''community_contributor'', ''active''
+    SELECT DISTINCT global_fallback_id, t.id, u.email, u.full_name, 'community_contributor', 'active'
     FROM public.tenants t
     JOIN public.users u ON u.id = global_fallback_id
     WHERE NOT EXISTS (SELECT 1 FROM public.users u2 WHERE u2.id = global_fallback_id AND u2.tenant_id = t.id)
@@ -98,7 +98,7 @@ BEGIN
         ) cb
         CROSS JOIN LATERAL (
             SELECT 1 FROM public.users p -- this is a bit complex for dynamic SQL, 
-            -- let''s just ensure the fallback exists in ALL tenants that have data.
+            -- let's just ensure the fallback exists in ALL tenants that have data.
             LIMIT 1
         ) sub
     );
