@@ -462,7 +462,7 @@ export default async function documentShareRoutes(fastify: FastifyInstance) {
               status,
               author_id,
               tenant_id,
-              users:author_id (
+              users:author_id,tenant_id (
                 id,
                 email,
                 full_name

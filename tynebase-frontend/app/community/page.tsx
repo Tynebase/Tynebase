@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { MessageSquare, Users, BookOpen, ArrowRight, Lock, TrendingUp, HelpCircle, Bell, Shield, Loader2, Calendar } from "lucide-react";
+import { MessageSquare, Users, BookOpen, ArrowRight, Lock, TrendingUp, HelpCircle, Bell, Shield, Loader2, Calendar, LogOut, User } from "lucide-react";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,7 +21,7 @@ interface TenantInfo {
 }
 
 function CommunityContent() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const searchParams = useSearchParams();
   // Use domain from search params (set by middleware) or fallback to current hostname
   const domain = searchParams.get("domain") || (typeof window !== 'undefined' ? window.location.hostname : null);
@@ -104,6 +104,23 @@ function CommunityContent() {
                 <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Community Hub</p>
               </div>
             </Link>
+            {user && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px', background: 'var(--surface-subtle)', border: '1px solid var(--border-subtle)' }}>
+                  <User className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
+                  <span style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 500 }}>{user.email}</span>
+                </div>
+                <button
+                  onClick={signOut}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px', background: 'var(--surface-tertiary)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.2s' }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-elevated)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'var(--surface-tertiary)'}
+                >
+                  <LogOut className="w-4 h-4" />
+                  Log out
+                </button>
+              </div>
+            )}
           </div>
         </header>
       )}
@@ -127,26 +144,33 @@ function CommunityContent() {
           </div>
           <p style={{ fontSize: '14px', fontWeight: 600, color: primaryColor, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '16px' }}>Community</p>
           <h1 style={{ fontSize: 'clamp(2.5rem, 6vw, 3.75rem)', fontWeight: 600, lineHeight: 1.05, letterSpacing: '-0.02em', marginBottom: '24px', textAlign: 'center' }}>
-            {tenant ? `${companyName} Community` : "Join the conversation"}
+            {user ? `Welcome back, ${user.email?.split('@')[0]}!` : (tenant ? `${companyName} Community` : "Join the conversation")}
           </h1>
           <p style={{ fontSize: '20px', color: 'var(--text-secondary)', maxWidth: '700px', textAlign: 'center', marginBottom: '24px' }}>
-            {tenant 
-              ? `Connect with other ${companyName} users, share knowledge and get help from our branded community.`
-              : "Connect with other TyneBase users, share knowledge and get help from our vibrant community."}
+            {user
+              ? `You're a member of the ${companyName} community. Start participating in discussions and connect with other users.`
+              : (tenant
+                ? `Connect with other ${companyName} users, share knowledge and get help from our branded community.`
+                : "Connect with other TyneBase users, share knowledge and get help from our vibrant community.")
+            }
           </p>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', color: 'var(--text-muted)', marginBottom: '40px' }}>
-            <Lock className="w-4 h-4" />
-            <span>Members-only access • Sign up to join</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '16px', flexWrap: 'wrap' }}>
-            <Link href="/community/signup" className="btn btn-primary btn-lg">
-              Become a Member
-              <ArrowRight className="w-5 h-5" />
-            </Link>
-            <Link href="/community/login" className="btn btn-secondary btn-lg">
-              Log in to Community
-            </Link>
-          </div>
+          {!user && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', color: 'var(--text-muted)', marginBottom: '40px' }}>
+                <Lock className="w-4 h-4" />
+                <span>Members-only access • Sign up to join</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                <Link href="/community/signup" className="btn btn-primary btn-lg">
+                  Become a Member
+                  <ArrowRight className="w-5 h-5" />
+                </Link>
+                <Link href="/community/login" className="btn btn-secondary btn-lg">
+                  Log in to Community
+                </Link>
+              </div>
+            </>
+          )}
         </div>
       </section>
 
@@ -158,7 +182,7 @@ function CommunityContent() {
                <div style={{ marginBottom: "64px" }}>
                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px" }}>
                    <h2 style={{ fontSize: "28px", fontWeight: 600, color: "var(--text-primary)" }}>Recent Discussions</h2>
-                   <Link href="/community/signup" className="text-sm font-medium hover:underline" style={{ color: primaryColor }}>View all topics</Link>
+                   <Link href={user ? "/dashboard/community" : "/community/signup"} className="text-sm font-medium hover:underline" style={{ color: primaryColor }}>View all topics</Link>
                  </div>
                  <div className="grid grid-cols-1 gap-4">
                    {discussions.map((d) => (
@@ -176,91 +200,95 @@ function CommunityContent() {
                               </div>
                            </div>
                         </div>
-                        <Link href="/community/signup" className="btn btn-ghost btn-sm" style={{ border: "1px solid var(--border-subtle)" }}>Read More</Link>
+                        <Link href={user ? "/dashboard/community" : "/community/signup"} className="btn btn-ghost btn-sm" style={{ border: "1px solid var(--border-subtle)" }}>Read More</Link>
                      </div>
                    ))}
                  </div>
                </div>
             ) : null}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bento-item text-center">
-                <div className="feature-icon feature-icon-brand mx-auto mb-4">
-                  <Users className="w-5 h-5" />
+            {!user && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bento-item text-center">
+                  <div className="feature-icon feature-icon-brand mx-auto mb-4">
+                    <Users className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Active Members</h3>
+                  <p className="text-sm text-[var(--text-secondary)] mb-4">Join thousands of knowledge workers</p>
+                  <p className="text-3xl font-bold text-[var(--brand)]">2,500+</p>
+                  <p className="text-xs text-[var(--text-muted)] mt-1">and growing daily</p>
                 </div>
-                <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Active Members</h3>
-                <p className="text-sm text-[var(--text-secondary)] mb-4">Join thousands of knowledge workers</p>
-                <p className="text-3xl font-bold text-[var(--brand)]">2,500+</p>
-                <p className="text-xs text-[var(--text-muted)] mt-1">and growing daily</p>
-              </div>
-              <div className="bento-item text-center">
-                <div className="feature-icon feature-icon-blue mx-auto mb-4">
-                  <MessageSquare className="w-5 h-5" />
+                <div className="bento-item text-center">
+                  <div className="feature-icon feature-icon-blue mx-auto mb-4">
+                    <MessageSquare className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Discussions</h3>
+                  <p className="text-sm text-[var(--text-secondary)] mb-4">In-depth conversations and Q&A</p>
+                  <p className="text-3xl font-bold text-[var(--accent-blue)]">5,000+</p>
+                  <p className="text-xs text-[var(--text-muted)] mt-1">topics covered</p>
                 </div>
-                <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Discussions</h3>
-                <p className="text-sm text-[var(--text-secondary)] mb-4">In-depth conversations and Q&A</p>
-                <p className="text-3xl font-bold text-[var(--accent-blue)]">5,000+</p>
-                <p className="text-xs text-[var(--text-muted)] mt-1">topics covered</p>
-              </div>
-              <div className="bento-item text-center">
-                <div className="feature-icon feature-icon-purple mx-auto mb-4">
-                  <BookOpen className="w-5 h-5" />
+                <div className="bento-item text-center">
+                  <div className="feature-icon feature-icon-purple mx-auto mb-4">
+                    <BookOpen className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Resources</h3>
+                  <p className="text-sm text-[var(--text-secondary)] mb-4">Community-created guides & templates</p>
+                  <p className="text-3xl font-bold text-[var(--accent-purple)]">200+</p>
+                  <p className="text-xs text-[var(--text-muted)] mt-1">shared resources</p>
                 </div>
-                <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Resources</h3>
-                <p className="text-sm text-[var(--text-secondary)] mb-4">Community-created guides & templates</p>
-                <p className="text-3xl font-bold text-[var(--accent-purple)]">200+</p>
-                <p className="text-xs text-[var(--text-muted)] mt-1">shared resources</p>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </section>
 
       {/* What You Get */}
-      <section className="section py-16 bg-[var(--bg-secondary)]">
-        <div className="container px-6">
-          <div style={{ textAlign: 'center', marginBottom: '64px' }}>
-            <h2 style={{ fontSize: '36px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>What you get as a member</h2>
-            <p style={{ fontSize: '18px', color: 'var(--text-secondary)', maxWidth: '700px', margin: '0 auto' }}>
-              Access exclusive community features and connect with fellow {companyName} users
-            </p>
-          </div>
-          
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl">
-              <div className="bg-[var(--surface-elevated)] border border-[var(--border-subtle)] rounded-xl p-6 text-center shadow-sm">
-                <div className="flex justify-center mb-4">
-                  <div className="feature-icon feature-icon-brand">
-                    <MessageSquare className="w-5 h-5" />
-                  </div>
-                </div>
-                <h3 className="font-semibold text-[var(--text-primary)] mb-2">Discussion Forums</h3>
-                <p className="text-sm text-[var(--text-secondary)]">Ask questions, share insights and engage in threaded discussions with the community</p>
-              </div>
+      {!user && (
+        <section className="section py-16 bg-[var(--bg-secondary)]">
+          <div className="container px-6">
+            <div style={{ textAlign: 'center', marginBottom: '64px' }}>
+              <h2 style={{ fontSize: '36px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>What you get as a member</h2>
+              <p style={{ fontSize: '18px', color: 'var(--text-secondary)', maxWidth: '700px', margin: '0 auto' }}>
+                Access exclusive community features and connect with fellow {companyName} users
+              </p>
+            </div>
 
-              <div className="bg-[var(--surface-elevated)] border border-[var(--border-subtle)] rounded-xl p-6 text-center shadow-sm">
-                <div className="flex justify-center mb-4">
-                  <div className="feature-icon feature-icon-blue">
-                    <Bell className="w-5 h-5" />
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl">
+                <div className="bg-[var(--surface-elevated)] border border-[var(--border-subtle)] rounded-xl p-6 text-center shadow-sm">
+                  <div className="flex justify-center mb-4">
+                    <div className="feature-icon feature-icon-brand">
+                      <MessageSquare className="w-5 h-5" />
+                    </div>
                   </div>
+                  <h3 className="font-semibold text-[var(--text-primary)] mb-2">Discussion Forums</h3>
+                  <p className="text-sm text-[var(--text-secondary)]">Ask questions, share insights and engage in threaded discussions with the community</p>
                 </div>
-                <h3 className="font-semibold text-[var(--text-primary)] mb-2">Product Updates</h3>
-                <p className="text-sm text-[var(--text-secondary)]">Be the first to know about new features, updates and announcements</p>
-              </div>
 
-              <div className="bg-[var(--surface-elevated)] border border-[var(--border-subtle)] rounded-xl p-6 text-center shadow-sm">
-                <div className="flex justify-center mb-4">
-                  <div className="feature-icon feature-icon-purple">
-                    <TrendingUp className="w-5 h-5" />
+                <div className="bg-[var(--surface-elevated)] border border-[var(--border-subtle)] rounded-xl p-6 text-center shadow-sm">
+                  <div className="flex justify-center mb-4">
+                    <div className="feature-icon feature-icon-blue">
+                      <Bell className="w-5 h-5" />
+                    </div>
                   </div>
+                  <h3 className="font-semibold text-[var(--text-primary)] mb-2">Product Updates</h3>
+                  <p className="text-sm text-[var(--text-secondary)]">Be the first to know about new features, updates and announcements</p>
                 </div>
-                <h3 className="font-semibold text-[var(--text-primary)] mb-2">Feature Requests</h3>
-                <p className="text-sm text-[var(--text-secondary)]">Vote on and suggest new features to shape the future of TyneBase</p>
+
+                <div className="bg-[var(--surface-elevated)] border border-[var(--border-subtle)] rounded-xl p-6 text-center shadow-sm">
+                  <div className="flex justify-center mb-4">
+                    <div className="feature-icon feature-icon-purple">
+                      <TrendingUp className="w-5 h-5" />
+                    </div>
+                  </div>
+                  <h3 className="font-semibold text-[var(--text-primary)] mb-2">Feature Requests</h3>
+                  <p className="text-sm text-[var(--text-secondary)]">Vote on and suggest new features to shape the future of TyneBase</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* CTA Section */}
       {!user && (

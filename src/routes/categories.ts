@@ -85,7 +85,7 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
             sort_order,
             created_at,
             updated_at,
-            users:author_id (
+            users:author_id,tenant_id (
               id,
               email,
               full_name
@@ -235,7 +235,7 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
             sort_order,
             created_at,
             updated_at,
-            users:author_id (
+            users:author_id,tenant_id (
               id,
               email,
               full_name
@@ -575,7 +575,7 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
             author_id,
             created_at,
             updated_at,
-            users:author_id (
+            users:author_id,tenant_id (
               id,
               email,
               full_name

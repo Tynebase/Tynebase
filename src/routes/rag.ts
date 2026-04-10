@@ -1258,7 +1258,7 @@ export default async function ragRoutes(fastify: FastifyInstance) {
             updated_at,
             last_indexed_at,
             author_id,
-            users:author_id (
+            users:author_id,tenant_id (
               id,
               email,
               full_name
