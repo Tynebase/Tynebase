@@ -184,7 +184,22 @@ function PortalContent() {
             )}
             <span style={{ fontSize: "20px", fontWeight: 700, color: "#fff" }}>{companyName}</span>
           </div>
-          <span style={{ fontSize: "13px", opacity: 0.5 }}>Documentation</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
+            <span style={{ fontSize: "13px", color: primaryColor, fontWeight: 600 }}>Documentation</span>
+            <Link 
+              href="/community" 
+              style={{ 
+                fontSize: "13px", 
+                color: "var(--text-secondary)", 
+                textDecoration: "none",
+                transition: "color 0.2s"
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+            >
+              Community
+            </Link>
+          </div>
         </div>
       </header>
 
