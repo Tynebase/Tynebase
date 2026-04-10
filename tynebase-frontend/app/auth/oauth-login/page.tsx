@@ -3,6 +3,7 @@
 import { useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { setAuthTokens, setTenantSubdomain } from "@/lib/api/client";
+import { getCurrentSubdomain } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 
 function OAuthLoginContent() {
@@ -56,11 +57,21 @@ function OAuthLoginContent() {
         return;
       }
 
-      // Fetch tenant info from the backend using the Supabase access token
+      // Fetch tenant info from the backend using the Supabase access token.
+      // We explicitly send x-tenant-subdomain so /api/auth/me returns the
+      // membership for the workspace the user is actually on, not an
+      // arbitrary one from their multi-tenant profile set.
       const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
+      const currentSubdomain = getCurrentSubdomain();
       try {
+        const meHeaders: Record<string, string> = {
+          Authorization: `Bearer ${access_token}`,
+        };
+        if (currentSubdomain) {
+          meHeaders["x-tenant-subdomain"] = currentSubdomain;
+        }
         const res = await fetch(`${apiBase}/api/auth/me`, {
-          headers: { Authorization: `Bearer ${access_token}` },
+          headers: meHeaders,
         });
 
         if (!res.ok) {

@@ -201,7 +201,7 @@ export default function VideoPage() {
       const docId = completedJob.result?.document_id || completedJob.result?.doc_id || completedJob.result?.id;
       
       if (completedJob.status === 'completed' && docId) {
-        const creditsCharged = typeof completedJob.result.credits_charged === 'number'
+        const creditsCharged = typeof completedJob.result?.credits_charged === 'number'
           ? completedJob.result.credits_charged
           : calculateCredits();
         decrementCredits(creditsCharged);
@@ -252,7 +252,7 @@ export default function VideoPage() {
       const docId = completedJob.result?.document_id || completedJob.result?.doc_id || completedJob.result?.id;
       
       if (completedJob.status === 'completed' && docId) {
-        const creditsCharged = typeof completedJob.result.credits_charged === 'number'
+        const creditsCharged = typeof completedJob.result?.credits_charged === 'number'
           ? completedJob.result.credits_charged
           : calculateCredits();
         decrementCredits(creditsCharged);
@@ -300,7 +300,7 @@ export default function VideoPage() {
       const docId = completedJob.result?.document_id || completedJob.result?.doc_id || completedJob.result?.id;
       
       if (completedJob.status === 'completed' && docId) {
-        const creditsCharged = typeof completedJob.result.credits_charged === 'number'
+        const creditsCharged = typeof completedJob.result?.credits_charged === 'number'
           ? completedJob.result.credits_charged
           : calculateCredits();
         decrementCredits(creditsCharged);

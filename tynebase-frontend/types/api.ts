@@ -111,7 +111,7 @@ export interface User {
   };
   language?: string;
   timezone?: string;
-  role: 'admin' | 'editor' | 'viewer';
+  role: 'admin' | 'editor' | 'viewer' | 'community_contributor' | 'community_admin';
   is_super_admin: boolean;
   is_original_admin?: boolean; // True if user created this workspace (admin with no original_tenant_id)
   status: 'active' | 'suspended' | 'deleted';

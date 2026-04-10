@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { setTenantSubdomain } from "@/lib/api/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, AlertCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -41,6 +42,9 @@ function FinalizeContent() {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.access_token}`,
+            // Tell the backend which tenant we're joining, so downstream
+            // /api/auth/me calls resolve to this community's membership row.
+            "x-tenant-subdomain": subdomain,
           },
           body: JSON.stringify({ subdomain }),
         });
@@ -55,8 +59,11 @@ function FinalizeContent() {
              setError(result.error?.message || "Failed to join community.");
            }
          } else {
-           // Success! Refresh auth state and redirect to community hub
-           console.log('[Finalize Join] Success, refreshing user...');
+           // Success! Pin this subdomain as the active tenant so subsequent
+           // /api/auth/me calls resolve to the community membership row,
+           // then refresh auth state and redirect to the community hub.
+           console.log('[Finalize Join] Success, pinning tenant and refreshing user...');
+           setTenantSubdomain(subdomain);
            await refreshUser();
            router.replace("/community");
          }

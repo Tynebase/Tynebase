@@ -46,7 +46,7 @@ TyneBase offers comprehensive white-labeling capabilities to make the platform t
     tags: ['branding', 'white-label', 'customization', 'visual'],
     category: 'branding',
     lastUpdated: '2024-01-15',
-    readTime: 5,
+    readTime: '5 min',
   },
   {
     id: 'custom-domain-setup',
@@ -127,7 +127,7 @@ Add multiple domains to serve different teams or regions:
     tags: ['domain', 'dns', 'ssl', 'custom-domain', 'configuration'],
     category: 'branding',
     lastUpdated: '2024-01-15',
-    readTime: 8,
+    readTime: '8 min',
   },
   {
     id: 'color-customization',
@@ -226,7 +226,7 @@ Configure how colors adapt between themes:
     tags: ['colors', 'branding', 'customization', 'design', 'accessibility'],
     category: 'branding',
     lastUpdated: '2024-01-15',
-    readTime: 7,
+    readTime: '7 min',
   },
   {
     id: 'logo-upload',
@@ -351,6 +351,6 @@ Ensure you have:
     tags: ['logo', 'upload', 'branding', 'images', 'management'],
     category: 'branding',
     lastUpdated: '2024-01-15',
-    readTime: 6,
+    readTime: '6 min',
   },
 ];
