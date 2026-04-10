@@ -3,11 +3,13 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, AlertCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 function FinalizeContent() {
   const router = useRouter();
+  const { refreshUser } = useAuth();
   const searchParams = useSearchParams();
   const subdomain = searchParams.get("subdomain");
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +50,8 @@ function FinalizeContent() {
         if (!res.ok) {
           setError(result.error?.message || "Failed to join community.");
         } else {
-          // Success! Redirect to community hub
+          // Success! Refresh auth state and redirect to community hub
+          await refreshUser();
           router.replace("/community");
         }
       } catch (err: any) {
