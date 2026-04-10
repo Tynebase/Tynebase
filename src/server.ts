@@ -158,6 +158,7 @@ const start = async () => {
     await fastify.register(import('./routes/tier-upgrade'), { prefix: '' });
     await fastify.register(import('./routes/stripe-billing'), { prefix: '' });
     await fastify.register(import('./routes/credits-purchase'), { prefix: '' });
+    await fastify.register(import('./routes/contact'), { prefix: '' });
 
     const port = parseInt(env.PORT, 10);
     await fastify.listen({ port, host: '0.0.0.0' });
