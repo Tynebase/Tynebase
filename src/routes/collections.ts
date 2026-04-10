@@ -89,12 +89,7 @@ export default async function collectionRoutes(fastify: FastifyInstance) {
             author_id,
             sort_order,
             created_at,
-            updated_at,
-            users:author_id (
-              id,
-              email,
-              full_name
-            )
+            updated_at
           `, { count: 'exact' })
           .eq('tenant_id', tenant.id)
           .order('sort_order', { ascending: true })
@@ -219,12 +214,7 @@ export default async function collectionRoutes(fastify: FastifyInstance) {
             author_id,
             sort_order,
             created_at,
-            updated_at,
-            users:author_id (
-              id,
-              email,
-              full_name
-            )
+            updated_at
           `)
           .eq('id', id)
           .eq('tenant_id', tenant.id)

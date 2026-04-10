@@ -84,12 +84,7 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
             is_system,
             sort_order,
             created_at,
-            updated_at,
-            users:author_id (
-              id,
-              email,
-              full_name
-            )
+            updated_at
           `, { count: 'exact' })
           .eq('tenant_id', tenant.id)
           .order('sort_order', { ascending: true })
@@ -169,7 +164,6 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
           author_id: category.author_id,
           created_at: category.created_at,
           updated_at: category.updated_at,
-          users: category.users,
         })) || [];
 
         const totalPages = count ? Math.ceil(count / limit) : 0;
@@ -234,12 +228,7 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
             author_id,
             sort_order,
             created_at,
-            updated_at,
-            users:author_id (
-              id,
-              email,
-              full_name
-            )
+            updated_at
           `)
           .eq('id', id)
           .eq('tenant_id', tenant.id)
@@ -290,7 +279,6 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
               author_id: category.author_id,
               created_at: category.created_at,
               updated_at: category.updated_at,
-              users: category.users,
             },
           },
         });
@@ -574,12 +562,7 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
             status,
             author_id,
             created_at,
-            updated_at,
-            users:author_id (
-              id,
-              email,
-              full_name
-            )
+            updated_at
           `)
           .eq('category_id', id)
           .eq('tenant_id', tenant.id)
