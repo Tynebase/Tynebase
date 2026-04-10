@@ -189,7 +189,7 @@ export default function AuditPage() {
   }, [openMenuId]);
 
   const handleDocumentClick = (docId: string) => {
-    router.push(`/dashboard/knowledge/${docId}`);
+    router.push(`/dashboard/knowledge/${docId}?from=audit`);
   };
 
   // ── Run Full Audit ──

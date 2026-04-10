@@ -465,9 +465,10 @@ export default async function categoryRoutes(fastify: FastifyInstance) {
         if (body.parent_id !== undefined) updateData.parent_id = body.parent_id;
         if (body.sort_order !== undefined) updateData.sort_order = body.sort_order;
 
-        // Allow any tenant member to reorder (sort_order only), but require author for other fields
+        // Allow any tenant member to reorder (sort_order only), but require author (or admin/super admin) for other fields
         const isSortOrderOnly = Object.keys(updateData).length === 1 && updateData.sort_order !== undefined;
-        if (!isSortOrderOnly && existing.author_id !== user.id) {
+        const isAdminOrSuperAdmin = user.is_super_admin || user.role === 'admin';
+        if (!isSortOrderOnly && !isAdminOrSuperAdmin && existing.author_id !== user.id) {
           return reply.code(403).send({
             error: { code: 'FORBIDDEN', message: 'Only the category author can update this category', details: {} },
           });

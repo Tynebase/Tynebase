@@ -1160,7 +1160,19 @@ export default async function auditRoutes(fastify: FastifyInstance) {
           .eq('tenant_id', tenant.id)
           .in('status', ['pending', 'in_progress']);
 
+        const sixtyDaysAgo = new Date(now);
+        sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
+        // Fetch completed reviews within the last 60 days
+        const { data: recentCompletedReviews } = await supabaseAdmin
+          .from('document_reviews')
+          .select('document_id')
+          .eq('tenant_id', tenant.id)
+          .eq('status', 'completed')
+          .gte('completed_at', sixtyDaysAgo.toISOString());
+
         const reviewedDocIds = new Set((existingReviews || []).map((r: any) => r.document_id));
+        const recentlyReviewedIds = new Set((recentCompletedReviews || []).map((r: any) => r.document_id));
 
         // 3. Analyse each document for issues
         interface AuditIssue {
@@ -1191,6 +1203,12 @@ export default async function auditRoutes(fastify: FastifyInstance) {
         dueDate14.setDate(dueDate14.getDate() + 14);
 
         for (const doc of docs) {
+          // If the document was reviewed within the last 60 days, exclude it from further issues.
+          if (recentlyReviewedIds.has(doc.id)) {
+            healthyCount++;
+            continue;
+          }
+
           const issues: string[] = [];
           let severity: 'critical' | 'warning' | 'info' = 'info';
           const updatedAt = new Date(doc.updated_at);

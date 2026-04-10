@@ -18,6 +18,105 @@ const paramsSchema = z.object({
  */
 export default async function superAdminSuspendRoutes(fastify: FastifyInstance) {
   /**
+   * DELETE /api/superadmin/tenants/:tenantId
+   *
+   * Soft-archives a tenant (sets status → 'archived'). Workspace and users are preserved.
+   */
+  fastify.delete(
+    '/api/superadmin/tenants/:tenantId',
+    { preHandler: [authMiddleware, superAdminGuard] },
+    async (request, reply) => {
+      try {
+        const { tenantId } = paramsSchema.parse(request.params);
+
+        const { data: tenant, error: fetchError } = await supabaseAdmin
+          .from('tenants')
+          .select('id, name, status')
+          .eq('id', tenantId)
+          .single();
+
+        if (fetchError || !tenant) {
+          return reply.status(404).send({ error: { code: 'TENANT_NOT_FOUND', message: 'Tenant not found' } });
+        }
+
+        const { error: updateError } = await supabaseAdmin
+          .from('tenants')
+          .update({ status: 'archived' })
+          .eq('id', tenantId);
+
+        if (updateError) throw updateError;
+
+        request.log.info({ tenantId, actorId: request.user?.id }, 'Tenant soft-archived by super admin');
+
+        return { success: true, data: { message: `Workspace "${tenant.name}" has been archived` } };
+      } catch (error) {
+        request.log.error({ error }, 'Error archiving tenant');
+        return reply.status(500).send({ error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to archive tenant' } });
+      }
+    }
+  );
+
+  /**
+   * DELETE /api/superadmin/tenants/:tenantId/purge
+   *
+   * Hard-deletes a tenant — permanently wipes all workspace data and orphans users.
+   * Users' tenant_id is set to NULL so their accounts remain but workspace is gone.
+   */
+  fastify.delete(
+    '/api/superadmin/tenants/:tenantId/purge',
+    { preHandler: [authMiddleware, superAdminGuard] },
+    async (request, reply) => {
+      try {
+        const { tenantId } = paramsSchema.parse(request.params);
+
+        const { data: tenant, error: fetchError } = await supabaseAdmin
+          .from('tenants')
+          .select('id, name')
+          .eq('id', tenantId)
+          .single();
+
+        if (fetchError || !tenant) {
+          return reply.status(404).send({ error: { code: 'TENANT_NOT_FOUND', message: 'Tenant not found' } });
+        }
+
+        // 1. Orphan users — null their tenant_id and archive them
+        await supabaseAdmin
+          .from('users')
+          .update({ status: 'archived' })
+          .eq('tenant_id', tenantId);
+
+        // 2. Delete all documents (cascades to assets via FK if configured)
+        await supabaseAdmin.from('documents').delete().eq('tenant_id', tenantId);
+
+        // 3. Delete credit pools
+        await supabaseAdmin.from('credit_pools').delete().eq('tenant_id', tenantId);
+
+        // 4. Delete audit logs
+        await supabaseAdmin.from('audit_logs').delete().eq('tenant_id', tenantId);
+
+        // 5. Delete document reviews
+        await supabaseAdmin.from('document_reviews').delete().eq('tenant_id', tenantId);
+
+        // 6. Delete the tenant itself
+        const { error: deleteError } = await supabaseAdmin
+          .from('tenants')
+          .delete()
+          .eq('id', tenantId);
+
+        if (deleteError) throw deleteError;
+
+        request.log.info({ tenantId, tenantName: tenant.name, actorId: request.user?.id }, 'Tenant permanently purged by super admin');
+
+        return { success: true, data: { message: `Workspace "${tenant.name}" has been permanently deleted` } };
+      } catch (error) {
+        request.log.error({ error }, 'Error purging tenant');
+        return reply.status(500).send({ error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to permanently delete tenant' } });
+      }
+    }
+  );
+
+
+  /**
    * POST /api/superadmin/tenants/:tenantId/suspend
    * 
    * Suspends a tenant, blocking all API access for users of that tenant.

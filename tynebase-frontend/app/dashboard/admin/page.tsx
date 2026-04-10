@@ -19,6 +19,7 @@ import {
   unsuspendTenant,
   changeTenantTier,
   deleteTenant,
+  hardDeleteTenant,
   type PlatformKPIs,
   type PlatformUser,
   type TenantListItem,
@@ -49,6 +50,7 @@ import {
   ArrowUpDown,
   UserCheck,
   RotateCcw,
+  Trash2,
 } from "lucide-react";
 
 type Tab = "kpis" | "users" | "tenants";
@@ -98,6 +100,8 @@ export default function SuperAdminPage() {
   const [confirmDelete, setConfirmDelete] = useState<PlatformUser | null>(null);
   const [tierModal, setTierModal] = useState<TierModal | null>(null);
   const [confirmSuspend, setConfirmSuspend] = useState<TenantListItem | null>(null);
+  const [confirmHardDelete, setConfirmHardDelete] = useState<TenantListItem | null>(null);
+  const [hardDeleteConfirmText, setHardDeleteConfirmText] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   // Guard: only super admins
@@ -301,6 +305,22 @@ export default function SuperAdminPage() {
       fetchKPIs();
     } catch (err: any) {
       addToast({ type: "error", title: err.message || "Failed to archive workspace" });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleHardDeleteTenant = async (tenantId: string) => {
+    setActionLoading(`purge-${tenantId}`);
+    try {
+      await hardDeleteTenant(tenantId);
+      addToast({ type: "success", title: "Workspace permanently deleted", persistent: true });
+      setConfirmHardDelete(null);
+      setHardDeleteConfirmText("");
+      fetchTenants();
+      fetchKPIs();
+    } catch (err: any) {
+      addToast({ type: "error", title: err.message || "Failed to delete workspace" });
     } finally {
       setActionLoading(null);
     }
@@ -695,7 +715,7 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                           <td className="px-4 py-3">
                             <button
                               onClick={() => setTierModal({ tenant: t, selectedTier: t.tier, customCredits: "" })}
-                              className={`inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all hover:ring-2 hover:ring-offset-1 ring-offset-[var(--surface-hover)] ${
+                              className={`inline-flex items-center justify-center gap-1.5 pl-3 pr-3.5 py-1 rounded-full text-xs font-medium transition-all hover:ring-2 hover:ring-offset-1 ring-offset-[var(--surface-hover)] ${
                                 t.tier === "enterprise"
                                   ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 hover:ring-purple-400"
                                   : t.tier === "pro"
@@ -785,6 +805,16 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                                 title="Archive workspace (Soft delete)"
                               >
                                 {actionLoading === `archive-${t.id}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArchiveX className="w-4 h-4" />}
+                              </button>
+
+                              {/* Purge (Hard Delete) */}
+                              <button
+                                onClick={() => { setConfirmHardDelete(t); setHardDeleteConfirmText(""); }}
+                                disabled={!!actionLoading}
+                                className="p-2 rounded-lg bg-red-500/10 text-red-600 border border-red-500/20 hover:bg-red-500/20 transition-colors disabled:opacity-30"
+                                title="Permanently delete workspace"
+                              >
+                                {actionLoading === `purge-${t.id}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                               </button>
                             </div>
                           </td>
@@ -970,6 +1000,57 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                       {confirmSuspend.status === "suspended" ? "Activate" : "Suspend"}
                     </>
                   )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== HARD DELETE CONFIRM MODAL ==================== */}
+      {confirmHardDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => { setConfirmHardDelete(null); setHardDeleteConfirmText(""); }} />
+          <div className="relative w-full max-w-md bg-[var(--surface-card)] border border-red-500/40 rounded-xl shadow-xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-red-500/20 bg-red-500/5 rounded-t-xl">
+              <h2 className="text-lg font-semibold text-red-500 flex items-center gap-2">
+                <Trash2 className="w-5 h-5" />
+                Permanently Delete Workspace
+              </h2>
+              <button onClick={() => { setConfirmHardDelete(null); setHardDeleteConfirmText(""); }} className="p-1.5 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)]">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-600 space-y-1">
+                <p className="font-semibold">This action cannot be undone.</p>
+                <p>All documents, settings, credit pools, and audit logs for <strong>{confirmHardDelete.name}</strong> will be permanently wiped. All {confirmHardDelete.userCount} user{confirmHardDelete.userCount !== 1 ? "s" : ""} will be orphaned — their accounts remain but lose workspace access.</p>
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-xs text-[var(--dash-text-tertiary)]">Type <strong className="text-[var(--dash-text-primary)]">{confirmHardDelete.subdomain}</strong> to confirm</p>
+                <input
+                  type="text"
+                  value={hardDeleteConfirmText}
+                  onChange={(e) => setHardDeleteConfirmText(e.target.value)}
+                  placeholder={confirmHardDelete.subdomain}
+                  className="w-full px-4 py-2.5 bg-[var(--surface-ground)] border border-red-500/30 rounded-lg text-sm text-[var(--dash-text-primary)] placeholder-[var(--dash-text-muted)] focus:outline-none focus:border-red-500"
+                  autoFocus
+                />
+              </div>
+              <div className="flex items-center justify-end gap-3 pt-1">
+                <button
+                  onClick={() => { setConfirmHardDelete(null); setHardDeleteConfirmText(""); }}
+                  className="px-4 py-2 text-sm text-[var(--dash-text-secondary)] hover:text-[var(--dash-text-primary)] transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleHardDeleteTenant(confirmHardDelete.id)}
+                  disabled={hardDeleteConfirmText !== confirmHardDelete.subdomain || !!actionLoading}
+                  className="flex items-center gap-2 px-5 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-40"
+                >
+                  {actionLoading === `purge-${confirmHardDelete.id}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  Delete Forever
                 </button>
               </div>
             </div>

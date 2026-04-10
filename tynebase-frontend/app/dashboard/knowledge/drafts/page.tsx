@@ -86,7 +86,7 @@ function documentToDraft(doc: Document): Draft {
 export default function DraftsPage() {
   const { addToast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<"recent" | "oldest" | "completeness">("recent");
+  const [sortBy, setSortBy] = useState<"recent" | "oldest" | "completeness" | "completeness_asc">("recent");
   const [selectedDrafts, setSelectedDrafts] = useState<string[]>([]);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -206,6 +206,7 @@ export default function DraftsPage() {
 
   const sortedDrafts = [...filteredDrafts].sort((a, b) => {
     if (sortBy === "completeness") return b.completeness - a.completeness;
+    if (sortBy === "completeness_asc") return a.completeness - b.completeness;
     if (sortBy === "oldest") {
       return new Date(a.createdAtRaw).getTime() - new Date(b.createdAtRaw).getTime();
     }
@@ -296,7 +297,8 @@ export default function DraftsPage() {
         >
           <option value="recent">Most Recent</option>
           <option value="oldest">Oldest First</option>
-          <option value="completeness">By Completeness</option>
+          <option value="completeness">Most Progress</option>
+          <option value="completeness_asc">Least Progress</option>
         </select>
       </div>
 
@@ -335,12 +337,12 @@ export default function DraftsPage() {
             />
             <span className="flex-1 text-xs font-medium text-[var(--dash-text-muted)] uppercase tracking-wider">Document</span>
             <button
-              onClick={() => setSortBy(prev => prev === "completeness" ? "recent" : "completeness")}
-              className={`w-24 flex items-center justify-center gap-1 text-xs font-medium uppercase tracking-wider transition-colors ${sortBy === "completeness" ? "text-[var(--brand)]" : "text-[var(--dash-text-muted)] hover:text-[var(--dash-text-secondary)]"}`}
+              onClick={() => setSortBy(prev => prev === "completeness" ? "completeness_asc" : prev === "completeness_asc" ? "recent" : "completeness")}
+              className={`w-24 flex items-center justify-center gap-1 text-xs font-medium uppercase tracking-wider transition-colors ${sortBy.startsWith("completeness") ? "text-[var(--brand)]" : "text-[var(--dash-text-muted)] hover:text-[var(--dash-text-secondary)]"}`}
               title="Toggle sort by progress"
             >
               Progress
-              <ArrowUpDown className="w-3 h-3" />
+              <ArrowUpDown className={`w-3 h-3 transition-transform ${sortBy === "completeness_asc" ? "rotate-180" : ""}`} />
             </button>
             <span className="w-24 text-xs font-medium text-[var(--dash-text-muted)] uppercase tracking-wider text-right">Words</span>
             <span className="w-32 text-xs font-medium text-[var(--dash-text-muted)] uppercase tracking-wider text-right">Last Edited</span>

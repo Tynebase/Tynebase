@@ -524,10 +524,10 @@ export default async function ragRoutes(fastify: FastifyInstance) {
           return updatedAt - lastIndexedAt > 30000; // 30 second buffer
         });
 
-        // Count failed rag_index jobs
-        const { count: failedJobs, error: failedJobsError } = await supabaseAdmin
+        // Get failed rag_index jobs
+        const { data: failedJobsData, count: failedJobs, error: failedJobsError } = await supabaseAdmin
           .from('job_queue')
-          .select('*', { count: 'exact', head: true })
+          .select('id, payload, created_at, updated_at', { count: 'exact' })
           .eq('tenant_id', tenant.id)
           .eq('type', 'rag_index')
           .eq('status', 'failed');
@@ -599,7 +599,7 @@ export default async function ragRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Combine outdated and never-indexed documents
+        // Combine outdated, never-indexed, and failed documents
         const documentsNeedingReindex = [
           ...(neverIndexedDocs || []).map(doc => ({
             id: doc.id,
@@ -615,7 +615,26 @@ export default async function ragRoutes(fastify: FastifyInstance) {
             last_indexed_at: doc.last_indexed_at,
             updated_at: doc.updated_at,
           })),
+          ...(failedJobsData || [])
+            .map(job => {
+              const docId = job.payload?.document_id || job.id;
+              const title = job.payload?.document_title || job.payload?.title || 'Unknown document';
+              return {
+                id: docId,
+                title: title,
+                reason: 'failed' as const,
+                last_indexed_at: null,
+                updated_at: job.updated_at || job.created_at,
+              };
+            })
+            // Filter duplicates if a document is already in the list
+            .filter((doc, index, self) => 
+               self.findIndex(d => d.id === doc.id) === index
+            ),
         ];
+        
+        // Remove duplicates between failed and others (prioritise failed)
+        const uniqueDocsNeedingReindex = Array.from(new Map(documentsNeedingReindex.map(doc => [doc.id, doc])).values());
 
         // Format pipeline events from recent jobs
         const pipelineEvents = (recentJobs || []).map((job: any) => {
@@ -676,7 +695,7 @@ export default async function ragRoutes(fastify: FastifyInstance) {
           processing_jobs: processingJobs || 0,
           total_chunks: totalChunks || 0,
           pipeline_events: pipelineEvents,
-          documents_needing_reindex: documentsNeedingReindex,
+          documents_needing_reindex: uniqueDocsNeedingReindex,
         };
 
         fastify.log.info(

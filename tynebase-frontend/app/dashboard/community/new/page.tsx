@@ -11,6 +11,7 @@ import { DashboardPageHeader } from "@/components/layout/DashboardPageHeader";
 import { createDiscussion, createDraftDiscussion, uploadDiscussionAsset, updateDiscussion, deleteDiscussion } from "@/lib/api/discussions";
 import { listTemplates, Template } from "@/lib/api/templates";
 import { ArrowLeft, Plus, Send, Tag, Loader2, AlertCircle, BarChart3, X, FileText, Search, Quote } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const categories = [
   { id: "Announcements", label: "Announcements", color: "#ef4444" },
@@ -25,9 +26,19 @@ export default function NewDiscussionPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const { user } = useAuth();
+  const isBasicUser = user?.role !== 'admin' && !user?.is_super_admin;
+
+  const availableCategories = useMemo(() => {
+    if (isBasicUser) {
+      return categories.filter(c => c.id !== "Announcements");
+    }
+    return categories;
+  }, [isBasicUser]);
+
   const defaultCategory = (): CategoryId => {
     const param = searchParams?.get('category');
-    if (param && categories.some(c => c.id === param)) return param as CategoryId;
+    if (param && availableCategories.some(c => c.id === param)) return param as CategoryId;
     return "General";
   };
 
@@ -293,7 +304,7 @@ export default function NewDiscussionPage() {
               <div>
                 <div className="text-sm font-medium text-[var(--dash-text-secondary)] mb-2">Category</div>
                 <div className="flex flex-wrap gap-2">
-                  {categories.map((cat) => {
+                  {availableCategories.map((cat) => {
                     const active = cat.id === category;
                     return (
                       <button

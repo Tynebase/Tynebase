@@ -37,6 +37,7 @@ import {
   CreateAssignmentRequest,
 } from "@/lib/api/chat";
 import { apiGet } from "@/lib/api/client";
+import { createNewNotification } from "@/lib/api/notifications";
 import {
   Hash,
   Send,
@@ -104,6 +105,7 @@ export default function TeamChatPage() {
   const [assignTo, setAssignTo] = useState("");
   const [assignTitle, setAssignTitle] = useState("");
   const [assignDescription, setAssignDescription] = useState("");
+  const [assignComment, setAssignComment] = useState("");
   const [assignPriority, setAssignPriority] = useState<"low" | "medium" | "high" | "urgent">("medium");
   const [assignDueDate, setAssignDueDate] = useState("");
   const [assignDocId, setAssignDocId] = useState("");
@@ -636,15 +638,25 @@ export default function TeamChatPage() {
         data.description = assignDescription.trim() || undefined;
       } else {
         data.document_id = assignDocId;
+        data.description = assignComment.trim() || undefined;
       }
       if (assignDueDate) data.due_date = assignDueDate;
 
       await createAssignment(data);
+      
+      // Notify assignee
+      await createNewNotification({
+        user_id: assignTo,
+        type: 'task',
+        title: `You have been assigned a ${assignType}`,
+        description: data.title || documents.find(d => d.id === assignDocId)?.title || "An assignment",
+      }).catch(err => console.error("Notification failed", err));
 
       // Reset form
       setShowAssignModal(false);
       setAssignTitle('');
       setAssignDescription('');
+      setAssignComment('');
       setAssignTo('');
       setAssignDocId('');
       setAssignDueDate('');
@@ -663,9 +675,22 @@ export default function TeamChatPage() {
     }
   };
 
-  const handleUpdateAssignmentStatus = async (id: string, status: string) => {
+  const handleUpdateAssignmentStatus = async (id: string, status: string, assignedBy?: string) => {
     try {
       await updateAssignment(id, { status });
+      
+      if (status === 'completed' && assignedBy && assignedBy !== user?.id) {
+        const assignment = myAssignments.find(a => a.id === id);
+        if (assignment) {
+          await createNewNotification({
+            user_id: assignedBy,
+            type: 'task',
+            title: `Assignment completed`,
+            description: `${user?.full_name || 'Someone'} completed ${assignment.title || assignment.document?.title || 'an assignment'}`,
+          }).catch(err => console.error("Notification failed", err));
+        }
+      }
+      
       await loadMyAssignments();
     } catch (err) {
       console.error('Failed to update assignment:', err);
@@ -1458,12 +1483,21 @@ export default function TeamChatPage() {
                       <ClipboardList className="w-4 h-4 text-[var(--brand)] flex-shrink-0 mt-0.5" />
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className={cn(
-                        "font-medium text-[var(--text-primary)] truncate",
-                        a.status === 'completed' && "line-through opacity-60"
-                      )}>
+                      <button
+                        onClick={() => {
+                          if (a.assignment_type === 'document' && a.document_id) {
+                            window.open(`/docs/${a.document_id}`, '_blank');
+                          } else if (a.assignment_type === 'task') {
+                            alert(a.description || 'No description provided.');
+                          }
+                        }}
+                        className={cn(
+                          "font-medium text-[var(--text-primary)] truncate text-left hover:underline focus:outline-none max-w-full block",
+                          a.status === 'completed' && "line-through opacity-60"
+                        )}
+                      >
                         {a.title || a.document?.title || 'Untitled'}
-                      </p>
+                      </button>
                       {a.assigned_by_user && (
                         <p className="text-xs text-[var(--text-muted)] mt-0.5">
                           From: {a.assigned_by_user.full_name || a.assigned_by_user.email}
@@ -1483,16 +1517,24 @@ export default function TeamChatPage() {
                           a.priority === 'medium' ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300" :
                           "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
                         )}>
-                          {a.priority}
+                          {a.priority.charAt(0).toUpperCase() + a.priority.slice(1)}
                         </span>
-                        {a.status !== 'completed' && a.status !== 'cancelled' && (
+                        {a.status !== 'completed' && a.status !== 'cancelled' ? (
                           <button
-                            onClick={() => handleUpdateAssignmentStatus(a.id, a.status === 'pending' ? 'in_progress' : 'completed')}
+                            onClick={() => handleUpdateAssignmentStatus(a.id, a.status === 'pending' ? 'in_progress' : 'completed', a.assigned_by_user?.id)}
                             className="ml-auto px-2 py-0.5 rounded text-[10px] font-medium bg-[var(--brand)]/10 text-[var(--brand)] hover:bg-[var(--brand)]/20 transition-colors"
                           >
                             {a.status === 'pending' ? 'Start' : 'Complete'}
                           </button>
-                        )}
+                        ) : a.status === 'completed' ? (
+                          <button
+                            onClick={() => handleUpdateAssignmentStatus(a.id, 'in_progress', a.assigned_by_user?.id)}
+                            className="ml-auto px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors dark:bg-gray-800 dark:text-gray-400"
+                            title="Revert to In Progress"
+                          >
+                            Reopen
+                          </button>
+                        ) : null}
                         {a.status === 'completed' && (
                           <span className="ml-auto text-[10px] text-green-600 font-medium">Done</span>
                         )}
@@ -1553,7 +1595,7 @@ export default function TeamChatPage() {
                 <select
                   value={assignTo}
                   onChange={(e) => setAssignTo(e.target.value)}
-                  className="w-full px-3 pr-8 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
+                  className="w-full px-3 pr-8 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-full text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
                 >
                   <option value="">Select team member...</option>
                   {teamUsers.filter(m => m.id !== user?.id).map((m) => (
@@ -1590,12 +1632,13 @@ export default function TeamChatPage() {
 
               {/* Document-specific fields */}
               {assignType === 'document' && (
+                <>
                 <div>
                   <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Select document</label>
                   <select
                     value={assignDocId}
                     onChange={(e) => setAssignDocId(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
+                    className="w-full px-3 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-full text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
                   >
                     <option value="">Select document...</option>
                     {documents.map((d) => (
@@ -1603,6 +1646,17 @@ export default function TeamChatPage() {
                     ))}
                   </select>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Comment (optional)</label>
+                  <textarea
+                    value={assignComment}
+                    onChange={(e) => setAssignComment(e.target.value)}
+                    placeholder="Add instruction detail..."
+                    rows={2}
+                    className="w-full px-3 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--brand)] resize-none"
+                  />
+                </div>
+              </>
               )}
 
               {/* Priority + Due Date */}
@@ -1612,7 +1666,7 @@ export default function TeamChatPage() {
                   <select
                     value={assignPriority}
                     onChange={(e) => setAssignPriority(e.target.value as any)}
-                    className="w-full px-3 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
+                    className="w-full px-3 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-full text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>

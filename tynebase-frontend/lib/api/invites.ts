@@ -150,5 +150,5 @@ export async function resendInvite(inviteId: string): Promise<{ message: string;
  * @param inviteId - The ID of the pending invite to decline
  */
 export async function declineInvite(inviteId: string): Promise<{ message: string }> {
-  return apiPost<{ message: string }>(`/api/invites/${inviteId}/decline`, {});
+  return apiPost<{ message: string }>(`/api/invites/${inviteId}/decline`, {}, { skipAutoRedirect: true });
 }

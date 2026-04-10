@@ -240,7 +240,7 @@ export default function CommunityPage() {
           </Button>
           {!isViewer && (
             <Button variant="primary" size="lg" className="flex-1 sm:flex-none gap-2 px-7 !text-[#ffffff]" asChild>
-              <Link href="/dashboard/community/new">
+              <Link href={`/dashboard/community/new${activeCategory && activeCategory !== 'all' ? `?category=${activeCategory}` : ''}`}>
                 <Plus className="w-5 h-5" />
                 New Discussion
               </Link>

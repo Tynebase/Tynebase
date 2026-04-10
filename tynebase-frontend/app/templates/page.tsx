@@ -61,7 +61,7 @@ export default function TemplatesPage() {
             Start with a <span className="text-gradient text-glow">template</span>
           </h1>
           <p className="text-xl text-[var(--text-secondary)] max-w-[600px] mx-auto">
-            Pre-built templates to help you get started quickly. Customize them for your team's needs.
+            Pre-built templates to help you get started quickly. Customise them for your team's needs.
           </p>
         </div>
       </section>

@@ -678,7 +678,7 @@ export function EnhanceSuggestionsPanel({
           <div className="p-6 text-center">
             <RefreshCw className="w-12 h-12 text-[var(--brand)] mx-auto mb-4 animate-spin" />
             <h4 className="font-medium text-[var(--dash-text-primary)] mb-2">
-              Analyzing Document
+              Analysing Document
             </h4>
             <p className="text-sm text-[var(--dash-text-tertiary)]">
               AI is reviewing your content for improvements...

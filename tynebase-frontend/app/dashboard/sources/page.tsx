@@ -66,7 +66,7 @@ interface SourceHealthResponse {
   documents_needing_reindex: Array<{
     id: string;
     title: string;
-    reason: 'never_indexed' | 'outdated';
+    reason: 'never_indexed' | 'outdated' | 'failed';
     last_indexed_at: string | null;
     updated_at: string;
   }>;
@@ -257,8 +257,7 @@ export default function SourcesPage() {
   const filtered = useMemo(() => {
     if (!healthData) return [];
     if (reasonFilter === 'failed') {
-      // For failed filter, show an empty list since we don't have individual failed docs
-      return [];
+      // The backend now returns failed docs so we don't return an empty array anymore.
     }
     let result = healthData.documents_needing_reindex;
     if (reasonFilter !== 'all') {
@@ -488,6 +487,11 @@ export default function SourcesPage() {
                               <>
                                 <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
                                 Never indexed
+                              </>
+                            ) : doc.reason === 'failed' ? (
+                              <>
+                                <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+                                Indexing failed
                               </>
                             ) : (
                               <>

@@ -49,7 +49,7 @@ export default function SettingsPage() {
     },
     {
       title: 'Preferences',
-      description: 'Customize your experience and interface',
+      description: 'Customise your experience and interface',
       icon: Settings,
       href: '/dashboard/preferences',
       color: 'text-gray-600'

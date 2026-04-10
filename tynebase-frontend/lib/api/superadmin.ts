@@ -192,6 +192,10 @@ export async function deleteTenant(tenantId: string): Promise<{ message: string 
   return apiDelete<{ message: string }>(`/api/superadmin/tenants/${tenantId}`);
 }
 
+export async function hardDeleteTenant(tenantId: string): Promise<{ message: string }> {
+  return apiDelete<{ message: string }>(`/api/superadmin/tenants/${tenantId}/purge`);
+}
+
 // ============================================================================
 // CHANGE TIER
 // ============================================================================

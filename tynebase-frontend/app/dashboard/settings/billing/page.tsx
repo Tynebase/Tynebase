@@ -134,8 +134,8 @@ const CREDIT_PACKS: Array<{
   popular?: boolean;
 }> = [
   { pack: '100', credits: 100, price: 10, pricePer: '£0.10 / credit' },
-  { pack: '500', credits: 500, price: 40, pricePer: '£0.08 / credit', popular: true },
-  { pack: '1000', credits: 1000, price: 75, pricePer: '£0.07 / credit' },
+  { pack: '500', credits: 500, price: 40, pricePer: '£0.08 / credit' },
+  { pack: '1000', credits: 1000, price: 75, pricePer: '£0.07 / credit', popular: true },
 ];
 
 // ---------------------------------------------------------------------------
@@ -445,18 +445,6 @@ function BillingPageInner() {
                     <span className="text-yellow-600 font-medium">Credits running low!</span>
                   )}
                 </p>
-                {hasPaidPlan && isAdmin && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      document.getElementById('buy-credits')?.scrollIntoView({ behavior: 'smooth' });
-                    }}
-                  >
-                    <ShoppingCart className="h-3.5 w-3.5 mr-1.5" />
-                    Buy More Credits
-                  </Button>
-                )}
               </div>
             </div>
           )}
