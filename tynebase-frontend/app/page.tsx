@@ -697,10 +697,10 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto items-stretch">
-            {/* Base */}
+            {/* Free */}
             <div className="pricing-card-black-border" style={{ backgroundColor: 'var(--bg-elevated)', borderRadius: 'var(--radius-xl)', padding: '32px', display: 'flex', flexDirection: 'column', transition: 'all var(--duration-normal) var(--ease-out)', border: `1px solid ${getBorderColor()}` }}>
               <div style={{ marginBottom: '16px' }}>
-                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Base</h3>
+                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Free</h3>
               </div>
               <div style={{ marginBottom: '24px' }}>
                 <div className="mt-4">
@@ -727,13 +727,10 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Pro - Highlighted */}
-            <div className="pricing-card pricing-card-featured relative overflow-visible">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                <span className="badge badge-brand">Popular</span>
-              </div>
-              <div style={{ marginBottom: '16px', paddingTop: '8px' }}>
-                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Pro</h3>
+            {/* Base */}
+            <div className="pricing-card-black-border" style={{ backgroundColor: 'var(--bg-elevated)', borderRadius: 'var(--radius-xl)', padding: '32px', display: 'flex', flexDirection: 'column', transition: 'all var(--duration-normal) var(--ease-out)', border: `1px solid ${getBorderColor()}` }}>
+              <div style={{ marginBottom: '16px' }}>
+                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Base</h3>
               </div>
               <div style={{ marginBottom: '24px' }}>
                 <div className="mt-4">
@@ -758,17 +755,20 @@ export default function Home() {
                   </ul>
                 </div>
                 <div style={{ marginTop: '28px' }}>
-                  <Link href="/signup" className="btn btn-primary w-full" style={{ padding: '16px 32px', fontSize: '15px' }}>
+                  <Link href="/signup" className="btn btn-secondary w-full" style={{ padding: '16px 32px', fontSize: '15px' }}>
                     Get started
                   </Link>
                 </div>
               </div>
             </div>
 
-            {/* Enterprise */}
-            <div className="pricing-card-black-border" style={{ backgroundColor: 'var(--bg-elevated)', borderRadius: 'var(--radius-xl)', padding: '32px', display: 'flex', flexDirection: 'column', transition: 'all var(--duration-normal) var(--ease-out)', border: `1px solid ${getBorderColor()}` }}>
-              <div style={{ marginBottom: '16px' }}>
-                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Enterprise</h3>
+            {/* Pro - Highlighted */}
+            <div className="pricing-card pricing-card-featured relative overflow-visible">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                <span className="badge badge-brand">Popular</span>
+              </div>
+              <div style={{ marginBottom: '16px', paddingTop: '8px' }}>
+                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Pro</h3>
               </div>
               <div style={{ marginBottom: '24px' }}>
                 <div className="mt-4">
@@ -785,38 +785,6 @@ export default function Home() {
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
                   <ul className="space-y-3">
                     {['Up to 50 users', 'Unlimited documents', '10GB Storage limit', '500 AI credits per month', 'White-label branding', 'Advanced analytics', 'Custom domain', 'Priority support', 'Audit logs'].map((feature) => (
-                      <li key={feature} className="flex items-center gap-3 text-sm text-[var(--text-secondary)]" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-                        <Check className="w-4 h-4 text-[var(--brand)] flex-shrink-0" />
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div style={{ marginTop: '28px' }}>
-                  <Link href="/signup" className="btn btn-secondary w-full" style={{ padding: '16px 32px', fontSize: '15px' }}>
-                    Get started
-                  </Link>
-                </div>
-              </div>
-            </div>
-
-            {/* Consult Sales - Custom styled */}
-            <div className="pricing-card-enterprise" style={{ display: 'flex', flexDirection: 'column' }}>
-              <div className="pricing-card-enterprise-inner" style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-                {/* Section 1: Title */}
-                <div style={{ marginBottom: '16px' }}>
-                  <h3 className="text-lg font-semibold text-[var(--text-primary)]">Consult Sales</h3>
-                </div>
-
-                {/* Section 2: Description */}
-                <div style={{ marginBottom: '24px' }}>
-                  <p className="text-sm text-[var(--text-muted)]">Custom solutions for large organizations</p>
-                </div>
-
-                {/* Section 3: Features */}
-                <div style={{ marginBottom: '24px' }}>
-                  <ul className="space-y-3">
-                    {['All Enterprise features', 'Unlimited Users', 'Unlimited Documents', 'Dedicated support', 'Custom integrations', 'SLA guarantee', 'On-premise option', 'Rollover credits'].map((feature) => (
                       <li key={feature} className="flex items-center gap-3 text-sm text-[var(--text-secondary)]">
                         <Check className="w-4 h-4 text-[var(--brand)] flex-shrink-0" />
                         {feature}
@@ -824,8 +792,33 @@ export default function Home() {
                     ))}
                   </ul>
                 </div>
+                <div style={{ marginTop: '28px' }}>
+                  <Link href="/signup" className="btn btn-primary w-full" style={{ padding: '16px 32px', fontSize: '15px' }}>
+                    Get started
+                  </Link>
+                </div>
+              </div>
+            </div>
 
-                {/* Section 4: Button */}
+            {/* Enterprise */}
+            <div className="pricing-card-black-border" style={{ backgroundColor: 'var(--bg-elevated)', borderRadius: 'var(--radius-xl)', padding: '32px', display: 'flex', flexDirection: 'column', transition: 'all var(--duration-normal) var(--ease-out)', border: `1px solid ${getBorderColor()}` }}>
+              <div style={{ marginBottom: '16px' }}>
+                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Enterprise</h3>
+              </div>
+              <div style={{ marginBottom: '24px' }}>
+                <p className="text-sm text-[var(--text-muted)]">Contact Sales</p>
+              </div>
+              <div className="flex-1" style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+                  <ul className="space-y-3">
+                    {['All Pro features', 'Unlimited Users', 'Unlimited Documents', 'Dedicated support', 'Custom integrations', 'SLA guarantee', 'On-premise option', 'Rollover credits'].map((feature) => (
+                      <li key={feature} className="flex items-center gap-3 text-sm text-[var(--text-secondary)]">
+                        <Check className="w-4 h-4 text-[var(--brand)] flex-shrink-0" />
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
                 <div style={{ marginTop: '28px' }}>
                   <Link href="/contact" className="btn btn-primary w-full" style={{ padding: '16px 32px', fontSize: '15px' }}>
                     Contact sales
