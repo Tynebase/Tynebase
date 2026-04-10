@@ -459,9 +459,17 @@ function renderMarkdown(content: string): string {
   });
 
   // Protect image blocks before paragraph transform
+  // Supports optional max-width via pipe in alt: ![caption|240px](url)
   md = md.replace(/^!\[([^\]]*)\]\(([^)]+)\)$/gm, (_, alt, src) => {
+    let displayAlt = alt;
+    let maxWidth = '100%';
+    const pipeIdx = alt.indexOf('|');
+    if (pipeIdx !== -1) {
+      displayAlt = alt.slice(0, pipeIdx).trim();
+      maxWidth = alt.slice(pipeIdx + 1).trim();
+    }
     const idx = blocks.length;
-    blocks.push(`<figure style="margin:24px 0;"><img src="${src}" alt="${alt}" style="width:100%;border-radius:10px;border:1px solid var(--border-subtle);display:block;" />${alt ? `<figcaption style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:8px;">${alt}</figcaption>` : ''}</figure>`);
+    blocks.push(`<figure style="margin:24px 0;"><img src="${src}" alt="${displayAlt}" style="width:100%;max-width:${maxWidth};border-radius:10px;border:1px solid var(--border-subtle);display:block;" />${displayAlt ? `<figcaption style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:8px;">${displayAlt}</figcaption>` : ''}</figure>`);
     return `\x02${idx}\x03`;
   });
 

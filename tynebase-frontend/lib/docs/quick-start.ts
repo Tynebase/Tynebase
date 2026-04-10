@@ -31,7 +31,7 @@ For this guide, select **Blank Document**.
 
 After signing in, you'll land on your workspace dashboard. Click **+ New Document** at the top right-hand side of the page:
 
-![New Document button](/newdocument.png)
+![New Document button|240px](/newdocument.png)
 
 To open the document editor:
 
@@ -53,7 +53,7 @@ Our editor supports:
 
 Before publishing, set the metadata for your document. These settings are found within the **Document settings** tab:
 
-![Document settings tab](/docsettingstab.png)
+![Document settings tab|240px](/docsettingstab.png)
 
 | Field | Description |
 |-------|-------------|
@@ -68,7 +68,7 @@ Once you are finished with your article, you can either save it as a **draft** t
 
 To publish your article, click **Save & Publish**:
 
-![Save and Publish button](/save_publish.png)
+![Save and Publish button|240px](/save_publish.png)
 
 To make your document live. It will immediately:
 
