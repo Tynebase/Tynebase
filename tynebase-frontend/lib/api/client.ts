@@ -155,24 +155,32 @@ async function refreshAccessToken(): Promise<string | null> {
 }
 
 /**
- * Get the stored tenant subdomain from localStorage or the current URL
+ * Get the active tenant subdomain.
+ * Priority: URL subdomain > localStorage (fallback for bare-domain / localhost).
+ * The URL is the source of truth — if the user is on dang.tynebase.com the
+ * tenant MUST be "dang", regardless of what localStorage says.
  */
 function getTenantSubdomain(): string | null {
   if (typeof window === 'undefined') return null;
   
-  // Try localStorage first (overrides)
-  const stored = localStorage.getItem('tenant_subdomain');
-  if (stored && stored !== 'main' && stored !== 'www') return stored;
-  
-  // Fallback to URL detection
+  // 1. URL subdomain is the authoritative source
   const { getCurrentSubdomain } = require('@/lib/utils');
   const urlSubdomain = getCurrentSubdomain();
   
-  if (urlSubdomain && urlSubdomain !== 'www') {
+  if (urlSubdomain && urlSubdomain !== 'www' && urlSubdomain !== 'main' && urlSubdomain !== 'app') {
+    // Sync localStorage so subsequent bare-domain requests use this too
+    const stored = localStorage.getItem('tenant_subdomain');
+    if (stored !== urlSubdomain) {
+      localStorage.setItem('tenant_subdomain', urlSubdomain);
+    }
     return urlSubdomain;
   }
   
-  return stored;
+  // 2. Fallback to localStorage (for bare-domain or localhost access)
+  const stored = localStorage.getItem('tenant_subdomain');
+  if (stored && stored !== 'main' && stored !== 'www' && stored !== 'app') return stored;
+  
+  return null;
 }
 
 /**
