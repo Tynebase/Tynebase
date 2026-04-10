@@ -714,32 +714,13 @@ export default async function authRoutes(fastify: FastifyInstance) {
         });
       }
 
-      // Fetch user profile to get tenant_id and role (handle multiple rows per ID)
-      const { data: users, error: profileError } = await supabaseAdmin
-        .from('users')
-        .select('id, email, role, tenant_id, is_super_admin')
-        .eq('id', user.id)
-        .order('tenant_id', { ascending: true })
-        .limit(1);
-
-      const userProfile = users?.[0];
-
-      if (profileError || !userProfile) {
-        return reply.code(401).send({
-          error: {
-            code: 'PROFILE_NOT_FOUND',
-            message: 'User profile not found',
-            details: {},
-          },
-        });
-      }
-
+      // Only set the user ID - profile lookup is done in the main handler
       request.user = {
-        id: userProfile.id,
-        email: userProfile.email,
-        role: userProfile.role,
-        tenant_id: userProfile.tenant_id,
-        is_super_admin: userProfile.is_super_admin,
+        id: user.id,
+        email: user.email,
+        role: null,
+        tenant_id: null,
+        is_super_admin: false,
       };
     },
   }, async (request, reply) => {
