@@ -70,10 +70,19 @@ export default function CommunitySignupPage() {
     }
 
     const currentSubdomain = subdomain || "main";
+    const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || "tynebase.com";
+    const protocol = window.location.protocol;
+    
+    // Redirect to the main domain's callback path to ensure it's whitelisted in Supabase
+    const redirectTo = `${protocol}//www.${baseDomain}/auth/callback`;
+    
+    // The final destination after the callback process
+    const finalRedirect = `${window.location.origin}/community/join/finalize?subdomain=${currentSubdomain}`;
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?redirect=/community/join/finalize&subdomain=${currentSubdomain}`,
+        redirectTo: `${redirectTo}?redirect=${encodeURIComponent(finalRedirect)}`,
         queryParams: { access_type: "offline", prompt: "consent" },
       },
     });
