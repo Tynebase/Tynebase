@@ -1086,7 +1086,7 @@ export default function CategoriesPage() {
 
               <div>
                 <label className="block text-sm font-medium text-[var(--dash-text-secondary)] mb-2">
-                  Color
+                  Colour
                 </label>
                 <div className="flex gap-2">
                   {CATEGORY_COLORS.map((color) => (

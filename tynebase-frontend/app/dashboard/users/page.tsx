@@ -31,22 +31,26 @@ import {
   Crown,
   ArrowRight
 } from "lucide-react";
-import { inviteUser, listPendingInvites, cancelInvite, resendInvite, PendingInvite } from "@/lib/api/invites";
+import { inviteUser, listPendingInvites, cancelInvite, resendInvite, PendingInvite, WorkspaceRole } from "@/lib/api/invites";
 import { useToast } from "@/components/ui/Toast";
 import { TIER_CONFIG, TierType } from "@/types/api";
 import Link from "next/link";
 
 // Role options for the dropdown
 const roleOptions = [
-  { value: "viewer", label: "Viewer", description: "Read-only access" },
-  { value: "editor", label: "Editor", description: "Can create and edit workspace content" },
-  { value: "admin", label: "Admin", description: "Can manage members and workspace settings" },
+  { value: "viewer" as WorkspaceRole, label: "Viewer", description: "Read-only access" },
+  { value: "editor" as WorkspaceRole, label: "Editor", description: "Can create and edit workspace content" },
+  { value: "admin" as WorkspaceRole, label: "Admin", description: "Can manage members and workspace settings" },
+  { value: "community_contributor" as WorkspaceRole, label: "Community Contributor", description: "Can participate in community discussions" },
+  { value: "community_admin" as WorkspaceRole, label: "Community Admin", description: "Can moderate community discussions" },
 ];
 
 const roleColors: Record<string, string> = {
   admin: "bg-purple-500/10 text-purple-600",
   editor: "bg-blue-500/10 text-blue-600",
   viewer: "bg-gray-500/10 text-gray-600",
+  community_contributor: "bg-green-500/10 text-green-600",
+  community_admin: "bg-emerald-500/10 text-emerald-600",
 };
 
 function getRoleBadgeClass(role: string) {
@@ -179,6 +183,8 @@ function UsersFiltersBar({
             <option value="admin">Admin</option>
             <option value="editor">Editor</option>
             <option value="viewer">Viewer</option>
+            <option value="community_contributor">Community Contributor</option>
+            <option value="community_admin">Community Admin</option>
           </select>
         </div>
       </div>
@@ -242,7 +248,7 @@ export default function UsersPage() {
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"admin" | "editor" | "viewer">("viewer");
+  const [inviteRole, setInviteRole] = useState<WorkspaceRole>("viewer");
   const [inviting, setInviting] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -252,7 +258,7 @@ export default function UsersPage() {
   
   // Role change modal state
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [editRole, setEditRole] = useState<"admin" | "editor" | "viewer">("viewer");
+  const [editRole, setEditRole] = useState<WorkspaceRole>("viewer");
   const [updating, setUpdating] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
   
@@ -675,12 +681,14 @@ export default function UsersPage() {
             </label>
             <select
               value={inviteRole}
-              onChange={(e) => setInviteRole(e.target.value as "admin" | "editor" | "viewer")}
-              className="w-full px-4 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)] [&>option]:rounded-lg appearance-none"
+              onChange={(e) => setInviteRole(e.target.value as WorkspaceRole)}
+              className="w-full px-4 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand-primary)] [&>option]:rounded-lg appearance-none"
             >
               <option value="viewer">Viewer - Read-only access</option>
               <option value="editor">Editor - Can create and edit workspace content</option>
               <option value="admin">Admin - Can manage members and workspace settings</option>
+              <option value="community_contributor">Community Contributor - Can participate in community discussions</option>
+              <option value="community_admin">Community Admin - Can moderate community discussions</option>
             </select>
           </div>
 
@@ -716,7 +724,7 @@ export default function UsersPage() {
             <Dropdown
               options={roleOptions}
               value={editRole}
-              onChange={(value) => setEditRole(value as "admin" | "editor" | "viewer")}
+              onChange={(value) => setEditRole(value as WorkspaceRole)}
               className="w-full"
             />
           </div>
@@ -793,6 +801,16 @@ export default function UsersPage() {
               <div>
                 <h3 className="font-semibold text-[var(--text-primary)] text-sm">Viewer</h3>
                 <p className="text-sm text-[var(--text-tertiary)] mt-1">Read-only access. Can view workspace content but cannot create, edit, vote, or delete anything.</p>
+              </div>
+              <div className="h-px bg-[var(--border-subtle)]" />
+              <div>
+                <h3 className="font-semibold text-[var(--text-primary)] text-sm">Community Contributor</h3>
+                <p className="text-sm text-[var(--text-tertiary)] mt-1">Can participate in community discussions, create posts, and reply. Does not count toward workspace seat limits.</p>
+              </div>
+              <div className="h-px bg-[var(--border-subtle)]" />
+              <div>
+                <h3 className="font-semibold text-[var(--text-primary)] text-sm">Community Admin</h3>
+                <p className="text-sm text-[var(--text-tertiary)] mt-1">Can moderate community discussions, delete posts, and manage community content. Does not count toward workspace seat limits.</p>
               </div>
             </div>
           </div>

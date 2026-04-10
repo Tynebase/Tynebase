@@ -6,7 +6,7 @@
 
 import { apiPost, apiGet, apiDelete } from './client';
 
-export type WorkspaceRole = 'admin' | 'editor' | 'viewer';
+export type WorkspaceRole = 'admin' | 'editor' | 'viewer' | 'community_contributor' | 'community_admin';
 
 export interface InviteUserRequest {
   email: string;

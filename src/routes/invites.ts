@@ -190,12 +190,14 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
         }
 
         // Check user limit for tenant's tier
+        // Community roles (community_contributor, community_admin) don't count toward the limit
         const userLimit = getUserLimitForTier(tenant.tier);
         const { count: currentUserCount } = await supabaseAdmin
           .from('users')
           .select('id', { count: 'exact', head: true })
           .eq('tenant_id', tenant.id)
-          .eq('status', 'active');
+          .eq('status', 'active')
+          .not('role', 'in', '("community_contributor", "community_admin")');
 
         // Also count pending invites towards the limit
         const { count: pendingInviteCount } = await supabaseAdmin
@@ -550,12 +552,14 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
             });
           }
 
+          // Community roles (community_contributor, community_admin) don't count toward the limit
           const userLimit = getUserLimitForTier(tenant.tier);
           const { count: currentUserCount } = await supabaseAdmin
             .from('users')
             .select('id', { count: 'exact', head: true })
             .eq('tenant_id', inviteRecord.tenant_id)
-            .eq('status', 'active');
+            .eq('status', 'active')
+            .not('role', 'in', '("community_contributor", "community_admin")');
 
           if ((currentUserCount || 0) >= userLimit) {
             return reply.code(403).send({
@@ -830,12 +834,14 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
           });
         }
 
+        // Community roles (community_contributor, community_admin) don't count toward the limit
         const userLimit = getUserLimitForTier(tenant.tier);
         const { count: currentUserCount } = await supabaseAdmin
           .from('users')
           .select('id', { count: 'exact', head: true })
           .eq('tenant_id', tenant_id)
-          .eq('status', 'active');
+          .eq('status', 'active')
+          .not('role', 'in', '("community_contributor", "community_admin")');
 
         if ((currentUserCount || 0) >= userLimit) {
           return reply.code(403).send({

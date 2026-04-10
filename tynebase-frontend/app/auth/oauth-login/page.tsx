@@ -88,9 +88,13 @@ function OAuthLoginContent() {
             router.replace("/login?error=account_deleted");
           } else if (code === "ACCOUNT_SUSPENDED") {
             router.replace("/login?error=account_suspended");
+          } else if (code === "PROFILE_NOT_FOUND") {
+            // User authenticated but has no profile - they need to complete signup
+            // Redirect to signup page instead of complete-signup (which requires pending_signup data)
+            window.location.replace("/signup");
           } else {
-            // User may not have completed signup yet
-            window.location.replace("/auth/complete-signup");
+            // Other errors - redirect to login
+            router.replace("/login?error=auth_failed");
           }
           return;
         }

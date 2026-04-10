@@ -1625,10 +1625,10 @@ export default function KnowledgePage() {
         onClose={closeMoveCategoryModal}
         title={moveCategorySuccess ? 'Category Assigned' : 'Assign a Category'}
         description={moveCategorySuccess 
-          ? `Successfully assigned documents to ${moveCategoryTargetName}`
+          ? undefined
           : `Assign ${selectedIds.size} document${selectedIds.size !== 1 ? 's' : ''} a category`
         }
-        size="sm"
+        size={moveCategorySuccess ? "sm" : "sm"}
       >
         {moveCategorySuccess ? (
           // Success Confirmation Screen

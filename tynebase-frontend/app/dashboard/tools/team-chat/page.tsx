@@ -1608,7 +1608,7 @@ export default function TeamChatPage() {
                 <select
                   value={assignTo}
                   onChange={(e) => setAssignTo(e.target.value)}
-                  className="w-full px-3 pr-8 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-full text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
+                  className="w-full px-3 pr-8 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-2xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
                 >
                   <option value="">Select team member...</option>
                   {teamUsers.filter(m => m.id !== user?.id).map((m) => (
@@ -1651,7 +1651,7 @@ export default function TeamChatPage() {
                   <select
                     value={assignDocId}
                     onChange={(e) => setAssignDocId(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-full text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
+                    className="w-full px-3 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-2xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
                   >
                     <option value="">Select document...</option>
                     {documents.map((d) => (
@@ -1679,7 +1679,7 @@ export default function TeamChatPage() {
                   <select
                     value={assignPriority}
                     onChange={(e) => setAssignPriority(e.target.value as any)}
-                    className="w-full px-3 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-full text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
+                    className="w-full px-3 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-2xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
