@@ -474,12 +474,7 @@ async function documentShareRoutes(fastify) {
             published_at,
             created_at,
             updated_at,
-            view_count,
-            users:author_id (
-              id,
-              email,
-              full_name
-            )
+            view_count
           `, { count: 'exact' })
                 .eq('visibility', 'public')
                 .eq('status', 'published')
@@ -496,10 +491,28 @@ async function documentShareRoutes(fastify) {
                     error: { code: 'FETCH_FAILED', message: 'Failed to fetch shared documents', details: {} },
                 });
             }
+            // Fetch user information for all authors
+            const authorIds = (documents || []).map((doc) => doc.author_id).filter((id) => id);
+            let usersMap = {};
+            if (authorIds.length > 0) {
+                const { data: users } = await supabase_1.supabaseAdmin
+                    .from('users')
+                    .select('id, email, full_name')
+                    .in('id', authorIds);
+                usersMap = (users || []).reduce((acc, user) => {
+                    acc[user.id] = user;
+                    return acc;
+                }, {});
+            }
+            // Merge user information into documents
+            const documentsWithUsers = (documents || []).map((doc) => ({
+                ...doc,
+                users: usersMap[doc.author_id] || null,
+            }));
             const totalPages = count ? Math.ceil(count / query.limit) : 0;
             // Rewrite asset URLs for all public documents to use the public proxy
             const apiBaseUrl = process.env.API_BASE_URL || 'https://tynebase-backend.fly.dev';
-            const documentsWithRewrittenUrls = (documents || []).map((doc) => ({
+            const documentsWithRewrittenUrls = documentsWithUsers.map((doc) => ({
                 ...doc,
                 content: rewriteAssetUrlsForPublicAccess(doc.content || '', doc.id, apiBaseUrl),
             }));
@@ -559,12 +572,7 @@ async function documentShareRoutes(fastify) {
             is_approved,
             created_by,
             created_at,
-            updated_at,
-            users:created_by (
-              id,
-              email,
-              full_name
-            )
+            updated_at
           `, { count: 'exact' })
                 .eq('tenant_id', tenant.id)
                 .eq('visibility', 'public')
@@ -576,11 +584,29 @@ async function documentShareRoutes(fastify) {
                     error: { code: 'FETCH_FAILED', message: 'Failed to fetch shared templates', details: {} },
                 });
             }
+            // Fetch user information for all creators
+            const creatorIds = (templates || []).map((tpl) => tpl.created_by).filter((id) => id);
+            let usersMap = {};
+            if (creatorIds.length > 0) {
+                const { data: users } = await supabase_1.supabaseAdmin
+                    .from('users')
+                    .select('id, email, full_name')
+                    .in('id', creatorIds);
+                usersMap = (users || []).reduce((acc, user) => {
+                    acc[user.id] = user;
+                    return acc;
+                }, {});
+            }
+            // Merge user information into templates
+            const templatesWithUsers = (templates || []).map((tpl) => ({
+                ...tpl,
+                users: usersMap[tpl.created_by] || null,
+            }));
             const totalPages = count ? Math.ceil(count / query.limit) : 0;
             return reply.code(200).send({
                 success: true,
                 data: {
-                    templates: templates || [],
+                    templates: templatesWithUsers || [],
                     pagination: {
                         page: query.page,
                         limit: query.limit,
