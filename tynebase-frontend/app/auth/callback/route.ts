@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -34,6 +35,12 @@ export async function GET(request: Request) {
   }
 
   const supabase = await createClient();
+  
+  // Diagnostic logging for PKCE verifier
+  const cookieStore = await cookies();
+  const sbCookies = cookieStore.getAll().filter((c: any) => c.name.startsWith('sb-'));
+  console.log('[Auth Callback] Supabase cookies:', sbCookies.map((c: any) => c.name));
+  
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
