@@ -60,6 +60,7 @@ const listDocumentsQuerySchema = z.object({
   category_id: z.string().uuid().optional(),
   status: z.enum(['draft', 'published']).optional(),
   tag_id: z.string().uuid().optional(),
+  search: z.string().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
@@ -175,7 +176,7 @@ export default async function documentRoutes(fastify: FastifyInstance) {
 
         // Validate query parameters
         const query = listDocumentsQuerySchema.parse(request.query);
-        const { category_id, status, tag_id, page, limit } = query;
+        const { category_id, status, tag_id, search, page, limit } = query;
 
         // Calculate pagination offset
         const offset = (page - 1) * limit;
@@ -200,10 +201,13 @@ export default async function documentRoutes(fastify: FastifyInstance) {
           `, { count: 'exact' })
           .eq('tenant_id', tenant.id)
           .not('content', 'like', '__CATEGORY__%')
-          .order('created_at', { ascending: false })
-          .range(offset, offset + limit - 1);
+          .order('created_at', { ascending: false });
 
         // Apply optional filters
+        if (search) {
+          dbQuery = dbQuery.ilike('title', `%${search}%`);
+        }
+
         if (category_id !== undefined) {
           dbQuery = dbQuery.eq('category_id', category_id);
         }
@@ -246,6 +250,9 @@ export default async function documentRoutes(fastify: FastifyInstance) {
             });
           }
         }
+
+        // Apply pagination
+        dbQuery = dbQuery.range(offset, offset + limit - 1);
 
         // Execute query
         const { data: documents, error, count } = await dbQuery;
