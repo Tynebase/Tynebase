@@ -71,11 +71,34 @@ export async function authMiddleware(
       });
     }
 
-    const { data: userData, error: dbError } = await supabaseAdmin
-      .from('users')
-      .select('id, email, full_name, role, tenant_id, is_super_admin, status')
-      .eq('id', userId)
-      .single();
+    // Check if tenant context is available (set by tenantContextMiddleware)
+    const tenantContext = (request as any).tenant;
+    let userData;
+    let dbError;
+
+    if (tenantContext && tenantContext.id) {
+      // Query for user profile in the specific tenant context
+      const { data: users, error: error } = await supabaseAdmin
+        .from('users')
+        .select('id, email, full_name, role, tenant_id, is_super_admin, status')
+        .eq('id', userId)
+        .eq('tenant_id', tenantContext.id)
+        .maybeSingle();
+
+      userData = users;
+      dbError = error;
+    } else {
+      // No tenant context, fall back to first tenant (original behavior)
+      const { data: users, error: error } = await supabaseAdmin
+        .from('users')
+        .select('id, email, full_name, role, tenant_id, is_super_admin, status')
+        .eq('id', userId)
+        .order('tenant_id', { ascending: true })
+        .limit(1);
+
+      userData = users?.[0];
+      dbError = error;
+    }
 
     if (dbError || !userData) {
       request.log.error(

@@ -332,8 +332,7 @@ export default async function dashboardRoutes(fastify: FastifyInstance) {
             created_at,
             actor_id,
             document_id,
-            documents!inner(title),
-            users!inner(full_name, email)
+            documents!inner(title)
           `)
           .eq('documents.tenant_id', tenant.id)
           .order('created_at', { ascending: false })
@@ -344,10 +343,27 @@ export default async function dashboardRoutes(fastify: FastifyInstance) {
           throw activityError;
         }
 
+        // Fetch user information for all actors in the tenant
+        const actorIds = [...new Set(activities?.map(a => a.actor_id) || [])];
+        const { data: users } = await supabaseAdmin
+          .from('users')
+          .select('id, full_name, email')
+          .eq('tenant_id', tenant.id)
+          .in('id', actorIds);
+
+        // Create a map of user id to user data
+        const userMap = new Map(users?.map(u => [u.id, { full_name: u.full_name, email: u.email }]) || []);
+
+        // Merge user information into activities
+        const activitiesWithUsers = activities?.map(activity => ({
+          ...activity,
+          users: userMap.get(activity.actor_id) || null
+        })) || [];
+
         return reply.status(200).send({
           success: true,
           data: {
-            activities: activities || [],
+            activities: activitiesWithUsers,
           },
         });
       } catch (error) {

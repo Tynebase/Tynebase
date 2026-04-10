@@ -567,14 +567,15 @@ export default async function authRoutes(fastify: FastifyInstance) {
         });
       }
 
-      // Get user profile
-      const { data: userProfile, error: profileError } = await supabaseAdmin
+      // Get all user profiles across tenants (handle multiple rows per ID due to composite key)
+      const { data: users, error: profileError } = await supabaseAdmin
         .from('users')
         .select('id, email, full_name, role, is_super_admin, status, tenant_id')
         .eq('id', data.user.id)
-        .single();
+        .eq('status', 'active')
+        .order('tenant_id', { ascending: true });
 
-      if (profileError || !userProfile) {
+      if (profileError || !users || users.length === 0) {
         fastify.log.error({ error: profileError }, 'Failed to fetch user profile');
         return reply.code(500).send({
           error: {
@@ -584,6 +585,10 @@ export default async function authRoutes(fastify: FastifyInstance) {
           },
         });
       }
+
+      // Prefer admin tenant if user has admin role in any tenant
+      const adminProfile = users.find(u => u.role === 'admin' || u.is_super_admin);
+      const userProfile = adminProfile || users[0];
 
       // Get tenant info separately
       const { data: tenant, error: tenantError } = await supabaseAdmin
@@ -709,12 +714,15 @@ export default async function authRoutes(fastify: FastifyInstance) {
         });
       }
 
-      // Fetch user profile to get tenant_id and role
-      const { data: userProfile, error: profileError } = await supabaseAdmin
+      // Fetch user profile to get tenant_id and role (handle multiple rows per ID)
+      const { data: users, error: profileError } = await supabaseAdmin
         .from('users')
         .select('id, email, role, tenant_id, is_super_admin')
         .eq('id', user.id)
-        .single();
+        .order('tenant_id', { ascending: true })
+        .limit(1);
+
+      const userProfile = users?.[0];
 
       if (profileError || !userProfile) {
         return reply.code(401).send({
@@ -757,12 +765,15 @@ export default async function authRoutes(fastify: FastifyInstance) {
           query = query.eq('tenant_id', targetTenant.id);
         }
       } else {
-        // Default to the first profile found (or original_tenant if we had one)
-        // For now, .single() still works if they only have one, otherwise we'd need more logic
-        query = query.limit(1);
+        // Default to admin tenant if they have one, otherwise first profile
+        query = query.eq('status', 'active').order('tenant_id', { ascending: true });
       }
 
-      const { data: userProfile, error } = await query.single();
+      const { data: users, error } = await query;
+
+      // Prefer admin tenant if user has admin role in any tenant
+      const adminProfile = users?.find(u => u.role === 'admin' || u.is_super_admin);
+      const userProfile = adminProfile || users?.[0];
 
       if (error || !userProfile) {
         fastify.log.error({ error }, 'Failed to fetch user profile');
@@ -875,12 +886,15 @@ export default async function authRoutes(fastify: FastifyInstance) {
         });
       }
 
-      // Fetch user profile to get tenant_id and role
-      const { data: userProfile, error: profileError } = await supabaseAdmin
+      // Fetch user profile to get tenant_id and role (handle multiple rows per ID)
+      const { data: users, error: profileError } = await supabaseAdmin
         .from('users')
         .select('id, email, role, tenant_id, is_super_admin')
         .eq('id', user.id)
-        .single();
+        .order('tenant_id', { ascending: true })
+        .limit(1);
+
+      const userProfile = users?.[0];
 
       if (profileError || !userProfile) {
         return reply.code(401).send({
