@@ -23,7 +23,8 @@ interface TenantInfo {
 function CommunityContent() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
-  const domain = searchParams.get("domain");
+  // Use domain from search params (set by middleware) or fallback to current hostname
+  const domain = searchParams.get("domain") || (typeof window !== 'undefined' ? window.location.hostname : null);
 
   const [tenant, setTenant] = useState<TenantInfo | null>(null);
   const [discussions, setDiscussions] = useState<Discussion[]>([]);

@@ -34,7 +34,7 @@ function isAuthenticated(request: NextRequest): boolean {
   return !!accessToken;
 }
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const hostname = request.headers.get("host") || "";
   const subdomain = extractSubdomain(hostname, BASE_DOMAIN);
   const pathname = request.nextUrl.pathname;

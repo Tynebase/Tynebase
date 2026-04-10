@@ -27,7 +27,8 @@ interface TenantInfo {
 
 function PortalContent() {
   const searchParams = useSearchParams();
-  const domain = searchParams.get("domain");
+  // Use domain from search params (set by middleware) or fallback to current hostname
+  const domain = searchParams.get("domain") || (typeof window !== 'undefined' ? window.location.hostname : null);
 
   const [tenant, setTenant] = useState<TenantInfo | null>(null);
   const [tenantLoading, setTenantLoading] = useState(true);
