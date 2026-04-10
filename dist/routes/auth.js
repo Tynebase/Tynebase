@@ -652,83 +652,88 @@ async function authRoutes(fastify) {
                     },
                 });
             }
-            // Fetch user profile to get tenant_id and role (handle multiple rows per ID)
-            const { data: users, error: profileError } = await supabase_1.supabaseAdmin
-                .from('users')
-                .select('id, email, role, tenant_id, is_super_admin')
-                .eq('id', user.id)
-                .order('tenant_id', { ascending: true })
-                .limit(1);
-            const userProfile = users?.[0];
-            if (profileError || !userProfile) {
-                return reply.code(401).send({
-                    error: {
-                        code: 'PROFILE_NOT_FOUND',
-                        message: 'User profile not found',
-                        details: {},
-                    },
-                });
-            }
+            // Only set the user ID - profile lookup is done in the main handler
             request.user = {
-                id: userProfile.id,
-                email: userProfile.email,
-                role: userProfile.role,
-                tenant_id: userProfile.tenant_id,
-                is_super_admin: userProfile.is_super_admin,
+                id: user.id,
+                email: user.email || '',
+                role: '',
+                tenant_id: '',
+                is_super_admin: false,
             };
         },
     }, async (request, reply) => {
         try {
             const userId = request.user.id;
-            // Fetch user profile based on userId and the requested tenant subdomain (if provided)
-            const subdomain = request.headers['x-tenant-subdomain'];
-            let query = supabase_1.supabaseAdmin
-                .from('users')
-                .select('id, email, full_name, role, is_super_admin, status, last_active_at, tenant_id, original_tenant_id')
-                .eq('id', userId);
-            if (subdomain && subdomain !== 'www' && subdomain !== 'main') {
-                // Resolve tenant ID for the subdomain
+            // Resolve the active tenant from the `x-tenant-subdomain` header. The
+            // frontend apiClient always sends this (see lib/api/client.ts); the raw
+            // fetches in /auth/oauth-login and /community/join/finalize send it
+            // explicitly. If it's missing or generic (`www`/`main`), we fall back
+            // to "any active profile, admin preferred" — this is the bare-domain
+            // sign-in case.
+            const subdomain = request.headers['x-tenant-subdomain']?.toLowerCase();
+            const hasExplicitSubdomain = !!subdomain && subdomain !== 'www' && subdomain !== 'main';
+            let targetTenantId = null;
+            if (hasExplicitSubdomain) {
                 const { data: targetTenant } = await supabase_1.supabaseAdmin
                     .from('tenants')
                     .select('id')
-                    .eq('subdomain', subdomain.toLowerCase())
-                    .single();
-                if (targetTenant) {
-                    query = query.eq('tenant_id', targetTenant.id);
-                }
-            }
-            else {
-                // Default to admin tenant if they have one, otherwise first profile
-                query = query.eq('status', 'active').order('tenant_id', { ascending: true });
-            }
-            const { data: users, error } = await query;
-            // Prefer admin tenant if user has admin role in any tenant
-            const adminProfile = users?.find(u => u.role === 'admin' || u.is_super_admin);
-            const userProfile = adminProfile || users?.[0];
-            if (error || !userProfile) {
-                // Check if user has ANY profile at all (might be joining for first time)
-                const { data: anyProfile } = await supabase_1.supabaseAdmin
-                    .from('users')
-                    .select('id, tenant_id')
-                    .eq('id', userId)
+                    .eq('subdomain', subdomain)
                     .maybeSingle();
-                if (!anyProfile) {
-                    // User has no profile at all - they need to complete signup
-                    fastify.log.warn({ userId, subdomain }, 'User has no profile, needs to complete signup');
+                if (!targetTenant) {
+                    // Unknown subdomain — surface cleanly rather than silently falling
+                    // back to some other workspace.
+                    fastify.log.warn({ userId, subdomain }, '/me: unknown subdomain');
                     return reply.code(404).send({
                         error: {
-                            code: 'PROFILE_NOT_FOUND',
-                            message: 'User profile not found',
+                            code: 'TENANT_NOT_FOUND',
+                            message: 'No workspace exists at this address.',
                             details: {},
                         },
                     });
                 }
-                // User has a profile but not in this tenant - they're a guest
-                fastify.log.warn({ userId, subdomain, existingTenantId: anyProfile.tenant_id }, 'User profile not found in requested tenant, treating as guest');
+                targetTenantId = targetTenant.id;
+            }
+            // Fetch the user's row(s). With the composite (id, tenant_id) PK, a
+            // user can have multiple rows; we pick exactly one deterministically
+            // based on the resolved tenant context.
+            let query = supabase_1.supabaseAdmin
+                .from('users')
+                .select('id, email, full_name, role, is_super_admin, status, last_active_at, tenant_id, original_tenant_id')
+                .eq('id', userId);
+            if (targetTenantId) {
+                query = query.eq('tenant_id', targetTenantId);
+            }
+            const { data: users, error } = await query;
+            if (error) {
+                fastify.log.error({ error, userId, subdomain }, '/me: users query failed');
+                return reply.code(500).send({
+                    error: { code: 'INTERNAL_ERROR', message: 'Failed to look up profile', details: {} },
+                });
+            }
+            let userProfile;
+            if (targetTenantId) {
+                // Strict: the caller is on a specific subdomain, they must have a
+                // row for THAT tenant. No silent fallback to another workspace.
+                userProfile = users?.[0];
+            }
+            else {
+                // Bare-domain fallback: prefer an active admin row, else any active row.
+                const activeUsers = (users || []).filter((u) => u.status === 'active');
+                userProfile =
+                    activeUsers.find((u) => u.role === 'admin' || u.is_super_admin) ||
+                        activeUsers[0];
+            }
+            if (!userProfile) {
+                // User authenticated to Supabase but has no membership for this
+                // tenant (or no membership at all). Signal PROFILE_NOT_FOUND so the
+                // frontend can route them to signup / community-join / invite flows.
+                fastify.log.warn({ userId, subdomain, targetTenantId }, '/me: no profile row for requested tenant');
                 return reply.code(404).send({
                     error: {
                         code: 'PROFILE_NOT_FOUND',
-                        message: 'User profile not found in this workspace',
+                        message: targetTenantId
+                            ? 'You do not have access to this workspace.'
+                            : 'User profile not found',
                         details: {},
                     },
                 });
@@ -762,11 +767,13 @@ async function authRoutes(fastify) {
                     },
                 });
             }
-            // Update last_active_at
+            // Update last_active_at — scoped to (id, tenant_id) so we don't
+            // accidentally touch this user's other workspace memberships.
             await supabase_1.supabaseAdmin
                 .from('users')
                 .update({ last_active_at: new Date().toISOString() })
-                .eq('id', userId);
+                .eq('id', userId)
+                .eq('tenant_id', userProfile.tenant_id);
             // User is original admin if they are admin AND have no original_tenant_id (they created this workspace)
             const isOriginalAdmin = userProfile.role === 'admin' && userProfile.original_tenant_id === null;
             return reply.code(200).send({
@@ -825,13 +832,29 @@ async function authRoutes(fastify) {
                     },
                 });
             }
-            // Fetch user profile to get tenant_id and role (handle multiple rows per ID)
-            const { data: users, error: profileError } = await supabase_1.supabaseAdmin
+            // Resolve active tenant from x-tenant-subdomain header (same contract
+            // as GET /api/auth/me). Without this, PATCH would pick an arbitrary
+            // row and update across tenants.
+            const subdomain = request.headers['x-tenant-subdomain']?.toLowerCase();
+            const hasExplicitSubdomain = !!subdomain && subdomain !== 'www' && subdomain !== 'main';
+            let profileQuery = supabase_1.supabaseAdmin
                 .from('users')
                 .select('id, email, role, tenant_id, is_super_admin')
-                .eq('id', user.id)
-                .order('tenant_id', { ascending: true })
-                .limit(1);
+                .eq('id', user.id);
+            if (hasExplicitSubdomain) {
+                const { data: targetTenant } = await supabase_1.supabaseAdmin
+                    .from('tenants')
+                    .select('id')
+                    .eq('subdomain', subdomain)
+                    .maybeSingle();
+                if (targetTenant) {
+                    profileQuery = profileQuery.eq('tenant_id', targetTenant.id);
+                }
+            }
+            else {
+                profileQuery = profileQuery.order('tenant_id', { ascending: true });
+            }
+            const { data: users, error: profileError } = await profileQuery.limit(1);
             const userProfile = users?.[0];
             if (profileError || !userProfile) {
                 return reply.code(401).send({
@@ -881,11 +904,15 @@ async function authRoutes(fastify) {
                 updateData.language = body.language;
             if (body.timezone !== undefined)
                 updateData.timezone = body.timezone;
-            // Update user profile
+            // Update user profile — scoped to the active (id, tenant_id) row so
+            // changes to this workspace's profile don't bleed across the user's
+            // other workspace memberships.
+            const activeTenantId = request.user.tenant_id;
             const { data: updatedUser, error } = await supabase_1.supabaseAdmin
                 .from('users')
                 .update(updateData)
                 .eq('id', userId)
+                .eq('tenant_id', activeTenantId)
                 .select('id, email, full_name, avatar_url, notification_preferences, language, timezone, role, is_super_admin, status, last_active_at, tenant_id')
                 .single();
             if (error || !updatedUser) {
@@ -1043,15 +1070,18 @@ async function authRoutes(fastify) {
                     error: { code: 'TENANT_NOT_FOUND', message: 'Tenant not found' },
                 });
             }
-            // Check if user already has a profile for this tenant
-            const { data: existingUser } = await supabase_1.supabaseAdmin
+            // Only block if the email is ALREADY a member of THIS specific tenant.
+            // Rows in other tenants are fine — a user is allowed to join multiple
+            // communities and may also be an admin elsewhere.
+            const { data: existingInThisTenant } = await supabase_1.supabaseAdmin
                 .from('users')
                 .select('id')
                 .eq('email', email.toLowerCase())
-                .single();
-            if (existingUser) {
+                .eq('tenant_id', tenant.id)
+                .maybeSingle();
+            if (existingInThisTenant) {
                 return reply.code(400).send({
-                    error: { code: 'USER_EXISTS', message: 'An account with this email already exists on TyneBase.' },
+                    error: { code: 'USER_EXISTS', message: 'An account with this email is already a member of this community.' },
                 });
             }
             // Create auth user
@@ -1155,27 +1185,35 @@ async function authRoutes(fastify) {
                     error: { code: 'TENANT_NOT_FOUND', message: 'Tenant not found' },
                 });
             }
-            // Check if user already has a profile for THIS tenant
+            // Idempotent: if the user already has a row for THIS tenant, return
+            // success immediately. If not, INSERT a brand-new (id, tenant_id) row.
+            // We never touch rows in other tenants, and we never set
+            // `is_super_admin` from this path — it's a platform-level flag that
+            // belongs to superadmin-only mutations.
             const { data: existingProfile } = await supabase_1.supabaseAdmin
                 .from('users')
-                .select('id, tenant_id, role')
+                .select('id, tenant_id, role, full_name')
                 .eq('id', userId)
                 .eq('tenant_id', tenant.id)
-                .single();
+                .maybeSingle();
             if (existingProfile) {
-                // Already in this tenant, success
                 return reply.code(200).send({
                     success: true,
                     data: {
-                        user: { id: userId, email, full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name, role: existingProfile.role },
+                        user: {
+                            id: userId,
+                            email,
+                            full_name: existingProfile.full_name || authUser.user_metadata?.full_name || authUser.user_metadata?.name,
+                            role: existingProfile.role,
+                        },
                         tenant: tenant,
                     },
                     message: 'Already a member of this community',
                 });
             }
-            // NOTE: We no longer block if they are in ANOTHER tenant.
-            // They will just get a second record for this specific tenant.
-            // Create community_contributor profile
+            // First-time community join for this tenant. The user may already be
+            // a workspace admin or super-admin in a DIFFERENT tenant — that row is
+            // left completely untouched. We simply add a new membership row.
             const fullName = authUser.user_metadata?.full_name || authUser.user_metadata?.name || 'Community Member';
             const { error: profileError } = await supabase_1.supabaseAdmin
                 .from('users')
@@ -1186,10 +1224,13 @@ async function authRoutes(fastify) {
                 full_name: fullName,
                 role: 'community_contributor',
                 status: 'active',
+                // NOTE: `is_super_admin` intentionally omitted — uses DB default.
             });
             if (profileError) {
-                fastify.log.error({ error: profileError }, 'Failed to create community profile');
-                throw profileError;
+                fastify.log.error({ error: profileError, userId, tenantId: tenant.id }, 'Failed to create community profile');
+                return reply.code(500).send({
+                    error: { code: 'PROFILE_ERROR', message: 'Failed to create community profile' },
+                });
             }
             return reply.code(201).send({
                 success: true,

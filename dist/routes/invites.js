@@ -162,12 +162,14 @@ async function invitesRoutes(fastify) {
                 });
             }
             // Check user limit for tenant's tier
+            // Community roles (community_contributor, community_admin) don't count toward the limit
             const userLimit = getUserLimitForTier(tenant.tier);
             const { count: currentUserCount } = await supabase_1.supabaseAdmin
                 .from('users')
                 .select('id', { count: 'exact', head: true })
                 .eq('tenant_id', tenant.id)
-                .eq('status', 'active');
+                .eq('status', 'active')
+                .not('role', 'in', '("community_contributor", "community_admin")');
             // Also count pending invites towards the limit
             const { count: pendingInviteCount } = await supabase_1.supabaseAdmin
                 .from('workspace_invites')
@@ -477,12 +479,14 @@ async function invitesRoutes(fastify) {
                         },
                     });
                 }
+                // Community roles (community_contributor, community_admin) don't count toward the limit
                 const userLimit = getUserLimitForTier(tenant.tier);
                 const { count: currentUserCount } = await supabase_1.supabaseAdmin
                     .from('users')
                     .select('id', { count: 'exact', head: true })
                     .eq('tenant_id', inviteRecord.tenant_id)
-                    .eq('status', 'active');
+                    .eq('status', 'active')
+                    .not('role', 'in', '("community_contributor", "community_admin")');
                 if ((currentUserCount || 0) >= userLimit) {
                     return reply.code(403).send({
                         error: {
@@ -492,13 +496,28 @@ async function invitesRoutes(fastify) {
                         },
                     });
                 }
-                const { data: existingUser, error: existingUserError } = await supabase_1.supabaseAdmin
+                // IMPORTANT: `users` has a composite primary key (id, tenant_id).
+                // One auth user can legitimately belong to multiple tenants, each
+                // row independent. We must NEVER write with `.eq('id', authUser.id)`
+                // alone — that rewrites every row the user owns and wipes
+                // memberships (and previously corrupted `is_super_admin`).
+                //
+                // Correct approach: look up the row for THIS tenant only, then
+                // either INSERT it fresh or UPDATE exactly that row via the
+                // composite key. Any other memberships the user has in other
+                // workspaces are left completely untouched.
+                //
+                // We also NEVER set `is_super_admin` from this path. It is a
+                // platform-level flag owned by superadmin-only mutations; accepting
+                // an invite must preserve whatever value the DB currently holds.
+                const { data: existingRow, error: existingRowError } = await supabase_1.supabaseAdmin
                     .from('users')
-                    .select('id, tenant_id, original_tenant_id, status, full_name')
+                    .select('id, tenant_id, original_tenant_id, status, full_name, is_super_admin')
                     .eq('id', authUser.id)
+                    .eq('tenant_id', inviteRecord.tenant_id)
                     .maybeSingle();
-                if (existingUserError) {
-                    fastify.log.error({ error: existingUserError, userId: authUser.id }, 'Failed to fetch existing user during invite acceptance');
+                if (existingRowError) {
+                    fastify.log.error({ error: existingRowError, userId: authUser.id, tenantId: inviteRecord.tenant_id }, 'Failed to fetch existing user row during invite acceptance');
                     return reply.code(500).send({
                         error: {
                             code: 'FETCH_FAILED',
@@ -507,24 +526,41 @@ async function invitesRoutes(fastify) {
                         },
                     });
                 }
+                // Derive original_tenant_id: only stamp it once, and only if the
+                // user already has a different "home" tenant on another row.
+                let originalTenantId = existingRow?.original_tenant_id ?? null;
+                if (!originalTenantId) {
+                    const { data: otherRow } = await supabase_1.supabaseAdmin
+                        .from('users')
+                        .select('tenant_id')
+                        .eq('id', authUser.id)
+                        .neq('tenant_id', inviteRecord.tenant_id)
+                        .limit(1)
+                        .maybeSingle();
+                    if (otherRow?.tenant_id) {
+                        originalTenantId = otherRow.tenant_id;
+                    }
+                }
                 let joinedUser;
-                if (existingUser) {
-                    const originalTenantId = existingUser.original_tenant_id || (existingUser.tenant_id !== inviteRecord.tenant_id ? existingUser.tenant_id : null);
+                if (existingRow) {
+                    // Scoped UPDATE — composite key ensures only this one row is touched.
                     const { data: updatedUser, error: updateError } = await supabase_1.supabaseAdmin
                         .from('users')
                         .update({
-                        tenant_id: inviteRecord.tenant_id,
                         original_tenant_id: originalTenantId,
                         email: authUser.email,
-                        full_name: fullName || existingUser.full_name,
+                        full_name: fullName || existingRow.full_name,
                         role: inviteRecord.role,
                         status: 'active',
+                        // NOTE: `is_super_admin` intentionally omitted — preserved as-is.
+                        // NOTE: `tenant_id` intentionally omitted — it's part of the key.
                     })
                         .eq('id', authUser.id)
+                        .eq('tenant_id', inviteRecord.tenant_id)
                         .select()
                         .single();
                     if (updateError || !updatedUser) {
-                        fastify.log.error({ error: updateError, userId: authUser.id, tenantId: inviteRecord.tenant_id }, 'Failed to update existing user during invite acceptance');
+                        fastify.log.error({ error: updateError, userId: authUser.id, tenantId: inviteRecord.tenant_id }, 'Failed to update existing user row during invite acceptance');
                         return reply.code(500).send({
                             error: {
                                 code: 'UPDATE_FAILED',
@@ -536,15 +572,19 @@ async function invitesRoutes(fastify) {
                     joinedUser = updatedUser;
                 }
                 else {
+                    // Fresh membership row for this tenant. Any other rows the user
+                    // has in other tenants are completely untouched.
                     const { data: createdUser, error: createError } = await supabase_1.supabaseAdmin
                         .from('users')
                         .insert({
                         id: authUser.id,
                         tenant_id: inviteRecord.tenant_id,
+                        original_tenant_id: originalTenantId,
                         email: authUser.email,
                         full_name: fullName,
                         role: inviteRecord.role,
                         status: 'active',
+                        // NOTE: `is_super_admin` intentionally omitted — uses DB default.
                     })
                         .select()
                         .single();
@@ -657,16 +697,20 @@ async function invitesRoutes(fastify) {
                     },
                 });
             }
-            const { data: existingUser } = await supabase_1.supabaseAdmin
+            // Composite PK `(id, tenant_id)` — only block if the user already
+            // has a row for THIS specific tenant. Rows in other tenants are fine
+            // and must not be disturbed.
+            const { data: existingRowForTenant } = await supabase_1.supabaseAdmin
                 .from('users')
                 .select('id')
                 .eq('id', user_id)
-                .single();
-            if (existingUser) {
+                .eq('tenant_id', tenant_id)
+                .maybeSingle();
+            if (existingRowForTenant) {
                 return reply.code(400).send({
                     error: {
                         code: 'USER_EXISTS',
-                        message: 'User record already exists',
+                        message: 'User record already exists in this workspace',
                         details: {},
                     },
                 });
@@ -685,12 +729,14 @@ async function invitesRoutes(fastify) {
                     },
                 });
             }
+            // Community roles (community_contributor, community_admin) don't count toward the limit
             const userLimit = getUserLimitForTier(tenant.tier);
             const { count: currentUserCount } = await supabase_1.supabaseAdmin
                 .from('users')
                 .select('id', { count: 'exact', head: true })
                 .eq('tenant_id', tenant_id)
-                .eq('status', 'active');
+                .eq('status', 'active')
+                .not('role', 'in', '("community_contributor", "community_admin")');
             if ((currentUserCount || 0) >= userLimit) {
                 return reply.code(403).send({
                     error: {

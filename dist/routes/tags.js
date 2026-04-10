@@ -76,8 +76,7 @@ async function tagRoutes(fastify) {
             sort_order,
             created_by,
             created_at,
-            updated_at,
-            users:created_by(id, email, full_name)
+            updated_at
           `, { count: 'exact' })
                 .eq('tenant_id', tenant.id)
                 .order('sort_order', { ascending: true, nullsFirst: false })
@@ -161,8 +160,7 @@ async function tagRoutes(fastify) {
             description,
             created_by,
             created_at,
-            updated_at,
-            users:created_by(id, email, full_name)
+            updated_at
           `)
                 .single();
             if (createError) {
@@ -233,8 +231,7 @@ async function tagRoutes(fastify) {
             sort_order,
             created_by,
             created_at,
-            updated_at,
-            users:created_by(id, email, full_name)
+            updated_at
           `)
                 .single();
             if (updateError) {

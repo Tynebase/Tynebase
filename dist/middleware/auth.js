@@ -83,6 +83,25 @@ async function authMiddleware(request, reply) {
                 .limit(1);
             userData = users?.[0];
             dbError = error;
+            // If we found a user, populate tenant context for downstream middleware
+            if (userData && userData.tenant_id) {
+                const { data: tenant, error: tenantError } = await supabase_1.supabaseAdmin
+                    .from('tenants')
+                    .select('id, subdomain, name, tier, settings, storage_limit')
+                    .eq('id', userData.tenant_id)
+                    .single();
+                if (!tenantError && tenant) {
+                    request.tenant = {
+                        id: tenant.id,
+                        subdomain: tenant.subdomain,
+                        name: tenant.name,
+                        tier: tenant.tier,
+                        settings: tenant.settings || {},
+                        storage_limit: tenant.storage_limit,
+                    };
+                    request.log.info({ tenantId: tenant.id }, 'Tenant context populated from user profile');
+                }
+            }
         }
         if (dbError || !userData) {
             request.log.error({ userId, error: dbError }, 'User not found in database');

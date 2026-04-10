@@ -47,13 +47,12 @@ function sanitizeSubdomain(subdomain) {
 }
 async function tenantContextMiddleware(request, reply) {
     const subdomainHeader = request.headers['x-tenant-subdomain'];
+    // If no subdomain header is provided, skip tenant resolution here.
+    // The authMiddleware will handle tenant resolution from the user's profile.
+    // This allows endpoints to work on localhost without subdomain setup.
     if (!subdomainHeader) {
-        return reply.status(400).send({
-            error: {
-                code: 'MISSING_TENANT_HEADER',
-                message: 'x-tenant-subdomain header is required',
-            },
-        });
+        request.log.debug('No x-tenant-subdomain header provided, skipping tenant context resolution');
+        return;
     }
     const sanitizedSubdomain = sanitizeSubdomain(subdomainHeader);
     if (!sanitizedSubdomain || sanitizedSubdomain.length < 2) {

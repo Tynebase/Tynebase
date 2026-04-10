@@ -14,6 +14,7 @@ exports.sendWelcomeEmail = sendWelcomeEmail;
 exports.sendWorkspaceInviteEmail = sendWorkspaceInviteEmail;
 exports.sendUserLeftEmail = sendUserLeftEmail;
 exports.sendUserLeftAdminNotification = sendUserLeftAdminNotification;
+exports.sendContactFormEmail = sendContactFormEmail;
 const resend_1 = require("resend");
 const resend = new resend_1.Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = 'TyneBase <support@tynebase.com>';
@@ -276,6 +277,50 @@ async function sendUserLeftAdminNotification(params) {
     return sendEmail({
         to,
         subject: `${userName} has left ${tenantName}`,
+        html: emailTemplate(content),
+    });
+}
+/**
+ * Send contact form submission email
+ */
+async function sendContactFormEmail(params) {
+    const { firstName, lastName, email, company, message } = params;
+    const fullName = `${firstName} ${lastName}`.trim();
+    const content = `
+    <h2 style="margin: 0 0 16px; color: #1e293b; font-size: 22px; font-weight: 600;">
+      New Contact Form Submission
+    </h2>
+    <p style="margin: 0 0 24px; color: #64748b; font-size: 15px; line-height: 1.6;">
+      You have received a new message from the contact form.
+    </p>
+    
+    <div style="background-color: #f1f5f9; border-radius: 12px; padding: 24px 32px; margin-bottom: 24px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
+        <tr>
+          <td style="padding: 8px 0; color: #94a3b8; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; width: 30%;">Name</td>
+          <td style="padding: 8px 0; color: #1e293b; font-size: 15px; font-weight: 500;">${fullName || 'Not provided'}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; color: #94a3b8; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Email</td>
+          <td style="padding: 8px 0; color: #1e293b; font-size: 15px; font-weight: 500;">${email}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; color: #94a3b8; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Company</td>
+          <td style="padding: 8px 0; color: #1e293b; font-size: 15px; font-weight: 500;">${company || 'Not provided'}</td>
+        </tr>
+      </table>
+    </div>
+    
+    <div style="margin-bottom: 24px;">
+      <p style="margin: 0 0 8px; color: #94a3b8; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Message</p>
+      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
+        <p style="margin: 0; color: #1e293b; font-size: 15px; line-height: 1.6; white-space: pre-wrap;">${message}</p>
+      </div>
+    </div>
+  `;
+    return sendEmail({
+        to: 'support@tynebase.com',
+        subject: `Contact Form: ${fullName || 'New message'}`,
         html: emailTemplate(content),
     });
 }

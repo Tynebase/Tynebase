@@ -178,12 +178,7 @@ async function documentRoutes(fastify) {
             created_at,
             updated_at,
             ai_score,
-            view_count,
-            users:author_id (
-              id,
-              email,
-              full_name
-            )
+            view_count
           `, { count: 'exact' })
                 .eq('tenant_id', tenant.id)
                 .not('content', 'like', '__CATEGORY__%')
@@ -392,12 +387,7 @@ async function documentRoutes(fastify) {
             author_id,
             published_at,
             created_at,
-            updated_at,
-            users:author_id (
-              id,
-              email,
-              full_name
-            )
+            updated_at
           `)
                 .eq('id', id)
                 .eq('tenant_id', tenant.id)
@@ -418,12 +408,7 @@ async function documentRoutes(fastify) {
               author_id,
               published_at,
               created_at,
-              updated_at,
-              users:author_id,tenant_id (
-                id,
-                email,
-                full_name
-              )
+              updated_at
             `)
                     .eq('id', id)
                     .eq('visibility', 'public')

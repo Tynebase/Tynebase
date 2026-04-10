@@ -129,8 +129,7 @@ async function knowledgeActivityRoutes(fastify) {
             actor_id,
             metadata,
             document_id,
-            documents!inner(id, title, tenant_id),
-            users(id, full_name, email)
+            documents!inner(id, title, tenant_id)
           `)
                 .eq('documents.tenant_id', tenant.id)
                 .order('created_at', { ascending: false })
@@ -182,10 +181,28 @@ async function knowledgeActivityRoutes(fastify) {
                 });
             }
             const total = countResult.count || 0;
-            const activities = (dataResult.data || [])
+            const rawData = dataResult.data || [];
+            // Collect unique actor_ids to fetch user data
+            const actorIds = [...new Set(rawData.map((item) => item.actor_id).filter(Boolean))];
+            // Fetch user data for all actors
+            let usersMap = {};
+            if (actorIds.length > 0) {
+                const { data: users } = await supabase_1.supabaseAdmin
+                    .from('users')
+                    .select('id, full_name, email')
+                    .in('id', actorIds);
+                if (users) {
+                    usersMap = users.reduce((acc, user) => {
+                        acc[user.id] = { full_name: user.full_name, email: user.email };
+                        return acc;
+                    }, {});
+                }
+            }
+            const activities = rawData
                 .map((item) => {
-                const actorName = item.users?.full_name ||
-                    item.users?.email?.split('@')[0] ||
+                const userData = usersMap[item.actor_id] || {};
+                const actorName = userData.full_name ||
+                    userData.email?.split('@')[0] ||
                     (item.actor_id ? 'Unknown User' : 'System');
                 return {
                     id: item.id,
@@ -193,7 +210,7 @@ async function knowledgeActivityRoutes(fastify) {
                     actor: {
                         id: item.actor_id,
                         name: actorName,
-                        email: item.users?.email || null,
+                        email: userData.email || null,
                     },
                     target: {
                         id: item.documents?.id || item.document_id,

@@ -79,5 +79,15 @@ export declare function sendUserLeftAdminNotification(params: {
     userEmail: string;
     tenantName: string;
 }): Promise<boolean>;
+/**
+ * Send contact form submission email
+ */
+export declare function sendContactFormEmail(params: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    company: string;
+    message: string;
+}): Promise<boolean>;
 export {};
 //# sourceMappingURL=email.d.ts.map

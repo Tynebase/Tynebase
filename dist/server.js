@@ -195,6 +195,7 @@ const start = async () => {
         await fastify.register(Promise.resolve().then(() => __importStar(require('./routes/tier-upgrade'))), { prefix: '' });
         await fastify.register(Promise.resolve().then(() => __importStar(require('./routes/stripe-billing'))), { prefix: '' });
         await fastify.register(Promise.resolve().then(() => __importStar(require('./routes/credits-purchase'))), { prefix: '' });
+        await fastify.register(Promise.resolve().then(() => __importStar(require('./routes/contact'))), { prefix: '' });
         const port = parseInt(env_1.env.PORT, 10);
         await fastify.listen({ port, host: '0.0.0.0' });
         fastify.log.info(`Server listening on http://localhost:${port}`);

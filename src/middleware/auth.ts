@@ -98,6 +98,27 @@ export async function authMiddleware(
 
       userData = users?.[0];
       dbError = error;
+
+      // If we found a user, populate tenant context for downstream middleware
+      if (userData && userData.tenant_id) {
+        const { data: tenant, error: tenantError } = await supabaseAdmin
+          .from('tenants')
+          .select('id, subdomain, name, tier, settings, storage_limit')
+          .eq('id', userData.tenant_id)
+          .single();
+
+        if (!tenantError && tenant) {
+          (request as any).tenant = {
+            id: tenant.id,
+            subdomain: tenant.subdomain,
+            name: tenant.name,
+            tier: tenant.tier,
+            settings: tenant.settings || {},
+            storage_limit: tenant.storage_limit,
+          };
+          request.log.info({ tenantId: tenant.id }, 'Tenant context populated from user profile');
+        }
+      }
     }
 
     if (dbError || !userData) {
