@@ -74,11 +74,29 @@ export async function GET(request: Request) {
     email: data.user.email,
     hasInviteData: !!(inviteTenantId && inviteRole),
     tenantName: userMetadata?.tenant_name,
+    redirect: redirect,
   });
 
-  if (inviteTenantId && inviteRole) {
-    // This is an invited user - check if user record already exists
-    // Use admin client with service role key to bypass RLS
+  // If logging in from main site (redirect is /dashboard), ignore invite metadata
+  // This handles stale invite metadata from previous invites
+  if (inviteTenantId && inviteRole && redirect === '/dashboard') {
+    console.log('[Auth Callback] Ignoring stale invite metadata, proceeding to normal OAuth flow');
+    // Clear the invite metadata from Supabase to prevent this in the future
+    const supabaseAdmin = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SECRET_KEY!
+    );
+    try {
+      await supabaseAdmin.auth.admin.updateUserById(data.user.id, {
+        user_metadata: { tenant_id: null, role: null, tenant_name: null, tenant_subdomain: null, invited_by_name: null }
+      });
+    } catch (e) {
+      console.log('[Auth Callback] Failed to clear invite metadata:', e);
+    }
+    // Proceed to normal OAuth flow
+  } else if (inviteTenantId && inviteRole) {
+    // This is an actual invite flow (redirect is not /dashboard)
+    // Check if user record already exists
     const supabaseAdmin = createSupabaseClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SECRET_KEY!
@@ -109,11 +127,8 @@ export async function GET(request: Request) {
     }
 
     // User record exists - check if they already have a tenant
-    // If they have a tenant, ignore the invite metadata and proceed to dashboard
-    // This handles stale invite metadata from previous invites
     if (existingUser.tenant_id) {
       console.log('[Auth Callback] Existing user with tenant, ignoring stale invite metadata');
-      // Clear the invite metadata from Supabase to prevent this in the future
       await supabaseAdmin.auth.admin.updateUserById(data.user.id, {
         user_metadata: { tenant_id: null, role: null, tenant_name: null, tenant_subdomain: null, invited_by_name: null }
       });
