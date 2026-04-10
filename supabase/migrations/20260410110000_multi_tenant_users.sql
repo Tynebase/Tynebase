@@ -61,11 +61,6 @@ BEGIN
             
             -- ENSURE REPLACEMENT PROFILE EXISTS IN EACH TENANT THAT HAS ORPHANS
             -- We create a shadow membership for the fallback user in any tenant that needs data repair.
-            INSERT INTO public.users (id, tenant_id, email, full_name, role, status)
-            SELECT DISTINCT global_fallback_id, child.tenant_id, fallback_email, fallback_name, 'community_contributor', 'active'
-            FROM public.target_table_placeholder child
-            -- This is dynamic SQL, so we'll use a trick or just perform a select distinct from the child table.
-            -- Using EXECUTE to handle the dynamic table name.
             EXECUTE format(
                 'INSERT INTO public.users (id, tenant_id, email, full_name, role, status)
                  SELECT DISTINCT %L::uuid, tenant_id, %L, %L, ''community_contributor'', ''active''
