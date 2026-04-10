@@ -181,6 +181,58 @@ USING (
 -- 3. Restore missing FK constraints from composite PK migration
 -- ============================================================================
 
+-- First, clean up orphaned records in all tables that will have FK constraints to users
+-- This is necessary because some records may reference users that no longer exist
+
+-- Clean orphaned chat_messages
+DELETE FROM public.chat_messages cm
+WHERE author_id IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM public.users u
+    WHERE u.id = cm.author_id AND u.tenant_id = cm.tenant_id
+  );
+
+-- Clean orphaned chat_channels
+DELETE FROM public.chat_channels cc
+WHERE created_by IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM public.users u
+    WHERE u.id = cc.created_by AND u.tenant_id = cc.tenant_id
+  );
+
+-- Clean orphaned document_shares
+DELETE FROM public.document_shares ds
+WHERE shared_with IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM public.users u
+    WHERE u.id = ds.shared_with AND u.tenant_id = ds.tenant_id
+  );
+
+-- Clean orphaned document_reviews
+DELETE FROM public.document_reviews dr
+WHERE (assigned_to IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM public.users u WHERE u.id = dr.assigned_to AND u.tenant_id = dr.tenant_id
+  ))
+OR (created_by IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM public.users u WHERE u.id = dr.created_by AND u.tenant_id = dr.tenant_id
+  ));
+
+-- Clean orphaned tags
+DELETE FROM public.tags t
+WHERE created_by IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM public.users u
+    WHERE u.id = t.created_by AND u.tenant_id = t.tenant_id
+  );
+
+-- Clean orphaned query_usage
+DELETE FROM public.query_usage qu
+WHERE user_id IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM public.users u
+    WHERE u.id = qu.user_id AND u.tenant_id = qu.tenant_id
+  );
+
 -- chat_messages.author_id → users(id, tenant_id)
 ALTER TABLE public.chat_messages
   DROP CONSTRAINT IF EXISTS chat_messages_author_id_fkey;
@@ -319,6 +371,13 @@ BEGIN
     FROM public.chat_messages cm
     WHERE cr.message_id = cm.id;
 
+    -- Delete orphaned records
+    DELETE FROM public.chat_reactions cr
+    WHERE NOT EXISTS (
+      SELECT 1 FROM public.users u
+      WHERE u.id = cr.user_id AND u.tenant_id = cr.tenant_id
+    );
+
     ALTER TABLE public.chat_reactions
       ADD CONSTRAINT chat_reactions_tenant_id_fkey
       FOREIGN KEY (tenant_id) REFERENCES public.tenants(id) ON DELETE CASCADE;
@@ -354,6 +413,13 @@ BEGIN
     FROM public.dm_conversations dc
     WHERE dp.conversation_id = dc.id;
 
+    -- Delete orphaned records
+    DELETE FROM public.dm_participants dp
+    WHERE NOT EXISTS (
+      SELECT 1 FROM public.users u
+      WHERE u.id = dp.user_id AND u.tenant_id = dp.tenant_id
+    );
+
     ALTER TABLE public.dm_participants
       ADD CONSTRAINT dm_participants_tenant_id_fkey
       FOREIGN KEY (tenant_id) REFERENCES public.tenants(id) ON DELETE CASCADE;
@@ -380,6 +446,13 @@ BEGIN
     FROM public.dm_messages dm
     WHERE dr.message_id = dm.id;
 
+    -- Delete orphaned records
+    DELETE FROM public.dm_reactions dr
+    WHERE NOT EXISTS (
+      SELECT 1 FROM public.users u
+      WHERE u.id = dr.user_id AND u.tenant_id = dr.tenant_id
+    );
+
     ALTER TABLE public.dm_reactions
       ADD CONSTRAINT dm_reactions_tenant_id_fkey
       FOREIGN KEY (tenant_id) REFERENCES public.tenants(id) ON DELETE CASCADE;
@@ -405,6 +478,13 @@ BEGIN
     SET tenant_id = cc.tenant_id
     FROM public.chat_channels cc
     WHERE crr.channel_id = cc.id;
+
+    -- Delete orphaned records (user doesn't exist in users table)
+    DELETE FROM public.chat_read_receipts crr
+    WHERE NOT EXISTS (
+      SELECT 1 FROM public.users u
+      WHERE u.id = crr.user_id AND u.tenant_id = crr.tenant_id
+    );
 
     ALTER TABLE public.chat_read_receipts
       ADD CONSTRAINT chat_read_receipts_tenant_id_fkey
