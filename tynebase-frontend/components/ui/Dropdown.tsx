@@ -63,7 +63,7 @@ export function Dropdown({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
         className={cn(
-          "flex items-center justify-between gap-2 w-full px-3 py-2 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-left transition-colors",
+          "flex items-center justify-between gap-2 w-full px-3 py-2 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-xl text-left transition-colors",
           "hover:border-[var(--border-default)] focus:outline-none focus:border-[var(--brand-primary)]",
           disabled && "opacity-50 cursor-not-allowed",
           triggerClassName
@@ -91,7 +91,7 @@ export function Dropdown({
       {/* Menu */}
       {isOpen && (
         <div className={cn(
-          "absolute z-50 mt-1 w-full min-w-[180px] bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-xl shadow-lg p-1.5 animate-in fade-in slide-in-from-top-2 duration-150",
+          "absolute z-50 mt-1 w-full min-w-[180px] bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-2xl shadow-lg p-1.5 animate-in fade-in slide-in-from-top-2 duration-150",
           align === "right" ? "right-0" : "left-0"
         )}>
           {options.map((option) => (
@@ -100,7 +100,7 @@ export function Dropdown({
               onClick={() => handleSelect(option)}
               disabled={option.disabled}
               className={cn(
-                "w-full flex items-center justify-between px-3 py-2 text-left transition-colors rounded-lg",
+                "w-full flex items-center justify-between px-3 py-2 text-left transition-colors rounded-xl",
                 option.disabled
                   ? "opacity-50 cursor-not-allowed"
                   : "hover:bg-[var(--surface-ground)]",
@@ -159,7 +159,7 @@ export function DropdownMenu({ trigger, children, align = "left", className }: D
       <div onClick={() => setIsOpen(!isOpen)}>{trigger}</div>
       {isOpen && (
         <div className={cn(
-          "absolute z-50 mt-1 min-w-[180px] bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-lg shadow-lg py-1 animate-in fade-in slide-in-from-top-2 duration-150",
+          "absolute z-50 mt-1 min-w-[180px] bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-xl shadow-lg py-1 animate-in fade-in slide-in-from-top-2 duration-150",
           align === "right" ? "right-0" : "left-0"
         )}>
           {children}

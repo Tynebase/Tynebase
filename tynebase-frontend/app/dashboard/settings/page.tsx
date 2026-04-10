@@ -67,13 +67,6 @@ export default function SettingsPage() {
       icon: Palette,
       href: '/dashboard/settings/branding',
       color: 'text-pink-600'
-    },
-    {
-      title: 'Audit Logs',
-      description: 'View administrative activity and security logs',
-      icon: History,
-      href: '/dashboard/settings/audit-logs',
-      color: 'text-amber-600'
     }
   ];
 

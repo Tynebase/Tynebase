@@ -1507,7 +1507,7 @@ export default function TeamChatPage() {
                         {a.title || a.document?.title || 'Untitled'}
                       </button>
                       {a.assignment_type === 'task' && expandedAssignmentId === a.id && a.description && (
-                        <p className="text-xs text-[var(--text-secondary)] mt-1.5 p-2 bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded">
+                        <p className="text-xs text-[var(--text-secondary)] mt-1.5 p-2 bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-xl">
                           {a.description}
                         </p>
                       )}
@@ -1524,7 +1524,7 @@ export default function TeamChatPage() {
                       )}
                       <div className="flex items-center gap-1 mt-2">
                         <span className={cn(
-                          "px-1.5 py-0.5 rounded text-[10px] font-medium",
+                          "px-1.5 py-0.5 rounded-xl text-[10px] font-medium",
                           a.priority === 'urgent' ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300" :
                           a.priority === 'high' ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" :
                           a.priority === 'medium' ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300" :
@@ -1535,14 +1535,14 @@ export default function TeamChatPage() {
                         {a.status !== 'completed' && a.status !== 'cancelled' ? (
                           <button
                             onClick={() => handleUpdateAssignmentStatus(a.id, a.status === 'pending' ? 'in_progress' : 'completed', a.assigned_by_user?.id)}
-                            className="ml-auto px-2 py-0.5 rounded text-[10px] font-medium bg-[var(--brand)]/10 text-[var(--brand)] hover:bg-[var(--brand)]/20 transition-colors"
+                            className="ml-auto px-2 py-0.5 rounded-xl text-[10px] font-medium bg-[var(--brand)]/10 text-[var(--brand)] hover:bg-[var(--brand)]/20 transition-colors"
                           >
                             {a.status === 'pending' ? 'Start' : 'Complete'}
                           </button>
                         ) : a.status === 'completed' ? (
                           <button
                             onClick={() => handleUpdateAssignmentStatus(a.id, 'in_progress', a.assigned_by_user?.id)}
-                            className="ml-auto px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors dark:bg-gray-800 dark:text-gray-400"
+                            className="ml-auto px-2 py-0.5 rounded-xl text-[10px] font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors dark:bg-gray-800 dark:text-gray-400"
                             title="Revert to In Progress"
                           >
                             Reopen
@@ -1565,13 +1565,13 @@ export default function TeamChatPage() {
       {showAssignModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowAssignModal(false)} />
-          <div className="relative w-full max-w-lg bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-xl shadow-xl">
+          <div className="relative w-full max-w-lg bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-3xl shadow-xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)]">
               <h2 className="text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
                 <ClipboardList className="w-5 h-5 text-[var(--brand)]" />
                 Assign {assignType === 'document' ? 'Document' : 'Task'}
               </h2>
-              <button onClick={() => setShowAssignModal(false)} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] text-[var(--text-tertiary)]">
+              <button onClick={() => setShowAssignModal(false)} className="p-1.5 rounded-xl hover:bg-[var(--surface-hover)] text-[var(--text-tertiary)]">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1581,7 +1581,7 @@ export default function TeamChatPage() {
                 <button
                   onClick={() => setAssignType('task')}
                   className={cn(
-                    "flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors",
+                    "flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-colors",
                     assignType === 'task'
                       ? "bg-[var(--brand)]/10 border-[var(--brand)] text-[var(--brand)]"
                       : "border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--brand)]"
@@ -1592,7 +1592,7 @@ export default function TeamChatPage() {
                 <button
                   onClick={() => setAssignType('document')}
                   className={cn(
-                    "flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors",
+                    "flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-colors",
                     assignType === 'document'
                       ? "bg-blue-500/10 border-blue-500 text-blue-600"
                       : "border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-blue-500"
@@ -1627,7 +1627,7 @@ export default function TeamChatPage() {
                       value={assignTitle}
                       onChange={(e) => setAssignTitle(e.target.value)}
                       placeholder="e.g. Review Q3 report"
-                      className="w-full px-3 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--brand)]"
+                      className="w-full px-3 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-xl text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--brand)]"
                     />
                   </div>
                   <div>
@@ -1637,7 +1637,7 @@ export default function TeamChatPage() {
                       onChange={(e) => setAssignDescription(e.target.value)}
                       placeholder="Add context..."
                       rows={2}
-                      className="w-full px-3 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--brand)] resize-none"
+                      className="w-full px-3 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-xl text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--brand)] resize-none"
                     />
                   </div>
                 </>
@@ -1666,7 +1666,7 @@ export default function TeamChatPage() {
                     onChange={(e) => setAssignComment(e.target.value)}
                     placeholder="Add instruction detail..."
                     rows={2}
-                    className="w-full px-3 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--brand)] resize-none"
+                    className="w-full px-3 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-xl text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--brand)] resize-none"
                   />
                 </div>
               </>
@@ -1693,7 +1693,7 @@ export default function TeamChatPage() {
                     type="date"
                     value={assignDueDate}
                     onChange={(e) => setAssignDueDate(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
+                    className="w-full px-3 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
                   />
                 </div>
               </div>
@@ -1709,7 +1709,7 @@ export default function TeamChatPage() {
                 <button
                   onClick={handleCreateAssignment}
                   disabled={assignLoading || !assignTo || (assignType === 'task' && !assignTitle.trim()) || (assignType === 'document' && !assignDocId)}
-                  className="flex items-center gap-2 px-5 py-2 bg-[var(--brand)] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                  className="flex items-center gap-2 px-5 py-2 bg-[var(--brand)] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
                   {assignLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardList className="w-4 h-4" />}
                   Create Assignment
@@ -1727,7 +1727,7 @@ export default function TeamChatPage() {
             className="absolute inset-0 bg-black/50"
             onClick={() => !isDeleting && setDeleteModal(null)}
           />
-          <div className="relative bg-[var(--surface-card)] rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+          <div className="relative bg-[var(--surface-card)] rounded-2xl shadow-xl w-full max-w-md mx-4 p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-red-500/10 rounded-full">
                 <Trash2 className="w-5 h-5 text-red-500" />
@@ -1743,7 +1743,7 @@ export default function TeamChatPage() {
               <button
                 onClick={() => setDeleteModal(null)}
                 disabled={isDeleting}
-                className="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] rounded-lg transition-colors disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] rounded-xl transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -1756,7 +1756,7 @@ export default function TeamChatPage() {
                   }
                 }}
                 disabled={isDeleting}
-                className="px-4 py-2 text-sm font-medium bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 text-sm font-medium bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {isDeleting ? (
                   <>

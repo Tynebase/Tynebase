@@ -472,7 +472,7 @@ export default function NewDocumentPage() {
                 </label>
                 <button 
                   onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-                  className="w-full flex items-center justify-between px-3 py-2 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-left hover:border-[var(--border-default)] transition-colors"
+                  className="w-full flex items-center justify-between px-3 py-2 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-xl text-left hover:border-[var(--border-default)] transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     {selectedCategory && (
@@ -493,7 +493,7 @@ export default function NewDocumentPage() {
                 </button>
                 
                 {showCategoryDropdown && !loadingCategories && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-xl shadow-lg z-10 max-h-48 overflow-y-auto">
                     <button
                       onClick={() => {
                         setSelectedCategoryId(null);
@@ -547,7 +547,7 @@ export default function NewDocumentPage() {
                     <button
                       key={option.id}
                       onClick={() => setVisibility(option.id as typeof visibility)}
-                      className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all ${
+                      className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${
                         visibility === option.id
                           ? "border-[var(--brand-primary)] bg-[var(--brand-primary)]/5"
                           : "border-[var(--border-subtle)] hover:border-[var(--border-default)]"
@@ -597,7 +597,7 @@ export default function NewDocumentPage() {
                 
                 <button 
                   onClick={() => setShowTagDropdown(!showTagDropdown)}
-                  className="w-full flex items-center justify-between px-3 py-2 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-left hover:border-[var(--border-default)] transition-colors"
+                  className="w-full flex items-center justify-between px-3 py-2 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-xl text-left hover:border-[var(--border-default)] transition-colors"
                 >
                   <span className="text-[var(--text-tertiary)]">
                     {selectedTags.length > 0 ? 'Add more tags...' : 'Select tags...'}
@@ -610,7 +610,7 @@ export default function NewDocumentPage() {
                 </button>
                 
                 {showTagDropdown && !loadingTags && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-xl shadow-lg z-10 max-h-48 overflow-y-auto">
                     {tags.map(t => (
                       <button
                         key={t.id}
@@ -645,7 +645,7 @@ export default function NewDocumentPage() {
                 <textarea
                   placeholder="Brief description for search engines..."
                   rows={3}
-                  className="w-full px-3 py-2 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand-primary)] resize-none"
+                  className="w-full px-3 py-2 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand-primary)] resize-none"
                 />
               </div>
             </div>
@@ -656,9 +656,9 @@ export default function NewDocumentPage() {
       {/* Video Ingestion Modal */}
       {showVideoIngestionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowVideoIngestionModal(false)}>
-          <div className="bg-[var(--surface-card)] p-6 rounded-xl shadow-xl max-w-lg w-full mx-4 border border-[var(--border-subtle)]" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-[var(--surface-card)] p-6 rounded-3xl shadow-xl max-w-lg w-full mx-4 border border-[var(--border-subtle)]" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-purple-500/10 rounded-lg">
+              <div className="p-2 bg-purple-500/10 rounded-xl">
                 <Video className="w-6 h-6 text-purple-500" />
               </div>
               <div>
@@ -669,7 +669,7 @@ export default function NewDocumentPage() {
               </div>
             </div>
 
-            <div className="mb-4 p-4 bg-[var(--surface-ground)] rounded-lg">
+            <div className="mb-4 p-4 bg-[var(--surface-ground)] rounded-2xl">
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles className="w-4 h-4 text-[var(--brand-primary)]" />
                 <span className="text-sm font-medium text-[var(--text-primary)]">AI Video Ingestion</span>
@@ -729,7 +729,7 @@ export default function NewDocumentPage() {
                 <select
                   value={videoIngestionOptions.ai_model}
                   onChange={(e) => setVideoIngestionOptions(prev => ({ ...prev, ai_model: e.target.value as 'deepseek' | 'gemini' | 'claude' }))}
-                  className="w-full px-3 py-2 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] text-sm"
+                  className="w-full px-3 py-2 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-xl text-[var(--text-primary)] text-sm"
                 >
                   <option value="deepseek">DeepSeek (5 + 0.2/output credits)</option>
                   <option value="gemini">Gemini (5 + 1/output credits)</option>
@@ -738,7 +738,7 @@ export default function NewDocumentPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg mb-4">
+            <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl mb-4">
               <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0" />
               <p className="text-xs text-amber-700">
                 Video ingestion uses the same rates as our normal video processing. Credits will be deducted upon job completion.

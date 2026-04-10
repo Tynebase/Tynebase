@@ -75,9 +75,8 @@ export function Modal({
       />
 
       {/* Modal */}
-      <div
         className={cn(
-          "relative w-full bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-xl shadow-xl animate-in zoom-in-95 fade-in duration-200 max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-3rem)] flex flex-col overflow-visible",
+          "relative w-full bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-3xl shadow-xl animate-in zoom-in-95 fade-in duration-200 max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-3rem)] flex flex-col overflow-visible",
           sizeClasses[size],
           className
         )}
@@ -136,7 +135,7 @@ export function ModalFooter({ children, className }: ModalFooterProps) {
   return (
     <div
       className={cn(
-        "flex items-center justify-end gap-3 px-6 py-5 sm:px-8 sm:py-6 border-t border-[var(--border-subtle)] bg-[var(--surface-ground)] rounded-b-xl mt-2 flex-shrink-0",
+        "flex items-center justify-end gap-3 px-6 py-5 sm:px-8 sm:py-6 border-t border-[var(--border-subtle)] bg-[var(--surface-ground)] rounded-b-3xl mt-2 flex-shrink-0",
         className
       )}
     >

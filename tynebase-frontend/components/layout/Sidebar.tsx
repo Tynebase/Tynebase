@@ -94,13 +94,6 @@ const settingsNavigation: NavItem[] = [
     roles: ["admin"],
   },
   {
-    id: "audit-logs",
-    label: "Audit Logs",
-    icon: <Activity className="w-5 h-5" />,
-    href: "/dashboard/settings/audit-logs",
-    roles: ["admin"],
-  },
-  {
     id: "webhooks",
     label: "Webhooks",
     icon: <Webhook className="w-5 h-5" />,

@@ -463,7 +463,7 @@ export default function AIAssistantPage() {
                     : 'border-[var(--dash-border-subtle)] bg-[var(--surface-card)] hover:border-[var(--dash-border-default)]'
                 }`}
               >
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 ${
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
                   activeTab === tab.id
                     ? 'bg-[var(--brand)] text-white'
                     : 'bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)]'
@@ -477,7 +477,7 @@ export default function AIAssistantPage() {
           </div>
 
           {/* Main Content Area */}
-          <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-5 sm:p-6 flex-1 overflow-auto">
+          <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-2xl p-5 sm:p-6 flex-1 overflow-auto">
             {activeTab === 'prompt' && (
               <div className="space-y-6">
                 <div>
@@ -513,7 +513,7 @@ export default function AIAssistantPage() {
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-sm font-medium text-[var(--dash-text-secondary)]">Output type:</p>
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--brand-primary-muted)] rounded-lg">
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--brand-primary-muted)] rounded-xl">
                       <Sparkles className="w-4 h-4 text-[var(--brand)]" />
                       <span className="text-sm font-medium text-[var(--brand)]">
                         {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1) * selectedOutputTypes.size} credits
@@ -548,7 +548,7 @@ export default function AIAssistantPage() {
                           }`}
                         >
                           <div className="flex items-center gap-2 mb-1">
-                            <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+                            <div className={`w-4 h-4 rounded-md border flex items-center justify-center ${
                               isSelected ? 'border-[var(--brand)] bg-[var(--brand)]' : 'border-[var(--dash-border-default)]'
                             }`}>
                               {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
@@ -578,7 +578,7 @@ export default function AIAssistantPage() {
                           }`}
                         >
                           <div className="flex items-center gap-2 mb-1">
-                            <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+                            <div className={`w-4 h-4 rounded-md border flex items-center justify-center ${
                               selectedTemplate === template.id ? 'border-[var(--brand)] bg-[var(--brand)]' : 'border-[var(--dash-border-default)]'
                             }`}>
                               {selectedTemplate === template.id && <Check className="w-2.5 h-2.5 text-white" />}
@@ -625,7 +625,7 @@ export default function AIAssistantPage() {
                 <button
                   onClick={handleGenerate}
                   disabled={!prompt.trim() || isGenerating || (selectedOutputTypes.has('template') && !selectedTemplate)}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[var(--brand)] hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-all"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[var(--brand)] hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-all"
                 >
                   {isGenerating ? (
                     <>
@@ -665,7 +665,7 @@ export default function AIAssistantPage() {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <p className="text-sm font-medium text-[var(--dash-text-secondary)]">Output type:</p>
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--brand-primary-muted)] rounded-lg">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--brand-primary-muted)] rounded-xl">
                   <Sparkles className="w-4 h-4 text-[var(--brand)]" />
                   <span className="text-sm font-medium text-[var(--brand)]">
                     {2 + (aiProviders.find(p => p.id === selectedProvider)?.credits || 1) * Array.from(selectedScrapeOutputTypes).filter(t => t !== 'raw').length} credits
@@ -704,7 +704,7 @@ export default function AIAssistantPage() {
                       }`}
                     >
                       <div className="flex items-center gap-2 mb-1">
-                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+                        <div className={`w-4 h-4 rounded-md border flex items-center justify-center ${
                           isSelected ? 'border-[var(--brand)] bg-[var(--brand)]' : 'border-[var(--dash-border-default)]'
                         }`}>
                           {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
@@ -765,7 +765,7 @@ export default function AIAssistantPage() {
                     </button>
                     <button
                       onClick={handleSaveScrapedContent}
-                      className="px-3 py-1.5 text-sm bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-lg transition-colors flex items-center gap-2"
+                      className="px-3 py-1.5 text-sm bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-xl transition-colors flex items-center gap-2"
                     >
                       <FileText className="w-4 h-4" />
                       Save as Document
@@ -782,7 +782,7 @@ export default function AIAssistantPage() {
               <button
                 onClick={handleScrape}
                 disabled={!scrapeUrl.trim() || isScraping}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[var(--brand)] hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-all"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[var(--brand)] hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-all"
               >
                 {isScraping ? (
                   <>
@@ -806,7 +806,7 @@ export default function AIAssistantPage() {
         {activeTab === 'file' && (
           <div className="space-y-6">
             {/* Legal DMS Features Banner */}
-            <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+            <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-2xl">
               <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm font-medium text-blue-900">Document Management</p>
@@ -822,7 +822,7 @@ export default function AIAssistantPage() {
               onDragLeave={handleDrag}
               onDragOver={handleDrag}
               onDrop={handleDrop}
-              className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all ${
+              className={`relative border-2 border-dashed rounded-2xl p-8 text-center transition-all ${
                 dragActive
                   ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]'
                   : 'border-[var(--dash-border-subtle)] hover:border-[var(--dash-border-default)]'
@@ -836,7 +836,7 @@ export default function AIAssistantPage() {
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
               <div className="flex flex-col items-center gap-3">
-                <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
                   dragActive ? 'bg-[var(--brand)] text-white' : 'bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)]'
                 }`}>
                   <Upload className="w-7 h-7" />
@@ -854,9 +854,9 @@ export default function AIAssistantPage() {
 
             {/* Selected File Preview */}
             {selectedFile && !isUploading && !uploadResult && (
-              <div className="bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl p-4">
+              <div className="bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-2xl p-4">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-lg bg-[var(--brand-primary-muted)] flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 rounded-xl bg-[var(--brand-primary-muted)] flex items-center justify-center flex-shrink-0">
                     <File className="w-6 h-6 text-[var(--brand)]" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -870,7 +870,7 @@ export default function AIAssistantPage() {
                   </div>
                   <button
                     onClick={clearSelectedFile}
-                    className="p-2 rounded-lg hover:bg-[var(--surface-hover)] text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)] transition-colors"
+                    className="p-2 rounded-xl hover:bg-[var(--surface-hover)] text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)] transition-colors"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -896,7 +896,7 @@ export default function AIAssistantPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium text-[var(--dash-text-secondary)]">Output Options:</p>
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--brand-primary-muted)] rounded-lg">
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--brand-primary-muted)] rounded-xl">
                     <Sparkles className="w-4 h-4 text-[var(--brand)]" />
                     <span className="text-sm font-medium text-[var(--brand)]">{calculateFileCredits()} credits</span>
                   </div>
@@ -906,7 +906,7 @@ export default function AIAssistantPage() {
                   {selectedFile.size > LARGE_FILE_THRESHOLD && ' (file &gt;50MB)'} • AI outputs: +{aiProviders.find(p => p.id === selectedProvider)?.credits || 1} {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1) === 1 ? 'credit' : 'credits'} each ({selectedProvider})
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <label className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-colors ${
+                  <label className={`flex items-start gap-3 p-4 border-2 rounded-2xl cursor-pointer transition-colors ${
                     fileOutputOptions.extractedText 
                       ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]' 
                       : 'border-[var(--dash-border-subtle)] hover:border-[var(--brand)]'
@@ -923,7 +923,7 @@ export default function AIAssistantPage() {
                       <p className="text-xs text-[var(--dash-text-tertiary)] mt-1">Included in base</p>
                     </div>
                   </label>
-                  <label className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-colors ${
+                  <label className={`flex items-start gap-3 p-4 border-2 rounded-2xl cursor-pointer transition-colors ${
                     fileOutputOptions.summary 
                       ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]' 
                       : 'border-[var(--dash-border-subtle)] hover:border-[var(--brand)]'
@@ -940,7 +940,7 @@ export default function AIAssistantPage() {
                       <p className="text-xs text-[var(--brand)] mt-1">+{aiProviders.find(p => p.id === selectedProvider)?.credits || 1} {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1) === 1 ? 'credit' : 'credits'}</p>
                     </div>
                   </label>
-                  <label className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-colors ${
+                  <label className={`flex items-start gap-3 p-4 border-2 rounded-2xl cursor-pointer transition-colors ${
                     fileOutputOptions.article 
                       ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]' 
                       : 'border-[var(--dash-border-subtle)] hover:border-[var(--dash-border-default)]'
@@ -968,7 +968,7 @@ export default function AIAssistantPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <button
                     onClick={() => setEnableOcr(!enableOcr)}
-                    className={`p-3 rounded-xl border-2 text-left transition-all ${
+                    className={`p-3 rounded-2xl border-2 text-left transition-all ${
                       enableOcr
                         ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]'
                         : 'border-[var(--dash-border-subtle)] hover:border-[var(--dash-border-default)]'
@@ -983,7 +983,7 @@ export default function AIAssistantPage() {
                   
                   <button
                     onClick={() => setIndexForSearch(!indexForSearch)}
-                    className={`p-3 rounded-xl border-2 text-left transition-all ${
+                    className={`p-3 rounded-2xl border-2 text-left transition-all ${
                       indexForSearch
                         ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]'
                         : 'border-[var(--dash-border-subtle)] hover:border-[var(--dash-border-default)]'
@@ -998,7 +998,7 @@ export default function AIAssistantPage() {
                   
                   <button
                     onClick={() => setPreserveFormatting(!preserveFormatting)}
-                    className={`p-3 rounded-xl border-2 text-left transition-all ${
+                    className={`p-3 rounded-2xl border-2 text-left transition-all ${
                       preserveFormatting
                         ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]'
                         : 'border-[var(--dash-border-subtle)] hover:border-[var(--dash-border-default)]'
@@ -1016,7 +1016,7 @@ export default function AIAssistantPage() {
 
             {/* Upload Progress */}
             {isUploading && currentJob && (
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl">
                 <div className="flex items-center gap-3 mb-3">
                   <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
                   <div className="flex-1">
@@ -1043,7 +1043,7 @@ export default function AIAssistantPage() {
 
             {/* Error State */}
             {error && (
-              <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-xl">
+              <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl">
                 <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <p className="text-sm font-medium text-red-900">Upload Failed</p>
@@ -1051,12 +1051,11 @@ export default function AIAssistantPage() {
                 </div>
               </div>
             )}
-
             {/* Upload Button */}
             {selectedFile && !isUploading && !uploadResult && !isFileTooLarge && (
               <button
                 onClick={handleFileUpload}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[var(--brand)] hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-all"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[var(--brand)] hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-all"
               >
                 <Upload className="w-4 h-4" />
                 Process Document ({calculateFileCredits()} credits)
@@ -1071,7 +1070,7 @@ export default function AIAssistantPage() {
                   {supportedFileCategories.map((cat) => (
                     <div
                       key={cat.id}
-                      className="flex items-center gap-3 p-3 bg-[var(--surface-ground)] rounded-lg"
+                      className="flex items-center gap-3 p-3 bg-[var(--surface-ground)] rounded-xl"
                     >
                       <cat.icon className="w-4 h-4 text-[var(--dash-text-tertiary)]" />
                       <div className="flex-1 min-w-0">
@@ -1091,7 +1090,7 @@ export default function AIAssistantPage() {
 
         <div className="xl:col-span-4 flex flex-col gap-6 min-h-0">
           {/* AI Provider Settings */}
-          <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl">
+          <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-2xl">
             <div className="px-6 py-4 border-b border-[var(--dash-border-subtle)]">
               <h2 className="font-semibold text-[var(--dash-text-primary)]">AI Provider</h2>
               <p className="text-sm text-[var(--dash-text-tertiary)]">Choose your preferred AI model</p>
@@ -1101,7 +1100,7 @@ export default function AIAssistantPage() {
                 <button
                   key={provider.id}
                   onClick={() => setSelectedProvider(provider.id)}
-                  className={`w-full flex items-center justify-between p-4 rounded-xl border-2 text-left transition-all ${
+                  className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 text-left transition-all ${
                     selectedProvider === provider.id
                       ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]'
                       : 'border-[var(--dash-border-subtle)] hover:border-[var(--dash-border-default)]'
@@ -1141,7 +1140,7 @@ export default function AIAssistantPage() {
           </div>
 
           {/* With Template Section */}
-          <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl">
+          <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-2xl">
             <div className="px-6 py-4 border-b border-[var(--dash-border-subtle)]">
               <h2 className="font-semibold text-[var(--dash-text-primary)]">With Template</h2>
               <p className="text-sm text-[var(--dash-text-tertiary)]">Use template structure as a guide for AI generation</p>
@@ -1164,7 +1163,7 @@ export default function AIAssistantPage() {
                   <button
                     key={template.id}
                     onClick={() => setSelectedTemplate(prev => prev === template.id ? '' : template.id)}
-                    className={`w-full p-4 rounded-xl border-2 text-left transition-all group ${
+                    className={`w-full p-4 rounded-2xl border-2 text-left transition-all group ${
                       selectedTemplate === template.id
                         ? 'border-[var(--brand)] bg-[var(--brand-primary-muted)]'
                         : 'border-[var(--dash-border-subtle)] hover:border-[var(--brand)] hover:bg-[var(--surface-hover)]'
@@ -1201,7 +1200,7 @@ export default function AIAssistantPage() {
                       handleGenerate();
                     }}
                     disabled={!prompt.trim() || isGenerating}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[var(--brand)] hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-all"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[var(--brand)] hover:bg-[var(--brand-dark)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-all"
                   >
                     {isGenerating ? (
                       <>
@@ -1224,7 +1223,7 @@ export default function AIAssistantPage() {
           </div>
 
           {/* Recent Generations */}
-          <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl">
+          <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-2xl">
             <div className="px-6 py-4 border-b border-[var(--dash-border-subtle)]">
               <h2 className="font-semibold text-[var(--dash-text-primary)]">Recent Generations</h2>
               <p className="text-sm text-[var(--dash-text-tertiary)]">Your AI-generated content history</p>
@@ -1251,7 +1250,7 @@ export default function AIAssistantPage() {
                     onClick={() => gen.document_id && router.push(`/dashboard/knowledge/${gen.document_id}`)}
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-lg bg-[var(--brand-primary-muted)] flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-xl bg-[var(--brand-primary-muted)] flex items-center justify-center">
                         <Sparkles className="w-5 h-5 text-[var(--brand)]" />
                       </div>
                       <div>

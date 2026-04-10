@@ -430,12 +430,12 @@ export default function AuditPage() {
         }
         right={
           <div className="flex flex-wrap items-center gap-3 justify-center sm:justify-end">
-            <div className="flex items-center bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg p-1.5">
+            <div className="flex items-center bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-1.5">
               {(["7d", "30d", "90d"] as const).map((range) => (
                 <button
                   key={range}
                   onClick={() => setTimeRange(range)}
-                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                     timeRange === range
                       ? "bg-[var(--brand)] text-white"
                       : "text-[var(--dash-text-secondary)] hover:text-[var(--dash-text-primary)]"
@@ -447,7 +447,7 @@ export default function AuditPage() {
             </div>
             <button 
               onClick={handleExport}
-              className="flex items-center gap-2 h-10 px-5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-sm text-[var(--dash-text-secondary)] hover:border-[var(--brand)]"
+              className="flex items-center gap-2 h-10 px-5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-sm text-[var(--dash-text-secondary)] hover:border-[var(--brand)]"
             >
               <Download className="w-4 h-4" />
               Export
@@ -505,7 +505,7 @@ export default function AuditPage() {
             {/* Stats - Focus on Review Queue */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {auditStats.map((stat) => (
-                <div key={stat.label} className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-6">
+                <div key={stat.label} className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-2xl p-6">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-[var(--dash-text-tertiary)]">{stat.label}</p>
@@ -524,7 +524,7 @@ export default function AuditPage() {
             </div>
 
             {/* Review Queue Table - Redesigned */}
-            <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl overflow-hidden">
+            <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-2xl overflow-hidden">
               <div className="px-6 py-5 border-b border-[var(--dash-border-subtle)] flex items-center justify-between">
                 <div>
                   <h2 className="font-semibold text-[var(--dash-text-primary)] flex items-center gap-2">
@@ -570,7 +570,7 @@ export default function AuditPage() {
                         <tr key={review.id} className="hover:bg-[var(--surface-hover)] transition-colors group">
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleDocumentClick(review.document_id)}>
-                              <div className="w-9 h-9 rounded-lg bg-[var(--brand)]/10 flex items-center justify-center text-[var(--brand)]">
+                              <div className="w-9 h-9 rounded-xl bg-[var(--brand)]/10 flex items-center justify-center text-[var(--brand)]">
                                 <FileText className="w-4.5 h-4.5" />
                               </div>
                               <div className="min-w-0">
@@ -583,7 +583,7 @@ export default function AuditPage() {
                             <p className="text-sm text-[var(--dash-text-secondary)] line-clamp-1" title={review.reason}>{review.reason}</p>
                           </td>
                           <td className="px-6 py-4">
-                            <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${
+                            <span className={`inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${
                               review.priority === 'high' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
                               review.priority === 'medium' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
                               'bg-blue-500/10 text-blue-500 border-blue-500/20'
@@ -606,7 +606,7 @@ export default function AuditPage() {
                               {review.status === 'pending' && (
                                 <button
                                   onClick={() => handleUpdateReviewStatus(review.id, 'in_progress', review.title)}
-                                  className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--brand)]"
+                                  className="p-2 rounded-xl hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--brand)]"
                                   title="Start Review"
                                 >
                                   <Play className="w-4 h-4" />
@@ -614,14 +614,14 @@ export default function AuditPage() {
                               )}
                               <button
                                 onClick={() => router.push(`/dashboard/knowledge/${review.document_id}?from=audit`)}
-                                className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)]"
+                                className="p-2 rounded-xl hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)]"
                                 title="Edit Document"
                               >
                                 <Edit3 className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => handleUpdateReviewStatus(review.id, 'completed', review.title)}
-                                className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--status-success)]"
+                                className="p-2 rounded-xl hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] hover:text-[var(--status-success)]"
                                 title="Mark Completed"
                               >
                                 <CheckCheck className="w-4 h-4" />
@@ -642,7 +642,7 @@ export default function AuditPage() {
           <div className="space-y-10">
             {/* Health Distribution & Top Performance */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl">
+              <div className="lg:col-span-2 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-2xl">
                 <div className="px-6 py-5 border-b border-[var(--dash-border-subtle)]">
                   <h2 className="font-semibold text-[var(--dash-text-primary)]">Content Health Distribution</h2>
                   <p className="text-sm text-[var(--dash-text-tertiary)]">Analysis of all documents</p>
@@ -664,7 +664,7 @@ export default function AuditPage() {
                     <button 
                       onClick={handleRunFullAudit}
                       disabled={runningAudit}
-                      className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-all"
+                      className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand)] text-white rounded-xl text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-all"
                     >
                       {runningAudit ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
                       {runningAudit ? 'Running Audit...' : 'Run Full Audit Scan'}
@@ -673,7 +673,7 @@ export default function AuditPage() {
                 </div>
               </div>
 
-              <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl">
+              <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-2xl">
                 <div className="px-6 py-5 border-b border-[var(--dash-border-subtle)]">
                   <h2 className="font-semibold text-[var(--dash-text-primary)]">Insights</h2>
                   <p className="text-sm text-[var(--dash-text-tertiary)]">Top performers this period</p>
@@ -682,7 +682,7 @@ export default function AuditPage() {
                   {topPerformers.map((doc, index) => (
                     <div 
                       key={doc.id} 
-                      className="flex items-center gap-3 cursor-pointer hover:bg-[var(--surface-hover)] -mx-2 px-2 py-1 rounded-lg transition-colors"
+                      className="flex items-center gap-3 cursor-pointer hover:bg-[var(--surface-hover)] -mx-2 px-2 py-1 rounded-xl transition-colors"
                       onClick={() => handleDocumentClick(doc.id)}
                     >
                       <span className="w-6 h-6 rounded-full bg-[var(--surface-ground)] flex items-center justify-center text-xs font-medium text-[var(--dash-text-tertiary)]">{index + 1}</span>
@@ -702,7 +702,7 @@ export default function AuditPage() {
 
             {/* Audit Scan Results (if ran) */}
             {showAuditResults && auditResult && (
-              <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl overflow-hidden">
+              <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-2xl overflow-hidden">
                 <div className="px-6 py-5 border-b border-[var(--dash-border-subtle)] flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Shield className="w-5 h-5 text-[var(--brand)]" />
@@ -714,13 +714,13 @@ export default function AuditPage() {
                   <div className="flex gap-2">
                     <button 
                       onClick={() => setFindingFilter('all')}
-                      className={`px-3 py-1 rounded-md text-xs font-medium ${findingFilter === 'all' ? 'bg-[var(--brand)] text-white' : 'bg-[var(--bg-tertiary)] text-[var(--dash-text-secondary)]'}`}
+                      className={`px-3 py-1 rounded-lg text-xs font-medium ${findingFilter === 'all' ? 'bg-[var(--brand)] text-white' : 'bg-[var(--bg-tertiary)] text-[var(--dash-text-secondary)]'}`}
                     >
                       All
                     </button>
                     <button 
                       onClick={() => setFindingFilter('critical')}
-                      className={`px-3 py-1 rounded-md text-xs font-medium ${findingFilter === 'critical' ? 'bg-red-500 text-white' : 'bg-[var(--bg-tertiary)] text-[var(--dash-text-secondary)]'}`}
+                      className={`px-3 py-1 rounded-lg text-xs font-medium ${findingFilter === 'critical' ? 'bg-red-500 text-white' : 'bg-[var(--bg-tertiary)] text-[var(--dash-text-secondary)]'}`}
                     >
                       Critical
                     </button>
@@ -750,7 +750,7 @@ export default function AuditPage() {
             )}
 
             {/* Stale Content */}
-            <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl">
+            <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-2xl">
               <div className="px-6 py-5 border-b border-[var(--dash-border-subtle)] flex items-center justify-between">
                 <div>
                   <h2 className="font-semibold text-[var(--dash-text-primary)] flex items-center gap-2">
@@ -769,7 +769,7 @@ export default function AuditPage() {
                     </div>
                     <button 
                       onClick={() => handleScheduleReview(doc.id, doc.title)}
-                      className="px-3 py-1.5 bg-[var(--bg-tertiary)] hover:bg-[var(--brand)] hover:text-white rounded-lg text-xs font-medium transition-all"
+                      className="px-3 py-1.5 bg-[var(--bg-tertiary)] hover:bg-[var(--brand)] hover:text-white rounded-xl text-xs font-medium transition-all"
                     >
                       Schedule Review
                     </button>
@@ -781,17 +781,17 @@ export default function AuditPage() {
         )}
 
         {activeTab === "settings" && (
-          <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-8 text-center">
+          <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-2xl p-8 text-center">
             <Settings className="w-12 h-12 text-[var(--dash-text-muted)] mx-auto mb-4" />
             <h3 className="text-lg font-medium text-[var(--dash-text-primary)]">Audit Configurations</h3>
             <p className="text-sm text-[var(--dash-text-tertiary)] mt-2">
               Automate your content audit process. Settings such as scan frequency and review notification preferences will be available here soon.
             </p>
             <div className="mt-8 flex justify-center gap-4">
-              <button disabled className="px-5 py-2.5 bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] rounded-lg text-sm font-medium cursor-not-allowed">
+              <button disabled className="px-5 py-2.5 bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] rounded-xl text-sm font-medium cursor-not-allowed">
                 Configure Schedule
               </button>
-              <button disabled className="px-5 py-2.5 bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] rounded-lg text-sm font-medium cursor-not-allowed">
+              <button disabled className="px-5 py-2.5 bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] rounded-xl text-sm font-medium cursor-not-allowed">
                 Notification Rules
               </button>
             </div>

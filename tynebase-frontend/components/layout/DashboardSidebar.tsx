@@ -258,14 +258,6 @@ const adminNavigation: NavItem[] = [
     color: "#ec4899",
     roles: ["admin", "super_admin"],
   },
-  {
-    id: "audit-logs",
-    label: "Audit Log",
-    icon: Activity,
-    href: "/dashboard/settings/audit-logs",
-    color: "#06b6d4",
-    roles: ["admin", "super_admin"],
-  },
 ];
 
 export function DashboardSidebar({ mobile }: { mobile?: boolean }) {
@@ -507,15 +499,15 @@ export function DashboardSidebar({ mobile }: { mobile?: boolean }) {
       {isRoleModalOpen && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsRoleModalOpen(false)} />
-          <div className="relative w-full max-w-lg bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-xl shadow-xl max-h-[90vh] overflow-y-auto">
+          <div className="relative w-full max-w-lg bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-3xl shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)]">
               <h2 className="text-lg font-semibold text-[var(--text-primary)]">User Roles & Permissions</h2>
-              <button onClick={() => setIsRoleModalOpen(false)} className="p-1.5 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
+              <button onClick={() => setIsRoleModalOpen(false)} className="p-1.5 rounded-xl hover:bg-[var(--surface-ground)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="px-6 py-5 space-y-5">
-              <RoleInfoItem title="Admin" color="blue" desc="Can manage users, view billing, configure branding, and access audit logs. Extensive permissions with some restrictions." />
+              <RoleInfoItem title="Admin" color="blue" desc="Can manage users, view billing, and configure branding. Extensive permissions with some restrictions." />
               <div className="h-px bg-[var(--border-subtle)]" />
               <RoleInfoItem title="Editor" color="green" desc="Can create, edit, and publish content. Access to AI assistant and audit tools. No admin settings access." />
               <div className="h-px bg-[var(--border-subtle)]" />

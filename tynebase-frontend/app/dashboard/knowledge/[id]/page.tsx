@@ -456,7 +456,7 @@ export default function EditDocumentPage() {
     <div className="h-[calc(100vh-64px)] flex flex-col -m-6">
       <RainbowProgressBar isLoading={isLoading} />
       {/* Header */}
-      <div className="flex flex-col gap-3 px-4 sm:px-6 py-3 sm:py-4 border border-[var(--dash-border-subtle)] bg-[var(--surface-card)] rounded-2xl">
+      <div className="flex flex-col gap-3 px-4 sm:px-6 py-3 sm:py-4 border border-[var(--dash-border-subtle)] bg-[var(--surface-card)] rounded-3xl">
         {/* Top row: Back button and breadcrumb */}
         <div className="flex items-center justify-between gap-2 min-w-0">
           <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
@@ -517,15 +517,15 @@ export default function EditDocumentPage() {
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           {/* Edit/Reader Toggle - hide Edit option for read-only docs */}
           {isReadOnly ? (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 text-amber-600 rounded-lg text-xs sm:text-sm font-medium">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 text-amber-600 rounded-xl text-xs sm:text-sm font-medium">
               <Eye className="w-4 h-4" />
               <span>View Only</span>
             </div>
           ) : (
-            <div className="flex items-center p-1 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl">
+            <div className="flex items-center p-1 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-2xl">
               <button
                 onClick={() => handleModeSwitch("edit")}
-                className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors ${mode === "edit"
+                className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs sm:text-sm font-medium transition-colors ${mode === "edit"
                   ? "bg-[var(--surface-card)] text-[var(--dash-text-primary)]"
                   : "text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)]"
                   }`}
@@ -534,7 +534,7 @@ export default function EditDocumentPage() {
               </button>
               <button
                 onClick={() => handleModeSwitch("read")}
-                className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors ${mode === "read"
+                className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs sm:text-sm font-medium transition-colors ${mode === "read"
                   ? "bg-[var(--surface-card)] text-[var(--dash-text-primary)]"
                   : "text-[var(--dash-text-tertiary)] hover:text-[var(--dash-text-primary)]"
                   }`}
@@ -672,7 +672,7 @@ export default function EditDocumentPage() {
                     <h3 className="font-semibold text-[var(--dash-text-primary)]">Document Settings</h3>
                     <button 
                       onClick={() => setShowSettings(false)}
-                      className="lg:hidden p-1 hover:bg-[var(--surface-hover)] rounded text-[var(--dash-text-secondary)]"
+                      className="lg:hidden p-1 hover:bg-[var(--surface-hover)] rounded-lg text-[var(--dash-text-secondary)]"
                     >
                       <X className="w-5 h-5" />
                     </button>
@@ -687,7 +687,7 @@ export default function EditDocumentPage() {
                     </label>
                     <button 
                       onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-                      className="w-full flex items-center justify-between px-3 py-2 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-lg text-left hover:border-[var(--dash-border-default)] transition-colors"
+                      className="w-full flex items-center justify-between px-3 py-2 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl text-left hover:border-[var(--dash-border-default)] transition-colors"
                     >
                       <div className="flex items-center gap-2">
                         {selectedCategory && (
@@ -708,7 +708,7 @@ export default function EditDocumentPage() {
                     </button>
                     
                     {showCategoryDropdown && !loadingCategories && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl shadow-lg z-10 max-h-48 overflow-y-auto">
                         <button
                           onClick={() => handleCategoryChange(null)}
                           className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-[var(--surface-hover)] ${
@@ -767,7 +767,7 @@ export default function EditDocumentPage() {
                             }
                           }}
                           disabled={option.disabled}
-                          className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all ${
+                          className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${
                             option.disabled
                               ? "border-[var(--dash-border-subtle)] opacity-50 cursor-not-allowed"
                               : visibility === option.id
@@ -850,11 +850,11 @@ export default function EditDocumentPage() {
                           }
                         }}
                         placeholder="Add more tags..."
-                        className="w-full px-3 py-2 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-lg text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)]"
+                        className="w-full px-3 py-2 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-primary)] placeholder:text-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)]"
                       />
                       
                       {showTagDropdown && (tagInput || filteredTags.length > 0) && (
-                        <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl shadow-lg z-10 max-h-48 overflow-y-auto">
                           {filteredTags.map(tag => (
                             <button
                               key={tag.id}
@@ -988,7 +988,7 @@ export default function EditDocumentPage() {
 
                 <CardContent className="p-4 space-y-4">
                   {/* Current Version */}
-                  <div className="p-3 rounded-lg bg-[var(--brand)]/5 border border-[var(--brand)]/20">
+                  <div className="p-3 rounded-xl bg-[var(--brand)]/5 border border-[var(--brand)]/20">
                     <div className="flex items-start justify-between">
                       <div>
                         <p className="font-medium text-[var(--dash-text-primary)] text-sm">
@@ -1076,7 +1076,7 @@ export default function EditDocumentPage() {
           </p>
           <button
             onClick={() => setShowCopyLinkModal(false)}
-            className="mt-6 px-8 py-2.5 text-sm font-medium text-white bg-[var(--brand)] rounded-lg hover:bg-[var(--brand-dark)] transition-colors"
+            className="mt-6 px-8 py-2.5 text-sm font-medium text-white bg-[var(--brand)] rounded-xl hover:bg-[var(--brand-dark)] transition-colors"
           >
             Done
           </button>

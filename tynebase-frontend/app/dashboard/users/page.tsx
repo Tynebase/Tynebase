@@ -170,7 +170,7 @@ function UsersFiltersBar({
             placeholder="Search members..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand-primary)]"
+            className="w-full pl-10 pr-4 py-2 bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand-primary)]"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -178,7 +178,7 @@ function UsersFiltersBar({
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
-            className="w-full sm:w-auto px-3 py-2 bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]"
+            className="w-full sm:w-auto px-3 py-2 bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-xl text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]"
           >
             <option value="all">All Roles</option>
             <option value="admin">Admin</option>
@@ -479,10 +479,10 @@ export default function UsersPage() {
     <div className="w-full h-full min-h-0 flex flex-col gap-8">
       {/* Free tier upgrade banner */}
       {tenantTier === 'free' && (
-        <div className="bg-gradient-to-r from-[#E85002] to-[#8b5cf6] rounded-xl p-6 text-white">
+        <div className="bg-gradient-to-r from-[#E85002] to-[#8b5cf6] rounded-2xl p-6 text-white">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center">
                 <Users className="w-6 h-6" />
               </div>
               <div>
@@ -492,7 +492,7 @@ export default function UsersPage() {
             </div>
             <Link
               href="/dashboard/settings/billing"
-              className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-[#E85002] rounded-xl font-semibold hover:bg-white/90 transition-colors shadow-md whitespace-nowrap"
+              className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-[#E85002] rounded-2xl font-semibold hover:bg-white/90 transition-colors shadow-md whitespace-nowrap"
             >
               Upgrade Plan
               <ArrowRight className="w-4 h-4" />
@@ -567,7 +567,7 @@ export default function UsersPage() {
                       <MoreHorizontal className="w-4 h-4" />
                     </Button>
                     {activeDropdownId === member.id && (
-                      <div className="absolute right-0 top-full mt-1 w-48 bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-lg shadow-lg z-50 py-1">
+                      <div className="absolute right-0 top-full mt-1 w-48 bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-xl shadow-lg z-50 py-1">
                         {!member.is_original_admin && (
                           <button onClick={() => { handleChangeRole(member); setActiveDropdownId(null); }} className="w-full text-left px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-ground)] flex items-center gap-2">
                             <UserCog className="w-4 h-4" /> Change Role
@@ -675,7 +675,7 @@ export default function UsersPage() {
               placeholder="colleague@company.com"
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
-              className="w-full px-4 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand-primary)]"
+              className="w-full px-4 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand-primary)]"
             />
           </div>
 
@@ -686,7 +686,7 @@ export default function UsersPage() {
             <select
               value={inviteRole}
               onChange={(e) => setInviteRole(e.target.value as WorkspaceRole)}
-              className="w-full px-4 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand-primary)] [&>option]:rounded-lg appearance-none"
+              className="w-full px-4 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand-primary)] [&>option]:rounded-lg appearance-none"
             >
               <option value="viewer">Viewer - Read-only access</option>
               <option value="editor">Editor - Can create and edit workspace content</option>
@@ -696,7 +696,7 @@ export default function UsersPage() {
             </select>
           </div>
 
-          <div className="bg-[var(--surface-ground)] rounded-lg p-5 text-sm text-[var(--text-tertiary)]">
+          <div className="bg-[var(--surface-ground)] rounded-xl p-5 text-sm text-[var(--text-tertiary)]">
             <p>An invitation email will be sent to this address. They'll be able to join your workspace once they accept.</p>
           </div>
         </div>
@@ -757,7 +757,7 @@ export default function UsersPage() {
         size="md"
       >
         <div className="space-y-4">
-          <div className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-xl">
             <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0" />
             <p className="text-sm text-red-700">
               This will remove <strong>{deletingUser?.full_name || deletingUser?.email}</strong> from your workspace. This action cannot be undone.
@@ -766,7 +766,7 @@ export default function UsersPage() {
 
           {/* Ownership Transfer — shown when the departing user owns documents */}
           {(deletingUser?.documents_count ?? 0) > 0 && (
-            <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-ground)] p-4 space-y-3">
+            <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-ground)] p-4 space-y-3">
               <div className="flex items-center gap-2">
                 <ArrowLeftRight className="w-4 h-4 text-[var(--brand-primary)] flex-shrink-0" />
                 <p className="text-sm font-semibold text-[var(--text-primary)]">
@@ -785,7 +785,7 @@ export default function UsersPage() {
                 <select
                   value={transferToUserId}
                   onChange={(e) => setTransferToUserId(e.target.value)}
-                  className="w-full px-3 py-2 bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]"
+                  className="w-full px-3 py-2 bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]"
                 >
                   <option value="">— Leave unassigned —</option>
                   {users
@@ -821,10 +821,10 @@ export default function UsersPage() {
       {showRolesModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowRolesModal(false)} />
-          <div className="relative w-full max-w-lg bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-xl shadow-xl max-h-[90vh] overflow-y-auto">
+          <div className="relative w-full max-w-lg bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-3xl shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)]">
               <h2 className="text-lg font-semibold text-[var(--text-primary)]">User Roles & Permissions</h2>
-              <button onClick={() => setShowRolesModal(false)} className="p-1.5 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
+              <button onClick={() => setShowRolesModal(false)} className="p-1.5 rounded-xl hover:bg-[var(--surface-ground)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
                 <X className="w-5 h-5" />
               </button>
             </div>

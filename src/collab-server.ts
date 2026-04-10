@@ -705,18 +705,22 @@ const server = new Server({
       const userRecord = userRecords[0];
 
       // Check tenant access - allow cross-tenant for public published documents (read-only)
-      const isSameTenant = userRecord.tenant_id === document.tenant_id;
+      const isMemberOfTenant = userRecords.some(r => r.tenant_id === document.tenant_id);
       const isPublicDocument = document.visibility === 'public' && document.status === 'published';
       
-      if (!isSameTenant && !isPublicDocument) {
-        console.error(`[Collab] Authentication failed: User ${user.id} tenant ${userRecord.tenant_id} does not match document tenant ${document.tenant_id}`);
+      if (!isMemberOfTenant && !isPublicDocument) {
+        console.error(`[Collab] Authentication failed: User ${user.id} is not a member of document tenant ${document.tenant_id}`);
         throw new Error('Unauthorized access to document');
       }
 
+      // Find the specific role for this tenant if available, otherwise use default
+      const activeMembership = userRecords.find(r => r.tenant_id === document.tenant_id) || userRecords[0];
+      const userRole = activeMembership.role;
+
       // Use full_name if available, otherwise fall back to email
-      const displayName = userRecord.full_name || userRecord.email || user.email || 'Anonymous';
-      const isViewer = userRecord.role === 'viewer';
-      const isReadOnly = !isSameTenant || isViewer;
+      const displayName = activeMembership.full_name || activeMembership.email || user.email || 'Anonymous';
+      const isViewer = userRole === 'viewer';
+      const isReadOnly = !isMemberOfTenant || isViewer;
       const accessMode = isReadOnly ? 'readonly' : 'full';
       console.log(`[Collab] User ${user.id} (${displayName}, role=${userRecord.role}) authenticated for document ${documentName} (${accessMode} access)`);
       
