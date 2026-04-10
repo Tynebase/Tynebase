@@ -718,6 +718,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
       request.user = {
         id: user.id,
         email: user.email || '',
+        full_name: null,
         role: '',
         tenant_id: '',
         is_super_admin: false,
@@ -929,7 +930,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
       let profileQuery = supabaseAdmin
         .from('users')
-        .select('id, email, role, tenant_id, is_super_admin')
+        .select('id, email, full_name, role, tenant_id, is_super_admin')
         .eq('id', user.id);
 
       if (hasExplicitSubdomain) {
@@ -962,6 +963,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
       request.user = {
         id: userProfile.id,
         email: userProfile.email,
+        full_name: userProfile.full_name || null,
         role: userProfile.role,
         tenant_id: userProfile.tenant_id,
         is_super_admin: userProfile.is_super_admin,

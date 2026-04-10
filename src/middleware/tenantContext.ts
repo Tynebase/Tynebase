@@ -48,42 +48,67 @@ class LRUCache {
     this.cache.set(key, value);
   }
 
+  invalidate(key: string): void {
+    this.cache.delete(key);
+  }
+
   clear(): void {
     this.cache.clear();
   }
 }
 
-const tenantCache = new LRUCache(1000, 300000);
+const tenantCache = new LRUCache(1000, 300000); // 5 min TTL
 
+/**
+ * Sanitize subdomain input to prevent injection.
+ */
 function sanitizeSubdomain(subdomain: string): string {
   return subdomain.toLowerCase().replace(/[^a-z0-9-]/g, '');
 }
 
+/**
+ * Tenant Context Middleware
+ *
+ * Resolves the tenant from the `x-tenant-subdomain` header and populates
+ * `request.tenant`.  If the header is absent the middleware exits silently
+ * so that `authMiddleware` can resolve the tenant from the user's profile.
+ *
+ * Special subdomains `www`, `main`, and `app` are treated as "no subdomain"
+ * and skipped — these represent bare-domain access where the user should be
+ * routed to their primary workspace.
+ */
 export async function tenantContextMiddleware(
   request: FastifyRequest,
   reply: FastifyReply
 ) {
   const subdomainHeader = request.headers['x-tenant-subdomain'] as string;
 
-  // If no subdomain header is provided, skip tenant resolution here.
-  // The authMiddleware will handle tenant resolution from the user's profile.
-  // This allows endpoints to work on localhost without subdomain setup.
+  // Skip tenant resolution if no header or it's a generic subdomain
   if (!subdomainHeader) {
-    request.log.debug('No x-tenant-subdomain header provided, skipping tenant context resolution');
+    request.log.debug(
+      'No x-tenant-subdomain header provided, skipping tenant context resolution'
+    );
     return;
   }
 
   const sanitizedSubdomain = sanitizeSubdomain(subdomainHeader);
 
-  if (!sanitizedSubdomain || sanitizedSubdomain.length < 2) {
-    return reply.status(400).send({
-      error: {
-        code: 'INVALID_SUBDOMAIN',
-        message: 'Invalid subdomain format',
-      },
-    });
+  // Skip generic/bare-domain subdomains
+  if (
+    !sanitizedSubdomain ||
+    sanitizedSubdomain.length < 2 ||
+    sanitizedSubdomain === 'www' ||
+    sanitizedSubdomain === 'main' ||
+    sanitizedSubdomain === 'app'
+  ) {
+    request.log.debug(
+      { subdomain: sanitizedSubdomain },
+      'Generic subdomain, skipping tenant resolution'
+    );
+    return;
   }
 
+  // Check cache first
   let tenant = tenantCache.get(sanitizedSubdomain);
 
   if (!tenant) {
@@ -117,7 +142,7 @@ export async function tenantContextMiddleware(
     };
 
     tenantCache.set(sanitizedSubdomain, tenant);
-    request.log.info({ tenantId: tenant.id }, 'Tenant resolved and cached');
+    request.log.debug({ tenantId: tenant.id }, 'Tenant resolved and cached');
   } else {
     request.log.debug({ tenantId: tenant.id }, 'Tenant resolved from cache');
   }

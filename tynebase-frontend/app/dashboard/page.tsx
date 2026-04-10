@@ -343,13 +343,13 @@ export default function DashboardPage() {
                   className="flex gap-3 cursor-pointer hover:bg-[var(--surface-hover)] -mx-6 px-6 py-3 rounded-lg transition-colors"
                 >
                   <div className="w-8 h-8 rounded-full bg-[var(--brand-primary-muted)] flex items-center justify-center text-[var(--brand)] font-semibold text-xs flex-shrink-0">
-                    {(activity.users.full_name || activity.users.email).split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                    {(activity.users?.full_name || activity.users?.email || "?").split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-[var(--dash-text-secondary)]">
-                      <span className="font-medium text-[var(--dash-text-primary)]">{activity.users.full_name || activity.users.email}</span>
+                      <span className="font-medium text-[var(--dash-text-primary)]">{activity.users?.full_name || activity.users?.email || "Unknown"}</span>
                       {" "}{getEventAction(activity.event_type)}{" "}
-                      <span className="font-medium text-[var(--dash-text-primary)]">{activity.documents.title}</span>
+                      <span className="font-medium text-[var(--dash-text-primary)]">{activity.documents?.title}</span>
                     </p>
                     <p className="text-xs text-[var(--dash-text-muted)] mt-0.5">{formatTimeAgo(activity.created_at)}</p>
                   </div>

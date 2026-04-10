@@ -44,11 +44,11 @@ export interface RecentActivity {
   document_id: string;
   documents: {
     title: string;
-  };
+  } | null;
   users: {
     full_name: string | null;
     email: string;
-  };
+  } | null;
 }
 
 export interface DashboardStatsResponse {

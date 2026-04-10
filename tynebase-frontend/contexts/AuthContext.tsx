@@ -33,9 +33,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
  
       const response = await getMe();
+
+      // Defensive: ensure the response contains valid user data
+      if (!response?.user?.id) {
+        console.warn('[AuthContext] /me response missing user data, treating as unauthenticated.');
+        setUser(null);
+        setTenant(null);
+        setIsLoading(false);
+        return;
+      }
+
       console.log('[AuthContext] Session found for user:', response.user.id, 'Role:', response.user.role);
       setUser(response.user);
-      setTenant(response.tenant);
+      setTenant(response.tenant ?? null);
       
       // Sync tenant_subdomain in localStorage if it changed (e.g. user moved to new tenant)
       if (response.tenant?.subdomain) {
@@ -61,6 +71,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // We don't clear the session because the user might want to join the community.
       if (error?.code === 'PROFILE_NOT_FOUND') {
         console.log('[AuthContext] Profile not found. User is a guest with a valid Supabase token.');
+        setUser(null);
+        setTenant(null);
+        setIsLoading(false);
+        return;
+      }
+
+      // Tenant not found - user is on a subdomain that doesn't exist
+      if (error?.code === 'TENANT_NOT_FOUND') {
+        console.log('[AuthContext] Tenant not found for this subdomain.');
         setUser(null);
         setTenant(null);
         setIsLoading(false);

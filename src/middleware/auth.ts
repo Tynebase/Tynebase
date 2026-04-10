@@ -3,23 +3,26 @@ import { supabaseAdmin } from '../lib/supabase';
 import { normalizeWorkspaceRole } from '../lib/roles';
 
 /**
- * JWT Authentication Middleware
- * 
- * Verifies Supabase JWT token from Authorization header and populates request.user
- * 
- * @param request - Fastify request object
- * @param reply - Fastify reply object
- * 
- * Security:
- * - Verifies JWT signature using Supabase
- * - Checks token expiry automatically via Supabase SDK
- * - Validates issuer through Supabase configuration
- * - Queries database to get full user profile with tenant context
+ * JWT Authentication Middleware (Multi-Tenant Aware)
+ *
+ * Verifies Supabase JWT token and resolves the user's profile for the
+ * correct tenant.  Resolution order:
+ *
+ *   1. If `request.tenant` is already set (by tenantContextMiddleware from
+ *      the `x-tenant-subdomain` header), look up the user row for that
+ *      specific tenant.
+ *   2. Otherwise fall back to the user's *primary* workspace — identified by
+ *      `original_tenant_id IS NULL` (they created it) or by the admin role.
+ *   3. If neither is found, take the first active membership.
+ *
+ * After resolution, `request.user` and (if missing) `request.tenant` are
+ * populated for downstream handlers.
  */
 export async function authMiddleware(
   request: FastifyRequest,
   reply: FastifyReply
 ) {
+  // ── 1. Extract & validate Bearer token ────────────────────────────────
   const authHeader = request.headers.authorization;
 
   if (!authHeader) {
@@ -43,7 +46,9 @@ export async function authMiddleware(
   }
 
   try {
-    const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
+    // ── 2. Verify JWT with Supabase ───────────────────────────────────
+    const { data: authData, error: authError } =
+      await supabaseAdmin.auth.getUser(token);
 
     if (authError || !authData?.user) {
       request.log.warn(
@@ -58,8 +63,9 @@ export async function authMiddleware(
       });
     }
 
-    const userId = authData.user.id;
-    const userEmail = authData.user.email;
+    const authUser = authData.user;
+    const userId = authUser.id;
+    const userEmail = authUser.email;
 
     if (!userEmail) {
       request.log.error({ userId }, 'User email missing from JWT');
@@ -71,60 +77,110 @@ export async function authMiddleware(
       });
     }
 
-    // Check if tenant context is available (set by tenantContextMiddleware)
+    // ── 3. Resolve user profile ─────────────────────────────────────
     const tenantContext = (request as any).tenant;
-    let userData;
-    let dbError;
+    let userData: any = null;
+    let dbError: any = null;
 
-    if (tenantContext && tenantContext.id) {
-      // Query for user profile in the specific tenant context
-      const { data: users, error: error } = await supabaseAdmin
+    if (tenantContext?.id) {
+      // 3a. Tenant already resolved from subdomain header → strict lookup
+      const { data, error } = await supabaseAdmin
         .from('users')
-        .select('id, email, full_name, role, tenant_id, is_super_admin, status')
+        .select(
+          'id, email, full_name, role, tenant_id, is_super_admin, status, original_tenant_id'
+        )
         .eq('id', userId)
         .eq('tenant_id', tenantContext.id)
         .maybeSingle();
 
-      userData = users;
+      userData = data;
       dbError = error;
+
+      // If user has no membership for this specific tenant, check if they
+      // are a super admin (they can access any tenant).
+      if (!userData && !dbError) {
+        const { data: anyRow } = await supabaseAdmin
+          .from('users')
+          .select('id, email, full_name, role, tenant_id, is_super_admin, status')
+          .eq('id', userId)
+          .eq('is_super_admin', true)
+          .eq('status', 'active')
+          .limit(1)
+          .maybeSingle();
+
+        if (anyRow) {
+          // Super admin accessing a different tenant — use their profile
+          // but point tenant_id at the tenant from the subdomain context.
+          userData = { ...anyRow, tenant_id: tenantContext.id };
+        }
+      }
     } else {
-      // No tenant context, fall back to first tenant (original behavior)
-      const { data: users, error: error } = await supabaseAdmin
+      // 3b. No subdomain context → find the user's primary workspace.
+      //     With the composite PK a user can have rows in many tenants.
+      const { data: allRows, error } = await supabaseAdmin
         .from('users')
-        .select('id, email, full_name, role, tenant_id, is_super_admin, status')
+        .select(
+          'id, email, full_name, role, tenant_id, is_super_admin, status, original_tenant_id'
+        )
         .eq('id', userId)
-        .order('tenant_id', { ascending: true })
-        .limit(1);
+        .eq('status', 'active');
 
-      userData = users?.[0];
       dbError = error;
 
-      // If we found a user, populate tenant context for downstream middleware
-      if (userData && userData.tenant_id) {
-        const { data: tenant, error: tenantError } = await supabaseAdmin
-          .from('tenants')
-          .select('id, subdomain, name, tier, settings, storage_limit')
-          .eq('id', userData.tenant_id)
-          .single();
+      if (allRows && allRows.length > 0) {
+        // Prefer the *home* workspace: original_tenant_id IS NULL means
+        // this user is the creator of that workspace.
+        userData =
+          allRows.find(
+            (r) =>
+              r.original_tenant_id === null || r.original_tenant_id === r.tenant_id
+          ) ||
+          // Then prefer admin role
+          allRows.find((r) => r.role === 'admin' || r.is_super_admin) ||
+          // Any active row
+          allRows[0];
 
-        if (!tenantError && tenant) {
-          (request as any).tenant = {
-            id: tenant.id,
-            subdomain: tenant.subdomain,
-            name: tenant.name,
-            tier: tenant.tier,
-            settings: tenant.settings || {},
-            storage_limit: tenant.storage_limit,
-          };
-          request.log.info({ tenantId: tenant.id }, 'Tenant context populated from user profile');
+        // Also populate request.tenant for downstream handlers
+        if (userData?.tenant_id) {
+          const { data: tenant } = await supabaseAdmin
+            .from('tenants')
+            .select('id, subdomain, name, tier, settings, storage_limit')
+            .eq('id', userData.tenant_id)
+            .single();
+
+          if (tenant) {
+            (request as any).tenant = {
+              id: tenant.id,
+              subdomain: tenant.subdomain,
+              name: tenant.name,
+              tier: tenant.tier,
+              settings: tenant.settings || {},
+              storage_limit: tenant.storage_limit,
+            };
+            request.log.debug(
+              { tenantId: tenant.id },
+              'Tenant context populated from user profile'
+            );
+          }
         }
       }
     }
 
-    if (dbError || !userData) {
-      request.log.error(
-        { userId, error: dbError },
-        'User not found in database'
+    // ── 4. Handle missing profile ───────────────────────────────────
+    if (dbError) {
+      request.log.error({ userId, error: dbError }, 'User lookup failed');
+      return reply.status(500).send({
+        error: {
+          code: 'AUTH_ERROR',
+          message: 'Failed to look up user profile',
+        },
+      });
+    }
+
+    if (!userData) {
+      request.log.warn(
+        { userId, tenantId: tenantContext?.id },
+        'No user profile found'
       );
       return reply.status(401).send({
         error: {
@@ -134,7 +190,7 @@ export async function authMiddleware(
       });
     }
 
-    // Check if user is suspended
+    // ── 5. Check suspension ─────────────────────────────────────────
     if (userData.status === 'suspended') {
       request.log.warn(
         { userId, tenantId: userData.tenant_id },
@@ -148,17 +204,17 @@ export async function authMiddleware(
       });
     }
 
-    // Check if tenant is suspended (unless user is super admin)
+    // Check tenant suspension (skip for super admins)
     if (!userData.is_super_admin) {
-      const { data: tenantData, error: tenantError } = await supabaseAdmin
+      const { data: tenantData } = await supabaseAdmin
         .from('tenants')
         .select('id, status')
         .eq('id', userData.tenant_id)
         .single();
 
-      if (tenantError || !tenantData) {
+      if (!tenantData) {
         request.log.error(
-          { userId, tenantId: userData.tenant_id, error: tenantError },
+          { userId, tenantId: userData.tenant_id },
           'Tenant not found for user'
         );
         return reply.status(403).send({
@@ -177,12 +233,14 @@ export async function authMiddleware(
         return reply.status(403).send({
           error: {
             code: 'TENANT_SUSPENDED',
-            message: 'Your organization has been suspended. Please contact support.',
+            message:
+              'Your organization has been suspended. Please contact support.',
           },
         });
       }
     }
 
+    // ── 6. Populate request.user ────────────────────────────────────
     const normalizedRole = normalizeWorkspaceRole(userData.role as any);
 
     (request as any).user = {

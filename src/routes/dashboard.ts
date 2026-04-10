@@ -343,21 +343,45 @@ export default async function dashboardRoutes(fastify: FastifyInstance) {
           throw activityError;
         }
 
-        // Fetch user information for all actors in the tenant
-        const actorIds = [...new Set(activities?.map(a => a.actor_id) || [])];
-        const { data: users } = await supabaseAdmin
-          .from('users')
-          .select('id, full_name, email')
-          .eq('tenant_id', tenant.id)
-          .in('id', actorIds);
+        // Fetch user information for all actors.
+        // With composite PK (id, tenant_id), a user can exist in many tenants.
+        // We prefer the row for this tenant but fall back to any row so we
+        // never return users: null (which crashes the frontend dashboard).
+        const actorIds = [...new Set(activities?.map(a => a.actor_id).filter(Boolean) || [])];
+        const userMap = new Map<string, { full_name: string | null; email: string }>();
 
-        // Create a map of user id to user data
-        const userMap = new Map(users?.map(u => [u.id, { full_name: u.full_name, email: u.email }]) || []);
+        if (actorIds.length > 0) {
+          // Primary lookup: actors within this tenant
+          const { data: tenantUsers } = await supabaseAdmin
+            .from('users')
+            .select('id, full_name, email')
+            .eq('tenant_id', tenant.id)
+            .in('id', actorIds);
 
-        // Merge user information into activities
+          for (const u of tenantUsers || []) {
+            userMap.set(u.id, { full_name: u.full_name, email: u.email });
+          }
+
+          // Fallback: for actors not found in this tenant, search globally
+          const missingIds = actorIds.filter(id => !userMap.has(id));
+          if (missingIds.length > 0) {
+            const { data: otherUsers } = await supabaseAdmin
+              .from('users')
+              .select('id, full_name, email')
+              .in('id', missingIds);
+
+            for (const u of otherUsers || []) {
+              if (!userMap.has(u.id)) {
+                userMap.set(u.id, { full_name: u.full_name, email: u.email });
+              }
+            }
+          }
+        }
+
+        // Always provide a safe fallback so frontend never sees users: null
         const activitiesWithUsers = activities?.map(activity => ({
           ...activity,
-          users: userMap.get(activity.actor_id) || null
+          users: userMap.get(activity.actor_id) || { full_name: 'Unknown User', email: 'unknown' },
         })) || [];
 
         return reply.status(200).send({

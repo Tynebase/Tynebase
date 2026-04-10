@@ -626,14 +626,14 @@ export default function CollectionDetailPage() {
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-[var(--surface-ground)] flex items-center justify-center">
                         <span className="text-sm font-medium text-[var(--dash-text-secondary)]">
-                          {member.users.full_name?.charAt(0).toUpperCase() || member.users.email.charAt(0).toUpperCase()}
+                          {member.users?.full_name?.charAt(0).toUpperCase() || member.users?.email.charAt(0).toUpperCase()}
                         </span>
                       </div>
                       <div>
                         <p className="font-medium text-[var(--dash-text-primary)]">
-                          {member.users.full_name || member.users.email}
+                          {member.users?.full_name || member.users?.email}
                         </p>
-                        <p className="text-sm text-[var(--dash-text-tertiary)]">{member.users.email}</p>
+                        <p className="text-sm text-[var(--dash-text-tertiary)]">{member.users?.email}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -834,7 +834,7 @@ export default function CollectionDetailPage() {
           <p className="text-sm text-[var(--dash-text-secondary)]">
             Are you sure you want to remove{" "}
             <span className="font-semibold text-[var(--dash-text-primary)]">
-              {memberToRemove?.users.full_name || memberToRemove?.users.email}
+              {memberToRemove?.users?.full_name || memberToRemove?.users?.email}
             </span>{" "}
             from this collection?
           </p>
