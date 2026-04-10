@@ -224,6 +224,85 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
   });
 
   /**
+   * GET /api/public/tenant-by-domain
+   * Resolves a tenant by its subdomain or verified custom domain.
+   */
+  fastify.get('/api/public/tenant-by-domain', {
+    preHandler: [rateLimitMiddleware],
+  }, async (request, reply) => {
+    try {
+      const { domain } = request.query as { domain: string };
+
+      if (!domain) {
+        return reply.code(400).send({
+          error: { code: 'MISSING_DOMAIN', message: 'Domain query parameter is required' },
+        });
+      }
+
+      // 1. Determine if it's a subdomain or a custom domain
+      const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || 'tynebase.com';
+      let tenant;
+
+      if (domain.toLowerCase().endsWith(`.${baseDomain}`)) {
+        // Subdomain case: ennersmai.tynebase.com
+        const subdomain = domain.slice(0, -(baseDomain.length + 1)).toLowerCase();
+        
+        // Skip for reserved/main subdomains
+        if (['www', 'api', 'app', 'admin'].includes(subdomain)) {
+           return reply.code(404).send({
+             error: { code: 'TENANT_NOT_FOUND', message: 'Primary domain used' },
+           });
+        }
+
+        const { data, error } = await supabaseAdmin
+          .from('tenants')
+          .select('id, subdomain, name, tier, settings')
+          .eq('subdomain', subdomain)
+          .single();
+        
+        tenant = data;
+        if (error || !data) {
+          return reply.code(404).send({
+            error: { code: 'TENANT_NOT_FOUND', message: 'Workspace not found for this subdomain' },
+          });
+        }
+      } else {
+        // Custom domain case: docs.acme.com
+        const { data, error } = await supabaseAdmin
+          .from('tenants')
+          .select('id, subdomain, name, tier, settings')
+          .eq('custom_domain', domain.toLowerCase())
+          .eq('custom_domain_verified', true)
+          .single();
+        
+        tenant = data;
+        if (error || !data) {
+          return reply.code(404).send({
+            error: { code: 'TENANT_NOT_FOUND', message: 'Workspace not found for this custom domain' },
+          });
+        }
+      }
+
+      return reply.code(200).send({
+        success: true,
+        data: {
+          tenant: {
+            id: tenant.id,
+            subdomain: tenant.subdomain,
+            name: tenant.name,
+            branding: tenant.settings?.branding || {},
+          },
+        },
+      });
+    } catch (error) {
+      fastify.log.error({ error }, 'Error in GET /api/public/tenant-by-domain');
+      return reply.code(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' },
+      });
+    }
+  });
+
+  /**
    * GET /api/public/tenant/:subdomain
    * Get public tenant info by subdomain (no auth, for branded pages)
    */
