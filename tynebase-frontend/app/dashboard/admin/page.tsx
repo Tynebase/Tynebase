@@ -83,7 +83,7 @@ export default function SuperAdminPage() {
   const [usersTotalPages, setUsersTotalPages] = useState(1);
   const [usersTotal, setUsersTotal] = useState(0);
   const [usersSearch, setUsersSearch] = useState("");
-  const [usersStatus, setUsersStatus] = useState<"all" | "active" | "archived">("all");
+  const [usersStatus, setUsersStatus] = useState<"all" | "active" | "suspended">("all");
   const [usersFilter, setUsersFilter] = useState<"all" | "new30d" | "active7d">("all");
   const [usersLoading, setUsersLoading] = useState(false);
 
@@ -475,7 +475,7 @@ export default function SuperAdminPage() {
               >
                 <option value="all">All statuses</option>
                 <option value="active">Active</option>
-                <option value="archived">Archived</option>
+                <option value="suspended">Archived</option>
               </select>
               {usersFilter !== "all" && (
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--brand)]/10 text-[var(--brand)] rounded-lg text-sm font-medium">
@@ -555,7 +555,7 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-1">
                               {/* Re-instate (archived or deleted users) */}
-                              {(u.status === "archived" || u.status === "deleted") && (
+                              {(u.status === "suspended" || u.status === "deleted") && (
                                 <button
                                   onClick={() => handleRestoreUser(u)}
                                   disabled={actionLoading === `restore-${u.id}`}
@@ -571,7 +571,7 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                                 </button>
                               )}
                               {/* Send Recovery Email (active users only) */}
-                              {u.status !== "archived" && u.status !== "deleted" && (
+                              {u.status !== "suspended" && u.status !== "deleted" && (
                                 <button
                                   onClick={() => handleSendRecovery(u)}
                                   disabled={actionLoading === `recovery-${u.id}`}

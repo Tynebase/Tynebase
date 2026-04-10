@@ -1,6 +1,6 @@
 "use client";
 
-import { Mail, MessageSquare, MapPin } from "lucide-react";
+import { Mail, MessageSquare, MapPin, Phone } from "lucide-react";
 import { useState } from "react";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
@@ -146,7 +146,7 @@ export default function ContactPage() {
                 </div>
               </div>
 
-              <div className="bento-item">
+              <div className="bento-item" style={{ marginBottom: '32px' }}>
                 <div className="flex items-start gap-4">
                   <div className="feature-icon feature-icon-purple">
                     <MapPin className="w-5 h-5" />
@@ -157,62 +157,25 @@ export default function ContactPage() {
                     <p className="text-sm text-[var(--text-muted)]">EU data residency</p>
                   </div>
                 </div>
+              </div>
+
+              <div className="bento-item">
+                <div className="flex items-start gap-4">
+                  <div className="feature-icon feature-icon-green">
+                    <Phone className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-[var(--text-primary)] mb-1">WhatsApp</h3>
+                    <p className="text-[var(--text-secondary)]">+44 7428 448571</p>
+                    <p className="text-sm text-[var(--text-muted)]">Quick response guaranteed</p>
+                  </div>
+                </div>
               </div>  
             </div>
           </div>
         </div>
       </section>
 
-      {/* Team Section */}
-      <section className="section py-20">
-        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 24px' }}>
-          <div style={{ textAlign: 'center', marginBottom: '64px' }}>
-            <h2 style={{ fontSize: '1.875rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>Meet Our Team</h2>
-            <p style={{ fontSize: '1.125rem', color: 'var(--text-secondary)' }}>The people behind TyneBase.</p>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8" style={{ width: '100%', maxWidth: '896px' }}>
-            {/* Daniel G - CEO */}
-            <div className="text-center" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[var(--brand)] to-[var(--accent-pink)] mx-auto mb-4 flex items-center justify-center" style={{ marginBottom: '20px' }}>
-                <span className="text-2xl font-bold text-white">DG</span>
-              </div>
-              <h4 className="font-semibold text-[var(--text-primary)]" style={{ marginBottom: '4px' }}>Daniel G</h4>
-              <p className="text-sm text-[var(--text-muted)]">CEO & Co-Founder</p>
-            </div>
-            
-            {/* Mai P - CTO with headshot */}
-            <div className="text-center" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div className="w-24 h-24 rounded-full overflow-hidden mx-auto mb-4" style={{ marginBottom: '20px' }}>
-                <img 
-                  src="/Mai_headshoot.webp" 
-                  alt="Mai P" 
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <h4 className="font-semibold text-[var(--text-primary)]" style={{ marginBottom: '4px' }}>Mai P</h4>
-              <p className="text-sm text-[var(--text-muted)]">CTO & Co-Founder</p>
-            </div>
-            
-            {/* Marcus Johnson - Hiring Soon */}
-            <div className="text-center" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[var(--brand)] to-[var(--accent-pink)] mx-auto mb-4 flex items-center justify-center" style={{ marginBottom: '20px' }}>
-                <span className="text-2xl font-bold text-white">MJ</span>
-              </div>
-              <h4 className="font-semibold text-[var(--text-primary)]" style={{ marginBottom: '4px' }}>Marcus Johnson</h4>
-              <p className="text-sm text-[var(--text-muted)]">Hiring Soon</p>
-            </div>
-            
-            {/* Emma Davis - Hiring Soon */}
-            <div className="text-center" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[var(--brand)] to-[var(--accent-pink)] mx-auto mb-4 flex items-center justify-center" style={{ marginBottom: '20px' }}>
-                <span className="text-2xl font-bold text-white">ED</span>
-              </div>
-              <h4 className="font-semibold text-[var(--text-primary)]" style={{ marginBottom: '4px' }}>Emma Davis</h4>
-              <p className="text-sm text-[var(--text-muted)]">Hiring Soon</p>
-            </div>
-          </div>
-        </div>
-      </section>
 
       <SiteFooter currentPage="contact" />
     </div>
