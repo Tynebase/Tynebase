@@ -48,6 +48,14 @@ function OAuthLoginContent() {
       // Store tokens in localStorage + cookies so the app's auth helpers work
       setAuthTokens(access_token!, refresh_token || "");
 
+      // If we're going to a community join flow, we MUST skip the /api/auth/me check
+      // because community contributors don't have a profile record yet (created in finalize step)
+      if (redirect && (redirect.includes("/community/join/finalize") || redirect.includes("/community/signup"))) {
+        console.log('[OAuthLogin] Community join detected, bypassing validation and jumping to:', redirect);
+        window.location.replace(redirect);
+        return;
+      }
+
       // Fetch tenant info from the backend using the Supabase access token
       const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
       try {
