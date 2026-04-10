@@ -1,4 +1,4 @@
--- Migration: Surgical Multi-Tenant Identity Transition (Final Hardened version)
+-- Migration: Surgical Multi-Tenant Identity Transition (Final Multi-Tenant version)
 -- Objective: Upgrade public.users to a composite primary key and REPAIR mis-tenant-linked data with per-record fallbacks.
 
 DO $$ 
@@ -50,17 +50,28 @@ BEGIN
       AND ccu.column_name = 'id'
       AND tc.table_schema = 'public';
 
-    -- 4. Drop identified foreign keys
+    -- 4. Drop identified foreign keys (UNLOCK tables)
     FOR r IN (SELECT * FROM constraint_backup) LOOP
         EXECUTE format('ALTER TABLE public.%I DROP CONSTRAINT IF EXISTS %I', r.table_name, r.constraint_name);
     END LOOP;
 
-    -- 5. REPAIR ORPHANED/MISALIGNED DATA
+    -- 5. UPGRADE PRIMARY KEY IMMEDIATELY
+    -- This allows us to have multiple (id, tenant_id) rows during the repair step.
+    IF EXISTS (
+        SELECT 1 FROM information_schema.table_constraints 
+        WHERE table_schema = 'public' AND table_name = 'users' AND constraint_type = 'PRIMARY KEY'
+    ) THEN
+        ALTER TABLE public.users DROP CONSTRAINT IF EXISTS users_pkey;
+    END IF;
+    
+    ALTER TABLE public.users ADD PRIMARY KEY (id, tenant_id);
+
+    -- 6. REPAIR ORPHANED/MISALIGNED DATA
     FOR r IN (SELECT * FROM constraint_backup) LOOP
         IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = r.table_name AND column_name = 'tenant_id') THEN
             
             -- ENSURE REPLACEMENT PROFILE EXISTS IN EACH TENANT THAT HAS ORPHANS
-            -- We create a shadow membership for the fallback user in any tenant that needs data repair.
+            -- Now that the PK is composite, this won't trigger a 'Duplicate Key' error.
             EXECUTE format(
                 'INSERT INTO public.users (id, tenant_id, email, full_name, role, status)
                  SELECT DISTINCT %L::uuid, tenant_id, %L, %L, ''community_contributor'', ''active''
@@ -89,16 +100,6 @@ BEGIN
             RAISE NOTICE 'Repaired mis-tenant-linked records in table %', r.table_name;
         END IF;
     END LOOP;
-
-    -- 6. Modify the users table primary key
-    IF EXISTS (
-        SELECT 1 FROM information_schema.table_constraints 
-        WHERE table_schema = 'public' AND table_name = 'users' AND constraint_type = 'PRIMARY KEY'
-    ) THEN
-        ALTER TABLE public.users DROP CONSTRAINT IF EXISTS users_pkey;
-    END IF;
-    
-    ALTER TABLE public.users ADD PRIMARY KEY (id, tenant_id);
 
     -- 7. Re-create foreign keys as composite references
     FOR r IN (SELECT * FROM constraint_backup) LOOP
