@@ -391,6 +391,14 @@ BEGIN
 END $$;
 
 -- dm_messages: already has tenant_id, add FK
+-- First clean orphaned records
+DELETE FROM public.dm_messages dm
+WHERE author_id IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM public.users u
+    WHERE u.id = dm.author_id AND u.tenant_id = dm.tenant_id
+  );
+
 ALTER TABLE public.dm_messages
   DROP CONSTRAINT IF EXISTS dm_messages_author_id_fkey;
 ALTER TABLE public.dm_messages
@@ -505,6 +513,8 @@ BEGIN
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = 'public' AND table_name = 'notifications' AND column_name = 'tenant_id'
   ) THEN
+    -- Delete orphaned notifications first
+    EXECUTE 'DELETE FROM public.notifications n WHERE NOT EXISTS (SELECT 1 FROM public.users u WHERE u.id = n.user_id AND u.tenant_id = n.tenant_id)';
     EXECUTE 'ALTER TABLE public.notifications DROP CONSTRAINT IF EXISTS notifications_user_id_fkey';
     EXECUTE 'ALTER TABLE public.notifications ADD CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id, tenant_id) REFERENCES public.users(id, tenant_id) ON DELETE CASCADE NOT VALID';
     EXECUTE 'ALTER TABLE public.notifications VALIDATE CONSTRAINT notifications_user_id_fkey';
