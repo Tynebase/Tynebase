@@ -80,3 +80,15 @@ export function capitalize(text: string): string {
   if (!text) return text;
   return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
 }
+
+/**
+ * Get current subdomain from the current window location
+ */
+export function getCurrentSubdomain(): string | null {
+  if (typeof window === 'undefined') return null;
+  const hostname = window.location.hostname;
+  const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || 'tynebase.com';
+  
+  // Custom utility function defined in this file
+  return extractSubdomain(hostname, baseDomain);
+}

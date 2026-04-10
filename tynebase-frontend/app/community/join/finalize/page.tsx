@@ -46,20 +46,26 @@ function FinalizeContent() {
         });
 
         const result = await res.json();
-
-        if (!res.ok) {
-          setError(result.error?.message || "Failed to join community.");
-        } else {
-          // Success! Refresh auth state and redirect to community hub
-          await refreshUser();
-          router.replace("/community");
-        }
-      } catch (err: any) {
-        console.error("[Finalize Join] Error:", err);
-        setError("An unexpected error occurred. Please try again.");
-      } finally {
-        setLoading(false);
-      }
+ 
+         if (!res.ok) {
++          const code = result.error?.code;
++          if (code === 'ALREADY_MEMBER_OTHER') {
++            setError("Your TyneBase account is already associated with another workspace and cannot join this community. Please use a different email or log out of your other workspace.");
++          } else {
++            setError(result.error?.message || "Failed to join community.");
++          }
+         } else {
+           // Success! Refresh auth state and redirect to community hub
+           console.log('[Finalize Join] Success, refreshing user...');
+           await refreshUser();
+           router.replace("/community");
+         }
+       } catch (err: any) {
+         console.error("[Finalize Join] Error:", err);
+         setError("An unexpected error occurred. Please try again.");
+       } finally {
+         setLoading(false);
+       }
     }
 
     finalize();

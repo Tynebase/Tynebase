@@ -41,19 +41,45 @@ export class ApiClientError extends Error {
 }
 
 /**
- * Get the stored JWT access token from localStorage
+ * Get the stored JWT access token from localStorage or Cookies (subdomain sync)
  */
 function getAccessToken(): string | null {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('access_token');
+  
+  const localStorageToken = localStorage.getItem('access_token');
+  if (localStorageToken) return localStorageToken;
+  
+  // Fallback to cookie (for cross-subdomain landing)
+  const match = document.cookie.match(/(^|;)\s*access_token\s*=\s*([^;]+)/);
+  const cookieToken = match ? decodeURIComponent(match[2]) : null;
+  
+  // Seed localStorage if found in cookie
+  if (cookieToken) {
+    localStorage.setItem('access_token', cookieToken);
+    console.log('[ApiClient] Seeded access_token from cookie');
+  }
+  
+  return cookieToken;
 }
 
 /**
- * Get the stored refresh token from localStorage
+ * Get the stored refresh token from localStorage or Cookies
  */
 function getRefreshToken(): string | null {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('refresh_token');
+  
+  const localStorageToken = localStorage.getItem('refresh_token');
+  if (localStorageToken) return localStorageToken;
+  
+  const match = document.cookie.match(/(^|;)\s*refresh_token\s*=\s*([^;]+)/);
+  const cookieToken = match ? decodeURIComponent(match[2]) : null;
+  
+  if (cookieToken) {
+    localStorage.setItem('refresh_token', cookieToken);
+    console.log('[ApiClient] Seeded refresh_token from cookie');
+  }
+  
+  return cookieToken;
 }
 
 /**
@@ -129,11 +155,24 @@ async function refreshAccessToken(): Promise<string | null> {
 }
 
 /**
- * Get the stored tenant subdomain from localStorage
+ * Get the stored tenant subdomain from localStorage or the current URL
  */
 function getTenantSubdomain(): string | null {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('tenant_subdomain');
+  
+  // Try localStorage first (overrides)
+  const stored = localStorage.getItem('tenant_subdomain');
+  if (stored && stored !== 'main' && stored !== 'www') return stored;
+  
+  // Fallback to URL detection
+  const { getCurrentSubdomain } = require('@/lib/utils');
+  const urlSubdomain = getCurrentSubdomain();
+  
+  if (urlSubdomain && urlSubdomain !== 'www') {
+    return urlSubdomain;
+  }
+  
+  return stored;
 }
 
 /**

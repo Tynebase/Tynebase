@@ -23,36 +23,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUser = async () => {
     try {
+      console.log('[AuthContext] Fetching user session...');
       if (!isAuthenticated()) {
+        console.log('[AuthContext] No session found (localStorage/cookies empty).');
         setUser(null);
         setTenant(null);
         setIsLoading(false);
         return;
       }
-
+ 
       const response = await getMe();
+      console.log('[AuthContext] Session found for user:', response.user.id, 'Role:', response.user.role);
       setUser(response.user);
       setTenant(response.tenant);
       
       // Sync tenant_subdomain in localStorage if it changed (e.g. user moved to new tenant)
       if (response.tenant?.subdomain) {
         const storedSubdomain = localStorage.getItem('tenant_subdomain');
+        const urlSubdomain = typeof window !== 'undefined' ? window.location.hostname.split('.')[0] : null;
+
+        // If we land on a subdomain and they are a member, ensure the context matches
+        if (urlSubdomain && urlSubdomain !== 'www' && urlSubdomain !== response.tenant.subdomain) {
+          console.warn('[AuthContext] Context mismatch! URL Subdomain:', urlSubdomain, 'but Primary Tenant:', response.tenant.subdomain);
+          // We don't force a switch here, but we should be aware
+        }
+
         if (storedSubdomain !== response.tenant.subdomain) {
           setTenantSubdomain(response.tenant.subdomain);
         }
       }
     } catch (error: any) {
-      console.error("Failed to fetch user:", error);
+      console.error("[AuthContext] Failed to fetch user:", error);
       
-      const errorCode = error?.code;
+      const errorCode = error?.code || error?.statusCode;
       
       // If account was deleted or suspended, clear everything and redirect to login
       if (errorCode === 'ACCOUNT_DELETED' || errorCode === 'ACCOUNT_SUSPENDED') {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        localStorage.removeItem('tenant_subdomain');
-        document.cookie = 'tenant_subdomain=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-        
+        clearAuth();
         if (typeof window !== 'undefined' && !window.location.pathname.includes('/login') && !window.location.pathname.includes('/auth/')) {
           window.location.href = `/login?error=${errorCode === 'ACCOUNT_DELETED' ? 'account_deleted' : 'account_suspended'}`;
         }
