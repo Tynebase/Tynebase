@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -77,11 +78,20 @@ export async function GET(request: Request) {
 
   if (inviteTenantId && inviteRole) {
     // This is an invited user - check if user record already exists
-    const { data: existingUser } = await supabase
+    // Use admin client with service role key to bypass RLS
+    const supabaseAdmin = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SECRET_KEY!
+    );
+
+    console.log('[Auth Callback] Checking for existing user record for:', data.user.id);
+    const { data: existingUser, error: userError } = await supabaseAdmin
       .from('users')
       .select('id, tenant_id, status')
       .eq('id', data.user.id)
       .maybeSingle();
+
+    console.log('[Auth Callback] Existing user query result:', { existingUser, error: userError });
 
     if (!existingUser) {
       // New user - redirect to accept-invite page to set name & password
@@ -104,8 +114,8 @@ export async function GET(request: Request) {
     if (existingUser.tenant_id) {
       console.log('[Auth Callback] Existing user with tenant, ignoring stale invite metadata');
       // Clear the invite metadata from Supabase to prevent this in the future
-      await supabase.auth.updateUser({
-        data: { tenant_id: null, role: null, tenant_name: null, tenant_subdomain: null, invited_by_name: null }
+      await supabaseAdmin.auth.admin.updateUserById(data.user.id, {
+        user_metadata: { tenant_id: null, role: null, tenant_name: null, tenant_subdomain: null, invited_by_name: null }
       });
       // Proceed to normal OAuth flow
     } else {
