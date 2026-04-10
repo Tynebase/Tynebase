@@ -6,7 +6,9 @@ export async function createClient() {
 
   // Use new publishable key, fallback to old anon key for backward compatibility
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  
+  const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || "tynebase.com";
+  const cookieDomain = process.env.NODE_ENV === "production" ? `.${baseDomain}` : undefined;
+
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     supabaseKey!,
@@ -21,19 +23,19 @@ export async function createClient() {
               cookieStore.set(name, value, { 
                 ...options,
                 path: options.path || "/",
+                domain: options.domain || cookieDomain,
                 sameSite: "lax",
                 secure: process.env.NODE_ENV === "production",
               })
             );
           } catch {
             // The `setAll` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
           }
         },
       },
       cookieOptions: {
         path: "/",
+        domain: cookieDomain,
         sameSite: "lax",
         secure: process.env.NODE_ENV === "production",
       },
