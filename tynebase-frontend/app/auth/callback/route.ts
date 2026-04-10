@@ -135,5 +135,17 @@ export async function GET(request: Request) {
     redirect,
   })).toString('base64url');
 
-  return NextResponse.redirect(`${origin}/auth/oauth-login#t=${payload}`);
+  // Determine if the redirect target is on a different domain (subdomain sync)
+  let targetOrigin = origin;
+  if (redirect.startsWith('http')) {
+    try {
+      const redirectUrl = new URL(redirect);
+      targetOrigin = redirectUrl.origin;
+      console.log('[Auth Callback] Absolute redirect detected, targeting origin:', targetOrigin);
+    } catch (e) {
+      console.error('[Auth Callback] Failed to parse absolute redirect URL:', e);
+    }
+  }
+
+  return NextResponse.redirect(`${targetOrigin}/auth/oauth-login#t=${payload}`);
 }
