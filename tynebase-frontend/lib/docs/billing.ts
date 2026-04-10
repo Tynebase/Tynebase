@@ -12,43 +12,46 @@ TyneBase offers flexible pricing plans designed to scale with your organization'
 
 ## Pricing Plans
 
-### Free Plan
-Perfect for small teams and individuals getting started with knowledge management.
+### Base Plan (Free)
+Perfect for individuals getting started with knowledge management.
 
 **Features:**
-- Up to 5 users
+- 1 solo account
 - 100 documents
-- 1GB storage
 - Basic AI features (10 credits/month)
 - Community support
 - Standard branding
 
-### Professional Plan
+### Pro Plan
 Ideal for growing teams that need more power and flexibility.
 
+**Price:** £29/month
+
 **Features:**
-- Up to 50 users
+- Up to 10 users
 - Unlimited documents
-- 10GB storage
+- 1GB storage
 - Advanced AI features (100 credits/month)
 - Email support
 - Custom branding
 - API access
 
-### Business Plan
+### Enterprise Plan
 Designed for larger teams and organizations with advanced needs.
 
+**Price:** £99/month
+
 **Features:**
-- Up to 200 users
+- Up to 50 users
 - Unlimited documents
-- 50GB storage
+- 10GB storage
 - Premium AI features (500 credits/month)
 - Priority email support
 - Advanced branding
 - Advanced analytics
 - SSO integration
 
-### Enterprise Plan
+### Consult Sales
 Custom solutions for large organizations with specific requirements.
 
 **Features:**
@@ -92,8 +95,7 @@ If you exceed your storage limit:
 
 ### User Overages
 Add more users to your plan anytime:
-- Professional: $10 per additional user per month
-- Business: $8 per additional user per month
+- Pro: Custom pricing
 - Enterprise: Custom pricing
 
 ## Invoicing and Receipts

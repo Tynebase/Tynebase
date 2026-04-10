@@ -64,11 +64,9 @@ export default function CommunityLoginPage() {
     }
 
     const currentSubdomain = subdomain || "main";
-    const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || "tynebase.com";
-    const protocol = window.location.protocol;
     
-    // Redirect to the main domain's callback path to ensure it's whitelisted in Supabase
-    const redirectTo = `${protocol}//www.${baseDomain}/auth/callback`;
+    // Use current origin for OAuth callback to ensure PKCE verifier cookie is accessible
+    const redirectTo = `${window.location.origin}/auth/callback`;
     
     // The final destination after the callback process
     const finalRedirect = `${window.location.origin}/community/join/finalize?subdomain=${currentSubdomain}`;

@@ -48,9 +48,8 @@ function LoginPageInner() {
       setShowErrorModal(true);
       return;
     }
-    // Use consistent domain for OAuth redirect to avoid PKCE cookie issues across subdomains
-    const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || "tynebase.com";
-    const redirectOrigin = process.env.NODE_ENV === "production" ? `https://www.${baseDomain}` : window.location.origin;
+    // Use current origin for OAuth redirect to ensure PKCE verifier cookie is accessible
+    const redirectOrigin = window.location.origin;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {

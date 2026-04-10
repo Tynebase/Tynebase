@@ -697,10 +697,10 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto items-stretch">
-            {/* Free */}
+            {/* Base */}
             <div className="pricing-card-black-border" style={{ backgroundColor: 'var(--bg-elevated)', borderRadius: 'var(--radius-xl)', padding: '32px', display: 'flex', flexDirection: 'column', transition: 'all var(--duration-normal) var(--ease-out)', border: `1px solid ${getBorderColor()}` }}>
               <div style={{ marginBottom: '16px' }}>
-                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Free</h3>
+                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Base</h3>
               </div>
               <div style={{ marginBottom: '24px' }}>
                 <div className="mt-4">
@@ -727,22 +727,22 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Base - Highlighted */}
+            {/* Pro - Highlighted */}
             <div className="pricing-card pricing-card-featured relative overflow-visible">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
                 <span className="badge badge-brand">Popular</span>
               </div>
               <div style={{ marginBottom: '16px', paddingTop: '8px' }}>
-                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Base</h3>
+                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Pro</h3>
               </div>
               <div style={{ marginBottom: '24px' }}>
                 <div className="mt-4">
                   <span className="text-4xl font-bold text-[var(--text-primary)]">
-                    £{billingPeriod === 'monthly' ? '49' : '39'}
+                    £{billingPeriod === 'monthly' ? '29' : '24'}
                   </span>
                   <span style={{ color: 'var(--text-primary)' }}>/month</span>
                   {billingPeriod === 'yearly' && (
-                    <p className="text-xs text-[var(--text-muted)] mt-1">Billed annually (£468/year)</p>
+                    <p className="text-xs text-[var(--text-muted)] mt-1">Billed annually (£288/year)</p>
                   )}
                 </div>
               </div>
@@ -765,19 +765,19 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Pro */}
+            {/* Enterprise */}
             <div className="pricing-card-black-border" style={{ backgroundColor: 'var(--bg-elevated)', borderRadius: 'var(--radius-xl)', padding: '32px', display: 'flex', flexDirection: 'column', transition: 'all var(--duration-normal) var(--ease-out)', border: `1px solid ${getBorderColor()}` }}>
               <div style={{ marginBottom: '16px' }}>
-                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Pro</h3>
+                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Enterprise</h3>
               </div>
               <div style={{ marginBottom: '24px' }}>
                 <div className="mt-4">
                   <span className="text-4xl font-bold text-[var(--text-primary)]">
-                    £{billingPeriod === 'monthly' ? '249' : '199'}
+                    £{billingPeriod === 'monthly' ? '99' : '79'}
                   </span>
                   <span style={{ color: 'var(--text-primary)' }}>/month</span>
                   {billingPeriod === 'yearly' && (
-                    <p className="text-xs text-[var(--text-muted)] mt-1">Billed annually (£2,388/year)</p>
+                    <p className="text-xs text-[var(--text-muted)] mt-1">Billed annually (£948/year)</p>
                   )}
                 </div>
               </div>
@@ -800,27 +800,23 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Enterprise - Custom styled */}
+            {/* Consult Sales - Custom styled */}
             <div className="pricing-card-enterprise" style={{ display: 'flex', flexDirection: 'column' }}>
               <div className="pricing-card-enterprise-inner" style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
                 {/* Section 1: Title */}
                 <div style={{ marginBottom: '16px' }}>
-                  <h3 className="text-lg font-semibold text-[var(--text-primary)]">Enterprise</h3>
+                  <h3 className="text-lg font-semibold text-[var(--text-primary)]">Consult Sales</h3>
                 </div>
 
-                {/* Section 2: Price and description */}
+                {/* Section 2: Description */}
                 <div style={{ marginBottom: '24px' }}>
-                  <div style={{ marginBottom: '12px' }}>
-                    <span className="text-4xl font-bold text-[var(--text-primary)]">£999</span>
-                    <span style={{ color: 'var(--text-primary)' }}>/month</span>
-                  </div>
-                  <p className="text-sm text-[var(--text-muted)]">Perfect for large organizations</p>
+                  <p className="text-sm text-[var(--text-muted)]">Custom solutions for large organizations</p>
                 </div>
 
                 {/* Section 3: Features */}
                 <div style={{ marginBottom: '24px' }}>
                   <ul className="space-y-3">
-                    {['All Pro features', 'Unlimited Users', 'Unlimited Documents', 'Dedicated support', 'Custom integrations', 'SLA guarantee', 'On-premise option', 'Rollover credits'].map((feature) => (
+                    {['All Enterprise features', 'Unlimited Users', 'Unlimited Documents', 'Dedicated support', 'Custom integrations', 'SLA guarantee', 'On-premise option', 'Rollover credits'].map((feature) => (
                       <li key={feature} className="flex items-center gap-3 text-sm text-[var(--text-secondary)]">
                         <Check className="w-4 h-4 text-[var(--brand)] flex-shrink-0" />
                         {feature}
