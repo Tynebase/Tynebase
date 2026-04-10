@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { getMe, logout, isAuthenticated } from "@/lib/api/auth";
-import { setTenantSubdomain } from "@/lib/api/client";
+import { setTenantSubdomain, clearAuth } from "@/lib/api/client";
 import type { User, Tenant } from "@/types/api";
 
 interface AuthContextType {
