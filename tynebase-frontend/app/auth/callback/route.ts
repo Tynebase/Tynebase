@@ -80,9 +80,22 @@ export async function GET(request: Request) {
   // Check for invite metadata and handle accordingly
   if (inviteTenantId && inviteRole) {
     // Use admin client with service role key to bypass RLS
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
+
+    console.log('[Auth Callback] Admin client config:', {
+      hasUrl: !!supabaseUrl,
+      hasSecretKey: !!supabaseSecretKey,
+      secretKeyPrefix: supabaseSecretKey?.substring(0, 10),
+    });
+
+    if (!supabaseSecretKey) {
+      console.error('[Auth Callback] SUPABASE_SECRET_KEY not set in environment');
+    }
+
     const supabaseAdmin = createSupabaseClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SECRET_KEY!
+      supabaseUrl!,
+      supabaseSecretKey!
     );
 
     console.log('[Auth Callback] Checking for existing user record for:', data.user.id);
@@ -92,7 +105,11 @@ export async function GET(request: Request) {
       .eq('id', data.user.id)
       .maybeSingle();
 
-    console.log('[Auth Callback] Existing user query result:', { existingUser, error: userError });
+    console.log('[Auth Callback] Existing user query result:', {
+      existingUser,
+      error: userError?.message,
+      errorDetails: userError,
+    });
 
     if (!existingUser) {
       // New user - redirect to appropriate flow based on redirect parameter
