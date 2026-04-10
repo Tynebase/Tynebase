@@ -636,15 +636,16 @@ const server = new server_1.Server({
                 console.error(`[Collab] Authentication failed: Document ${documentName} not found`, docError?.message);
                 throw new Error('Document not found');
             }
-            const { data: userRecord, error: userError } = await supabase
+            const { data: userRecords, error: userError } = await supabase
                 .from('users')
                 .select('tenant_id, full_name, email, role')
-                .eq('id', user.id)
-                .single();
-            if (userError || !userRecord) {
+                .eq('id', user.id);
+            if (userError || !userRecords || userRecords.length === 0) {
                 console.error(`[Collab] Authentication failed: User ${user.id} not found`, userError?.message);
                 throw new Error('User not found');
             }
+            // Use the first user record (user can exist in multiple tenants)
+            const userRecord = userRecords[0];
             // Check tenant access - allow cross-tenant for public published documents (read-only)
             const isSameTenant = userRecord.tenant_id === document.tenant_id;
             const isPublicDocument = document.visibility === 'public' && document.status === 'published';
