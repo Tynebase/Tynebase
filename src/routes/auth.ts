@@ -717,9 +717,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
       // Only set the user ID - profile lookup is done in the main handler
       request.user = {
         id: user.id,
-        email: user.email,
-        role: null,
-        tenant_id: null,
+        email: user.email || '',
+        role: '',
+        tenant_id: '',
         is_super_admin: false,
       };
     },
