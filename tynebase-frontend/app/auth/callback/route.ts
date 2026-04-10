@@ -98,15 +98,26 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${origin}/auth/accept-invite?data=${inviteData}`);
     }
 
-    // User record exists - they may have been moved to the new tenant already
-    // (this happens when an existing user is invited and the backend moved them)
-    console.log('[Auth Callback] Existing user with invite metadata, tenant_id:', existingUser.tenant_id);
+    // User record exists - check if they already have a tenant
+    // If they have a tenant, ignore the invite metadata and proceed to dashboard
+    // This handles stale invite metadata from previous invites
+    if (existingUser.tenant_id) {
+      console.log('[Auth Callback] Existing user with tenant, ignoring stale invite metadata');
+      // Clear the invite metadata from Supabase to prevent this in the future
+      await supabase.auth.updateUser({
+        data: { tenant_id: null, role: null, tenant_name: null, tenant_subdomain: null, invited_by_name: null }
+      });
+      // Proceed to normal OAuth flow
+    } else {
+      // User exists but has no tenant - they might be accepting the invite
+      console.log('[Auth Callback] Existing user without tenant, proceeding with invite flow');
 
-    if (existingUser.status === 'deleted') {
-      // User was previously deleted - redirect to login with message
-      return NextResponse.redirect(
-        `${origin}/login?error=account_deleted&message=${encodeURIComponent('Your account has been removed. You can create a new workspace or wait to be invited again.')}`
-      );
+      if (existingUser.status === 'deleted') {
+        // User was previously deleted - redirect to login with message
+        return NextResponse.redirect(
+          `${origin}/login?error=account_deleted&message=${encodeURIComponent('Your account has been removed. You can create a new workspace or wait to be invited again.')}`
+        );
+      }
     }
   }
 
