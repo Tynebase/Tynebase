@@ -53,12 +53,20 @@ export default function DashboardLayout({
   const isViewer = user?.role === 'viewer' && !user?.is_super_admin;
   const isEditor = user?.role === 'editor' && !user?.is_super_admin;
   const isAdmin = user?.role === 'admin' || user?.is_super_admin;
+  const isCommunityRole = (user?.role === 'community_contributor' || user?.role === 'community_admin') && !user?.is_super_admin;
 
   useEffect(() => {
     if (!isLoading && !user) {
       router.push("/login");
+      return;
     }
-  }, [user, isLoading, router]);
+
+    // Redirect community roles away from the core dashboard
+    if (!isLoading && user && isCommunityRole) {
+      console.log(`[RoleGuard] Redirecting community user ${user.id} away from dashboard`);
+      router.replace("/community");
+    }
+  }, [user, isLoading, router, isCommunityRole]);
 
   // Redirect viewers away from restricted routes
   useEffect(() => {

@@ -158,3 +158,24 @@ export async function updateProfile(data: {
   const { apiPatch } = await import('./client');
   return apiPatch<MeResponse>('/api/auth/me', data);
 }
+
+/**
+ * Join an existing tenant community as a contributor
+ * 
+ * @param data - Join request data (email, password, full_name, subdomain)
+ * @returns Auth response with user, tenant, and tokens
+ */
+export async function communityJoin(data: {
+  email: string;
+  password: string;
+  full_name: string;
+  subdomain: string;
+}): Promise<AuthResponse> {
+  const response = await apiPost<AuthResponse>('/api/auth/community/join', data);
+  
+  // Store tokens and tenant subdomain
+  setAuthTokens(response.access_token, response.refresh_token);
+  setTenantSubdomain(response.tenant.subdomain);
+  
+  return response;
+}

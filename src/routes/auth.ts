@@ -1060,4 +1060,115 @@ export default async function authRoutes(fastify: FastifyInstance) {
       });
     }
   });
+
+  /**
+   * POST /api/auth/community/join
+   * Joins an existing tenant as a community member
+   */
+  fastify.post('/api/auth/community/join', async (request, reply) => {
+    try {
+      const joinSchema = z.object({
+        email: z.string().email(),
+        password: z.string().min(8),
+        full_name: z.string().min(1),
+        subdomain: z.string(),
+      });
+
+      const { email, password, full_name, subdomain } = joinSchema.parse(request.body);
+
+      // Resolve tenant
+      const { data: tenant, error: tenantError } = await supabaseAdmin
+        .from('tenants')
+        .select('id, name, subdomain')
+        .eq('subdomain', subdomain.toLowerCase())
+        .single();
+
+      if (tenantError || !tenant) {
+        return reply.code(404).send({
+          error: { code: 'TENANT_NOT_FOUND', message: 'Tenant not found' },
+        });
+      }
+
+      // Check if user already has a profile for this tenant
+      const { data: existingUser } = await supabaseAdmin
+        .from('users')
+        .select('id')
+        .eq('email', email.toLowerCase())
+        .single();
+
+      if (existingUser) {
+        return reply.code(400).send({
+          error: { code: 'USER_EXISTS', message: 'An account with this email already exists on TyneBase.' },
+        });
+      }
+
+      // Create auth user
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name },
+      });
+
+      if (authError || !authData.user) {
+        return reply.code(400).send({
+          error: { code: 'AUTH_ERROR', message: authError?.message || 'Failed to create account' },
+        });
+      }
+
+      const userId = authData.user.id;
+
+      // Create community_contributor profile
+      const { error: profileError } = await supabaseAdmin
+        .from('users')
+        .insert({
+          id: userId,
+          tenant_id: tenant.id,
+          email: email.toLowerCase(),
+          full_name,
+          role: 'community_contributor',
+          status: 'active',
+        });
+
+      if (profileError) {
+        fastify.log.error({ error: profileError }, 'Failed to create community profile');
+        await supabaseAdmin.auth.admin.deleteUser(userId);
+        return reply.code(500).send({
+          error: { code: 'PROFILE_ERROR', message: 'Failed to create community profile' },
+        });
+      }
+
+      // Sign in
+      const { data: signInData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      return reply.code(201).send({
+        success: true,
+        data: {
+          access_token: signInData.session?.access_token,
+          refresh_token: signInData.session?.refresh_token,
+          user: {
+            id: userId,
+            email,
+            full_name,
+            role: 'community_contributor',
+          },
+          tenant: {
+            id: tenant.id,
+            name: tenant.name,
+            subdomain: tenant.subdomain,
+          },
+        },
+        message: 'Joined community successfully',
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.code(400).send({ error: { code: 'VALIDATION_ERROR', message: 'Invalid input', details: error.errors } });
+      }
+      fastify.log.error({ error }, 'Unexpected error in community join');
+      return reply.code(500).send({ error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' } });
+    }
+  });
 }

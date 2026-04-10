@@ -152,6 +152,26 @@ export async function listDiscussions(
 }
 
 /**
+ * List discussions publicly for a subdomain
+ */
+export async function listPublicDiscussions(
+  subdomain: string,
+  params?: DiscussionListParams
+): Promise<DiscussionListResponse> {
+  const queryParams = new URLSearchParams();
+  if (params?.category && params.category !== 'all') queryParams.append('category', params.category);
+  if (params?.page) queryParams.append('page', params.page.toString());
+  if (params?.limit) queryParams.append('limit', params.limit.toString());
+  if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+
+  const queryString = queryParams.toString();
+  const endpoint = `/api/public/community/${subdomain}/discussions${queryString ? `?${queryString}` : ''}`;
+  
+  const res = await apiGet<{ success: boolean; data: DiscussionListResponse }>(endpoint);
+  return res.data;
+}
+
+/**
  * Create a new discussion
  */
 export async function createDiscussion(
@@ -165,6 +185,19 @@ export async function createDiscussion(
  */
 export async function getDiscussion(id: string): Promise<DiscussionResponse> {
   return apiGet<DiscussionResponse>(`/api/discussions/${id}`);
+}
+
+/**
+ * Get a single discussion publicly
+ */
+export async function getPublicDiscussion(
+  subdomain: string, 
+  id: string
+): Promise<{ discussion: Discussion; replies: DiscussionReply[] }> {
+  const res = await apiGet<{ success: boolean; data: { discussion: Discussion; replies: DiscussionReply[] } }>(
+    `/api/public/community/${subdomain}/discussions/${id}`
+  );
+  return res.data;
 }
 
 /**
