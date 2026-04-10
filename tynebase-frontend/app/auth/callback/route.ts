@@ -77,21 +77,70 @@ export async function GET(request: Request) {
     redirect: redirect,
   });
 
-  // Clear any stale invite metadata to prevent redirect loops
-  // Invite handling is done via specific invite links, not via metadata on normal login
+  // Handle invite metadata if present
   if (inviteTenantId && inviteRole) {
-    console.log('[Auth Callback] Clearing stale invite metadata from user profile');
-    try {
-      const supabaseAdmin = createSupabaseClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SECRET_KEY!
-      );
-      await supabaseAdmin.auth.admin.updateUserById(data.user.id, {
-        user_metadata: { tenant_id: null, role: null, tenant_name: null, tenant_subdomain: null, invited_by_name: null }
-      });
-    } catch (e) {
-      console.log('[Auth Callback] Failed to clear invite metadata:', e);
-      // Don't fail the auth flow if clearing metadata fails
+    // Use admin client with service role key to bypass RLS
+    const supabaseAdmin = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SECRET_KEY!
+    );
+
+    console.log('[Auth Callback] Checking for existing user record for:', data.user.id);
+    const { data: existingUser, error: userError } = await supabaseAdmin
+      .from('users')
+      .select('id, tenant_id, status')
+      .eq('id', data.user.id)
+      .maybeSingle();
+
+    console.log('[Auth Callback] User check result:', { hasUser: !!existingUser, error: userError?.message });
+
+    if (!existingUser) {
+      // New user - redirect to appropriate flow based on redirect parameter
+      if (redirect.includes('/community/join/finalize') || redirect.includes('/community/signup')) {
+        // Community join flow - redirect to community finalize
+        console.log('[Auth Callback] New user → community join flow');
+        return NextResponse.redirect(`${origin}${redirect}`);
+      }
+
+      // Workspace invite flow - redirect to accept-invite page
+      const inviteData = encodeURIComponent(JSON.stringify({
+        userId: data.user.id,
+        email: data.user.email,
+        tenantId: inviteTenantId,
+        tenantName: userMetadata?.tenant_name,
+        tenantSubdomain: userMetadata?.tenant_subdomain,
+        role: inviteRole,
+        invitedBy: userMetadata?.invited_by_name,
+      }));
+      console.log('[Auth Callback] New invited user → accept-invite page');
+      return NextResponse.redirect(`${origin}/auth/accept-invite?data=${inviteData}`);
+    }
+
+    // User record exists - check if they already have a tenant
+    if (existingUser.tenant_id) {
+      console.log('[Auth Callback] Existing user with tenant, clearing stale invite metadata');
+      // Clear the invite metadata from Supabase to prevent this in the future
+      try {
+        await supabaseAdmin.auth.admin.updateUserById(data.user.id, {
+          user_metadata: { tenant_id: null, role: null, tenant_name: null, tenant_subdomain: null, invited_by_name: null }
+        });
+      } catch (e) {
+        console.log('[Auth Callback] Failed to clear invite metadata:', e);
+      }
+      // Proceed to normal OAuth flow (will go to dashboard or specified redirect)
+    } else {
+      // User exists but has no tenant - they might be accepting the invite
+      console.log('[Auth Callback] Existing user without tenant, proceeding with invite flow');
+
+      if (existingUser.status === 'deleted') {
+        // User was previously deleted - redirect to login with message
+        return NextResponse.redirect(
+          `${origin}/login?error=account_deleted&message=${encodeURIComponent('Your account has been removed. You can create a new workspace or wait to be invited again.')}`
+        );
+      }
+
+      // User exists without tenant - let them proceed with invite flow
+      // The redirect parameter will determine where they go (community join or accept-invite)
     }
   }
 
