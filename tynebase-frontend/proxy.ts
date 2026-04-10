@@ -16,6 +16,8 @@ const PUBLIC_ROUTES = [
   "/auth/accept-invite",
   "/auth/complete-signup",
   "/docs",
+  "/community",
+  "/public-documents",
 ];
 
 const RESERVED_SUBDOMAINS = [
@@ -26,7 +28,6 @@ const RESERVED_SUBDOMAINS = [
 
 /**
  * Check if user is authenticated by validating JWT token presence
- * Tokens are stored in cookies for server-side access
  */
 function isAuthenticated(request: NextRequest): boolean {
   const accessToken = request.cookies.get("access_token")?.value;
@@ -39,43 +40,49 @@ export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isAuth = isAuthenticated(request);
 
+  // If it's a file or static asset, let it through
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/images") ||
+    pathname.startsWith("/api") ||
+    pathname.includes(".")
+  ) {
+    return NextResponse.next();
+  }
+
   // Root domain (marketing site)
   if (!subdomain || subdomain === "www") {
-    // Allow access to marketing pages
-    if (PUBLIC_ROUTES.includes(pathname)) {
-      return NextResponse.next();
-    }
-    
-    // Handle dashboard access on main site (for individual users)
+    // Standard dashboard protection on main site
     if (pathname.startsWith("/dashboard")) {
       if (!isAuth) {
         const loginUrl = new URL("/login", request.url);
         loginUrl.searchParams.set("redirect", pathname);
         return NextResponse.redirect(loginUrl);
       }
-      // Allow authenticated users to access main site dashboard
-      return NextResponse.next();
     }
-    
     return NextResponse.next();
   }
 
   // Check for reserved subdomains
   if (RESERVED_SUBDOMAINS.includes(subdomain.toLowerCase())) {
-    const notFoundUrl = new URL("/tenant-not-found", request.url);
-    return NextResponse.rewrite(notFoundUrl);
-  }
-
-  // Tenant subdomain - verify tenant exists
-  // For now, we'll add tenant verification in a later step when we have the database
-  // This is a placeholder that allows all non-reserved subdomains
-
-  // Public routes on tenant subdomains
-  if (PUBLIC_ROUTES.includes(pathname) || pathname.startsWith("/docs")) {
+    // If it's a reserved subdomain but not www, we let it through
+    // because it might have its own logic or we might want a 404 handled elsewhere
     return NextResponse.next();
   }
 
-  // Protected routes - require authentication
+  // Tenant subdomain logic
+  
+  // 1. Rewrite root to portal
+  if (pathname === "/") {
+    return NextResponse.rewrite(new URL(`/portal?domain=${hostname}`, request.url));
+  }
+
+  // 2. Rewrite community to tenant community
+  if (pathname === "/community") {
+    return NextResponse.rewrite(new URL(`/community?domain=${hostname}`, request.url));
+  }
+
+  // 3. Handle protected routes on subdomains
   if (pathname.startsWith("/dashboard")) {
     if (!isAuth) {
       const loginUrl = new URL("/login", request.url);
@@ -85,12 +92,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // Add tenant context to response headers
-  const response = NextResponse.next({
-    request: {
-      headers: new Headers(request.headers),
-    },
-  });
-  
+  const response = NextResponse.next();
   response.headers.set("x-tenant-subdomain", subdomain);
   
   return response;
@@ -98,6 +100,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico).*)",
   ],
 };

@@ -1139,7 +1139,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
       }
 
       // Sign in
-      const { data: signInData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
+      const { data: signInData } = await supabaseAdmin.auth.signInWithPassword({
         email,
         password,
       });
