@@ -88,6 +88,7 @@ export default function SuperAdminPage() {
   const [usersStatus, setUsersStatus] = useState<"all" | "active" | "suspended">("all");
   const [usersFilter, setUsersFilter] = useState<"all" | "new30d" | "active7d">("all");
   const [usersLoading, setUsersLoading] = useState(false);
+  const [usersStatusOpen, setUsersStatusOpen] = useState(false);
 
   // Tenants state
   const [tenants, setTenants] = useState<TenantListItem[]>([]);
@@ -488,15 +489,41 @@ export default function SuperAdminPage() {
                   className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-sm text-[var(--dash-text-primary)] placeholder-[var(--dash-text-muted)] focus:outline-none focus:border-[var(--brand)]"
                 />
               </div>
-              <select
-                value={usersStatus}
-                onChange={(e) => { setUsersStatus(e.target.value as any); setUsersFilter("all"); setUsersPage(1); }}
-                className="px-4 pr-8 py-2.5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-sm text-[var(--dash-text-primary)] focus:outline-none focus:border-[var(--brand)]"
-              >
-                <option value="all">All statuses</option>
-                <option value="active">Active</option>
-                <option value="suspended">Archived</option>
-              </select>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setUsersStatusOpen(!usersStatusOpen)}
+                  onBlur={() => setTimeout(() => setUsersStatusOpen(false), 200)}
+                  className="flex items-center justify-between min-w-[140px] pl-4 pr-3 py-2.5 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-sm text-[var(--dash-text-primary)] hover:border-[var(--dash-border-default)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-all"
+                >
+                  <span>
+                    {usersStatus === 'all' ? 'All statuses' : usersStatus === 'active' ? 'Active' : 'Archived'}
+                  </span>
+                  <ChevronDown className={`w-4 h-4 text-[var(--dash-text-muted)] ml-3 transition-transform ${usersStatusOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {usersStatusOpen && (
+                  <div className="absolute top-[calc(100%+8px)] left-0 w-full min-w-max bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg shadow-xl z-50 py-1.5 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <button
+                      onClick={() => { setUsersStatus("all"); setUsersFilter("all"); setUsersPage(1); setUsersStatusOpen(false); }}
+                      className={`w-full text-left px-4 py-2 text-sm transition-colors hover:bg-[var(--surface-hover)] ${usersStatus === 'all' ? 'bg-[var(--surface-ground)] text-[var(--dash-text-primary)] font-medium' : 'text-[var(--dash-text-secondary)]'}`}
+                    >
+                      All statuses
+                    </button>
+                    <button
+                      onClick={() => { setUsersStatus("active"); setUsersFilter("all"); setUsersPage(1); setUsersStatusOpen(false); }}
+                      className={`w-full text-left px-4 py-2 text-sm transition-colors hover:bg-[var(--surface-hover)] ${usersStatus === 'active' ? 'bg-[var(--surface-ground)] text-[var(--dash-text-primary)] font-medium' : 'text-[var(--dash-text-secondary)]'}`}
+                    >
+                      Active
+                    </button>
+                    <button
+                      onClick={() => { setUsersStatus("suspended"); setUsersFilter("all"); setUsersPage(1); setUsersStatusOpen(false); }}
+                      className={`w-full text-left px-4 py-2 text-sm transition-colors hover:bg-[var(--surface-hover)] ${usersStatus === 'suspended' ? 'bg-[var(--surface-ground)] text-[var(--dash-text-primary)] font-medium' : 'text-[var(--dash-text-secondary)]'}`}
+                    >
+                      Archived
+                    </button>
+                  </div>
+                )}
+              </div>
               {usersFilter !== "all" && (
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--brand)]/10 text-[var(--brand)] rounded-lg text-sm font-medium">
                   <span>

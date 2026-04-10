@@ -58,6 +58,13 @@ function OAuthLoginContent() {
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
           const code = body?.error?.code;
+          // If they are accepting an invite, bypass suspension/deletion checks
+          // because accepting the invite might restore their access or move them to a new workspace.
+          if (redirect && redirect.includes("accept-invite")) {
+            window.location.replace(redirect);
+            return;
+          }
+
           if (code === "ACCOUNT_DELETED") {
             router.replace("/login?error=account_deleted");
           } else if (code === "ACCOUNT_SUSPENDED") {

@@ -78,6 +78,10 @@ function InviteCallbackContent() {
 
     /* ---------- 2. Wait for session (hash-fragment or PKCE) ---------- */
 
+    const hash = window.location.hash;
+    const hasHashTokens = hash && hash.includes("access_token");
+    const code = searchParams.get("code");
+
     let timeoutId: ReturnType<typeof setTimeout>;
     let settled = false;
 
@@ -94,7 +98,7 @@ function InviteCallbackContent() {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('[InviteCallback] onAuthStateChange:', event, session?.user?.email);
       if (
-        (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") &&
+        (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || (!hasHashTokens && !code && event === "INITIAL_SESSION")) &&
         session?.user
       ) {
         settle(session);
@@ -105,8 +109,7 @@ function InviteCallbackContent() {
      * createBrowserClient (@supabase/ssr) does NOT auto-detect hash fragments
      * the way the vanilla @supabase/auth-js client does.  We must parse and
      * call setSession ourselves. */
-    const hash = window.location.hash;
-    if (hash && hash.includes("access_token")) {
+    if (hasHashTokens) {
       const params = new URLSearchParams(hash.replace(/^#/, ""));
       const accessToken = params.get("access_token");
       const refreshToken = params.get("refresh_token");
@@ -130,7 +133,6 @@ function InviteCallbackContent() {
     }
 
     // PKCE code exchange (server-side flow)
-    const code = searchParams.get("code");
     if (code) {
       supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
         if (error) {

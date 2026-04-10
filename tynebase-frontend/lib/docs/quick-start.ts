@@ -5,32 +5,33 @@ export const quickStartArticles: DocArticle[] = [
     id: 'qs-1',
     slug: 'creating-first-document',
     title: 'Creating Your First Document',
-    description: 'Learn how to create, edit, and publish your first knowledge base article in TyneBase.',
+    description: 'Learn how to create, edit and publish your first knowledge base article in TyneBase.',
     category: 'Quick start',
     readTime: '3 min',
-    lastUpdated: '2026-01-10',
+    lastUpdated: '2026-04-10',
     tags: ['getting-started', 'documents', 'basics'],
     content: `
 # Creating Your First Document
 
 Welcome to TyneBase! This guide will walk you through creating your first knowledge base document.
 
-## Step 1: Access the Dashboard
-
-After signing in, you'll land on your workspace dashboard. Click the **+ Create** button in the sidebar to start a new document.
-
-## Step 2: Choose a Creation Method
+## Choose a Creation Method
 
 TyneBase offers multiple ways to create documents:
 
 - **Blank Document**: Start from scratch with our rich text editor
-- **From Template**: Use a pre-built template from our community library
-- **AI from Prompt**: Describe what you need and let AI generate it
-- **AI from Video**: Upload a YouTube link or video file
+- **From a template**: Use a pre-built template from our library
+- **From an AI prompt**: Describe what you need and let AI generate it
+- **From a video**: Upload a YouTube link or video file
+- **From an audio source**: Upload an audio source
 
 For this guide, select **Blank Document**.
 
-## Step 3: Write Your Content
+## Opening the Document Editor
+
+After signing in, you'll land on your workspace dashboard. Click **+ New Document** at the top right-hand side of the page to open the document editor. From here, you can start drafting your document.
+
+## Writing Your Content
 
 Our editor supports:
 
@@ -40,20 +41,20 @@ Our editor supports:
 - **Images & Files**: Drag and drop media
 - **Embeds**: YouTube, Loom, Figma, and more
 
-## Step 4: Set Metadata
+## Setting Metadata
 
-Before publishing, configure your document:
+Before publishing, set the metadata for your document. These settings are found within the **Document settings** tab:
 
 | Field | Description |
 |-------|-------------|
 | **Title** | Clear, searchable document title |
 | **Category** | Organise into your knowledge structure |
 | **Tags** | Add keywords for better discoverability |
-| **Visibility** | Public, Internal, or Restricted |
+| **Visibility** | Public, Internal or Restricted |
 
-## Step 5: Publish
+## Publishing Your Document
 
-Click **Publish** to make your document live. It will immediately:
+Once you are finished with your article, you can either save it as a **draft** to work on it later, or click **Save & Publish** to make your document live. It will immediately:
 
 - Appear in your knowledge base
 - Become searchable via AI-powered search

@@ -1392,6 +1392,14 @@ export default async function invitesRoutes(fastify: FastifyInstance) {
         }
 
         if (inviteRecord.status !== 'pending') {
+          if (inviteRecord.status === 'declined') {
+            return reply.code(200).send({
+              success: true,
+              data: {
+                message: 'Invitation already declined',
+              },
+            });
+          }
           return reply.code(400).send({
             error: {
               code: 'INVITE_NOT_PENDING',
