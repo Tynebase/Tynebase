@@ -675,7 +675,7 @@ export default function NewDocumentPage() {
                 <span className="text-sm font-medium text-[var(--text-primary)]">AI Video Ingestion</span>
               </div>
               <p className="text-sm text-[var(--text-secondary)] mb-3">
-                Transcribe and analyze embedded videos to make their content searchable and add them to your knowledge base.
+                Transcribe and analyse embedded videos to make their content searchable and add them to your knowledge base.
               </p>
               
               <div className="space-y-2 mb-3">

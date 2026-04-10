@@ -158,8 +158,8 @@ export function EnhanceSuggestionsPanel({
         timestamp: Date.now(),
       }));
     } catch (err) {
-      console.error('Failed to analyze document:', err);
-      setError(err instanceof Error ? err.message : 'Failed to analyze document');
+      console.error('Failed to analyse document:', err);
+      setError(err instanceof Error ? err.message : 'Failed to analyse document');
     } finally {
       setIsAnalyzing(false);
     }
@@ -656,7 +656,7 @@ export function EnhanceSuggestionsPanel({
               Enhance Your Document
             </h4>
             <p className="text-sm text-[var(--dash-text-tertiary)] mb-4">
-              AI will analyze your content and suggest improvements for clarity, grammar, structure, and style. (Claude Sonnet)
+              AI will analyse your content and suggest improvements for clarity, grammar, structure, and style. (Claude Sonnet)
             </p>
             <div className="flex items-center justify-center gap-2 text-xs text-amber-600 mb-3">
               <Coins className="w-4 h-4" />
@@ -668,7 +668,7 @@ export function EnhanceSuggestionsPanel({
               className="gap-2"
             >
               <Sparkles className="w-4 h-4" />
-              Analyze Document
+              Analyse Document
             </Button>
           </div>
         )}
@@ -968,7 +968,7 @@ export function EnhanceSuggestionsPanel({
                 disabled={isAnalyzing}
               >
                 <RefreshCw className={`w-4 h-4 ${isAnalyzing ? 'animate-spin' : ''}`} />
-                Re-analyze Document
+                Re-analyse Document
               </Button>
             </div>
           </div>
@@ -992,7 +992,7 @@ export function EnhanceSuggestionsPanel({
                       This will use {ENHANCE_CREDIT_COST} credits
                     </p>
                     <p className="text-sm text-gray-600">
-                      AI will analyze your document and provide improvement suggestions for grammar, clarity, structure, completeness, and style.
+                      AI will analyse your document and provide improvement suggestions for grammar, clarity, structure, completeness, and style.
                     </p>
                     <p className="text-xs text-gray-500 mt-2">
                       Current balance: {creditsRemaining} credits

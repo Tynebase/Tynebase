@@ -776,11 +776,31 @@ export default async function authRoutes(fastify: FastifyInstance) {
       const userProfile = adminProfile || users?.[0];
 
       if (error || !userProfile) {
-        fastify.log.error({ error }, 'Failed to fetch user profile');
+        // Check if user has ANY profile at all (might be joining for first time)
+        const { data: anyProfile } = await supabaseAdmin
+          .from('users')
+          .select('id, tenant_id')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (!anyProfile) {
+          // User has no profile at all - they need to complete signup
+          fastify.log.warn({ userId, subdomain }, 'User has no profile, needs to complete signup');
+          return reply.code(404).send({
+            error: {
+              code: 'PROFILE_NOT_FOUND',
+              message: 'User profile not found',
+              details: {},
+            },
+          });
+        }
+
+        // User has a profile but not in this tenant - they're a guest
+        fastify.log.warn({ userId, subdomain, existingTenantId: anyProfile.tenant_id }, 'User profile not found in requested tenant, treating as guest');
         return reply.code(404).send({
           error: {
-            code: 'USER_NOT_FOUND',
-            message: 'User profile not found',
+            code: 'PROFILE_NOT_FOUND',
+            message: 'User profile not found in this workspace',
             details: {},
           },
         });

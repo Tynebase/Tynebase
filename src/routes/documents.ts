@@ -197,7 +197,7 @@ export default async function documentRoutes(fastify: FastifyInstance) {
             updated_at,
             ai_score,
             view_count,
-            users:author_id,tenant_id (
+            users:author_id (
               id,
               email,
               full_name
@@ -439,7 +439,7 @@ export default async function documentRoutes(fastify: FastifyInstance) {
             published_at,
             created_at,
             updated_at,
-            users:author_id,tenant_id (
+            users:author_id (
               id,
               email,
               full_name
@@ -2490,11 +2490,6 @@ export default async function documentRoutes(fastify: FastifyInstance) {
             created_at,
             updated_at,
             view_count,
-            users:author_id,tenant_id (
-              id,
-              full_name,
-              avatar_url
-            ),
             categories:category_id (
               id,
               name,
@@ -2714,7 +2709,6 @@ export default async function documentRoutes(fastify: FastifyInstance) {
           .from('documents')
           .select(`
             id, title, content, created_at, updated_at, view_count,
-            users:author_id,tenant_id (id, full_name, avatar_url),
             categories:category_id (id, name, color)
           `)
           .eq('id', id)

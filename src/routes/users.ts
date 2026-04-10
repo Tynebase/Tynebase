@@ -430,12 +430,15 @@ export default async function usersRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Get user's original tenant to restore them
-        const { data: userRecord, error: fetchError } = await supabaseAdmin
+        // Get user's original tenant to restore them (handle multiple rows per ID)
+        const { data: users, error: fetchError } = await supabaseAdmin
           .from('users')
           .select('id, original_tenant_id, tenant_id')
           .eq('id', id)
-          .single();
+          .order('tenant_id', { ascending: true })
+          .limit(1);
+
+        const userRecord = users?.[0];
 
         if (fetchError || !userRecord) {
           fastify.log.error({ error: fetchError, userId: id }, 'Failed to fetch user record');

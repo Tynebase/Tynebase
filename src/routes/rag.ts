@@ -527,7 +527,7 @@ export default async function ragRoutes(fastify: FastifyInstance) {
         // Get failed rag_index jobs
         const { data: failedJobsData, count: failedJobs, error: failedJobsError } = await supabaseAdmin
           .from('job_queue')
-          .select('id, payload, created_at, updated_at', { count: 'exact' })
+          .select('id, payload, created_at', { count: 'exact' })
           .eq('tenant_id', tenant.id)
           .eq('type', 'rag_index')
           .eq('status', 'failed');
@@ -572,7 +572,7 @@ export default async function ragRoutes(fastify: FastifyInstance) {
         // Get recent pipeline events (last 20 job queue entries for this tenant)
         const { data: recentJobs } = await supabaseAdmin
           .from('job_queue')
-          .select('id, type, status, progress, created_at, updated_at, payload')
+          .select('id, type, status, progress, created_at, payload')
           .eq('tenant_id', tenant.id)
           .eq('type', 'rag_index')
           .order('created_at', { ascending: false })
@@ -624,7 +624,7 @@ export default async function ragRoutes(fastify: FastifyInstance) {
                 title: title,
                 reason: 'failed' as const,
                 last_indexed_at: null,
-                updated_at: job.updated_at || job.created_at,
+                updated_at: job.created_at,
               };
             })
             // Filter duplicates if a document is already in the list
@@ -662,7 +662,7 @@ export default async function ragRoutes(fastify: FastifyInstance) {
           }
 
           // Calculate relative time
-          const updatedAt = new Date(job.updated_at || job.created_at);
+          const updatedAt = new Date(job.created_at);
           const now = new Date();
           const diffMs = now.getTime() - updatedAt.getTime();
           const diffMins = Math.floor(diffMs / 60000);
@@ -1258,7 +1258,7 @@ export default async function ragRoutes(fastify: FastifyInstance) {
             updated_at,
             last_indexed_at,
             author_id,
-            users:author_id,tenant_id (
+            users:author_id (
               id,
               email,
               full_name

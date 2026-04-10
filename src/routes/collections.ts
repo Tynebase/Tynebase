@@ -90,7 +90,7 @@ export default async function collectionRoutes(fastify: FastifyInstance) {
             sort_order,
             created_at,
             updated_at,
-            users:author_id,tenant_id (
+            users:author_id (
               id,
               email,
               full_name
@@ -220,7 +220,7 @@ export default async function collectionRoutes(fastify: FastifyInstance) {
             sort_order,
             created_at,
             updated_at,
-            users:author_id,tenant_id (
+            users:author_id (
               id,
               email,
               full_name

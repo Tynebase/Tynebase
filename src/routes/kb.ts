@@ -150,11 +150,6 @@ export default async function kbRoutes(fastify: FastifyInstance) {
             updated_at,
             published_at,
             view_count,
-            users:author_id,tenant_id (
-              id,
-              full_name,
-              avatar_url
-            ),
             categories:category_id (
               id,
               name,
@@ -255,7 +250,6 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           .from('documents')
           .select(`
             id, title, content, created_at, updated_at, published_at, view_count,
-            users:author_id,tenant_id (id, full_name, avatar_url),
             categories:category_id (id, name, color)
           `)
           .eq('id', id)

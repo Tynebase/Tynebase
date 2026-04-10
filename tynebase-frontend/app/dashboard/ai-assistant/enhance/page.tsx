@@ -519,7 +519,7 @@ export default function EnhancePage() {
                 No suggestions yet
               </h3>
               <p className="text-[var(--dash-text-tertiary)] max-w-md mb-4">
-                Click on a document to analyze it with AI
+                Click on a document to analyse it with AI
               </p>
             </div>
           ) : (
@@ -552,7 +552,7 @@ export default function EnhancePage() {
                       className="h-10 px-4 bg-[var(--surface-ground)] hover:bg-[var(--surface-hover)] border border-[var(--dash-border-subtle)] text-[var(--dash-text-primary)] rounded-xl font-medium flex items-center gap-2 transition-colors text-sm"
                     >
                       <RefreshCw className="w-4 h-4" />
-                      Re-analyze
+                      Re-analyse
                     </button>
                   </div>
                 </div>
@@ -824,7 +824,7 @@ export default function EnhancePage() {
                       This will use {ENHANCE_CREDIT_COST} credits
                     </p>
                     <p className="text-sm text-[var(--dash-text-secondary)]">
-                      AI will analyze &ldquo;{pendingDoc.title}&rdquo; and provide improvement suggestions for grammar, clarity, structure, completeness, and style.
+                      AI will analyse &ldquo;{pendingDoc.title}&rdquo; and provide improvement suggestions for grammar, clarity, structure, completeness, and style.
                     </p>
                     <p className="text-xs text-[var(--dash-text-tertiary)] mt-2">
                       Current balance: {creditsRemaining} credits

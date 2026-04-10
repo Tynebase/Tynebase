@@ -214,7 +214,7 @@ Add more users to your plan anytime:
     tags: ['billing', 'pricing', 'plans', 'payment', 'subscription'],
     category: 'billing',
     lastUpdated: '2024-01-15',
-    readTime: 10,
+    readTime: '10',
   },
   {
     id: 'payment-methods',
@@ -418,7 +418,7 @@ We accept payments in multiple currencies:
     tags: ['payment', 'billing', 'credit-card', 'security', 'enterprise'],
     category: 'billing',
     lastUpdated: '2024-01-15',
-    readTime: 12,
+    readTime: '12',
   },
   {
     id: 'usage-monitoring',
@@ -661,6 +661,6 @@ Share insights with your team:
     tags: ['analytics', 'monitoring', 'usage', 'optimization', 'reporting'],
     category: 'billing',
     lastUpdated: '2024-01-15',
-    readTime: 15,
+    readTime: '15',
   },
 ];

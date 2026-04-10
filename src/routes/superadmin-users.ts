@@ -160,12 +160,15 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
       try {
         const { userId } = userIdParamsSchema.parse(request.params);
 
-        // Verify user exists
-        const { data: targetUser, error: fetchError } = await supabaseAdmin
+        // Verify user exists (handle multiple rows per ID)
+        const { data: users, error: fetchError } = await supabaseAdmin
           .from('users')
           .select('id, email, full_name, is_super_admin, status')
           .eq('id', userId)
-          .single();
+          .order('tenant_id', { ascending: true })
+          .limit(1);
+
+        const targetUser = users?.[0];
 
         if (fetchError || !targetUser) {
           return reply.status(404).send({
@@ -234,11 +237,14 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
       try {
         const { userId } = userIdParamsSchema.parse(request.params);
 
-        const { data: targetUser, error: fetchError } = await supabaseAdmin
+        const { data: users, error: fetchError } = await supabaseAdmin
           .from('users')
           .select('id, email, full_name, status, is_super_admin')
           .eq('id', userId)
-          .single();
+          .order('tenant_id', { ascending: true })
+          .limit(1);
+
+        const targetUser = users?.[0];
 
         if (fetchError || !targetUser) {
           return reply.status(404).send({
@@ -301,11 +307,14 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
       try {
         const { userId } = userIdParamsSchema.parse(request.params);
 
-        const { data: targetUser, error: fetchError } = await supabaseAdmin
+        const { data: users, error: fetchError } = await supabaseAdmin
           .from('users')
           .select('id, email, status')
           .eq('id', userId)
-          .single();
+          .order('tenant_id', { ascending: true })
+          .limit(1);
+
+        const targetUser = users?.[0];
 
         if (fetchError || !targetUser) {
           return reply.status(404).send({
@@ -376,12 +385,15 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
         const { userId } = userIdParamsSchema.parse(request.params);
         const { credits } = assignCreditsBodySchema.parse(request.body);
 
-        // Get user and tenant
-        const { data: targetUser, error: fetchError } = await supabaseAdmin
+        // Get user and tenant (handle multiple rows per ID)
+        const { data: users, error: fetchError } = await supabaseAdmin
           .from('users')
           .select('id, email, tenant_id')
           .eq('id', userId)
-          .single();
+          .order('tenant_id', { ascending: true })
+          .limit(1);
+
+        const targetUser = users?.[0];
 
         if (fetchError || !targetUser) {
           return reply.status(404).send({

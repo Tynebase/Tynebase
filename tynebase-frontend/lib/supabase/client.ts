@@ -24,5 +24,6 @@ export function createClient() {
         sameSite: "lax",
         secure: process.env.NODE_ENV === "production",
       },
-    });
+    },
+  );
 }

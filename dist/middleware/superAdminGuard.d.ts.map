@@ -1,0 +1,1 @@
+{"version":3,"file":"superAdminGuard.d.ts","sourceRoot":"","sources":["../../src/middleware/superAdminGuard.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,cAAc,EAAE,YAAY,EAAE,MAAM,SAAS,CAAC;AAEvD;;;;;;;;;;;;;;;;;GAiBG;AACH,wBAAsB,eAAe,CACnC,OAAO,EAAE,cAAc,EACvB,KAAK,EAAE,YAAY,sBA0CpB"}

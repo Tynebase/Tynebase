@@ -1,0 +1,887 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.default = templateRoutes;
+const zod_1 = require("zod");
+const supabase_1 = require("../lib/supabase");
+const tenantContext_1 = require("../middleware/tenantContext");
+const auth_1 = require("../middleware/auth");
+const membershipGuard_1 = require("../middleware/membershipGuard");
+const rateLimit_1 = require("../middleware/rateLimit");
+/**
+ * Zod schema for GET /api/templates query parameters
+ */
+const listTemplatesQuerySchema = zod_1.z.object({
+    category: zod_1.z.string().optional(),
+    visibility: zod_1.z.enum(['internal', 'public']).optional(),
+    page: zod_1.z.coerce.number().int().min(1).default(1),
+    limit: zod_1.z.coerce.number().int().min(1).max(100).default(50),
+});
+/**
+ * Zod schema for POST /api/templates request body
+ */
+const createTemplateBodySchema = zod_1.z.object({
+    title: zod_1.z.string().min(1).max(500),
+    description: zod_1.z.string().max(2000).optional(),
+    content: zod_1.z.string().min(1),
+    category: zod_1.z.string().max(100).optional(),
+    visibility: zod_1.z.enum(['internal', 'public']).default('internal'),
+});
+/**
+ * Zod schema for PUT /api/templates/:id request body
+ */
+const updateTemplateBodySchema = zod_1.z.object({
+    title: zod_1.z.string().min(1).max(500).optional(),
+    description: zod_1.z.string().max(2000).optional().nullable(),
+    content: zod_1.z.string().min(1).optional(),
+    category: zod_1.z.string().max(100).optional().nullable(),
+    visibility: zod_1.z.enum(['internal', 'public']).optional(),
+});
+/**
+ * Zod schema for POST /api/templates/:id/use path parameters
+ */
+const useTemplateParamsSchema = zod_1.z.object({
+    id: zod_1.z.string().uuid(),
+});
+/**
+ * Template routes with full middleware chain:
+ * 1. rateLimitMiddleware - enforces rate limits (100 req/10min global)
+ * 2. tenantContextMiddleware - resolves tenant from x-tenant-subdomain header
+ * 3. authMiddleware - verifies JWT and loads user
+ * 4. membershipGuard - verifies user belongs to tenant
+ */
+async function templateRoutes(fastify) {
+    /**
+     * GET /api/templates
+     * Lists available templates: approved global templates + tenant's own templates
+     *
+     * Query Parameters:
+     * - category (optional): Filter by template category
+     * - visibility (optional): Filter by visibility ('internal' or 'public')
+     * - page (optional): Page number for pagination (default: 1)
+     * - limit (optional): Items per page, max 100 (default: 50)
+     *
+     * Authorization:
+     * - Requires valid JWT
+     * - User must be member of tenant
+     *
+     * Security:
+     * - Returns approved global templates (tenant_id IS NULL AND is_approved = TRUE)
+     * - Returns tenant's own templates (tenant_id = user's tenant)
+     * - Validates all query parameters with Zod
+     * - Prevents SQL injection via parameterized queries
+     * - Limits page size to prevent resource exhaustion
+     *
+     * Behavior:
+     * - Global templates: tenant_id IS NULL AND is_approved = TRUE
+     * - Tenant templates: tenant_id = user's tenant (any approval status)
+     * - Results ordered by created_at DESC
+     * - Includes creator information via join
+     */
+    fastify.get('/api/templates', {
+        preHandler: [rateLimit_1.rateLimitMiddleware, tenantContext_1.tenantContextMiddleware, auth_1.authMiddleware, membershipGuard_1.membershipGuard],
+    }, async (request, reply) => {
+        try {
+            const tenant = request.tenant;
+            const user = request.user;
+            // Validate query parameters
+            const query = listTemplatesQuerySchema.parse(request.query);
+            const { category, visibility, page, limit } = query;
+            // Calculate pagination offset
+            const offset = (page - 1) * limit;
+            // Build query for global approved templates OR tenant's own templates
+            // Global templates: tenant_id IS NULL AND is_approved = TRUE
+            // Tenant templates: tenant_id = tenant.id (any approval status)
+            let dbQuery = supabase_1.supabaseAdmin
+                .from('templates')
+                .select(`
+            id,
+            tenant_id,
+            title,
+            description,
+            content,
+            category,
+            visibility,
+            is_approved,
+            created_by,
+            created_at,
+            updated_at,
+            users:created_by (
+              id,
+              email,
+              full_name
+            )
+          `, { count: 'exact' })
+                .order('created_at', { ascending: false })
+                .range(offset, offset + limit - 1);
+            // Apply filters for global approved templates OR tenant's own templates only
+            // Using OR logic: 
+            // - (tenant_id IS NULL AND is_approved = TRUE) - global approved templates
+            // - (tenant_id = tenant.id) - current tenant's templates
+            dbQuery = dbQuery.or(`and(tenant_id.is.null,is_approved.eq.true),tenant_id.eq.${tenant.id}`);
+            // Apply optional category filter
+            if (category !== undefined) {
+                dbQuery = dbQuery.eq('category', category);
+            }
+            // Apply optional visibility filter
+            if (visibility !== undefined) {
+                dbQuery = dbQuery.eq('visibility', visibility);
+            }
+            // Execute query
+            const { data: templates, error, count } = await dbQuery;
+            if (error) {
+                fastify.log.error({ error, tenantId: tenant.id, userId: user.id }, 'Failed to fetch templates');
+                return reply.code(500).send({
+                    error: {
+                        code: 'FETCH_FAILED',
+                        message: 'Failed to fetch templates',
+                        details: {},
+                    },
+                });
+            }
+            // Calculate pagination metadata
+            const totalPages = count ? Math.ceil(count / limit) : 0;
+            const hasNextPage = page < totalPages;
+            const hasPrevPage = page > 1;
+            fastify.log.info({
+                tenantId: tenant.id,
+                userId: user.id,
+                count: templates?.length || 0,
+                filters: { category, visibility },
+                page,
+            }, 'Templates fetched successfully');
+            return reply.code(200).send({
+                success: true,
+                data: {
+                    templates: templates || [],
+                    pagination: {
+                        page,
+                        limit,
+                        total: count || 0,
+                        totalPages,
+                        hasNextPage,
+                        hasPrevPage,
+                    },
+                },
+            });
+        }
+        catch (error) {
+            if (error instanceof zod_1.z.ZodError) {
+                return reply.code(400).send({
+                    error: {
+                        code: 'VALIDATION_ERROR',
+                        message: 'Invalid query parameters',
+                        details: error.errors,
+                    },
+                });
+            }
+            fastify.log.error({ error }, 'Unexpected error in GET /api/templates');
+            return reply.code(500).send({
+                error: {
+                    code: 'INTERNAL_ERROR',
+                    message: 'An unexpected error occurred',
+                    details: {},
+                },
+            });
+        }
+    });
+    /**
+     * POST /api/templates
+     * Creates a new template (admin only)
+     *
+     * Request Body:
+     * - title (required): Template title (1-500 chars)
+     * - description (optional): Template description (max 2000 chars)
+     * - content (required): Markdown template content
+     * - category (optional): Template category (max 100 chars)
+     * - visibility (optional): 'internal' or 'public' (default: 'internal')
+     *
+     * Authorization:
+     * - Requires valid JWT
+     * - User must be member of tenant
+     * - User must have 'admin' role
+     *
+     * Security:
+     * - Validates user has admin role
+     * - Validates all input fields with Zod
+     * - Sets tenant_id to user's tenant (tenant-scoped templates)
+     * - Sets created_by to authenticated user
+     * - Sets is_approved to FALSE by default (requires approval for public visibility)
+     * - Prevents SQL injection via parameterized queries
+     *
+     * Behavior:
+     * - Creates template with tenant_id = user's tenant
+     * - For 'public' visibility, is_approved defaults to FALSE (requires admin approval)
+     * - For 'internal' visibility, template is immediately available to tenant
+     * - Returns created template with full details
+     */
+    fastify.post('/api/templates', {
+        preHandler: [rateLimit_1.rateLimitMiddleware, tenantContext_1.tenantContextMiddleware, auth_1.authMiddleware, membershipGuard_1.membershipGuard],
+    }, async (request, reply) => {
+        try {
+            const tenant = request.tenant;
+            const user = request.user;
+            // Check user has admin role
+            if (user.role !== 'admin') {
+                fastify.log.warn({ userId: user.id, userRole: user.role, tenantId: tenant.id }, 'User attempted to create template without admin role');
+                return reply.code(403).send({
+                    error: {
+                        code: 'FORBIDDEN',
+                        message: 'Only admin role can create templates',
+                        details: {},
+                    },
+                });
+            }
+            // Validate request body
+            const body = createTemplateBodySchema.parse(request.body);
+            const { title, description, content, category, visibility } = body;
+            // Insert template into database
+            const { data: template, error } = await supabase_1.supabaseAdmin
+                .from('templates')
+                .insert({
+                tenant_id: tenant.id,
+                title,
+                description: description || null,
+                content,
+                category: category || null,
+                visibility,
+                is_approved: false, // Requires approval for public marketplace
+                created_by: user.id,
+            })
+                .select(`
+            id,
+            tenant_id,
+            title,
+            description,
+            content,
+            category,
+            visibility,
+            is_approved,
+            created_by,
+            created_at,
+            updated_at,
+            users:created_by (
+              id,
+              email,
+              full_name
+            )
+          `)
+                .single();
+            if (error) {
+                fastify.log.error({ error, tenantId: tenant.id, userId: user.id }, 'Failed to create template');
+                return reply.code(500).send({
+                    error: {
+                        code: 'CREATE_FAILED',
+                        message: 'Failed to create template',
+                        details: {},
+                    },
+                });
+            }
+            fastify.log.info({
+                templateId: template.id,
+                tenantId: tenant.id,
+                userId: user.id,
+                visibility,
+            }, 'Template created successfully');
+            return reply.code(201).send({
+                success: true,
+                data: {
+                    template,
+                },
+            });
+        }
+        catch (error) {
+            if (error instanceof zod_1.z.ZodError) {
+                return reply.code(400).send({
+                    error: {
+                        code: 'VALIDATION_ERROR',
+                        message: 'Invalid request body',
+                        details: error.errors,
+                    },
+                });
+            }
+            fastify.log.error({ error }, 'Unexpected error in POST /api/templates');
+            return reply.code(500).send({
+                error: {
+                    code: 'INTERNAL_ERROR',
+                    message: 'An unexpected error occurred',
+                    details: {},
+                },
+            });
+        }
+    });
+    /**
+     * GET /api/templates/public
+     * Lists all public templates from any tenant (for community shared-documents)
+     * NOTE: Must be registered BEFORE /api/templates/:id to avoid 'public' matching as :id
+     */
+    fastify.get('/api/templates/public', {
+        preHandler: [rateLimit_1.rateLimitMiddleware, tenantContext_1.tenantContextMiddleware, auth_1.authMiddleware, membershipGuard_1.membershipGuard],
+    }, async (request, reply) => {
+        try {
+            const query = listTemplatesQuerySchema.parse(request.query);
+            const { page, limit } = query;
+            const offset = (page - 1) * limit;
+            const { data: templates, error, count } = await supabase_1.supabaseAdmin
+                .from('templates')
+                .select(`
+            id,
+            tenant_id,
+            title,
+            description,
+            content,
+            category,
+            visibility,
+            is_approved,
+            created_by,
+            created_at,
+            updated_at,
+            users:created_by (
+              id,
+              email,
+              full_name
+            )
+          `, { count: 'exact' })
+                .eq('visibility', 'public')
+                .order('created_at', { ascending: false })
+                .range(offset, offset + limit - 1);
+            if (error) {
+                fastify.log.error({ error }, 'Failed to fetch public templates');
+                return reply.code(500).send({
+                    error: { code: 'FETCH_FAILED', message: 'Failed to fetch public templates', details: {} },
+                });
+            }
+            const totalPages = count ? Math.ceil(count / limit) : 0;
+            return reply.code(200).send({
+                success: true,
+                data: {
+                    templates: templates || [],
+                    pagination: {
+                        page,
+                        limit,
+                        total: count || 0,
+                        totalPages,
+                        hasNextPage: page < totalPages,
+                        hasPrevPage: page > 1,
+                    },
+                },
+            });
+        }
+        catch (error) {
+            fastify.log.error({ error }, 'Unexpected error in GET /api/templates/public');
+            return reply.code(500).send({
+                error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred', details: {} },
+            });
+        }
+    });
+    /**
+     * GET /api/templates/:id
+     * Fetches a single template by ID for preview
+     */
+    fastify.get('/api/templates/:id', {
+        preHandler: [rateLimit_1.rateLimitMiddleware, tenantContext_1.tenantContextMiddleware, auth_1.authMiddleware, membershipGuard_1.membershipGuard],
+    }, async (request, reply) => {
+        try {
+            const tenant = request.tenant;
+            const params = useTemplateParamsSchema.parse(request.params);
+            const { id: templateId } = params;
+            const { data: template, error: templateError } = await supabase_1.supabaseAdmin
+                .from('templates')
+                .select(`
+            id,
+            tenant_id,
+            title,
+            description,
+            content,
+            category,
+            visibility,
+            is_approved,
+            created_by,
+            created_at,
+            updated_at,
+            users:created_by (
+              id,
+              email,
+              full_name
+            )
+          `)
+                .eq('id', templateId)
+                .single();
+            if (templateError || !template) {
+                return reply.code(404).send({
+                    error: {
+                        code: 'TEMPLATE_NOT_FOUND',
+                        message: 'Template not found',
+                        details: {},
+                    },
+                });
+            }
+            // Verify access: global approved template OR tenant's own template OR public template
+            const isGlobalApproved = template.tenant_id === null && template.is_approved === true;
+            const isTenantTemplate = template.tenant_id === tenant.id;
+            const isPublicTemplate = template.visibility === 'public';
+            if (!isGlobalApproved && !isTenantTemplate && !isPublicTemplate) {
+                return reply.code(403).send({
+                    error: {
+                        code: 'FORBIDDEN',
+                        message: 'You do not have access to this template',
+                        details: {},
+                    },
+                });
+            }
+            return reply.code(200).send({
+                success: true,
+                data: {
+                    template,
+                    is_read_only: !isTenantTemplate && !isGlobalApproved,
+                },
+            });
+        }
+        catch (error) {
+            if (error instanceof zod_1.z.ZodError) {
+                return reply.code(400).send({
+                    error: {
+                        code: 'VALIDATION_ERROR',
+                        message: 'Invalid template ID',
+                        details: error.errors,
+                    },
+                });
+            }
+            fastify.log.error({ error }, 'Unexpected error in GET /api/templates/:id');
+            return reply.code(500).send({
+                error: {
+                    code: 'INTERNAL_ERROR',
+                    message: 'An unexpected error occurred',
+                    details: {},
+                },
+            });
+        }
+    });
+    /**
+     * POST /api/templates/:id/use
+     * Duplicates a template as a new draft document
+     *
+     * Path Parameters:
+     * - id (required): Template UUID
+     *
+     * Authorization:
+     * - Requires valid JWT
+     * - User must be member of tenant
+     * - User must have access to the template (global approved OR tenant's own)
+     *
+     * Security:
+     * - Validates template access (approved global OR tenant's template)
+     * - Sets author_id to authenticated user (not template creator)
+     * - Sets tenant_id to user's tenant
+     * - Creates new document as draft status
+     * - Creates lineage event tracking template usage
+     * - Validates UUID format with Zod
+     *
+     * Behavior:
+     * - Fetches template and verifies access
+     * - Creates new document with template's content
+     * - Document title = template title (user can rename after)
+     * - Document status = 'draft'
+     * - Document author_id = current user
+     * - Creates lineage event with template_id reference
+     * - Returns created document
+     */
+    fastify.post('/api/templates/:id/use', {
+        preHandler: [rateLimit_1.rateLimitMiddleware, tenantContext_1.tenantContextMiddleware, auth_1.authMiddleware, membershipGuard_1.membershipGuard],
+    }, async (request, reply) => {
+        try {
+            const tenant = request.tenant;
+            const user = request.user;
+            // Validate path parameters
+            const params = useTemplateParamsSchema.parse(request.params);
+            const { id: templateId } = params;
+            // Fetch template and verify access
+            // User can access: (1) approved global templates OR (2) tenant's own templates
+            const { data: template, error: templateError } = await supabase_1.supabaseAdmin
+                .from('templates')
+                .select('id, tenant_id, title, content, is_approved')
+                .eq('id', templateId)
+                .single();
+            if (templateError || !template) {
+                fastify.log.warn({ templateId, tenantId: tenant.id, userId: user.id }, 'Template not found');
+                return reply.code(404).send({
+                    error: {
+                        code: 'TEMPLATE_NOT_FOUND',
+                        message: 'Template not found',
+                        details: {},
+                    },
+                });
+            }
+            // Verify access: global approved template OR tenant's own template
+            const isGlobalApproved = template.tenant_id === null && template.is_approved === true;
+            const isTenantTemplate = template.tenant_id === tenant.id;
+            if (!isGlobalApproved && !isTenantTemplate) {
+                fastify.log.warn({
+                    templateId,
+                    templateTenantId: template.tenant_id,
+                    templateIsApproved: template.is_approved,
+                    userTenantId: tenant.id,
+                    userId: user.id,
+                }, 'User attempted to use template without access');
+                return reply.code(403).send({
+                    error: {
+                        code: 'FORBIDDEN',
+                        message: 'You do not have access to this template',
+                        details: {},
+                    },
+                });
+            }
+            // Create new document from template
+            const { data: document, error: createError } = await supabase_1.supabaseAdmin
+                .from('documents')
+                .insert({
+                tenant_id: tenant.id,
+                author_id: user.id,
+                title: template.title,
+                content: template.content,
+                status: 'draft',
+                is_public: false,
+            })
+                .select(`
+            id,
+            title,
+            content,
+            parent_id,
+            is_public,
+            status,
+            author_id,
+            published_at,
+            created_at,
+            updated_at
+          `)
+                .single();
+            if (createError) {
+                fastify.log.error({ error: createError, templateId, tenantId: tenant.id, userId: user.id }, 'Failed to create document from template');
+                return reply.code(500).send({
+                    error: {
+                        code: 'CREATE_FAILED',
+                        message: 'Failed to create document from template',
+                        details: {},
+                    },
+                });
+            }
+            // Create lineage event for template usage
+            const { error: lineageError } = await supabase_1.supabaseAdmin
+                .from('document_lineage')
+                .insert({
+                document_id: document.id,
+                event_type: 'created',
+                actor_id: user.id,
+                metadata: {
+                    source: 'template',
+                    template_id: templateId,
+                    template_title: template.title,
+                },
+            });
+            if (lineageError) {
+                fastify.log.error({ error: lineageError, documentId: document.id, templateId, userId: user.id }, 'Failed to create lineage event for template usage');
+            }
+            fastify.log.info({
+                documentId: document.id,
+                templateId,
+                tenantId: tenant.id,
+                userId: user.id,
+            }, 'Document created from template successfully');
+            return reply.code(201).send({
+                success: true,
+                data: {
+                    document,
+                },
+            });
+        }
+        catch (error) {
+            if (error instanceof zod_1.z.ZodError) {
+                return reply.code(400).send({
+                    error: {
+                        code: 'VALIDATION_ERROR',
+                        message: 'Invalid template ID',
+                        details: error.errors,
+                    },
+                });
+            }
+            fastify.log.error({ error }, 'Unexpected error in POST /api/templates/:id/use');
+            return reply.code(500).send({
+                error: {
+                    code: 'INTERNAL_ERROR',
+                    message: 'An unexpected error occurred',
+                    details: {},
+                },
+            });
+        }
+    });
+    /**
+     * PUT /api/templates/:id
+     * Updates an existing template (admin only, must own the template via tenant)
+     */
+    fastify.put('/api/templates/:id', {
+        preHandler: [rateLimit_1.rateLimitMiddleware, tenantContext_1.tenantContextMiddleware, auth_1.authMiddleware, membershipGuard_1.membershipGuard],
+    }, async (request, reply) => {
+        try {
+            const tenant = request.tenant;
+            const user = request.user;
+            // Check user has admin role
+            if (user.role !== 'admin') {
+                return reply.code(403).send({
+                    error: {
+                        code: 'FORBIDDEN',
+                        message: 'Only admin role can update templates',
+                        details: {},
+                    },
+                });
+            }
+            const params = useTemplateParamsSchema.parse(request.params);
+            const { id: templateId } = params;
+            // Validate request body
+            const body = updateTemplateBodySchema.parse(request.body);
+            // Fetch existing template to verify ownership
+            const { data: existing, error: fetchError } = await supabase_1.supabaseAdmin
+                .from('templates')
+                .select('id, tenant_id')
+                .eq('id', templateId)
+                .single();
+            if (fetchError || !existing) {
+                return reply.code(404).send({
+                    error: {
+                        code: 'TEMPLATE_NOT_FOUND',
+                        message: 'Template not found',
+                        details: {},
+                    },
+                });
+            }
+            // Only allow updating tenant's own templates
+            if (existing.tenant_id !== tenant.id) {
+                return reply.code(403).send({
+                    error: {
+                        code: 'FORBIDDEN',
+                        message: 'You can only update your own tenant templates',
+                        details: {},
+                    },
+                });
+            }
+            // Build update object (only include provided fields)
+            const updateData = {};
+            if (body.title !== undefined)
+                updateData.title = body.title;
+            if (body.description !== undefined)
+                updateData.description = body.description;
+            if (body.content !== undefined)
+                updateData.content = body.content;
+            if (body.category !== undefined)
+                updateData.category = body.category;
+            if (body.visibility !== undefined)
+                updateData.visibility = body.visibility;
+            if (Object.keys(updateData).length === 0) {
+                return reply.code(400).send({
+                    error: {
+                        code: 'VALIDATION_ERROR',
+                        message: 'No fields to update',
+                        details: {},
+                    },
+                });
+            }
+            const { data: template, error } = await supabase_1.supabaseAdmin
+                .from('templates')
+                .update(updateData)
+                .eq('id', templateId)
+                .select(`
+            id,
+            tenant_id,
+            title,
+            description,
+            content,
+            category,
+            visibility,
+            is_approved,
+            created_by,
+            created_at,
+            updated_at,
+            users:created_by (
+              id,
+              email,
+              full_name
+            )
+          `)
+                .single();
+            if (error) {
+                fastify.log.error({ error, templateId, tenantId: tenant.id, userId: user.id }, 'Failed to update template');
+                return reply.code(500).send({
+                    error: {
+                        code: 'UPDATE_FAILED',
+                        message: 'Failed to update template',
+                        details: {},
+                    },
+                });
+            }
+            fastify.log.info({ templateId, tenantId: tenant.id, userId: user.id }, 'Template updated successfully');
+            return reply.code(200).send({
+                success: true,
+                data: { template },
+            });
+        }
+        catch (error) {
+            if (error instanceof zod_1.z.ZodError) {
+                return reply.code(400).send({
+                    error: {
+                        code: 'VALIDATION_ERROR',
+                        message: 'Invalid request',
+                        details: error.errors,
+                    },
+                });
+            }
+            fastify.log.error({ error }, 'Unexpected error in PUT /api/templates/:id');
+            return reply.code(500).send({
+                error: {
+                    code: 'INTERNAL_ERROR',
+                    message: 'An unexpected error occurred',
+                    details: {},
+                },
+            });
+        }
+    });
+    /**
+     * DELETE /api/templates/:id
+     * Deletes a template (admin only, must own the template via tenant)
+     */
+    fastify.delete('/api/templates/:id', {
+        preHandler: [rateLimit_1.rateLimitMiddleware, tenantContext_1.tenantContextMiddleware, auth_1.authMiddleware, membershipGuard_1.membershipGuard],
+    }, async (request, reply) => {
+        try {
+            const tenant = request.tenant;
+            const user = request.user;
+            // Check user has admin role
+            if (user.role !== 'admin') {
+                return reply.code(403).send({
+                    error: {
+                        code: 'FORBIDDEN',
+                        message: 'Only admin role can delete templates',
+                        details: {},
+                    },
+                });
+            }
+            const params = useTemplateParamsSchema.parse(request.params);
+            const { id: templateId } = params;
+            // Fetch existing template to verify ownership
+            const { data: existing, error: fetchError } = await supabase_1.supabaseAdmin
+                .from('templates')
+                .select('id, tenant_id')
+                .eq('id', templateId)
+                .single();
+            if (fetchError || !existing) {
+                return reply.code(404).send({
+                    error: {
+                        code: 'TEMPLATE_NOT_FOUND',
+                        message: 'Template not found',
+                        details: {},
+                    },
+                });
+            }
+            // Only allow deleting tenant's own templates
+            if (existing.tenant_id !== tenant.id) {
+                return reply.code(403).send({
+                    error: {
+                        code: 'FORBIDDEN',
+                        message: 'You can only delete your own tenant templates',
+                        details: {},
+                    },
+                });
+            }
+            const { error } = await supabase_1.supabaseAdmin
+                .from('templates')
+                .delete()
+                .eq('id', templateId);
+            if (error) {
+                fastify.log.error({ error, templateId, tenantId: tenant.id, userId: user.id }, 'Failed to delete template');
+                return reply.code(500).send({
+                    error: {
+                        code: 'DELETE_FAILED',
+                        message: 'Failed to delete template',
+                        details: {},
+                    },
+                });
+            }
+            fastify.log.info({ templateId, tenantId: tenant.id, userId: user.id }, 'Template deleted successfully');
+            return reply.code(204).send();
+        }
+        catch (error) {
+            if (error instanceof zod_1.z.ZodError) {
+                return reply.code(400).send({
+                    error: {
+                        code: 'VALIDATION_ERROR',
+                        message: 'Invalid template ID',
+                        details: error.errors,
+                    },
+                });
+            }
+            fastify.log.error({ error }, 'Unexpected error in DELETE /api/templates/:id');
+            return reply.code(500).send({
+                error: {
+                    code: 'INTERNAL_ERROR',
+                    message: 'An unexpected error occurred',
+                    details: {},
+                },
+            });
+        }
+    });
+    /**
+     * POST /api/templates/:id/clone
+     * Clone a public template to the current tenant's templates
+     */
+    fastify.post('/api/templates/:id/clone', {
+        preHandler: [rateLimit_1.rateLimitMiddleware, tenantContext_1.tenantContextMiddleware, auth_1.authMiddleware, membershipGuard_1.membershipGuard],
+    }, async (request, reply) => {
+        try {
+            const tenant = request.tenant;
+            const user = request.user;
+            const params = useTemplateParamsSchema.parse(request.params);
+            const { id: templateId } = params;
+            // Fetch the source template
+            const { data: sourceTemplate, error: fetchError } = await supabase_1.supabaseAdmin
+                .from('templates')
+                .select('title, description, content, category')
+                .eq('id', templateId)
+                .single();
+            if (fetchError || !sourceTemplate) {
+                return reply.code(404).send({
+                    error: { code: 'TEMPLATE_NOT_FOUND', message: 'Template not found', details: {} },
+                });
+            }
+            // Create a clone for the current tenant
+            const { data: cloned, error: createError } = await supabase_1.supabaseAdmin
+                .from('templates')
+                .insert({
+                tenant_id: tenant.id,
+                title: sourceTemplate.title,
+                description: sourceTemplate.description,
+                content: sourceTemplate.content,
+                category: sourceTemplate.category,
+                visibility: 'internal',
+                is_approved: false,
+                created_by: user.id,
+            })
+                .select('id, title')
+                .single();
+            if (createError || !cloned) {
+                fastify.log.error({ error: createError }, 'Failed to clone template');
+                return reply.code(500).send({
+                    error: { code: 'CLONE_FAILED', message: 'Failed to save template', details: {} },
+                });
+            }
+            fastify.log.info({ sourceTemplateId: templateId, clonedTemplateId: cloned.id, tenantId: tenant.id }, 'Template cloned successfully');
+            return reply.code(201).send({
+                success: true,
+                data: { template: cloned },
+            });
+        }
+        catch (error) {
+            fastify.log.error({ error }, 'Unexpected error in POST /api/templates/:id/clone');
+            return reply.code(500).send({
+                error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred', details: {} },
+            });
+        }
+    });
+}
+//# sourceMappingURL=templates.js.map

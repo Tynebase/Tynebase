@@ -1,0 +1,207 @@
+"use strict";
+/**
+ * AWS Bedrock Integration Service for DeepSeek
+ * Handles text generation using DeepSeek V3 model through AWS Bedrock (eu-west-2)
+ *
+ * Features:
+ * - Streaming support for real-time responses
+ * - Automatic retry on throttling
+ * - 30-second timeout
+ * - Token counting for billing
+ * - UK data residency compliance (eu-west-2)
+ */
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.generateText = generateText;
+exports.generateTextStream = generateTextStream;
+const client_bedrock_runtime_1 = require("@aws-sdk/client-bedrock-runtime");
+const tokenCounter_1 = require("../../utils/tokenCounter");
+/**
+ * Bedrock client configured for EU region
+ */
+let bedrockClient = null;
+/**
+ * DeepSeek model ID in Bedrock
+ */
+const DEEPSEEK_MODEL_ID = 'deepseek.v3-v1:0';
+/**
+ * Initializes the Bedrock client with EU region
+ * Uses AWS Bedrock API key from environment
+ * @throws Error if AWS credentials are not configured
+ */
+function getBedrockClient() {
+    if (!bedrockClient) {
+        const region = process.env.AWS_REGION || 'eu-west-2';
+        const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+        const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+        if (!accessKeyId || !secretAccessKey) {
+            throw new Error('AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables must be set');
+        }
+        bedrockClient = new client_bedrock_runtime_1.BedrockRuntimeClient({
+            region,
+            credentials: {
+                accessKeyId,
+                secretAccessKey,
+            },
+            maxAttempts: 3,
+        });
+    }
+    return bedrockClient;
+}
+/**
+ * Generates text using DeepSeek V3 via AWS Bedrock
+ *
+ * @param request - Generation request parameters
+ * @returns Generation response with content and token counts
+ * @throws Error on API failures or timeout
+ */
+async function generateText(request) {
+    const client = getBedrockClient();
+    const maxTokens = request.maxTokens || 4000;
+    const temperature = request.temperature ?? 0.7;
+    try {
+        const inputTokens = (0, tokenCounter_1.countTokens)(request.prompt, 'gpt-4');
+        // DeepSeek on Bedrock uses OpenAI-compatible messages format
+        const messages = [];
+        if (request.systemPrompt) {
+            messages.push({ role: 'system', content: request.systemPrompt });
+        }
+        messages.push({ role: 'user', content: request.prompt });
+        const payload = {
+            messages,
+            max_tokens: maxTokens,
+            temperature,
+            top_p: 0.9,
+        };
+        const command = new client_bedrock_runtime_1.InvokeModelCommand({
+            modelId: DEEPSEEK_MODEL_ID,
+            contentType: 'application/json',
+            accept: 'application/json',
+            body: JSON.stringify(payload),
+        });
+        const response = await client.send(command);
+        const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+        // DeepSeek returns response in choices[0].message.content format
+        const content = responseBody.choices?.[0]?.message?.content || responseBody.completion || responseBody.text || '';
+        const outputTokens = responseBody.usage?.completion_tokens || (0, tokenCounter_1.countTokens)(content, 'gpt-4');
+        const actualInputTokens = responseBody.usage?.prompt_tokens || inputTokens;
+        return {
+            content,
+            model: 'deepseek-v3',
+            tokensInput: actualInputTokens,
+            tokensOutput: outputTokens,
+            provider: 'bedrock',
+        };
+    }
+    catch (error) {
+        if (error?.name === 'ThrottlingException' || error?.$metadata?.httpStatusCode === 429) {
+            throw new Error('DeepSeek Bedrock rate limit exceeded. Please try again later.');
+        }
+        if (error?.name === 'TimeoutError' || error?.message?.includes('timeout')) {
+            throw new Error('DeepSeek Bedrock request timed out after 30 seconds');
+        }
+        if (error?.name === 'UnauthorizedException' || error?.$metadata?.httpStatusCode === 401) {
+            throw new Error('AWS Bedrock API key is invalid or expired');
+        }
+        if (error?.name === 'AccessDeniedException' || error?.$metadata?.httpStatusCode === 403) {
+            throw new Error('AWS Bedrock API key does not have permission to invoke DeepSeek model');
+        }
+        if (error?.name === 'ResourceNotFoundException' || error?.$metadata?.httpStatusCode === 404) {
+            throw new Error('DeepSeek model not found or not enabled in eu-west-2 region');
+        }
+        if (error?.name === 'ValidationException' || error?.$metadata?.httpStatusCode === 400) {
+            throw new Error(`Invalid request to Bedrock: ${error?.message || 'Unknown validation error'}`);
+        }
+        throw new Error(`DeepSeek Bedrock API error: ${error?.message || 'Unknown error'}`);
+    }
+}
+/**
+ * Generates text with streaming support
+ * Returns an async generator that yields content chunks
+ *
+ * @param request - Generation request parameters
+ * @returns Async generator yielding text chunks and final response
+ */
+async function* generateTextStream(request) {
+    const client = getBedrockClient();
+    const maxTokens = request.maxTokens || 4000;
+    const temperature = request.temperature ?? 0.7;
+    try {
+        const inputTokens = (0, tokenCounter_1.countTokens)(request.prompt, 'gpt-4');
+        // DeepSeek on Bedrock uses OpenAI-compatible messages format
+        const messages = [];
+        if (request.systemPrompt) {
+            messages.push({ role: 'system', content: request.systemPrompt });
+        }
+        messages.push({ role: 'user', content: request.prompt });
+        const payload = {
+            messages,
+            max_tokens: maxTokens,
+            temperature,
+            top_p: 0.9,
+            stream: true,
+        };
+        const command = new client_bedrock_runtime_1.InvokeModelWithResponseStreamCommand({
+            modelId: DEEPSEEK_MODEL_ID,
+            contentType: 'application/json',
+            accept: 'application/json',
+            body: JSON.stringify(payload),
+        });
+        console.log(`[Bedrock] Sending streaming request to ${DEEPSEEK_MODEL_ID}`);
+        const response = await client.send(command);
+        console.log(`[Bedrock] Got response, checking body`);
+        if (!response.body) {
+            throw new Error('No response body received from Bedrock');
+        }
+        console.log(`[Bedrock] Starting to iterate stream`);
+        let fullContent = '';
+        let actualInputTokens = inputTokens;
+        let actualOutputTokens = 0;
+        for await (const event of response.body) {
+            if (event.chunk) {
+                const chunkData = JSON.parse(new TextDecoder().decode(event.chunk.bytes));
+                // DeepSeek streaming returns delta in choices[0].delta.content
+                const delta = chunkData.choices?.[0]?.delta?.content || chunkData.completion || chunkData.text || '';
+                if (delta) {
+                    fullContent += delta;
+                    yield delta;
+                }
+                if (chunkData.usage) {
+                    actualInputTokens = chunkData.usage.prompt_tokens || actualInputTokens;
+                    actualOutputTokens = chunkData.usage.completion_tokens || actualOutputTokens;
+                }
+            }
+        }
+        if (actualOutputTokens === 0) {
+            actualOutputTokens = (0, tokenCounter_1.countTokens)(fullContent, 'gpt-4');
+        }
+        return {
+            content: fullContent,
+            model: 'deepseek-v3',
+            tokensInput: actualInputTokens,
+            tokensOutput: actualOutputTokens,
+            provider: 'bedrock',
+        };
+    }
+    catch (error) {
+        if (error?.name === 'ThrottlingException' || error?.$metadata?.httpStatusCode === 429) {
+            throw new Error('DeepSeek Bedrock rate limit exceeded. Please try again later.');
+        }
+        if (error?.name === 'TimeoutError' || error?.message?.includes('timeout')) {
+            throw new Error('DeepSeek Bedrock streaming request timed out after 30 seconds');
+        }
+        if (error?.name === 'UnauthorizedException' || error?.$metadata?.httpStatusCode === 401) {
+            throw new Error('AWS Bedrock API key is invalid or expired');
+        }
+        if (error?.name === 'AccessDeniedException' || error?.$metadata?.httpStatusCode === 403) {
+            throw new Error('AWS Bedrock API key does not have permission to invoke DeepSeek model');
+        }
+        if (error?.name === 'ResourceNotFoundException' || error?.$metadata?.httpStatusCode === 404) {
+            throw new Error('DeepSeek model not found or not enabled in eu-west-2 region');
+        }
+        if (error?.name === 'ValidationException' || error?.$metadata?.httpStatusCode === 400) {
+            throw new Error(`Invalid streaming request to Bedrock: ${error?.message || 'Unknown validation error'}`);
+        }
+        throw new Error(`DeepSeek Bedrock streaming error: ${error?.message || 'Unknown error'}`);
+    }
+}
+//# sourceMappingURL=bedrock.js.map
