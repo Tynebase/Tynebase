@@ -54,6 +54,7 @@ export interface DocumentListParams {
   category_id?: string;
   status?: 'draft' | 'published';
   tag_id?: string;
+  search?: string;
   page?: number;
   limit?: number;
 }
@@ -175,6 +176,10 @@ export async function listDocuments(
   
   if (params?.tag_id) {
     queryParams.append('tag_id', params.tag_id);
+  }
+  
+  if (params?.search) {
+    queryParams.append('search', params.search);
   }
   
   if (params?.page !== undefined) {

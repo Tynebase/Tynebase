@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { listDocuments, type Document } from "@/lib/api/documents";
+import { searchDocs } from "@/lib/docs";
 import {
   Search,
   FileText,
@@ -16,7 +18,9 @@ import {
   Shield,
   Zap,
   ArrowRight,
-  Clock
+  Clock,
+  Loader2,
+  HelpCircle
 } from "lucide-react";
 
 interface CommandItem {
@@ -25,7 +29,7 @@ interface CommandItem {
   description?: string;
   icon: React.ElementType;
   action: () => void;
-  category: "navigation" | "actions" | "recent" | "documents";
+  category: "navigation" | "actions" | "recent" | "documents" | "help";
   keywords?: string[];
   viewerHidden?: boolean;
   adminOnly?: boolean;
@@ -44,8 +48,44 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   const isAdmin = user?.role === 'admin' || user?.is_super_admin;
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [fetchedDocuments, setFetchedDocuments] = useState<Document[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  const commands: CommandItem[] = useMemo(() => [
+  // Fetch recent/searched documents
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+
+    const performSearch = async () => {
+      try {
+        setIsSearching(true);
+        const response = await listDocuments({
+          search: query || undefined,
+          limit: query ? 8 : 5,
+          status: 'published'
+        });
+        setFetchedDocuments(response.documents);
+      } catch (err) {
+        console.error('Failed to fetch documents for command palette:', err);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    if (query) {
+      searchTimeout.current = setTimeout(performSearch, 300);
+    } else {
+      performSearch();
+    }
+
+    return () => {
+      if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    };
+  }, [query, isOpen]);
+
+  const staticCommands: CommandItem[] = useMemo(() => [
     // Actions
     {
       id: "new-doc",
@@ -139,47 +179,58 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
       viewerHidden: true,
       adminOnly: true,
     },
-    // Recent Documents (mock)
-    {
-      id: "doc-1",
-      title: "Getting Started Guide",
-      description: "Updated 2 hours ago",
-      icon: FileText,
-      action: () => router.push("/dashboard/knowledge/1"),
-      category: "recent",
-    },
-    {
-      id: "doc-2",
-      title: "API Authentication",
-      description: "Updated yesterday",
-      icon: FileText,
-      action: () => router.push("/dashboard/knowledge/2"),
-      category: "recent",
-    },
   ], [router]);
 
-  // Filter out commands based on role
-  const accessibleCommands = useMemo(() => {
-    return commands.filter(cmd => {
+  // Filter out static commands based on role
+  const accessibleStaticCommands = useMemo(() => {
+    return staticCommands.filter(cmd => {
       // Viewers can't see viewer-hidden commands
       if (isViewer && cmd.viewerHidden) return false;
       // Editors can't see admin-only commands
       if (isEditor && cmd.adminOnly) return false;
       return true;
     });
-  }, [commands, isViewer, isEditor]);
+  }, [staticCommands, isViewer, isEditor]);
 
   const filteredCommands = useMemo(() => {
-    if (!query) return accessibleCommands;
+    // 1. Static commands filtration
+    let results: CommandItem[] = [];
+    if (query) {
+      const lowerQuery = query.toLowerCase();
+      results = accessibleStaticCommands.filter((cmd) => {
+        const matchTitle = cmd.title.toLowerCase().includes(lowerQuery);
+        const matchKeywords = cmd.keywords?.some((k) => k.includes(lowerQuery));
+        return matchTitle || matchKeywords;
+      });
+    } else {
+      results = [...accessibleStaticCommands];
+    }
 
-    const lowerQuery = query.toLowerCase();
-    return accessibleCommands.filter((cmd) => {
-      const matchTitle = cmd.title.toLowerCase().includes(lowerQuery);
-      const matchDesc = cmd.description?.toLowerCase().includes(lowerQuery);
-      const matchKeywords = cmd.keywords?.some((k) => k.includes(lowerQuery));
-      return matchTitle || matchDesc || matchKeywords;
-    });
-  }, [accessibleCommands, query]);
+    // 2. Real documents from API
+    const docCommands: CommandItem[] = fetchedDocuments.map(doc => ({
+      id: doc.id,
+      title: doc.title,
+      description: doc.status === 'published' ? `Updated ${new Date(doc.updated_at).toLocaleDateString()}` : 'Draft',
+      icon: FileText,
+      action: () => router.push(`/dashboard/knowledge/${doc.id}`),
+      category: query ? "documents" : "recent",
+    }));
+
+    // 3. Documentation/Help results
+    let helpResults: CommandItem[] = [];
+    if (query) {
+      helpResults = searchDocs(query).map(doc => ({
+        id: `help-${doc.slug}`,
+        title: doc.title,
+        description: doc.description,
+        icon: HelpCircle,
+        action: () => router.push(`/docs/${doc.slug}`),
+        category: "help",
+      }));
+    }
+
+    return [...results, ...docCommands, ...helpResults];
+  }, [accessibleStaticCommands, fetchedDocuments, query, router]);
 
   const groupedCommands = useMemo(() => {
     const groups: Record<string, CommandItem[]> = {
@@ -187,6 +238,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
       navigation: [],
       recent: [],
       documents: [],
+      help: [],
     };
 
     filteredCommands.forEach((cmd) => {
@@ -235,25 +287,23 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, filteredCommands, selectedIndex, executeCommand, onClose]);
 
-  // Reset selection when query changes
+  // Reset selection when query or results change
   useEffect(() => {
     setSelectedIndex(0);
-  }, [query]);
+  }, [query, filteredCommands.length]);
 
   // Global keyboard shortcut
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
-        if (isOpen) {
-          onClose();
-        }
+        onClose();
       }
     };
 
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [isOpen, onClose]);
+  }, [onClose]);
 
   if (!isOpen) return null;
 
@@ -272,10 +322,14 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
         <div className="bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-2xl shadow-2xl overflow-hidden">
           {/* Search Input */}
           <div className="flex items-center gap-3 px-5 py-2 border-b border-[var(--border-subtle)]">
-            <Search className="w-5 h-5 shrink-0 text-[var(--text-tertiary)]" />
+            {isSearching ? (
+              <Loader2 className="w-5 h-5 shrink-0 text-[var(--brand-primary)] animate-spin" />
+            ) : (
+              <Search className="w-5 h-5 shrink-0 text-[var(--text-tertiary)]" />
+            )}
             <input
               type="text"
-              placeholder="Search..."
+              placeholder="Search documents, commands, and help..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="flex-1 min-w-0 h-12 bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none text-lg"
@@ -288,7 +342,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
 
           {/* Results */}
           <div className="max-h-[400px] overflow-y-auto p-2">
-            {filteredCommands.length === 0 ? (
+            {filteredCommands.length === 0 && !isSearching ? (
               <div className="py-12 text-center">
                 <Search className="w-12 h-12 text-[var(--text-tertiary)] mx-auto mb-3 opacity-50" />
                 <p className="text-[var(--text-secondary)]">No results found</p>
@@ -318,7 +372,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                   </div>
                 )}
 
-                {/* Recent */}
+                {/* Recent Documents */}
                 {groupedCommands.recent.length > 0 && (
                   <div className="mb-4">
                     <p className="px-3 py-2 text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider flex items-center gap-2">
@@ -326,6 +380,48 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                       Recent Documents
                     </p>
                     {groupedCommands.recent.map((cmd) => {
+                      const index = flatIndex++;
+                      return (
+                        <CommandRow
+                          key={cmd.id}
+                          command={cmd}
+                          isSelected={index === selectedIndex}
+                          onSelect={() => executeCommand(cmd)}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Search Results (Documents) */}
+                {groupedCommands.documents.length > 0 && (
+                  <div className="mb-4">
+                    <p className="px-3 py-2 text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider flex items-center gap-2">
+                      <FileText className="w-3 h-3" />
+                      Documents
+                    </p>
+                    {groupedCommands.documents.map((cmd) => {
+                      const index = flatIndex++;
+                      return (
+                        <CommandRow
+                          key={cmd.id}
+                          command={cmd}
+                          isSelected={index === selectedIndex}
+                          onSelect={() => executeCommand(cmd)}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Help & Documentation */}
+                {groupedCommands.help.length > 0 && (
+                  <div className="mb-4">
+                    <p className="px-3 py-2 text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider flex items-center gap-2">
+                      <HelpCircle className="w-3 h-3" />
+                      Help & Documentation
+                    </p>
+                    {groupedCommands.help.map((cmd) => {
                       const index = flatIndex++;
                       return (
                         <CommandRow

@@ -646,14 +646,6 @@ export default function TeamChatPage() {
       if (assignDueDate) data.due_date = assignDueDate;
 
       await createAssignment(data);
-      
-      // Notify assignee
-      await createNewNotification({
-        user_id: assignTo,
-        type: 'task',
-        title: `You have been assigned a ${assignType}`,
-        description: data.title || documents.find(d => d.id === assignDocId)?.title || "An assignment",
-      }).catch(err => console.error("Notification failed", err));
 
       // Reset form
       setShowAssignModal(false);
