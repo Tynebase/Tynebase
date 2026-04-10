@@ -329,6 +329,13 @@ export async function apiClient<T = unknown>(
 
       // Handle 401 Unauthorized - try to refresh token once
       if (response.status === 401 && !skipAutoRedirect) {
+        // SPECIAL CASE: If the profile is missing (User exists in Supabase but not in this Tenant)
+        // do NOT clear auth. This allows the user to stay "soft-logged in" while joining.
+        if (errorData.code === 'PROFILE_NOT_FOUND') {
+          console.log('[ApiClient] Profile not found for this tenant, but Supabase session is valid. Staying as guest.');
+          throw new ApiClientError(errorData);
+        }
+
         // Try refreshing the token
         if (!isRefreshing) {
           isRefreshing = true;

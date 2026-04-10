@@ -738,11 +738,31 @@ export default async function authRoutes(fastify: FastifyInstance) {
     try {
       const userId = request.user!.id;
 
-      const { data: userProfile, error } = await supabaseAdmin
+      // Fetch user profile based on userId and the requested tenant subdomain (if provided)
+      const subdomain = request.headers['x-tenant-subdomain'] as string;
+      let query = supabaseAdmin
         .from('users')
         .select('id, email, full_name, role, is_super_admin, status, last_active_at, tenant_id, original_tenant_id')
-        .eq('id', userId)
-        .single();
+        .eq('id', userId);
+
+      if (subdomain && subdomain !== 'www' && subdomain !== 'main') {
+        // Resolve tenant ID for the subdomain
+        const { data: targetTenant } = await supabaseAdmin
+          .from('tenants')
+          .select('id')
+          .eq('subdomain', subdomain.toLowerCase())
+          .single();
+
+        if (targetTenant) {
+          query = query.eq('tenant_id', targetTenant.id);
+        }
+      } else {
+        // Default to the first profile found (or original_tenant if we had one)
+        // For now, .single() still works if they only have one, otherwise we'd need more logic
+        query = query.limit(1);
+      }
+
+      const { data: userProfile, error } = await query.single();
 
       if (error || !userProfile) {
         fastify.log.error({ error }, 'Failed to fetch user profile');
@@ -1217,34 +1237,28 @@ export default async function authRoutes(fastify: FastifyInstance) {
         });
       }
 
-      // Check if user already has a profile (already a member of SOME workspace)
+      // Check if user already has a profile for THIS tenant
       const { data: existingProfile } = await supabaseAdmin
         .from('users')
         .select('id, tenant_id, role')
         .eq('id', userId)
+        .eq('tenant_id', tenant.id)
         .single();
-
-      if (existingProfile) {
-        // If already in this tenant, success
-        if (existingProfile.tenant_id === tenant.id) {
-          return reply.code(200).send({
-            success: true,
-            data: {
-              user: { id: userId, email, full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name, role: existingProfile.role },
-              tenant: tenant,
-            },
-            message: 'Already a member of this community',
-          });
-        }
-
-        // If in another tenant, error
-        return reply.code(403).send({
-          error: { 
-            code: 'ALREADY_MEMBER_OTHER', 
-            message: 'Your account is already associated with another workspace. Please use a different email or logout from the other workspace.' 
-          },
-        });
-      }
+ 
+       if (existingProfile) {
+         // Already in this tenant, success
+         return reply.code(200).send({
+           success: true,
+           data: {
+             user: { id: userId, email, full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name, role: existingProfile.role },
+             tenant: tenant,
+           },
+           message: 'Already a member of this community',
+         });
+       }
+ 
+       // NOTE: We no longer block if they are in ANOTHER tenant.
+       // They will just get a second record for this specific tenant.
 
       // Create community_contributor profile
       const fullName = authUser.user_metadata?.full_name || authUser.user_metadata?.name || 'Community Member';

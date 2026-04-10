@@ -57,6 +57,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       const errorCode = error?.code || error?.statusCode;
       
+      // If the profile is simply missing for this tenant, we are a guest but STILL authenticated in Supabase.
+      // We don't clear the session because the user might want to join the community.
+      if (error?.code === 'PROFILE_NOT_FOUND') {
+        console.log('[AuthContext] Profile not found. User is a guest with a valid Supabase token.');
+        setUser(null);
+        setTenant(null);
+        setIsLoading(false);
+        return;
+      }
+
       // If account was deleted or suspended, clear everything and redirect to login
       if (errorCode === 'ACCOUNT_DELETED' || errorCode === 'ACCOUNT_SUSPENDED') {
         clearAuth();
