@@ -64,7 +64,6 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
         const response = await listDocuments({
           search: query || undefined,
           limit: query ? 8 : 5,
-          status: 'published'
         });
         setFetchedDocuments(response.documents);
       } catch (err) {
@@ -291,19 +290,6 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   useEffect(() => {
     setSelectedIndex(0);
   }, [query, filteredCommands.length]);
-
-  // Global keyboard shortcut
-  useEffect(() => {
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        onClose();
-      }
-    };
-
-    window.addEventListener("keydown", handleGlobalKeyDown);
-    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [onClose]);
 
   if (!isOpen) return null;
 

@@ -62,6 +62,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Dropdown } from "@/components/ui/Dropdown";
 
 const EMOJI_OPTIONS = ["👍", "❤️", "😂", "🎉", "🤔", "👀"];
 
@@ -1597,16 +1598,19 @@ export default function TeamChatPage() {
               {/* Assign To */}
               <div>
                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Assign to</label>
-                <select
+                <Dropdown
+                  options={[
+                    { value: "", label: "Select team member..." },
+                    ...teamUsers.filter(m => m.id !== user?.id).map((m) => ({
+                      value: m.id,
+                      label: m.full_name || m.email
+                    }))
+                  ]}
                   value={assignTo}
-                  onChange={(e) => setAssignTo(e.target.value)}
-                  className="w-full px-3 pr-8 py-2.5 bg-[var(--surface-ground)] border border-[var(--border-subtle)] rounded-2xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
-                >
-                  <option value="">Select team member...</option>
-                  {teamUsers.filter(m => m.id !== user?.id).map((m) => (
-                    <option key={m.id} value={m.id}>{m.full_name || m.email}</option>
-                  ))}
-                </select>
+                  onChange={setAssignTo}
+                  placeholder="Select team member..."
+                  className="w-full"
+                />
               </div>
 
               {/* Task-specific fields */}
