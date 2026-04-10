@@ -140,7 +140,7 @@ export default async function dashboardRoutes(fastify: FastifyInstance) {
         const { data: healthStats, error: healthError } = await supabaseAdmin
           .rpc('get_content_health_stats', {
             tenant_id_param: tenant.id,
-            days_threshold: 90,
+            days_threshold: 30,
           });
 
         if (healthError) {
