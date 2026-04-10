@@ -132,6 +132,9 @@ export default function SignupPage() {
   const doSignup = async (selectedTier: TierType) => {
     setIsLoading(true);
     try {
+      // Clear any stale tenant subdomain from localStorage to prevent TENANT_NOT_FOUND error
+      localStorage.removeItem('tenant_subdomain');
+      
       // Subdomain: only for Pro/Enterprise (white-label feature)
       // Free/Base users access via main app (no subdomain)
       const signupData: Parameters<typeof signup>[0] = {

@@ -127,6 +127,9 @@ export default function CompleteSignupPage() {
     setIsCreating(true);
 
     try {
+      // Clear any stale tenant subdomain from localStorage to prevent TENANT_NOT_FOUND error
+      localStorage.removeItem('tenant_subdomain');
+      
       // Get the current Supabase session (set by OAuth callback)
       const supabase = createClient();
       if (!supabase) {

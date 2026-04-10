@@ -90,6 +90,8 @@ function OAuthLoginContent() {
             router.replace("/login?error=account_suspended");
           } else if (code === "PROFILE_NOT_FOUND") {
             // User authenticated but has no profile - they need to complete signup
+            // Clear any stale tenant subdomain to prevent TENANT_NOT_FOUND error
+            localStorage.removeItem('tenant_subdomain');
             // Redirect to signup page instead of complete-signup (which requires pending_signup data)
             window.location.replace("/signup");
           } else {
