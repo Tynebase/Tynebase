@@ -75,6 +75,7 @@ export function Modal({
       />
 
       {/* Modal */}
+      <div
         className={cn(
           "relative w-full bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-3xl shadow-xl animate-in zoom-in-95 fade-in duration-200 max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-3rem)] flex flex-col overflow-visible",
           sizeClasses[size],
