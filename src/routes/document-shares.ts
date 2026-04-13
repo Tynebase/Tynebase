@@ -100,7 +100,7 @@ export default async function documentShareRoutes(fastify: FastifyInstance) {
             expires_at,
             created_by,
             created_at,
-            shared_user:shared_with (
+            shared_user:users!document_shares_shared_with_fkey (
               id,
               email,
               full_name
