@@ -43,13 +43,12 @@ async function kbRoutes(fastify) {
                 .select('id, name, description, color, icon, sort_order, parent_id')
                 .eq('tenant_id', tenant.id)
                 .order('sort_order', { ascending: true });
-            // Get document counts per category (only published + public visibility)
+            // Get document counts per category (published documents)
             const { data: docCounts } = await supabase_1.supabaseAdmin
                 .from('documents')
                 .select('category_id')
                 .eq('tenant_id', tenant.id)
-                .eq('status', 'published')
-                .eq('visibility', 'public');
+                .eq('status', 'published');
             const countMap = {};
             let uncategorizedCount = 0;
             if (docCounts) {
@@ -138,7 +137,6 @@ async function kbRoutes(fastify) {
           `, { count: 'exact' })
                 .eq('tenant_id', tenant.id)
                 .eq('status', 'published')
-                .eq('visibility', 'public')
                 .order('published_at', { ascending: false });
             if (query.category_id) {
                 dbQuery = dbQuery.eq('category_id', query.category_id);

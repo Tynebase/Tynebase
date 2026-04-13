@@ -50,13 +50,12 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           .eq('tenant_id', tenant.id)
           .order('sort_order', { ascending: true });
 
-        // Get document counts per category (only published + public visibility)
+        // Get document counts per category (published documents)
         const { data: docCounts } = await supabaseAdmin
           .from('documents')
           .select('category_id')
           .eq('tenant_id', tenant.id)
-          .eq('status', 'published')
-          .eq('visibility', 'public');
+          .eq('status', 'published');
 
         const countMap: Record<string, number> = {};
         let uncategorizedCount = 0;
@@ -157,7 +156,6 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           `, { count: 'exact' })
           .eq('tenant_id', tenant.id)
           .eq('status', 'published')
-          .eq('visibility', 'public')
           .order('published_at', { ascending: false });
 
         if (query.category_id) {
