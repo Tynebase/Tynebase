@@ -108,22 +108,6 @@ export default function Home() {
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [isDarkMode, setIsDarkMode] = useState(true);
 
-  // Redirect custom subdomains (tenant domains) to /docs
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const hostname = window.location.hostname;
-    const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || 'tynebase.com';
-    const parts = hostname.split('.');
-    const baseParts = baseDomain.split('.');
-    if (parts.length > baseParts.length) {
-      const sub = parts.slice(0, parts.length - baseParts.length).join('.');
-      if (sub && sub !== 'www') {
-        window.location.replace('/docs');
-        return;
-      }
-    }
-  }, []);
-
   useEffect(() => {
     if (isPaused) return;
     const interval = setInterval(() => {
