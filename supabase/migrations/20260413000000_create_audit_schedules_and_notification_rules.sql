@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS public.audit_schedules (
     stale_threshold_days INTEGER NOT NULL DEFAULT 90,
     last_run_at TIMESTAMPTZ,
     next_run_at TIMESTAMPTZ,
-    created_by UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    created_by UUID NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS public.notification_rules (
     notify_users TEXT[] DEFAULT '{}', -- Array of user IDs to notify, empty = all tenant members
     notify_roles TEXT[] DEFAULT '{}', -- Array of role names to notify, empty = all roles
     is_active BOOLEAN NOT NULL DEFAULT true,
-    created_by UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    created_by UUID NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

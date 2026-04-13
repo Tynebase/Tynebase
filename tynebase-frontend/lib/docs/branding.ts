@@ -8,26 +8,14 @@ export const brandingArticles: DocArticle[] = [
     description: 'Customise your workspace with your company\'s branding and white-label options.',
     content: `# Branding Overview
 
-TyneBase offers comprehensive white-labeling capabilities to make the platform truly yours. From custom logos and color schemes to personalized domains, you can create a workspace that reflects your brand identity.
+TyneBase offers branding capabilities to make your workspace reflect your brand identity. Upload your logo, set your brand colors, and configure a custom domain.
 
 ## What You Can Customize
 
 ### Visual Branding
-- **Company Logo**: Upload your logo for the header and login pages
-- **Color Scheme**: Choose primary and secondary colors that match your brand
-- **Custom Domain**: Use your own domain (e.g., docs.yourcompany.com)
-- **Favicon**: Set a custom favicon for browser tabs
-
-### Content Branding
-- **Company Name**: Display your company name throughout the interface
-- **Custom Footer**: Add your own footer content and links
-- **Email Templates**: Brand notification emails with your identity
-- **Login Pages**: Customize login and signup page messaging
-
-### Advanced Options
-- **CSS Customization**: Add custom CSS for deeper branding control
-- **White-label Mode**: Remove all TyneBase references
-- **Multi-tenant**: Support multiple branded subdomains
+- **Company Logo**: Upload your logo (Pro+ tier)
+- **Color Scheme**: Choose primary and secondary colors that match your brand (Pro+ tier)
+- **Custom Domain**: Use your own domain (e.g., docs.yourcompany.com) (Base+ tier)
 
 ## Getting Started
 
@@ -39,10 +27,10 @@ TyneBase offers comprehensive white-labeling capabilities to make the platform t
 
 ## Best Practices
 
-- Keep your logo under 200KB for optimal loading
+- Keep your logo under 2MB for optimal loading
 - Use high-contrast colors for accessibility
 - Test your branding on both light and dark themes
-- Ensure your custom domain has proper SSL certificates`,
+- Ensure your custom domain has proper SSL certificates (automatically provisioned)`,
     tags: ['branding', 'white-label', 'customization', 'visual'],
     category: 'branding',
     lastUpdated: '2026-04-13',
@@ -125,48 +113,41 @@ Add multiple domains to serve different teams or regions:
     description: 'Personalize your workspace colors to match your brand identity.',
     content: `# Color Customization
 
-Personalize your workspace colors to match your brand identity. Make TyneBase truly yours with custom color schemes that reflect your brand identity.
+Personalize your workspace colors to match your brand identity. Set primary and secondary colors that are applied to buttons, links, and accents throughout your workspace.
 
 ## Color Options
 
-### Primary Colors
+### Brand Colors
 - **Primary Brand Color**: Main accent color for buttons, links, and highlights
 - **Secondary Brand Color**: Complementary color for secondary actions
-- **Accent Color**: Additional accent for special elements
-
-### Neutral Colors
-- **Background Colors**: Page backgrounds, cards, and panels
-- **Text Colors**: Primary, secondary, and muted text colors
-- **Border Colors**: Dividers, input borders, and outlines
 
 ## Getting Started
 
 1. Navigate to **Settings > Branding**
-2. Click on "Color Customization"
+2. Click on "Brand Colours"
 3. Use the color picker or enter hex codes
 4. Preview changes in real-time
 5. Save your preferences
 
 ## Color Picker Options
 
-### Preset Themes
-- **Light**: Clean, professional appearance
-- **Dark**: Easy on the eyes for extended use
-- **High Contrast**: Accessibility-focused
-- **Custom**: Your own color scheme
-
 ### Custom Colors
 You can specify colors using:
-- **Hex Codes**: #FF5733
-- **RGB Values**: rgb(255, 87, 51)
-- **HSL Values**: hsl(9, 100%, 61%)
+- **Color Picker**: Click to select from a color palette
+- **Hex Codes**: Enter directly (e.g., #FF5733)
+
+### Live Preview
+See your colors in action before saving:
+- Preview swatches showing both colors
+- Sample buttons displaying how colors appear
+- Real-time updates as you adjust
 
 ## Best Practices
 
 ### Accessibility
 - Ensure sufficient contrast between text and background
-- Test with color blindness simulators
 - Follow WCAG 2.1 AA guidelines (4.5:1 contrast ratio minimum)
+- Test with color blindness simulators if needed
 
 ### Brand Consistency
 - Use your brand's official color codes
@@ -178,28 +159,12 @@ You can specify colors using:
 - Ensure colors work well on different devices
 - Consider cultural implications of color choices
 
-## Advanced Customization
-
-### CSS Variables
-For advanced users, you can override CSS variables:
-:root {
-  --brand-primary: #your-color;
-  --brand-secondary: #your-secondary-color;
-  --text-primary: #your-text-color;
-}
-
-### Theme Switching
-Configure how colors adapt between themes:
-- **Fixed Colors**: Same colors in light/dark themes
-- **Adaptive Colors**: Automatically adjusted for themes
-- **Inverted Colors**: Inverted for dark theme compatibility
-
 ## Troubleshooting
 
 ### Colors Not Applying
 - Clear your browser cache
-- Check for CSS conflicts
-- Ensure you have proper permissions
+- Ensure you have proper permissions (Pro+ tier required)
+- Check that you clicked Save after making changes
 
 ### Contrast Issues
 - Use online contrast checker tools
@@ -207,7 +172,7 @@ Configure how colors adapt between themes:
 - Consider alternative color combinations
 
 ### Brand Colors Not Working
-- Verify hex code format
+- Verify hex code format (must be 7 characters including #)
 - Check for typos in color codes
 - Test with different browsers`,
     tags: ['colors', 'branding', 'customization', 'design', 'accessibility'],

@@ -544,7 +544,7 @@ function TyneBaseDocsPage() {
     setIsSearching(false);
     setSearchQuery("");
     setActiveHeading("");
-    window.history.replaceState(null, '', '/docs');
+    window.history.replaceState(null, '', '/help');
   };
 
   const toggleCategory = (id: string) => {

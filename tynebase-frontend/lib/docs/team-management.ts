@@ -323,117 +323,60 @@ Customise your workspace to match your team's needs and brand.
     content: `
 # Activity Monitoring
 
-Track how your team uses TyneBase and identify opportunities for improvement.
+Track document activity across your knowledge base to see what's being created, edited, and published.
 
-## Dashboard Overview
+## Activity Feed
 
-### Key Metrics
-- **Active Users**: Users who logged in recently
-- **Document Activity**: Created, updated, and viewed documents
-- **AI Usage**: Credits consumed and features used
-- **Storage Usage**: Total storage consumed
+Access the activity feed by navigating to **Knowledge > Activity**.
 
-### Real-time Activity
-- **Current Online**: Users currently active
-- **Recent Actions**: Latest document changes
-- **Popular Content**: Most viewed documents
-- **Search Queries**: What users are looking for
+### Activity Types
 
-## User Analytics
+The activity feed tracks the following document events:
 
-### User Activity
-- **Login Frequency**: How often users access the workspace
-- **Session Duration**: Average time spent per visit
-- **Feature Usage**: Which features are most used
-- **Last Active**: When each user was last seen
+- **Created**: New documents added to the knowledge base
+- **Edited**: Content changes to existing documents
+- **Published**: Documents moved from draft to published state
+- **Unpublished**: Documents moved from published back to draft
+- **AI Generated**: Documents created using AI generation
+- **AI Enhanced**: Documents improved using AI enhancement
+- **Converted from Video**: Documentation generated from video content
+- **Converted from PDF/DOCX**: Documentation imported from files
+- **Converted from URL**: Documentation imported from web URLs
 
-### Engagement Metrics
-- **Document Creation**: Who creates the most content
-- **Comments & Reactions**: User interaction levels
-- **Search Behavior**: What users are searching for
-- **Navigation Patterns**: How users move through content
+### Viewing Activity
 
-## Document Analytics
+Each activity entry shows:
+- **Actor**: Who performed the action
+- **Action**: What type of activity occurred
+- **Target**: Which document was affected
+- **Timestamp**: When the activity happened
+- **Detail**: Additional context about the action
 
-### Content Performance
-- **View Counts**: Most popular documents
-- **Edit Frequency**: Most actively edited documents
-- **Search Rankings**: Documents found in search
-- **Share Statistics**: How often documents are shared
+### Filtering and Search
 
-### Content Health
-- **Outdated Content**: Documents needing updates
-- **Unused Content**: Documents rarely viewed
-- **Duplicate Content**: Potential duplicate topics
-- **Content Gaps**: Topics not covered
+- **Search**: Find specific activities by text
+- **Filter by Type**: Show only certain activity types
+- **Pagination**: Browse through activity history
 
-## AI Usage Analytics
+## Use Cases
 
-### Credit Consumption
-- **Daily Usage**: Credits used per day
-- **Feature Breakdown**: Usage by AI feature
-- **User Breakdown**: Who uses AI features most
-- **Cost Analysis**: AI feature costs
+### Team Visibility
+- See who is actively contributing to the knowledge base
+- Track document creation and updates
+- Monitor AI generation usage
+- Identify most active team members
 
-### Feature Performance
-- **Document Generation**: AI document creation success
-- **Search Quality**: AI search effectiveness
-- **Content Quality**: AI-generated content performance
-- **User Satisfaction**: Feedback on AI features
+### Content Tracking
+- Follow document lifecycle from creation to publication
+- See when documents are being updated
+- Track import activities from various sources
+- Monitor content changes over time
 
-## Reports and Exports
-
-### Standard Reports
-- **Weekly Summary**: Key metrics and trends
-- **Monthly Report**: Detailed usage analysis
-- **User Activity**: Individual user statistics
-- **Content Report**: Document performance metrics
-
-### Custom Reports
-- **Date Range**: Select specific time periods
-- **Metrics Selection**: Choose specific metrics
-- **User Filters**: Filter by user or role
-- **Content Filters**: Filter by category or type
-
-### Export Options
-- **CSV Format**: For spreadsheet analysis
-- **PDF Reports**: For presentations
-- **API Access**: For integration with other tools
-- **Scheduled Reports**: Automated delivery
-
-## Privacy and Compliance
-
-### Data Privacy
-- **User Anonymization**: Option to anonymize user data
-- **Data Retention**: Control how long data is kept
-- **Export Rights**: User rights to their data
-- **Consent Management**: Manage user consent
-
-### Compliance Features
-- **Audit Trails**: Complete activity logs
-- **Access Controls**: Who can view analytics
-- **Data Protection**: Secure data handling
-- **Regulatory Support**: GDPR and other regulations
-
-## Best Practices
-
-### Regular Monitoring
-- Review weekly activity reports
-- Monitor for unusual patterns
-- Track feature adoption
-- Identify training needs
-
-### Data-Driven Decisions
-- Use analytics to guide content strategy
-- Identify power users for feedback
-- Optimize workspace organization
-- Plan resource allocation
-
-### Privacy Considerations
-- Be transparent about monitoring
-- Follow data protection regulations
-- Provide access to personal data
-- Use anonymized data where possible
+### Audit Trail
+- Review complete history of document activities
+- Track who made changes to specific documents
+- Maintain accountability for content modifications
+- Support compliance requirements
 `
   },
   {
@@ -454,105 +397,48 @@ Work together efficiently with TyneBase's real-time collaboration tools.
 
 ### Live Collaboration
 - **Multiple Editors**: Work on documents simultaneously
-- **Live Cursors**: See where others are working
+- **Live Cursors**: See where others are working with colored cursors
 - **Change Tracking**: See edits in real-time
 - **Conflict Resolution**: Automatic merge of changes
+- **Connection Status**: See who's connected and online
 
 ### Version History
 - **Auto-Save**: Changes saved automatically
 - **Version Timeline**: See document evolution
 - **Rollback**: Restore previous versions
 - **Change Attribution**: Who made what changes
+- **Word/Character Count**: Track document statistics
 
-## Comments and Discussions
+## Using the Collaborative Editor
 
-### Document Comments
-- **Inline Comments**: Add comments to specific sections
-- **Threaded Discussions**: Reply to comments
-- **Mentions**: Notify specific users
-- **Resolved Comments**: Mark issues as resolved
+### Accessing Real-Time Editing
+Real-time collaboration is available when editing documents. The collaborative editor shows:
+- **Connection Indicator**: Green when connected, amber when connecting, red when disconnected
+- **Active Users**: Number of users currently editing the document
+- **Live Cursors**: Colored cursors showing where other users are working
+- **User Names**: Display names of collaborators
 
-### Review Mode
-- **Suggestion Mode**: Propose changes without editing
-- **Approvals**: Formal review process
-- **Change Requests**: Request specific modifications
-- **Review History**: Track all review activity
-
-## Team Workflows
-
-### Document Workflows
-- **Draft Review**: Draft -> Review -> Publish process
-- **Approval Chains**: Multiple reviewer workflows
-- **Conditional Logic**: Rules-based routing
-- **Deadline Management**: Set review deadlines
-
-### Task Management
-- **Document Tasks**: Assign tasks related to documents
-- **Due Dates**: Set completion deadlines
-- **Priority Levels**: Mark task importance
-- **Progress Tracking**: Monitor task completion
-
-## Sharing and Permissions
-
-### Document Sharing
-- **Public Links**: Share with external users
-- **Embed Codes**: Embed in other websites
-- **Password Protection**: Secure shared content
-- **Expiration Dates**: Time-limited access
-
-### Granular Permissions
-- **View Only**: Read-only access
-- **Comment Only**: Can comment but not edit
-- **Edit Access**: Full editing permissions
-- **Manage Access**: Administrative control
-
-## Notifications
-
-### Real-Time Alerts
-- **Mention Notifications**: When you're mentioned
-- **Comment Replies**: Responses to your comments
-- **Document Changes**: Updates to followed documents
-- **Assignment Alerts**: New task assignments
-
-### Email Digests
-- **Daily Summary**: Daily activity digest
-- **Weekly Reports**: Weekly activity summary
-- **Custom Frequency**: Set notification preferences
-- **Unsubscribe Options**: Control email delivery
-
-## Integration Features
-
-### Calendar Integration
-- **Due Dates**: Sync with calendar apps
-- **Meeting Notes**: Link to meeting schedules
-- **Reminders**: Automated deadline reminders
-- **Availability**: Check team member availability
-
-### Project Management
-- **Task Sync**: Sync with PM tools
-- **Milestone Tracking**: Link to project milestones
-- **Resource Planning**: Track document resources
-- **Progress Reports**: Automated progress updates
+### Editor Features
+- **Rich Text Formatting**: Bold, italic, strikethrough, code
+- **Headings**: H1, H2, H3
+- **Lists**: Bullet and numbered lists
+- **Blockquotes**: Quote blocks
+- **Undo/Redo**: Full history support
+- **AI Enhance**: AI-powered content suggestions
 
 ## Best Practices
 
 ### Effective Collaboration
-- **Clear Communication**: Use comments effectively
-- **Version Control**: Save important versions
-- **Permission Management**: Grant appropriate access
-- **Regular Reviews**: Keep content current
+- **Clear Communication**: Use the editor's real-time presence to coordinate
+- **Version Control**: The system automatically saves versions
+- **Coordinate Editing**: Avoid editing the same section simultaneously
+- **Check Connection**: Ensure you're connected before making important changes
 
 ### Team Productivity
-- **Establish Workflows**: Create consistent processes
 - **Use Templates**: Standardize document formats
-- **Regular Updates**: Keep team informed
-- **Feedback Loops**: Continuous improvement
-
-### Security Considerations
-- **Access Reviews**: Regular permission audits
-- **External Sharing**: Control external access
-- **Data Protection**: Secure sensitive information
-- **Compliance**: Follow organizational policies
+- **Regular Updates**: Keep team informed through activity feed
+- **Leverage AI**: Use AI Enhance for content improvements
+- **Monitor Activity**: Check the Activity feed for team contributions
 `
   },
   {
@@ -616,12 +502,6 @@ Customise how you receive updates and manage your workspace experience.
 - **Daily**: Daily digest at specified time
 - **Weekly**: Weekly summary on chosen day
 - **Never**: No email notifications
-
-### Mobile Settings
-- **Push Notifications**: Enable/disable mobile alerts
-- **Quiet Hours**: Set do not disturb times
-- **Critical Alerts**: Always allow important notifications
-- **Vibration**: Configure vibration patterns
 
 ## User Preferences
 

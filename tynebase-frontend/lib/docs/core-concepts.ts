@@ -180,7 +180,7 @@ When AI generates a document, we capture:
 Access document lineage:
 
 1. Open any document
-2. Click **⋮** menu → **Version History**
+2. Click **menu** → **View History**
 3. See complete timeline of document versions with:
    - Version number and timestamp
    - Author information

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   Search, BookOpen, MessageSquare, Video, Mail,
-  FileText, Sparkles, Users, Shield, Zap
+  FileText, Sparkles, Shield, Zap
 } from "lucide-react";
 
 const helpCategories = [
@@ -46,19 +46,6 @@ const helpCategories = [
       { title: "Automatically transform videos into comprehensive documentation", href: "/docs?slug=ai-from-video" },
       { title: "Enhancing Existing Content", href: "/docs?slug=ai-enhance" },
       { title: "AI Settings & Providers", href: "/docs?slug=first-ai-generation" },
-    ],
-  },
-  {
-    id: "community",
-    title: "Community",
-    description: "Collaborate with your team",
-    icon: Users,
-    color: "#f59e0b",
-    articles: [
-      { title: "Creating Discussions", href: "/docs?slug=community-forum" },
-      { title: "Moderation Tools", href: "/docs?slug=community-forum" },
-      { title: "Mentions & Notifications", href: "/docs?slug=community-forum" },
-      { title: "Best Practices", href: "/docs?slug=community-forum" },
     ],
   },
   {
@@ -121,13 +108,6 @@ export default function HelpPage() {
 
       {/* Quick Links */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4 px-4 sm:px-0">
-        <Link
-          href="/dashboard/community"
-          className="flex items-center justify-center gap-2 px-6 py-3 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-secondary)] font-medium hover:border-[var(--brand)] hover:text-[var(--brand)] hover:shadow-md transition-all"
-        >
-          <MessageSquare className="w-5 h-5" />
-          Ask Community
-        </Link>
         <a
           href="mailto:support@tynebase.com"
           className="flex items-center justify-center gap-2 px-6 py-3 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl text-[var(--dash-text-secondary)] font-medium hover:border-[var(--brand)] hover:text-[var(--brand)] hover:shadow-md transition-all"
@@ -200,13 +180,6 @@ export default function HelpPage() {
                 <Mail className="w-5 h-5" />
                 Email Support
               </a>
-              <Link
-                href="/dashboard/community"
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3.5 bg-white/10 text-white border border-white/20 rounded-xl font-bold hover:bg-white/20 transition-all backdrop-blur-sm"
-              >
-                <MessageSquare className="w-5 h-5" />
-                Community Forum
-              </Link>
             </div>
           </div>
         </div>

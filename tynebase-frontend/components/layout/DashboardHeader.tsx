@@ -372,7 +372,7 @@ export function DashboardHeader({ onOpenCommandPalette, onMenuClick }: Dashboard
                     className="flex items-center gap-3 px-4 py-2 text-sm text-[var(--dash-text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--dash-text-primary)]"
                   >
                     <Settings className="w-4 h-4" />
-                    Plattform settings
+                    Platform settings
                   </Link>
                 </div>
                 <div className="border-t border-[var(--dash-border-subtle)] py-1">
