@@ -280,8 +280,103 @@ function PublicDocumentsContent() {
         </div>
       </section>
 
+      {/* Categories */}
+      {!loading && filters.categories.length > 0 && (
+        <section style={{ paddingTop: "32px", paddingBottom: "64px" }}>
+          <div className="container">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" style={{ maxWidth: "1024px", margin: "0 auto" }}>
+              {/* All Documents */}
+              <Link
+                href="/public-documents"
+                onClick={(e) => { e.preventDefault(); setSelectedCategory(""); updateUrl({ category: "", page: "1" }); }}
+                className="bento-item cursor-pointer group block"
+                style={{ opacity: !selectedCategory ? 1 : 0.6, textDecoration: "none" }}
+              >
+                <div className="feature-icon feature-icon-brand mb-4">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2 group-hover:text-[var(--brand)] transition-colors">
+                  All Documents
+                </h3>
+                <p className="text-sm text-[var(--text-secondary)] mb-3">Browse all public documents</p>
+                <p className="text-xs text-[var(--text-muted)]">{pagination.total} documents</p>
+              </Link>
+              
+              {/* Dynamic Categories */}
+              {filters.categories.map((cat) => (
+                <Link
+                  key={cat.id}
+                  href="/public-documents"
+                  onClick={(e) => { e.preventDefault(); setSelectedCategory(cat.id); updateUrl({ category: cat.id, page: "1" }); }}
+                  className="bento-item cursor-pointer group block"
+                  style={{ opacity: selectedCategory === cat.id ? 1 : 0.6, textDecoration: "none" }}
+                >
+                  <div className="feature-icon feature-icon-brand mb-4" style={{ color: cat.color }}>
+                    <FolderOpen className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2 group-hover:text-[var(--brand)] transition-colors">
+                    {cat.name}
+                  </h3>
+                  <p className="text-sm text-[var(--text-secondary)] mb-3">Documents in this category</p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Tags */}
+      {!loading && filters.tags.length > 0 && (
+        <section style={{ paddingTop: "32px", paddingBottom: "32px" }}>
+          <div className="container">
+            <div style={{ maxWidth: "1024px", margin: "0 auto" }}>
+              <h2 style={{ fontSize: "20px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "24px" }}>Popular Tags</h2>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                {filters.tags.slice(0, 10).map((tag) => (
+                  <Link
+                    key={tag.id}
+                    href="/public-documents"
+                    onClick={(e) => { e.preventDefault(); setSelectedTag(tag.id); updateUrl({ tag: tag.id, page: "1" }); }}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "6px 14px",
+                      borderRadius: "20px",
+                      background: selectedTag === tag.id ? "var(--brand-primary-muted)" : "var(--bg-secondary)",
+                      border: selectedTag === tag.id ? "1px solid var(--brand)" : "1px solid var(--border-subtle)",
+                      color: selectedTag === tag.id ? "var(--brand)" : "var(--text-secondary)",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      textDecoration: "none",
+                      transition: "all 0.2s",
+                      cursor: "pointer",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (selectedTag !== tag.id) {
+                        e.currentTarget.style.background = "var(--bg-hover)";
+                        e.currentTarget.style.borderColor = "var(--brand)";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (selectedTag !== tag.id) {
+                        e.currentTarget.style.background = "var(--bg-secondary)";
+                        e.currentTarget.style.borderColor = "var(--border-subtle)";
+                      }
+                    }}
+                  >
+                    <Tag className="w-3.5 h-3.5" />
+                    {tag.name}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Filters + Content */}
-      <section style={{ paddingTop: "0", paddingBottom: "80px" }}>
+      <section style={{ paddingTop: "32px", paddingBottom: "80px" }}>
         <div className="container" style={{ maxWidth: "1200px" }}>
           {/* Filter Bar */}
           <div
