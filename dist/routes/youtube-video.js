@@ -9,7 +9,14 @@ const creditGuard_1 = require("../middleware/creditGuard");
 const dispatchJob_1 = require("../utils/dispatchJob");
 const YouTubeURLSchema = zod_1.z.object({
     url: zod_1.z.string().url('Invalid URL format').refine((url) => {
-        const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)[\w-]{11}(\S*)?$/;
+        // More permissive regex that accepts:
+        // - youtube.com/watch?v=ID
+        // - youtu.be/ID
+        // - youtube.com/embed/ID
+        // - youtube.com/shorts/ID
+        // - youtube.com/v/ID
+        // - URLs with additional parameters
+        const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)[\w-]+(\S*)?$/;
         return youtubeRegex.test(url);
     }, {
         message: 'Invalid YouTube URL format. Must be a valid YouTube video URL.',

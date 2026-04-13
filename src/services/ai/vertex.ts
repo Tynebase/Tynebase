@@ -164,7 +164,7 @@ export async function transcribeAudio(
 
     // Call Vertex AI API with timeout
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Vertex AI request timed out after 120 seconds')), 120000);
+      setTimeout(() => reject(new Error('Vertex AI request timed out after 300 seconds')), 300000);
     });
 
     const responsePromise = model.generateContent(request);
@@ -194,7 +194,7 @@ export async function transcribeAudio(
 
     // Handle timeout
     if (error?.message?.includes('timeout') || error?.message?.includes('timed out')) {
-      throw new Error('Vertex AI request timed out after 120 seconds');
+      throw new Error('Vertex AI request timed out after 300 seconds');
     }
 
     // Handle authentication errors

@@ -693,7 +693,7 @@ const server = new Server({
 
       const { data: userRecords, error: userError } = await supabase
         .from('users')
-        .select('tenant_id, full_name, email, role')
+        .select('tenant_id, full_name, email, role, is_super_admin')
         .eq('id', user.id);
 
       if (userError || !userRecords || userRecords.length === 0) {
@@ -701,28 +701,28 @@ const server = new Server({
         throw new Error('User not found');
       }
 
-      // Use the first user record (user can exist in multiple tenants)
-      const userRecord = userRecords[0];
-
       // Check tenant access - allow cross-tenant for public published documents (read-only)
       const isMemberOfTenant = userRecords.some(r => r.tenant_id === document.tenant_id);
       const isPublicDocument = document.visibility === 'public' && document.status === 'published';
-      
-      if (!isMemberOfTenant && !isPublicDocument) {
+
+      // Super admins can access any tenant, even without a membership row for that tenant
+      const isSuperAdmin = userRecords.some(r => r.is_super_admin === true);
+
+      if (!isMemberOfTenant && !isPublicDocument && !isSuperAdmin) {
         console.error(`[Collab] Authentication failed: User ${user.id} is not a member of document tenant ${document.tenant_id}`);
         throw new Error('Unauthorized access to document');
       }
 
       // Find the specific role for this tenant if available, otherwise use default
       const activeMembership = userRecords.find(r => r.tenant_id === document.tenant_id) || userRecords[0];
-      const userRole = activeMembership.role;
+      const userRole = isSuperAdmin && !isMemberOfTenant ? 'admin' : activeMembership.role;
 
       // Use full_name if available, otherwise fall back to email
       const displayName = activeMembership.full_name || activeMembership.email || user.email || 'Anonymous';
       const isViewer = userRole === 'viewer';
-      const isReadOnly = !isMemberOfTenant || isViewer;
+      const isReadOnly = (!isMemberOfTenant && !isSuperAdmin) || isViewer;
       const accessMode = isReadOnly ? 'readonly' : 'full';
-      console.log(`[Collab] User ${user.id} (${displayName}, role=${userRecord.role}) authenticated for document ${documentName} (${accessMode} access)`);
+      console.log(`[Collab] User ${user.id} (${displayName}, role=${userRole}${isSuperAdmin ? ', super_admin' : ''}) authenticated for document ${documentName} (${accessMode} access)`);
       
       return {
         user: {

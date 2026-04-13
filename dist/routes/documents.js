@@ -57,6 +57,7 @@ const listDocumentsQuerySchema = zod_1.z.object({
     category_id: zod_1.z.string().uuid().optional(),
     status: zod_1.z.enum(['draft', 'published']).optional(),
     tag_id: zod_1.z.string().uuid().optional(),
+    search: zod_1.z.string().optional(),
     page: zod_1.z.coerce.number().int().min(1).default(1),
     limit: zod_1.z.coerce.number().int().min(1).max(100).default(50),
 });
@@ -159,7 +160,7 @@ async function documentRoutes(fastify) {
             const user = request.user;
             // Validate query parameters
             const query = listDocumentsQuerySchema.parse(request.query);
-            const { category_id, status, tag_id, page, limit } = query;
+            const { category_id, status, tag_id, search, page, limit } = query;
             // Calculate pagination offset
             const offset = (page - 1) * limit;
             // Build query with tenant isolation
@@ -182,9 +183,11 @@ async function documentRoutes(fastify) {
           `, { count: 'exact' })
                 .eq('tenant_id', tenant.id)
                 .not('content', 'like', '__CATEGORY__%')
-                .order('created_at', { ascending: false })
-                .range(offset, offset + limit - 1);
+                .order('created_at', { ascending: false });
             // Apply optional filters
+            if (search) {
+                dbQuery = dbQuery.ilike('title', `%${search}%`);
+            }
             if (category_id !== undefined) {
                 dbQuery = dbQuery.eq('category_id', category_id);
             }
@@ -193,11 +196,15 @@ async function documentRoutes(fastify) {
             }
             // Apply tag filter by filtering to documents that have the specified tag
             if (tag_id !== undefined) {
-                // First, get all document IDs that have this tag
+                // First, get all document IDs that have this tag, filtered by tenant
                 const { data: taggedDocs } = await supabase_1.supabaseAdmin
                     .from('document_tags')
-                    .select('document_id')
-                    .eq('tag_id', tag_id);
+                    .select(`
+              document_id,
+              documents!inner(tenant_id)
+            `)
+                    .eq('tag_id', tag_id)
+                    .eq('documents.tenant_id', tenant.id);
                 const taggedDocIds = taggedDocs?.map(td => td.document_id) || [];
                 if (taggedDocIds.length > 0) {
                     dbQuery = dbQuery.in('id', taggedDocIds);
@@ -220,6 +227,8 @@ async function documentRoutes(fastify) {
                     });
                 }
             }
+            // Apply pagination
+            dbQuery = dbQuery.range(offset, offset + limit - 1);
             // Execute query
             const { data: documents, error, count } = await dbQuery;
             if (error) {
@@ -406,45 +415,10 @@ async function documentRoutes(fastify) {
                 .eq('id', id)
                 .eq('tenant_id', tenant.id)
                 .single();
-            // If not found in user's tenant, check if it's a public document from another tenant
-            if (error && error.code === 'PGRST116') {
-                const { data: publicDoc, error: publicError } = await supabase_1.supabaseAdmin
-                    .from('documents')
-                    .select(`
-              id,
-              title,
-              content,
-              parent_id,
-              category_id,
-              tenant_id,
-              visibility,
-              status,
-              author_id,
-              published_at,
-              created_at,
-              updated_at
-            `)
-                    .eq('id', id)
-                    .eq('visibility', 'public')
-                    .eq('status', 'published')
-                    .single();
-                if (!publicError && publicDoc) {
-                    // Found a public document from another tenant - return it (read-only, no draft fields)
-                    document = {
-                        ...publicDoc,
-                        draft_content: null,
-                        draft_title: null,
-                        has_draft: false,
-                        draft_updated_at: null,
-                    };
-                    error = null;
-                    fastify.log.info({ documentId: id, tenantId: publicDoc.tenant_id, requestingTenantId: tenant.id, userId: user.id }, 'Cross-tenant public document accessed');
-                }
-            }
             if (error) {
                 if (error.code === 'PGRST116') {
-                    // No rows returned - document not found or not accessible
-                    fastify.log.warn({ documentId: id, tenantId: tenant.id, userId: user.id }, 'Document not found or access denied');
+                    // No rows returned - document not found or not accessible in this tenant
+                    fastify.log.warn({ documentId: id, tenantId: tenant.id, userId: user.id }, 'Document not found or access denied (tenant mismatch)');
                     return reply.code(404).send({
                         error: {
                             code: 'DOCUMENT_NOT_FOUND',

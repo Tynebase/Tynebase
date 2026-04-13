@@ -91,6 +91,8 @@ async function templateRoutes(fastify) {
             // Build query for global approved templates OR tenant's own templates
             // Global templates: tenant_id IS NULL AND is_approved = TRUE
             // Tenant templates: tenant_id = tenant.id (any approval status)
+            // Note: We can't use users:created_by join because users has composite PK (id, tenant_id)
+            // and templates has composite FK (created_by, tenant_id), which PostgREST can't detect for joins
             let dbQuery = supabase_1.supabaseAdmin
                 .from('templates')
                 .select(`
@@ -104,12 +106,7 @@ async function templateRoutes(fastify) {
             is_approved,
             created_by,
             created_at,
-            updated_at,
-            users:created_by (
-              id,
-              email,
-              full_name
-            )
+            updated_at
           `, { count: 'exact' })
                 .order('created_at', { ascending: false })
                 .range(offset, offset + limit - 1);
@@ -138,6 +135,27 @@ async function templateRoutes(fastify) {
                     },
                 });
             }
+            // Fetch user data for all creators separately
+            // (Can't use join due to composite PK/FK issue)
+            const creatorIds = templates?.map(t => t.created_by).filter(Boolean) || [];
+            let usersMap = {};
+            if (creatorIds.length > 0) {
+                const { data: users } = await supabase_1.supabaseAdmin
+                    .from('users')
+                    .select('id, email, full_name')
+                    .in('id', creatorIds);
+                if (users) {
+                    usersMap = users.reduce((acc, u) => {
+                        acc[u.id] = u;
+                        return acc;
+                    }, {});
+                }
+            }
+            // Attach user data to templates
+            const templatesWithUsers = templates?.map(t => ({
+                ...t,
+                users: t.created_by ? usersMap[t.created_by] : null
+            })) || [];
             // Calculate pagination metadata
             const totalPages = count ? Math.ceil(count / limit) : 0;
             const hasNextPage = page < totalPages;
@@ -145,14 +163,14 @@ async function templateRoutes(fastify) {
             fastify.log.info({
                 tenantId: tenant.id,
                 userId: user.id,
-                count: templates?.length || 0,
+                count: templatesWithUsers.length || 0,
                 filters: { category, visibility },
                 page,
             }, 'Templates fetched successfully');
             return reply.code(200).send({
                 success: true,
                 data: {
-                    templates: templates || [],
+                    templates: templatesWithUsers,
                     pagination: {
                         page,
                         limit,
@@ -258,12 +276,7 @@ async function templateRoutes(fastify) {
             is_approved,
             created_by,
             created_at,
-            updated_at,
-            users:created_by (
-              id,
-              email,
-              full_name
-            )
+            updated_at
           `)
                 .single();
             if (error) {
@@ -276,6 +289,13 @@ async function templateRoutes(fastify) {
                     },
                 });
             }
+            // Fetch user data for the creator
+            const { data: userData } = await supabase_1.supabaseAdmin
+                .from('users')
+                .select('id, email, full_name')
+                .eq('id', user.id)
+                .single();
+            const templateWithUser = userData ? { ...template, users: userData } : template;
             fastify.log.info({
                 templateId: template.id,
                 tenantId: tenant.id,
@@ -285,7 +305,7 @@ async function templateRoutes(fastify) {
             return reply.code(201).send({
                 success: true,
                 data: {
-                    template,
+                    template: templateWithUser,
                 },
             });
         }
@@ -334,12 +354,7 @@ async function templateRoutes(fastify) {
             is_approved,
             created_by,
             created_at,
-            updated_at,
-            users:created_by (
-              id,
-              email,
-              full_name
-            )
+            updated_at
           `, { count: 'exact' })
                 .eq('visibility', 'public')
                 .order('created_at', { ascending: false })
@@ -350,11 +365,31 @@ async function templateRoutes(fastify) {
                     error: { code: 'FETCH_FAILED', message: 'Failed to fetch public templates', details: {} },
                 });
             }
+            // Fetch user data for all creators separately
+            const creatorIds = templates?.map(t => t.created_by).filter(Boolean) || [];
+            let usersMap = {};
+            if (creatorIds.length > 0) {
+                const { data: users } = await supabase_1.supabaseAdmin
+                    .from('users')
+                    .select('id, email, full_name')
+                    .in('id', creatorIds);
+                if (users) {
+                    usersMap = users.reduce((acc, u) => {
+                        acc[u.id] = u;
+                        return acc;
+                    }, {});
+                }
+            }
+            // Attach user data to templates
+            const templatesWithUsers = templates?.map(t => ({
+                ...t,
+                users: t.created_by ? usersMap[t.created_by] : null
+            })) || [];
             const totalPages = count ? Math.ceil(count / limit) : 0;
             return reply.code(200).send({
                 success: true,
                 data: {
-                    templates: templates || [],
+                    templates: templatesWithUsers,
                     pagination: {
                         page,
                         limit,
@@ -397,12 +432,7 @@ async function templateRoutes(fastify) {
             is_approved,
             created_by,
             created_at,
-            updated_at,
-            users:created_by (
-              id,
-              email,
-              full_name
-            )
+            updated_at
           `)
                 .eq('id', templateId)
                 .single();
@@ -415,6 +445,17 @@ async function templateRoutes(fastify) {
                     },
                 });
             }
+            // Fetch user data for the creator
+            let userData = null;
+            if (template.created_by) {
+                const { data: user } = await supabase_1.supabaseAdmin
+                    .from('users')
+                    .select('id, email, full_name')
+                    .eq('id', template.created_by)
+                    .single();
+                userData = user;
+            }
+            const templateWithUser = userData ? { ...template, users: userData } : template;
             // Verify access: global approved template OR tenant's own template OR public template
             const isGlobalApproved = template.tenant_id === null && template.is_approved === true;
             const isTenantTemplate = template.tenant_id === tenant.id;
@@ -431,7 +472,7 @@ async function templateRoutes(fastify) {
             return reply.code(200).send({
                 success: true,
                 data: {
-                    template,
+                    template: templateWithUser,
                     is_read_only: !isTenantTemplate && !isGlobalApproved,
                 },
             });
@@ -698,12 +739,7 @@ async function templateRoutes(fastify) {
             is_approved,
             created_by,
             created_at,
-            updated_at,
-            users:created_by (
-              id,
-              email,
-              full_name
-            )
+            updated_at
           `)
                 .single();
             if (error) {
@@ -716,10 +752,21 @@ async function templateRoutes(fastify) {
                     },
                 });
             }
+            // Fetch user data for the creator
+            let userData = null;
+            if (template.created_by) {
+                const { data: user } = await supabase_1.supabaseAdmin
+                    .from('users')
+                    .select('id, email, full_name')
+                    .eq('id', template.created_by)
+                    .single();
+                userData = user;
+            }
+            const templateWithUser = userData ? { ...template, users: userData } : template;
             fastify.log.info({ templateId, tenantId: tenant.id, userId: user.id }, 'Template updated successfully');
             return reply.code(200).send({
                 success: true,
-                data: { template },
+                data: { template: templateWithUser },
             });
         }
         catch (error) {

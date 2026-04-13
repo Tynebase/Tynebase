@@ -1,17 +1,19 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 /**
- * JWT Authentication Middleware
+ * JWT Authentication Middleware (Multi-Tenant Aware)
  *
- * Verifies Supabase JWT token from Authorization header and populates request.user
+ * Verifies Supabase JWT token and resolves the user's profile for the
+ * correct tenant.  Resolution order:
  *
- * @param request - Fastify request object
- * @param reply - Fastify reply object
+ *   1. If `request.tenant` is already set (by tenantContextMiddleware from
+ *      the `x-tenant-subdomain` header), look up the user row for that
+ *      specific tenant.
+ *   2. Otherwise fall back to the user's *primary* workspace — identified by
+ *      `original_tenant_id IS NULL` (they created it) or by the admin role.
+ *   3. If neither is found, take the first active membership.
  *
- * Security:
- * - Verifies JWT signature using Supabase
- * - Checks token expiry automatically via Supabase SDK
- * - Validates issuer through Supabase configuration
- * - Queries database to get full user profile with tenant context
+ * After resolution, `request.user` and (if missing) `request.tenant` are
+ * populated for downstream handlers.
  */
 export declare function authMiddleware(request: FastifyRequest, reply: FastifyReply): Promise<undefined>;
 //# sourceMappingURL=auth.d.ts.map

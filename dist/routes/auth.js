@@ -518,13 +518,29 @@ async function authRoutes(fastify) {
                     },
                 });
             }
+            // Resolve target tenant from x-tenant-subdomain header if present.
+            // This ensures that logging in from a specific subdomain returns the
+            // correct workspace instead of a random one.
+            const loginSubdomain = request.headers['x-tenant-subdomain']?.toLowerCase();
+            const hasLoginSubdomain = !!loginSubdomain && loginSubdomain !== 'www' && loginSubdomain !== 'main' && loginSubdomain !== 'app';
+            let loginTargetTenantId = null;
+            if (hasLoginSubdomain) {
+                const { data: targetTenant } = await supabase_1.supabaseAdmin
+                    .from('tenants')
+                    .select('id')
+                    .eq('subdomain', loginSubdomain)
+                    .maybeSingle();
+                if (targetTenant) {
+                    loginTargetTenantId = targetTenant.id;
+                }
+            }
             // Get all user profiles across tenants (handle multiple rows per ID due to composite key)
             const { data: users, error: profileError } = await supabase_1.supabaseAdmin
                 .from('users')
-                .select('id, email, full_name, role, is_super_admin, status, tenant_id')
+                .select('id, email, full_name, role, is_super_admin, status, tenant_id, original_tenant_id')
                 .eq('id', data.user.id)
                 .eq('status', 'active')
-                .order('tenant_id', { ascending: true });
+                .order('created_at', { ascending: true });
             if (profileError || !users || users.length === 0) {
                 fastify.log.error({ error: profileError }, 'Failed to fetch user profile');
                 return reply.code(500).send({
@@ -535,9 +551,21 @@ async function authRoutes(fastify) {
                     },
                 });
             }
-            // Prefer admin tenant if user has admin role in any tenant
-            const adminProfile = users.find(u => u.role === 'admin' || u.is_super_admin);
-            const userProfile = adminProfile || users[0];
+            // Determine which profile row to use:
+            // 1. If x-tenant-subdomain header pointed to a specific tenant, use that
+            // 2. Prefer the home workspace (original_tenant_id IS NULL = they created it)
+            // 3. Prefer admin role
+            // 4. Fallback to first active row
+            let userProfile;
+            if (loginTargetTenantId) {
+                userProfile = users.find(u => u.tenant_id === loginTargetTenantId);
+            }
+            if (!userProfile) {
+                userProfile =
+                    users.find(u => u.original_tenant_id === null || u.original_tenant_id === u.tenant_id) ||
+                        users.find(u => u.role === 'admin' || u.is_super_admin) ||
+                        users[0];
+            }
             // Get tenant info separately
             const { data: tenant, error: tenantError } = await supabase_1.supabaseAdmin
                 .from('tenants')
@@ -656,6 +684,7 @@ async function authRoutes(fastify) {
             request.user = {
                 id: user.id,
                 email: user.email || '',
+                full_name: null,
                 role: '',
                 tenant_id: '',
                 is_super_admin: false,
@@ -719,8 +748,10 @@ async function authRoutes(fastify) {
             else {
                 // Bare-domain fallback: prefer original_tenant_id (primary workspace), then admin role
                 const activeUsers = (users || []).filter((u) => u.status === 'active');
-                // First try to find the user's original/primary tenant
-                userProfile = activeUsers.find((u) => u.original_tenant_id === u.tenant_id);
+                // First try to find the user's original/primary tenant.
+                // original_tenant_id IS NULL means the user created this workspace (home).
+                // original_tenant_id === tenant_id is an alternative way it may be marked.
+                userProfile = activeUsers.find((u) => u.original_tenant_id === null || u.original_tenant_id === u.tenant_id);
                 // If no original tenant marked, prefer admin role
                 if (!userProfile) {
                     userProfile = activeUsers.find((u) => u.role === 'admin' || u.is_super_admin);
@@ -846,7 +877,7 @@ async function authRoutes(fastify) {
             const hasExplicitSubdomain = !!subdomain && subdomain !== 'www' && subdomain !== 'main';
             let profileQuery = supabase_1.supabaseAdmin
                 .from('users')
-                .select('id, email, role, tenant_id, is_super_admin')
+                .select('id, email, full_name, role, tenant_id, is_super_admin')
                 .eq('id', user.id);
             if (hasExplicitSubdomain) {
                 const { data: targetTenant } = await supabase_1.supabaseAdmin
@@ -875,6 +906,7 @@ async function authRoutes(fastify) {
             request.user = {
                 id: userProfile.id,
                 email: userProfile.email,
+                full_name: userProfile.full_name || null,
                 role: userProfile.role,
                 tenant_id: userProfile.tenant_id,
                 is_super_admin: userProfile.is_super_admin,

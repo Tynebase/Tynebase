@@ -293,19 +293,40 @@ async function dashboardRoutes(fastify) {
                 request.log.error({ error: activityError }, 'Failed to fetch recent activity');
                 throw activityError;
             }
-            // Fetch user information for all actors in the tenant
-            const actorIds = [...new Set(activities?.map(a => a.actor_id) || [])];
-            const { data: users } = await supabase_1.supabaseAdmin
-                .from('users')
-                .select('id, full_name, email')
-                .eq('tenant_id', tenant.id)
-                .in('id', actorIds);
-            // Create a map of user id to user data
-            const userMap = new Map(users?.map(u => [u.id, { full_name: u.full_name, email: u.email }]) || []);
-            // Merge user information into activities
+            // Fetch user information for all actors.
+            // With composite PK (id, tenant_id), a user can exist in many tenants.
+            // We prefer the row for this tenant but fall back to any row so we
+            // never return users: null (which crashes the frontend dashboard).
+            const actorIds = [...new Set(activities?.map(a => a.actor_id).filter(Boolean) || [])];
+            const userMap = new Map();
+            if (actorIds.length > 0) {
+                // Primary lookup: actors within this tenant
+                const { data: tenantUsers } = await supabase_1.supabaseAdmin
+                    .from('users')
+                    .select('id, full_name, email')
+                    .eq('tenant_id', tenant.id)
+                    .in('id', actorIds);
+                for (const u of tenantUsers || []) {
+                    userMap.set(u.id, { full_name: u.full_name, email: u.email });
+                }
+                // Fallback: for actors not found in this tenant, search globally
+                const missingIds = actorIds.filter(id => !userMap.has(id));
+                if (missingIds.length > 0) {
+                    const { data: otherUsers } = await supabase_1.supabaseAdmin
+                        .from('users')
+                        .select('id, full_name, email')
+                        .in('id', missingIds);
+                    for (const u of otherUsers || []) {
+                        if (!userMap.has(u.id)) {
+                            userMap.set(u.id, { full_name: u.full_name, email: u.email });
+                        }
+                    }
+                }
+            }
+            // Always provide a safe fallback so frontend never sees users: null
             const activitiesWithUsers = activities?.map(activity => ({
                 ...activity,
-                users: userMap.get(activity.actor_id) || null
+                users: userMap.get(activity.actor_id) || { full_name: 'Unknown User', email: 'unknown' },
             })) || [];
             return reply.status(200).send({
                 success: true,
