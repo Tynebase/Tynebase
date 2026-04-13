@@ -60,6 +60,32 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const isMountedRef = useRef(true);
 
   // ------------------------------------------------------------------
+  // Play notification sound (ding)
+  // ------------------------------------------------------------------
+  const playNotificationSound = useCallback(() => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      // Create a pleasant "ding" sound
+      oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5
+      oscillator.frequency.exponentialRampToValueAtTime(440, audioContext.currentTime + 0.1);
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.3);
+    } catch (err) {
+      console.error('[NotificationContext] Failed to play notification sound:', err);
+    }
+  }, []);
+
+  // ------------------------------------------------------------------
   // Fetch notifications from API
   // ------------------------------------------------------------------
   const refresh = useCallback(async () => {
@@ -210,6 +236,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             notifications: [newNotification, ...prev.notifications].slice(0, 50),
             unreadCount: prev.unreadCount + 1,
           }));
+          
+          // Play notification sound
+          playNotificationSound();
         }
       )
       .on(

@@ -8,8 +8,14 @@
  * 3. Delete embeddings associated with user documents
  * 4. Anonymize usage history (preserve for audit but remove PII)
  * 5. Delete templates created by user
- * 6. Preserve audit trails as required by law
- * 7. Mark job as completed
+ * 6. Delete DM messages from the user
+ * 7. Remove user from DM participants and clean up empty conversations
+ * 8. Delete DM reactions from the user
+ * 9. Delete regular chat messages from the user
+ * 10. Delete chat reactions from the user
+ * 11. Delete chat read receipts for the user
+ * 12. Preserve audit trails as required by law
+ * 13. Mark job as completed
  * 
  * GDPR Compliance:
  * - Right to be forgotten (Article 17)
@@ -193,7 +199,131 @@ async function processDeletion(job: Job, workerId: string): Promise<void> {
       }
     }
 
-    // 8. Create audit log entry for the deletion
+    // 8. Delete DM messages from the user
+    console.log(`[Worker ${workerId}] Deleting DM messages...`);
+    
+    const { error: dmMessagesError } = await supabaseAdmin
+      .from('dm_messages')
+      .delete()
+      .eq('author_id', userId);
+
+    if (dmMessagesError) {
+      console.error(`[Worker ${workerId}] Failed to delete DM messages:`, dmMessagesError);
+    } else {
+      console.log(`[Worker ${workerId}] DM messages deleted`);
+    }
+
+    // 9. Remove user from DM participants and clean up empty conversations
+    console.log(`[Worker ${workerId}] Removing from DM participants...`);
+    
+    // First, get the conversation IDs this user was part of
+    const { data: userParticipations } = await supabaseAdmin
+      .from('dm_participants')
+      .select('conversation_id')
+      .eq('user_id', userId);
+
+    const conversationIds = userParticipations?.map(p => p.conversation_id) || [];
+
+    // Remove the user from participants
+    const { error: dmParticipantsError } = await supabaseAdmin
+      .from('dm_participants')
+      .delete()
+      .eq('user_id', userId);
+
+    if (dmParticipantsError) {
+      console.error(`[Worker ${workerId}] Failed to remove DM participants:`, dmParticipantsError);
+    } else {
+      console.log(`[Worker ${workerId}] DM participants removed`);
+    }
+
+    // Clean up empty conversations (conversations with no participants)
+    if (conversationIds.length > 0) {
+      console.log(`[Worker ${workerId}] Cleaning up empty DM conversations...`);
+      
+      // Check which conversations still have participants
+      const { data: remainingParticipations } = await supabaseAdmin
+        .from('dm_participants')
+        .select('conversation_id')
+        .in('conversation_id', conversationIds);
+      
+      const remainingConversationIds = new Set(
+        remainingParticipations?.map(p => p.conversation_id) || []
+      );
+      
+      // Delete conversations that have no remaining participants
+      const emptyConversationIds = conversationIds.filter(id => !remainingConversationIds.has(id));
+      
+      if (emptyConversationIds.length > 0) {
+        const { error: emptyConvError } = await supabaseAdmin
+          .from('dm_conversations')
+          .delete()
+          .in('id', emptyConversationIds);
+
+        if (emptyConvError) {
+          console.error(`[Worker ${workerId}] Failed to delete empty conversations:`, emptyConvError);
+        } else {
+          console.log(`[Worker ${workerId}] Deleted ${emptyConversationIds.length} empty DM conversations`);
+        }
+      }
+    }
+
+    // 10. Delete DM reactions from the user
+    console.log(`[Worker ${workerId}] Deleting DM reactions...`);
+    
+    const { error: dmReactionsError } = await supabaseAdmin
+      .from('dm_reactions')
+      .delete()
+      .eq('user_id', userId);
+
+    if (dmReactionsError) {
+      console.error(`[Worker ${workerId}] Failed to delete DM reactions:`, dmReactionsError);
+    } else {
+      console.log(`[Worker ${workerId}] DM reactions deleted`);
+    }
+
+    // 11. Delete regular chat messages from the user
+    console.log(`[Worker ${workerId}] Deleting chat messages...`);
+    
+    const { error: chatMessagesError } = await supabaseAdmin
+      .from('chat_messages')
+      .delete()
+      .eq('author_id', userId);
+
+    if (chatMessagesError) {
+      console.error(`[Worker ${workerId}] Failed to delete chat messages:`, chatMessagesError);
+    } else {
+      console.log(`[Worker ${workerId}] Chat messages deleted`);
+    }
+
+    // 12. Delete chat reactions from the user
+    console.log(`[Worker ${workerId}] Deleting chat reactions...`);
+    
+    const { error: chatReactionsError } = await supabaseAdmin
+      .from('chat_reactions')
+      .delete()
+      .eq('user_id', userId);
+
+    if (chatReactionsError) {
+      console.error(`[Worker ${workerId}] Failed to delete chat reactions:`, chatReactionsError);
+    } else {
+      console.log(`[Worker ${workerId}] Chat reactions deleted`);
+    }
+
+    // 13. Delete chat read receipts for the user
+    console.log(`[Worker ${workerId}] Deleting chat read receipts...`);
+    
+    const { error: readReceiptsError } = await supabaseAdmin
+      .from('chat_read_receipts')
+      .delete()
+      .eq('user_id', userId);
+
+    if (readReceiptsError) {
+      console.error(`[Worker ${workerId}] Failed to delete chat read receipts:`, readReceiptsError);
+    } else {
+      console.log(`[Worker ${workerId}] Chat read receipts deleted`);
+    }
+
+    // 14. Create audit log entry for the deletion
     console.log(`[Worker ${workerId}] Creating audit log entry...`);
     
     const { error: auditError } = await supabaseAdmin
@@ -231,6 +361,12 @@ async function processDeletion(job: Job, workerId: string): Promise<void> {
         embeddings_deleted: true,
         templates_deleted: true,
         usage_history_anonymized: true,
+        dm_messages_deleted: true,
+        dm_participants_removed: true,
+        dm_reactions_deleted: true,
+        chat_messages_deleted: true,
+        chat_reactions_deleted: true,
+        chat_read_receipts_deleted: true,
         completed_at: new Date().toISOString(),
       },
     });
