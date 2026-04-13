@@ -79,6 +79,7 @@ function getSubdomainFromHost(): string | null {
 function TenantKBPage({ subdomain }: { subdomain: string }) {
   const [tenant, setTenant] = useState<KBTenant | null>(null);
   const [categories, setCategories] = useState<KBCategory[]>([]);
+  const [tags, setTags] = useState<{ name: string; count: number }[]>([]);
   const [totalDocs, setTotalDocs] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -92,12 +93,20 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
     const fetchKB = async () => {
       try {
         setLoading(true);
-        const data = await getKBLanding(subdomain);
-        setTenant(data.tenant);
-        setCategories(data.categories);
-        setTotalDocs(data.totalDocuments);
-        if (data.tenant.branding.primary_color) {
-          document.documentElement.style.setProperty("--brand", data.tenant.branding.primary_color);
+        const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
+        const [kbData, tagsRes] = await Promise.all([
+          getKBLanding(subdomain),
+          fetch(`${API_BASE}/api/public/community/${subdomain}/tags?limit=12`),
+        ]);
+        setTenant(kbData.tenant);
+        setCategories(kbData.categories);
+        setTotalDocs(kbData.totalDocuments);
+        if (kbData.tenant.branding.primary_color) {
+          document.documentElement.style.setProperty("--brand", kbData.tenant.branding.primary_color);
+        }
+        if (tagsRes.ok) {
+          const tagsData = await tagsRes.json();
+          setTags(tagsData.data?.tags || []);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Knowledge base not found");
@@ -185,18 +194,23 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
       {/* Custom header with tenant branding */}
       <header style={{ position: 'sticky', top: 0, zIndex: 50, backdropFilter: 'blur(20px)', borderBottom: '1px solid var(--border-subtle)' }}>
         <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', maxWidth: '1200px', margin: '0 auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {tenant.branding.logo_url ? (
-              <img src={tenant.branding.logo_url} alt={companyName} style={{ height: '32px', width: 'auto' }} />
-            ) : (
-              <div style={{ width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '14px', background: brandColor }}>
-                {companyName.charAt(0)}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {tenant.branding.logo_url ? (
+                <img src={tenant.branding.logo_url} alt={companyName} style={{ height: '32px', width: 'auto' }} />
+              ) : (
+                <div style={{ width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '14px', background: brandColor }}>
+                  {companyName.charAt(0)}
+                </div>
+              )}
+              <div>
+                <h1 style={{ fontWeight: 600, fontSize: '18px', color: 'var(--text-primary)', lineHeight: 1.2 }}>{companyName}</h1>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Help Center</p>
               </div>
-            )}
-            <div>
-              <h1 style={{ fontWeight: 600, fontSize: '18px', color: 'var(--text-primary)', lineHeight: 1.2 }}>{companyName}</h1>
-              <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Help Center</p>
             </div>
+            <Link href="/community" style={{ fontSize: '14px', color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: 500 }}>
+              Community →
+            </Link>
           </div>
         </div>
       </header>
@@ -384,6 +398,28 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
           )}
         </div>
       </section>
+
+      {/* Popular Tags */}
+      {tags.length > 0 && (
+        <section style={{ paddingBottom: '60px' }}>
+          <div className="container" style={{ maxWidth: '1024px', margin: '0 auto' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '20px' }}>Popular Tags</h2>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {tags.map((tag) => (
+                <button
+                  key={tag.name}
+                  onClick={() => { setSearchInput(tag.name); setSearchQuery(tag.name); fetchDocuments(undefined, tag.name); }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '20px', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}
+                >
+                  <Tag style={{ width: '12px', height: '12px' }} />
+                  {tag.name}
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{tag.count}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Footer */}
       <footer style={{ borderTop: '1px solid var(--border-subtle)', padding: '32px 0' }}>
