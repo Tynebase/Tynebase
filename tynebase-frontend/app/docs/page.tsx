@@ -370,6 +370,19 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
                 })}
               </div>
 
+              {/* Tags */}
+              <div style={{ marginTop: '48px', maxWidth: '1024px', margin: '48px auto 0' }}>
+                <h3 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '24px' }}>Popular Tags</h3>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {['Documentation', 'Getting Started', 'API', 'Setup', 'Features', 'Troubleshooting', 'Guides', 'Best Practices'].map((tag, i) => (
+                    <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '20px', background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', fontSize: '13px', fontWeight: 500' }}>
+                      <Tag className="w-3.5 h-3.5" />
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
               {/* View all link */}
               <div style={{ textAlign: 'center', marginTop: '48px' }}>
                 <button
