@@ -3,20 +3,27 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { MessageSquare, Users, BookOpen, ArrowRight, Lock, TrendingUp, HelpCircle, Bell, Shield, Loader2, Calendar, LogOut, User } from "lucide-react";
+import { MessageSquare, Users, BookOpen, ArrowRight, Lock, TrendingUp, HelpCircle, Bell, Shield, Loader2, Calendar, LogOut, User, Hash } from "lucide-react";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { useAuth } from "@/contexts/AuthContext";
 import { listPublicDiscussions, Discussion } from "@/lib/api/discussions";
 
-// Forum categories - must match dashboard community page
-const categories = [
-  { id: "all", label: "All Discussions", icon: null, color: "#6b7280", description: "Browse all community discussions" },
-  { id: "Announcements", label: "Announcements", icon: Bell, color: "#ef4444", description: "Official updates and news" },
-  { id: "Questions", label: "Questions", icon: HelpCircle, color: "#3b82f6", description: "Get help from the community" },
-  { id: "Ideas", label: "Ideas & Feedback", icon: TrendingUp, color: "#8b5cf6", description: "Share suggestions and vote" },
-  { id: "General", label: "General Discussion", icon: MessageSquare, color: "#10b981", description: "Chat about anything" },
-];
+const iconMap: Record<string, any> = {
+  Bell,
+  HelpCircle,
+  TrendingUp,
+  MessageSquare,
+};
+
+interface Category {
+  id: string;
+  label: string;
+  icon: string;
+  color: string;
+  description: string;
+  count: number;
+}
 
 interface TenantInfo {
   id: string;
@@ -37,6 +44,8 @@ function CommunityContent() {
 
   const [tenant, setTenant] = useState<TenantInfo | null>(null);
   const [discussions, setDiscussions] = useState<Discussion[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [tags, setTags] = useState<{ name: string; count: number }[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeCategory, setActiveCategory] = useState("all");
 
@@ -54,6 +63,21 @@ function CommunityContent() {
           setTenant(tenantData);
 
           if (tenantData?.subdomain) {
+            // Fetch categories
+            const categoriesRes = await fetch(`${baseUrl}/api/public/community/${tenantData.subdomain}/categories`);
+            if (categoriesRes.ok) {
+              const categoriesData = await categoriesRes.json();
+              setCategories(categoriesData.data?.categories || []);
+            }
+
+            // Fetch tags
+            const tagsRes = await fetch(`${baseUrl}/api/public/community/${tenantData.subdomain}/tags?limit=10`);
+            if (tagsRes.ok) {
+              const tagsData = await tagsRes.json();
+              setTags(tagsData.data?.tags || []);
+            }
+
+            // Fetch discussions
             const discussionsRes = await listPublicDiscussions(tenantData.subdomain, { 
               limit: 5,
               category: activeCategory === "all" ? undefined : activeCategory
@@ -168,49 +192,95 @@ function CommunityContent() {
         </div>
       </section>
 
-      {/* Category Filter */}
-      {tenant && (
-        <section className="section py-8">
+      {/* Categories */}
+      {tenant && categories.length > 0 && (
+        <section style={{ position: 'relative', zIndex: 10, paddingTop: '32px', paddingBottom: '64px' }}>
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 24px' }}>
-            <div style={{ width: '100%', maxWidth: '1152px' }}>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {categories.map((cat) => {
-                  const Icon = cat.icon;
-                  const isActive = activeCategory === cat.id;
-                  return (
-                    <button
-                      key={cat.id}
-                      onClick={() => setActiveCategory(cat.id)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '8px 16px',
-                        borderRadius: '8px',
-                        border: isActive ? '1px solid var(--brand)' : '1px solid var(--border-subtle)',
-                        background: isActive ? `${cat.color}15` : 'var(--surface-subtle)',
-                        color: isActive ? cat.color : 'var(--text-secondary)',
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isActive) {
-                          e.currentTarget.style.background = 'var(--surface-hover)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isActive) {
-                          e.currentTarget.style.background = 'var(--surface-subtle)';
-                        }
-                      }}
-                    >
-                      {Icon && <Icon className="w-4 h-4" />}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" style={{ width: '100%', maxWidth: '1024px' }}>
+              {/* All Discussions */}
+              <Link
+                href="#"
+                onClick={(e) => { e.preventDefault(); setActiveCategory('all'); }}
+                className="bento-item cursor-pointer group block"
+                style={{ opacity: activeCategory === 'all' ? 1 : 0.6 }}
+              >
+                <div className="feature-icon feature-icon-brand mb-4">
+                  <MessageSquare className="w-5 h-5" />
+                </div>
+                <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2 group-hover:text-[var(--brand)] transition-colors">
+                  All Discussions
+                </h3>
+                <p className="text-sm text-[var(--text-secondary)] mb-3">Browse all community discussions</p>
+                <p className="text-xs text-[var(--text-muted)]">{discussions.length} discussions</p>
+              </Link>
+              
+              {/* Dynamic Categories */}
+              {categories.map((cat: Category) => {
+                const Icon = iconMap[cat.icon] || MessageSquare;
+                return (
+                  <Link
+                    key={cat.id}
+                    href="#"
+                    onClick={(e) => { e.preventDefault(); setActiveCategory(cat.id); }}
+                    className="bento-item cursor-pointer group block"
+                    style={{ opacity: activeCategory === cat.id ? 1 : 0.6 }}
+                  >
+                    <div className="feature-icon feature-icon-brand mb-4" style={{ color: cat.color }}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2 group-hover:text-[var(--brand)] transition-colors">
                       {cat.label}
-                    </button>
-                  );
-                })}
+                    </h3>
+                    <p className="text-sm text-[var(--text-secondary)] mb-3">{cat.description}</p>
+                    <p className="text-xs text-[var(--text-muted)]">{cat.count} discussions</p>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Tags */}
+      {tenant && tags.length > 0 && (
+        <section style={{ position: 'relative', zIndex: 10, paddingTop: '32px', paddingBottom: '32px' }}>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 24px' }}>
+            <div style={{ width: '100%', maxWidth: '1024px' }}>
+              <h2 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '24px' }}>Popular Tags</h2>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {tags.map((tag) => (
+                  <Link
+                    key={tag.name}
+                    href="#"
+                    onClick={(e) => e.preventDefault()}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 14px',
+                      borderRadius: '20px',
+                      background: 'var(--surface-subtle)',
+                      border: '1px solid var(--border-subtle)',
+                      color: 'var(--text-secondary)',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      textDecoration: 'none',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'var(--surface-hover)';
+                      e.currentTarget.style.borderColor = 'var(--brand)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'var(--surface-subtle)';
+                      e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                    }}
+                  >
+                    <Hash className="w-3.5 h-3.5" />
+                    {tag.name}
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '4px' }}>{tag.count}</span>
+                  </Link>
+                ))}
               </div>
             </div>
           </div>
