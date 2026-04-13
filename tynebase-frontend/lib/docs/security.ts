@@ -256,7 +256,7 @@ In case of data breach:
     description: 'Configure granular permissions and roles for your team.',
     category: 'Security & Compliance',
     readTime: '5 min',
-    lastUpdated: '2026-01-10',
+    lastUpdated: '2026-04-13',
     tags: ['permissions', 'rbac', 'roles', 'access-control'],
     content: `
 # Permissions & Role-Based Access Control
@@ -265,69 +265,24 @@ TyneBase uses RBAC to manage what users can do in your workspace.
 
 ## Role Hierarchy
 
-![Role Hierarchy Diagram](https://via.placeholder.com/800x400/1a1a1a/ffffff?text=Role+Hierarchy:+Super+Admin+%E2%86%92+Admin+%E2%86%92+Editor+%E2%86%92+Contributor+%E2%86%92+View+Only)
+Roles follow a hierarchical structure where higher roles inherit all permissions of lower roles:
 
-*Hierarchical structure showing permission inheritance from Super Admin down to View Only roles.*
+**Admin** → **Editor** → **Contributor** → **View Only**
 
 ## Role Capabilities
 
-<div style="display: grid; grid-template-columns: 1.2fr 0.8fr 0.8fr 0.8fr 0.8fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Capability</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">View Only</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Contributor</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Editor</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Admin</div>
-  <div style="background: white; padding: 12px 16px;">Read documents</div>
-  <div style="background: white; padding: 12px 16px;">✅</div>
-  <div style="background: white; padding: 12px 16px;">✅</div>
-  <div style="background: white; padding: 12px 16px;">✅</div>
-  <div style="background: white; padding: 12px 16px;">✅</div>
-  <div style="background: white; padding: 12px 16px;">Create drafts</div>
-  <div style="background: white; padding: 12px 16px;">❌</div>
-  <div style="background: white; padding: 12px 16px;">✅</div>
-  <div style="background: white; padding: 12px 16px;">✅</div>
-  <div style="background: white; padding: 12px 16px;">✅</div>
-  <div style="background: white; padding: 12px 16px;">Edit own docs</div>
-  <div style="background: white; padding: 12px 16px;">❌</div>
-  <div style="background: white; padding: 12px 16px;">✅</div>
-  <div style="background: white; padding: 12px 16px;">✅</div>
-  <div style="background: white; padding: 12px 16px;">✅</div>
-  <div style="background: white; padding: 12px 16px;">Edit any doc</div>
-  <div style="background: white; padding: 12px 16px;">❌</div>
-  <div style="background: white; padding: 12px 16px;">❌</div>
-  <div style="background: white; padding: 12px 16px;">✅</div>
-  <div style="background: white; padding: 12px 16px;">✅</div>
-  <div style="background: white; padding: 12px 16px;">Publish</div>
-  <div style="background: white; padding: 12px 16px;">❌</div>
-  <div style="background: white; padding: 12px 16px;">❌</div>
-  <div style="background: white; padding: 12px 16px;">✅</div>
-  <div style="background: white; padding: 12px 16px;">✅</div>
-  <div style="background: white; padding: 12px 16px;">Delete docs</div>
-  <div style="background: white; padding: 12px 16px;">❌</div>
-  <div style="background: white; padding: 12px 16px;">❌</div>
-  <div style="background: white; padding: 12px 16px;">Own only</div>
-  <div style="background: white; padding: 12px 16px;">✅</div>
-  <div style="background: white; padding: 12px 16px;">Use AI features</div>
-  <div style="background: white; padding: 12px 16px;">❌</div>
-  <div style="background: white; padding: 12px 16px;">✅</div>
-  <div style="background: white; padding: 12px 16px;">✅</div>
-  <div style="background: white; padding: 12px 16px;">✅</div>
-  <div style="background: white; padding: 12px 16px;">View audit</div>
-  <div style="background: white; padding: 12px 16px;">❌</div>
-  <div style="background: white; padding: 12px 16px;">❌</div>
-  <div style="background: white; padding: 12px 16px;">✅</div>
-  <div style="background: white; padding: 12px 16px;">✅</div>
-  <div style="background: white; padding: 12px 16px;">Manage users</div>
-  <div style="background: white; padding: 12px 16px;">❌</div>
-  <div style="background: white; padding: 12px 16px;">❌</div>
-  <div style="background: white; padding: 12px 16px;">❌</div>
-  <div style="background: white; padding: 12px 16px;">✅</div>
-  <div style="background: white; padding: 12px 16px;">Workspace settings</div>
-  <div style="background: white; padding: 12px 16px;">❌</div>
-  <div style="background: white; padding: 12px 16px;">❌</div>
-  <div style="background: white; padding: 12px 16px;">❌</div>
-  <div style="background: white; padding: 12px 16px;">✅</div>
-</div>
+| Capability | View Only | Contributor | Editor | Admin |
+|-----------|-----------|-------------|--------|-------|
+| Read documents | ✅ | ✅ | ✅ | ✅ |
+| Create drafts | ❌ | ✅ | ✅ | ✅ |
+| Edit own docs | ❌ | ✅ | ✅ | ✅ |
+| Edit any doc | ❌ | ❌ | ✅ | ✅ |
+| Publish | ❌ | ❌ | ✅ | ✅ |
+| Delete docs | ❌ | ❌ | Own only | ✅ |
+| Use AI features | ❌ | ✅ | ✅ | ✅ |
+| View audit | ❌ | ❌ | ✅ | ✅ |
+| Manage users | ❌ | ❌ | ❌ | ✅ |
+| Workspace settings | ❌ | ❌ | ❌ | ✅ |
 
 ## Assigning Roles
 
