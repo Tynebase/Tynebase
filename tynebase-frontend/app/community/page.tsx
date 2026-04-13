@@ -141,19 +141,24 @@ function CommunityContent() {
       {tenant && (
         <header style={{ position: 'sticky', top: 0, zIndex: 50, backdropFilter: 'blur(20px)', borderBottom: '1px solid var(--border-subtle)', background: 'rgba(10,10,15,0.8)' }}>
           <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', maxWidth: '1200px', margin: '0 auto' }}>
-            <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none' }}>
-              {tenant.branding.logo_url ? (
-                <img src={tenant.branding.logo_url} alt={companyName} style={{ height: '32px', width: 'auto' }} />
-              ) : (
-                <div style={{ width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '14px', background: primaryColor }}>
-                  {companyName.charAt(0)}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none' }}>
+                {tenant.branding.logo_url ? (
+                  <img src={tenant.branding.logo_url} alt={companyName} style={{ height: '32px', width: 'auto' }} />
+                ) : (
+                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '14px', background: primaryColor }}>
+                    {companyName.charAt(0)}
+                  </div>
+                )}
+                <div>
+                  <h1 style={{ fontWeight: 600, fontSize: '18px', color: 'var(--text-primary)', lineHeight: 1.2 }}>{companyName}</h1>
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Community Hub</p>
                 </div>
-              )}
-              <div>
-                <h1 style={{ fontWeight: 600, fontSize: '18px', color: 'var(--text-primary)', lineHeight: 1.2 }}>{companyName}</h1>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Community Hub</p>
-              </div>
-            </Link>
+              </Link>
+              <Link href="/docs" style={{ fontSize: '14px', color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: 500 }}>
+                Documentation →
+              </Link>
+            </div>
             {user && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px', background: 'var(--surface-subtle)', border: '1px solid var(--border-subtle)' }}>

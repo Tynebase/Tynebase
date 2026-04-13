@@ -1,12 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { MessageSquare, Eye, Pin, Lock, ThumbsUp, Send, Loader2, ArrowLeft, CheckCircle2, Users, Calendar, Reply as ReplyIcon, CornerDownRight } from "lucide-react";
-import { getPublicDiscussion, Discussion, DiscussionReply } from "@/lib/api/discussions";
+import { memo, useState, useEffect, useCallback } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  Discussion,
+  DiscussionReply,
+  getPublicDiscussion,
+} from "@/lib/api/discussions";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Eye,
+  MessageSquare,
+  Pin,
+  ThumbsUp,
+  Loader2,
+  Lock,
+  CornerDownRight,
+  Users,
+  Calendar,
+} from "lucide-react";
 
 function getSubdomainFromHost(): string | null {
   if (typeof window === 'undefined') return null;
