@@ -453,7 +453,7 @@ export default function Home() {
                 <CanvasImage
                   src={knowledgeFeatures[activeFeature].image}
                   alt={knowledgeFeatures[activeFeature].title}
-                  fit="contain"
+                  fit="cover"
                 />
               </div>
             </div>
