@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { Search, BookOpen, Zap, Shield, ArrowRight, Code, Bot, FileText, Lock, BarChart3, FolderSync, Globe, Video, FileCheck, FolderOpen, ChevronRight, Eye, Clock, User, Users, Loader2, AlertCircle, ThumbsUp, ThumbsDown } from "lucide-react";
+import { Search, BookOpen, Zap, Shield, ArrowRight, Code, Bot, FileText, Lock, BarChart3, FolderSync, Globe, Video, FileCheck, FolderOpen, ChevronRight, Eye, Clock, User, Users, Loader2, AlertCircle, ThumbsUp, ThumbsDown, Tag } from "lucide-react";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { DocModal } from "@/components/docs/DocModal";
