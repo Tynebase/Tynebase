@@ -4,166 +4,133 @@ export const securityArticles: DocArticle[] = [
   {
     id: 'sec-1',
     slug: 'sso-setup',
-    title: 'Setting Up SSO with Okta or Azure AD',
-    description: 'Configure Single Sign-On for enterprise authentication.',
+    title: 'Google OAuth Authentication',
+    description: 'Sign in to TyneBase using your Google account.',
     category: 'Security & Compliance',
-    readTime: '8 min',
+    readTime: '3 min',
     lastUpdated: '2026-01-10',
-    tags: ['sso', 'okta', 'azure', 'saml', 'enterprise'],
+    tags: ['sso', 'google', 'oauth', 'authentication'],
     content: `
-# Setting Up SSO with Okta or Azure AD
+# Google OAuth Authentication
 
-Enable Single Sign-On for seamless, secure authentication.
+Sign in to TyneBase quickly and securely using your Google account.
 
-## Prerequisites
+## How It Works
 
-- TyneBase Enterprise plan
-- Admin access to your identity provider
-- Domain verification completed
+TyneBase uses Google OAuth 2.0 via Supabase Auth for secure authentication:
 
-## Okta Configuration
+- **No Password Required**: Use your existing Google account
+- **Secure**: Industry-standard OAuth 2.0 protocol
+- **Quick**: One-click sign-in
+- **Safe**: Your Google password is never shared with TyneBase
 
-### Step 1: Create SAML Application in Okta
+## Signing In with Google
 
-1. Log into Okta Admin Console
-2. Navigate to **Applications** → **Create App Integration**
-3. Select **SAML 2.0**
-4. Click **Next**
+### Step 1: Click "Continue with Google"
 
-### Step 2: Configure SAML Settings
+On the login page, click the **Continue with Google** button below the email/password form.
 
-<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Field</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Value</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Single sign-on URL</strong></div>
-  <div style="background: white; padding: 12px 16px;"><code>https://your-subdomain.tynebase.com/api/auth/saml/callback</code></div>
-  <div style="background: white; padding: 12px 16px;"><strong>Audience URI</strong></div>
-  <div style="background: white; padding: 12px 16px;"><code>https://your-subdomain.tynebase.com</code></div>
-  <div style="background: white; padding: 12px 16px;"><strong>Name ID format</strong></div>
-  <div style="background: white; padding: 12px 16px;">EmailAddress</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Application username</strong></div>
-  <div style="background: white; padding: 12px 16px;">Email</div>
-</div>
+### Step 2: Authorize TyneBase
 
-### Step 3: Attribute Statements
+1. Google will ask you to authorize TyneBase
+2. Review the permissions requested (email and profile access)
+3. Click **Allow** to proceed
 
-<div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Name</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Value</div>
-  <div style="background: white; padding: 12px 16px;"><code>email</code></div>
-  <div style="background: white; padding: 12px 16px;">user.email</div>
-  <div style="background: white; padding: 12px 16px;"><code>firstName</code></div>
-  <div style="background: white; padding: 12px 16px;">user.firstName</div>
-  <div style="background: white; padding: 12px 16px;"><code>lastName</code></div>
-  <div style="background: white; padding: 12px 16px;">user.lastName</div>
-</div>
+### Step 3: Automatic Account Creation
 
-### Step 4: Download Metadata
+If this is your first time signing in:
+- A TyneBase account is automatically created
+- Your Google email is used as your TyneBase email
+- Your Google profile picture is used as your avatar
 
-Click **View SAML setup instructions** and download the IdP metadata XML.
+### Step 4: Access Your Workspace
 
-### Step 5: Configure TyneBase
+After successful authentication:
+- You're redirected to your dashboard
+- If you're part of multiple workspaces, you can select which one to access
 
-1. Go to **Settings** → **Security** → **SSO**
-2. Select **Okta** as provider
-3. Upload the metadata XML
-4. Click **Save Configuration**
-5. Test with **Send Test Request**
+## Benefits
 
-## Azure AD Configuration
+### For Users
 
-### Step 1: Create Enterprise Application
+- **Fast Sign-In**: No need to remember another password
+- **Secure**: Google's robust security infrastructure
+- **Convenient**: One-click access from any device
+- **Unified**: Use the same account across Google services
 
-1. Open Azure Portal → Azure Active Directory
-2. Navigate to **Enterprise Applications** → **New Application**
-3. Click **Create your own application**
-4. Name it "TyneBase" and select **Non-gallery**
+### For Administrators
 
-### Step 2: Set Up SAML
+- **Reduced Support**: Fewer password reset requests
+- **Security**: Leverages Google's security measures
+- **Compliance**: Meets enterprise authentication standards
+- **Audit Trail**: All sign-ins are logged
 
-1. Go to **Single sign-on** → **SAML**
-2. Edit **Basic SAML Configuration**:
+## Privacy & Data
 
-<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Field</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Value</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Identifier (Entity ID)</strong></div>
-  <div style="background: white; padding: 12px 16px;"><code>https://your-subdomain.tynebase.com</code></div>
-  <div style="background: white; padding: 12px 16px;"><strong>Reply URL (ACS URL)</strong></div>
-  <div style="background: white; padding: 12px 16px;"><code>https://your-subdomain.tynebase.com/api/auth/saml/callback</code></div>
-  <div style="background: white; padding: 12px 16px;"><strong>Sign on URL</strong></div>
-  <div style="background: white; padding: 12px 16px;"><code>https://your-subdomain.tynebase.com/login</code></div>
-</div>
+### What We Access
 
-### Step 3: Configure Claims
+TyneBase only requests:
+- **Email**: To identify your account
+- **Profile Information**: Name and profile picture for your avatar
 
-Add these claims in **Attributes & Claims**:
+### What We Don't Access
 
-<div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Claim</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Source</div>
-  <div style="background: white; padding: 12px 16px;"><code>emailaddress</code></div>
-  <div style="background: white; padding: 12px 16px;">user.mail</div>
-  <div style="background: white; padding: 12px 16px;"><code>givenname</code></div>
-  <div style="background: white; padding: 12px 16px;">user.givenname</div>
-  <div style="background: white; padding: 12px 16px;"><code>surname</code></div>
-  <div style="background: white; padding: 12px 16px;">user.surname</div>
-</div>
-
-### Step 4: Download Certificate
-
-Download **Certificate (Base64)** from the SAML Signing Certificate section.
-
-### Step 5: Configure TyneBase
-
-1. Go to **Settings** → **Security** → **SSO**
-2. Select **Azure AD** as provider
-3. Enter:
-   - Login URL
-   - Azure AD Identifier
-   - Upload Certificate
-4. Save and test
-
-## SCIM Provisioning
-
-Enable automatic user provisioning:
-
-### Okta SCIM
-
-1. In Okta app settings, go to **Provisioning**
-2. Enable SCIM connector
-3. Enter TyneBase SCIM endpoint: \`https://api.tynebase.com/scim/v2\`
-4. Use API key from TyneBase Settings
-
-### Azure AD SCIM
-
-1. In Enterprise app, go to **Provisioning**
-2. Set Mode to **Automatic**
-3. Enter Tenant URL: \`https://api.tynebase.com/scim/v2\`
-4. Enter Secret Token from TyneBase
-
-## Testing SSO
-
-1. Open incognito/private browser
-2. Navigate to your TyneBase URL
-3. Click **Sign in with SSO**
-4. Authenticate with IdP
-5. Verify user is created in TyneBase
+- Your Google password
+- Your Google contacts
+- Your Google Drive or other Google services
+- Any other Google data
 
 ## Troubleshooting
 
-<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Issue</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Solution</div>
-  <div style="background: white; padding: 12px 16px;">Invalid signature</div>
-  <div style="background: white; padding: 12px 16px;">Re-download and upload IdP certificate</div>
-  <div style="background: white; padding: 12px 16px;">User not created</div>
-  <div style="background: white; padding: 12px 16px;">Check attribute mapping</div>
-  <div style="background: white; padding: 12px 16px;">Redirect loop</div>
-  <div style="background: white; padding: 12px 16px;">Verify ACS URL is correct</div>
-  <div style="background: white; padding: 12px 16px;">403 error</div>
-  <div style="background: white; padding: 12px 16px;">Ensure user is assigned to app in IdP</div>
-</div>
+### Google Sign-In Not Working
+
+**Issue**: Clicking "Continue with Google" doesn't respond
+
+**Solutions**:
+- Check your internet connection
+- Ensure you're not blocking pop-ups
+- Try in an incognito/private browser window
+- Clear your browser cache and cookies
+
+### Authorization Error
+
+**Issue**: Google shows an authorization error
+
+**Solutions**:
+- Ensure you're signed into your Google account
+- Check that TyneBase is authorized in your Google Account settings
+- Contact your IT administrator if your organization restricts OAuth apps
+
+### Account Already Exists
+
+**Issue**: You already have a TyneBase account with the same email
+
+**Solution**: Google OAuth will automatically link to your existing account. No action needed.
+
+## Security Features
+
+### Session Management
+
+- Sessions are managed securely by Supabase Auth
+- Tokens are stored securely in HTTP-only cookies
+- Sessions expire after 1 hour of inactivity
+- You can sign out from all devices in your account settings
+
+### Multi-Factor Authentication
+
+While Google OAuth provides strong security, you can also enable additional MFA:
+- Go to **Settings** → **Security**
+- Enable **Two-Factor Authentication**
+- Set up an authenticator app as a backup
+
+## Coming Soon
+
+We're working on additional SSO options:
+- Microsoft Azure AD
+- Okta SAML
+- Other enterprise identity providers
+
+Have a specific SSO need? Contact our support team to request it.
 `
   },
   {
@@ -192,48 +159,21 @@ TyneBase is designed for GDPR compliance from the ground up.
 
 ### Where Data is Stored
 
-<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Data Type</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Location</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Provider</div>
-  <div style="background: white; padding: 12px 16px;">Database</div>
-  <div style="background: white; padding: 12px 16px;">EU (Frankfurt)</div>
-  <div style="background: white; padding: 12px 16px;">Supabase</div>
-  <div style="background: white; padding: 12px 16px;">File Storage</div>
-  <div style="background: white; padding: 12px 16px;">EU (Frankfurt)</div>
-  <div style="background: white; padding: 12px 16px;">Supabase</div>
-  <div style="background: white; padding: 12px 16px;">AI Processing</div>
-  <div style="background: white; padding: 12px 16px;">EU endpoints</div>
-  <div style="background: white; padding: 12px 16px;">OpenAI EU, Vertex AI</div>
-  <div style="background: white; padding: 12px 16px;">Embeddings</div>
-  <div style="background: white; padding: 12px 16px;">EU (Frankfurt)</div>
-  <div style="background: white; padding: 12px 16px;">Supabase pgvector</div>
-</div>
+| Data Type | Location | Provider |
+|-----------|----------|----------|
+| Database | EU (Frankfurt) | Supabase |
+| File Storage | EU (Frankfurt) | Supabase |
+| AI Processing | EU endpoints | OpenAI EU, Vertex AI |
+| Embeddings | EU (Frankfurt) | Supabase pgvector |
 
 ### Data We Collect
 
-<div style="display: grid; grid-template-columns: 1fr 1fr 1.5fr 1fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Category</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Data</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Purpose</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Lawful Basis</div>
-  <div style="background: white; padding: 12px 16px;">Account</div>
-  <div style="background: white; padding: 12px 16px;">Email, name</div>
-  <div style="background: white; padding: 12px 16px;">Service provision</div>
-  <div style="background: white; padding: 12px 16px;">Contract</div>
-  <div style="background: white; padding: 12px 16px;">Content</div>
-  <div style="background: white; padding: 12px 16px;">Documents</div>
-  <div style="background: white; padding: 12px 16px;">Core functionality</div>
-  <div style="background: white; padding: 12px 16px;">Contract</div>
-  <div style="background: white; padding: 12px 16px;">Usage</div>
-  <div style="background: white; padding: 12px 16px;">Page views, actions</div>
-  <div style="background: white; padding: 12px 16px;">Analytics</div>
-  <div style="background: white; padding: 12px 16px;">Legitimate interest</div>
-  <div style="background: white; padding: 12px 16px;">AI</div>
-  <div style="background: white; padding: 12px 16px;">Prompts, generations</div>
-  <div style="background: white; padding: 12px 16px;">AI features</div>
-  <div style="background: white; padding: 12px 16px;">Consent</div>
-</div>
+| Category | Data | Purpose | Lawful Basis |
+|----------|------|---------|--------------|
+| Account | Email, name | Service provision | Contract |
+| Content | Documents | Core functionality | Contract |
+| Usage | Page views, actions | Analytics | Legitimate interest |
+| AI | Prompts, generations | AI features | Consent |
 
 ## User Rights
 
@@ -278,23 +218,12 @@ Data export in machine-readable format:
 
 Control what data processing you allow:
 
-<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Purpose</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Default</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Can Withdraw</div>
-  <div style="background: white; padding: 12px 16px;">Essential services</div>
-  <div style="background: white; padding: 12px 16px;">Required</div>
-  <div style="background: white; padding: 12px 16px;">No</div>
-  <div style="background: white; padding: 12px 16px;">Analytics</div>
-  <div style="background: white; padding: 12px 16px;">Off</div>
-  <div style="background: white; padding: 12px 16px;">Yes</div>
-  <div style="background: white; padding: 12px 16px;">AI processing</div>
-  <div style="background: white; padding: 12px 16px;">Off</div>
-  <div style="background: white; padding: 12px 16px;">Yes</div>
-  <div style="background: white; padding: 12px 16px;">Knowledge indexing</div>
-  <div style="background: white; padding: 12px 16px;">Off</div>
-  <div style="background: white; padding: 12px 16px;">Yes</div>
-</div>
+| Purpose | Default | Can Withdraw |
+|---------|---------|--------------|
+| Essential services | Required | No |
+| Analytics | Off | Yes |
+| AI processing | Off | Yes |
+| Knowledge indexing | Off | Yes |
 
 ### Managing Consent
 
@@ -421,42 +350,15 @@ Modify existing user roles:
 3. Select new role
 4. Confirm change
 
-## Category-Level Permissions
+## Document Sharing
 
-Restrict access to specific categories:
-
-1. Go to **Knowledge** → **Categories**
-2. Click category settings ⚙️
-3. Set visibility:
-   - **Public**: All workspace members
-   - **Restricted**: Selected roles only
-   - **Private**: Selected users only
-
-## Document-Level Permissions
-
-Override category permissions per document:
+Share documents with specific users:
 
 1. Open document
 2. Click **Share** button
-3. Add specific users or change visibility
-4. Save
-
-## API Key Scopes
-
-When creating API keys, limit permissions:
-
-\`\`\`json
-{
-  "scopes": [
-    "documents:read",
-    "search:query"
-  ],
-  "restrictions": {
-    "categories": ["cat_public"],
-    "ip_whitelist": ["192.168.1.0/24"]
-  }
-}
-\`\`\`
+3. Add users by email
+4. Set access level
+5. Save
 
 ## Audit Trail
 
@@ -523,17 +425,9 @@ All data transmission uses:
 
 ### Multi-Factor Authentication
 
-Enable MFA for additional security:
-
-1. Go to **Settings** → **Security**
-2. Click **Enable MFA**
-3. Scan QR code with authenticator app
-4. Enter verification code
-5. Save backup codes
-
-Supported methods:
+MFA is currently in development. Coming soon:
 - Authenticator apps (TOTP)
-- SMS (backup only)
+- SMS verification
 - Hardware keys (WebAuthn)
 
 ## Session Security
@@ -569,20 +463,16 @@ View and revoke sessions in **Settings** → **Security** → **Sessions**.
 - XSS protection
 - CSRF tokens
 
-## Compliance Certifications
+## Compliance
 
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Standard</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Status</div>
-  <div style="background: white; padding: 12px 16px;">SOC 2 Type II</div>
-  <div style="background: white; padding: 12px 16px;">Certified</div>
-  <div style="background: white; padding: 12px 16px;">GDPR</div>
-  <div style="background: white; padding: 12px 16px;">Compliant</div>
-  <div style="background: white; padding: 12px 16px;">HIPAA</div>
-  <div style="background: white; padding: 12px 16px;">Available (Enterprise)</div>
-  <div style="background: white; padding: 12px 16px;">ISO 27001</div>
-  <div style="background: white; padding: 12px 16px;">In progress</div>
-</div>
+We're working toward formal compliance certifications:
+
+| Standard | Status |
+|----------|--------|
+| **SOC 2 Type II** | In progress (see SOC 2 doc) |
+| **GDPR** | Compliant (see GDPR doc) |
+| **HIPAA** | Coming soon (Enterprise) |
+| **ISO 27001** | Planned |
 
 ## Security Reporting
 
@@ -604,13 +494,15 @@ Response SLA:
     title: 'SOC 2 Type II Compliance',
     description: 'Understanding TyneBase SOC 2 certification and what it means for your organization.',
     category: 'Security & Compliance',
-    readTime: '5 min',
+    readTime: '2 min',
     lastUpdated: '2026-01-10',
     tags: ['soc2', 'compliance', 'audit', 'enterprise'],
     content: `
 # SOC 2 Type II Compliance
 
-TyneBase maintains SOC 2 Type II certification, demonstrating our commitment to security, availability, and confidentiality.
+## Coming Soon
+
+We are actively working toward SOC 2 Type II certification to demonstrate our commitment to security, availability, and confidentiality.
 
 ## What is SOC 2?
 
@@ -624,88 +516,36 @@ SOC 2 (Service Organization Control 2) is a framework developed by the AICPA for
 | **Confidentiality** | Data protection as committed |
 | **Privacy** | Personal information handling |
 
-## Type I vs Type II
+## Our Current Security Practices
 
-| Aspect | Type I | Type II |
-|--------|--------|---------|
-| **Scope** | Point-in-time assessment | Extended period (6-12 months) |
-| **Evidence** | Controls are designed | Controls are operating effectively |
-| **Rigor** | Lower | Higher |
-| **Trust Level** | Basic | Enterprise-grade |
-
-TyneBase holds **Type II** certification, the more rigorous standard.
-
-## Our Controls
+While we work toward formal certification, we implement:
 
 ### Access Control
 
 - Role-based access control (RBAC)
-- Multi-factor authentication
-- SSO integration (SAML 2.0)
-- Session management
-- API key rotation
+- Google OAuth authentication
+- Session management via Supabase Auth
 
 ### Data Protection
 
-- AES-256 encryption at rest
+- AES-256 encryption at rest (via Supabase)
 - TLS 1.3 in transit
-- Key management procedures
-- Data classification
-- Secure deletion
+- EU data residency (Frankfurt region)
 
 ### Change Management
 
 - Code review requirements
-- Automated testing
 - Staged deployments
 - Rollback procedures
-- Change documentation
 
-### Incident Response
+## Timeline
 
-- 24/7 monitoring
-- Defined escalation paths
-- Incident classification
-- Communication procedures
-- Post-incident reviews
-
-### Business Continuity
-
-- Automated backups
-- Disaster recovery plan
-- Geographic redundancy
-- Recovery time objectives (RTO)
-- Recovery point objectives (RPO)
-
-## Requesting Our SOC 2 Report
-
-Enterprise customers can request our full SOC 2 Type II report:
-
-1. Contact your account manager
-2. Sign NDA if required
-3. Receive report within 2 business days
-
-The report includes:
-- Independent auditor's opinion
-- Description of controls
-- Test results and findings
-- Management's assertion
-
-## Continuous Compliance
-
-We maintain compliance through:
-
-- **Quarterly internal audits**
-- **Annual external audits**
-- **Continuous monitoring**
-- **Employee training**
-- **Vendor assessments**
+We expect to begin the SOC 2 Type II audit process in 2026. Enterprise customers requiring SOC 2 compliance should contact our sales team to discuss options.
 
 ## Contact
 
 For compliance inquiries:
 - **Email**: compliance@tynebase.com
-- **Enterprise Portal**: Request via dashboard
 `,
   },
   {
@@ -714,7 +554,7 @@ For compliance inquiries:
     title: 'Audit Logs & Activity Monitoring',
     description: 'Track all user actions and system events for compliance and security.',
     category: 'Security & Compliance',
-    readTime: '4 min',
+    readTime: '3 min',
     lastUpdated: '2026-01-10',
     tags: ['audit', 'logs', 'monitoring', 'compliance'],
     content: `
@@ -726,37 +566,23 @@ TyneBase provides comprehensive audit logging to help you maintain compliance an
 
 ### User Actions
 
-<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Event</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Details Captured</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Login/Logout</strong></div>
-  <div style="background: white; padding: 12px 16px;">User, timestamp, IP, device</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Document CRUD</strong></div>
-  <div style="background: white; padding: 12px 16px;">Action, document ID, user, changes</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Permission changes</strong></div>
-  <div style="background: white; padding: 12px 16px;">Who, what, before/after</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Search queries</strong></div>
-  <div style="background: white; padding: 12px 16px;">Query text, results count, user</div>
-  <div style="background: white; padding: 12px 16px;"><strong>AI usage</strong></div>
-  <div style="background: white; padding: 12px 16px;">Prompts, model used, tokens</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Settings changes</strong></div>
-  <div style="background: white; padding: 12px 16px;">Setting name, old/new value</div>
-</div>
+| Event | Details Captured |
+|-------|----------------|
+| **Login/Logout** | User, timestamp, IP address |
+| **Document CRUD** | Action, document ID, user, changes |
+| **Permission changes** | Who, what, before/after values |
+| **Settings changes** | Setting name, old/new value |
+| **User invitations** | Invited user, who invited, timestamp |
+| **AI usage** | Prompts, model used, tokens consumed |
 
-### System Events
+### Action Types
 
-<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Event</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Details</div>
-  <div style="background: white; padding: 12px 16px;"><strong>API calls</strong></div>
-  <div style="background: white; padding: 12px 16px;">Endpoint, method, status, latency</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Authentication</strong></div>
-  <div style="background: white; padding: 12px 16px;">Success/failure, method used</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Rate limiting</strong></div>
-  <div style="background: white; padding: 12px 16px;">Triggered rules, affected users</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Errors</strong></div>
-  <div style="background: white; padding: 12px 16px;">Stack traces, context</div>
-</div>
+Logs are categorized by action type:
+- **auth**: Authentication events
+- **document**: Document operations
+- **user**: User management
+- **settings**: Settings changes
+- **chat**: Chat and discussion activity
 
 ## Accessing Audit Logs
 
@@ -764,93 +590,63 @@ TyneBase provides comprehensive audit logging to help you maintain compliance an
 
 1. Go to **Settings** → **Audit Logs**
 2. Use filters:
-   - Date range
-   - User
-   - Event type
-   - Resource
-3. Export as CSV or JSON
+   - Action type
+   - Search by action or target name
+   - Pagination
+3. Export logs as CSV
 
 ### Via API
 
 \`\`\`bash
-curl -X GET "https://api.tynebase.com/v1/audit-logs" \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
-  -d "start_date=2026-01-01" \\
-  -d "end_date=2026-01-31" \\
-  -d "event_type=document.updated"
+curl -X GET "https://api.tynebase.com/api/audit/logs" \\
+  -H "Authorization: Bearer YOUR_TOKEN" \\
+  -d "action_type=document" \\
+  -d "search=update"
 \`\`\`
 
-### Response Example
+### Export to CSV
 
-\`\`\`json
-{
-  "logs": [
-    {
-      "id": "log_abc123",
-      "timestamp": "2026-01-15T10:30:00Z",
-      "event_type": "document.updated",
-      "user_id": "user_xyz",
-      "user_email": "jane@company.com",
-      "resource_type": "document",
-      "resource_id": "doc_456",
-      "ip_address": "192.168.1.100",
-      "user_agent": "Mozilla/5.0...",
-      "metadata": {
-        "fields_changed": ["title", "content"],
-        "version_before": 3,
-        "version_after": 4
-      }
-    }
-  ],
-  "pagination": {
-    "total": 1250,
-    "page": 1,
-    "per_page": 50
-  }
-}
-\`\`\`
+Download all filtered logs as CSV:
+1. Go to **Settings** → **Audit Logs**
+2. Apply desired filters
+3. Click **Export CSV**
+4. File includes: timestamp, action, actor, target, IP, and metadata
 
-## Retention Policies
+## Content Health Monitoring
 
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Plan</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Retention Period</div>
-  <div style="background: white; padding: 12px 16px;">Free</div>
-  <div style="background: white; padding: 12px 16px;">7 days</div>
-  <div style="background: white; padding: 12px 16px;">Pro</div>
-  <div style="background: white; padding: 12px 16px;">90 days</div>
-  <div style="background: white; padding: 12px 16px;">Enterprise</div>
-  <div style="background: white; padding: 12px 16px;">Custom (up to 7 years)</div>
-</div>
+Audit logs include content health statistics:
 
-## SIEM Integration
+- **Total documents**: Document count in workspace
+- **Published vs Draft**: Publication status breakdown
+- **Stale documents**: Documents not updated recently
+- **Needs review**: Documents requiring attention
+- **Health distribution**: Excellent, good, needs review, poor
 
-Export logs to your SIEM:
+View in **Settings** → **Audit Logs** → **Statistics**.
 
-- **Splunk**: Native integration
-- **Datadog**: Webhook support
-- **Elastic**: API export
-- **Custom**: Webhook to any endpoint
+## Document Reviews
 
-Configure in **Settings** → **Integrations** → **SIEM**.
+Schedule and track document reviews:
 
-## Alerts
+- Create reviews for specific documents
+- Set due dates and priority levels
+- Assign reviewers
+- Track review status (pending, in progress, completed)
+- View review queue
 
-Set up alerts for specific events:
+## Retention
 
-1. Go to **Settings** → **Audit Logs** → **Alerts**
-2. Create rule:
-   - Event type trigger
-   - Threshold (e.g., 5 failed logins)
-   - Time window
-   - Notification channel (email, Slack)
+Audit logs are retained according to your plan:
+- Logs are stored indefinitely for compliance
+- Export CSV for your own records
+- Contact support for custom retention policies
 
 ## Best Practices
 
-- **Review regularly**: Weekly audit log reviews
-- **Set alerts**: For suspicious activities
-- **Export backups**: Download logs before retention expires
-- **Document access**: Track who views sensitive data
+- **Review regularly**: Check audit logs weekly
+- **Export backups**: Download logs periodically
+- **Track sensitive access**: Monitor who views confidential documents
+- **Monitor failed logins**: Investigate repeated authentication failures
 `,
   },
   {
@@ -859,159 +655,70 @@ Set up alerts for specific events:
     title: 'Content Audit & Document Health',
     description: 'Monitor document quality, freshness, and compliance across your knowledge base.',
     category: 'Security & Compliance',
-    readTime: '5 min',
+    readTime: '2 min',
     lastUpdated: '2026-01-10',
     tags: ['content-audit', 'document-health', 'quality', 'compliance'],
     content: `
 # Content Audit & Document Health
 
-Keep your knowledge base accurate and up-to-date with TyneBase's content audit features.
+## Coming Soon
 
-## Document Health Score
+We're developing comprehensive content audit features to help you maintain knowledge base quality.
 
-Each document receives a health score based on:
+## Planned Features
 
-<div style="display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Factor</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Weight</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Description</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Freshness</strong></div>
-  <div style="background: white; padding: 12px 16px;">30%</div>
-  <div style="background: white; padding: 12px 16px;">Time since last update</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Completeness</strong></div>
-  <div style="background: white; padding: 12px 16px;">25%</div>
-  <div style="background: white; padding: 12px 16px;">Required sections filled</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Accuracy</strong></div>
-  <div style="background: white; padding: 12px 16px;">20%</div>
-  <div style="background: white; padding: 12px 16px;">Verified information</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Engagement</strong></div>
-  <div style="background: white; padding: 12px 16px;">15%</div>
-  <div style="background: white; padding: 12px 16px;">Views, searches, feedback</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Links</strong></div>
-  <div style="background: white; padding: 12px 16px;">10%</div>
-  <div style="background: white; padding: 12px 16px;">Working internal/external links</div>
-</div>
+### Document Health Scoring
 
-### Score Ranges
-
-<div style="display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Score</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Status</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Action Required</div>
-  <div style="background: white; padding: 12px 16px;">80-100</div>
-  <div style="background: white; padding: 12px 16px;"></div>
-  <div style="background: white; padding: 12px 16px;">None</div>
-  <div style="background: white; padding: 12px 16px;">60-79</div>
-  <div style="background: white; padding: 12px 16px;"></div>
-  <div style="background: white; padding: 12px 16px;">Review soon</div>
-  <div style="background: white; padding: 12px 16px;">40-59</div>
-  <div style="background: white; padding: 12px 16px;"></div>
-  <div style="background: white; padding: 12px 16px;">Update required</div>
-  <div style="background: white; padding: 12px 16px;">0-39</div>
-  <div style="background: white; padding: 12px 16px;"></div>
-  <div style="background: white; padding: 12px 16px;">Immediate action</div>
-</div>
-
-## Running Content Audits
+AI-powered health scores based on:
+- **Freshness**: Time since last update
+- **Completeness**: Required sections filled
+- **Accuracy**: Verified information
+- **Engagement**: Views, searches, feedback
+- **Links**: Working internal/external links
 
 ### Automated Audits
 
-TyneBase runs weekly automated audits:
+- Weekly automated content audits
+- Manual audit triggers
+- Custom audit rules
+- Scheduled reviews
 
-1. Go to **Knowledge** → **Content Audit**
-2. View latest report
-3. Filter by:
-   - Health score
-   - Category
-   - Owner
-   - Last updated
+### Audit Checks
 
-### Manual Audit
+- Freshness monitoring
+- Link validation
+- Compliance verification
+- Duplicate detection
 
-Trigger a manual audit:
+### Reports & Alerts
 
-1. Click **Run Audit Now**
-2. Select scope (all or specific categories)
-3. Wait for completion
-4. Review results
+- Health score dashboards
+- Stale content identification
+- Review assignments
+- Export capabilities
 
-## Audit Checks
+## Current Alternatives
 
-### Freshness Check
+While we build this feature, you can:
 
-Documents are flagged based on age:
+- Use **Version History** to track document changes
+- Sort documents by **Last Updated** to identify stale content
+- Use **Search** to find duplicate or overlapping content
+- Assign **Document Owners** to track responsibility
 
-- **30 days**: Minor flag
-- **90 days**: Needs review
-- **180 days**: Stale content warning
-- **365 days**: Critical - archive or update
+## Stay Updated
 
-### Link Checker
+This feature is in development. To be notified when it launches:
+- Watch our GitHub repository
+- Follow our blog for product updates
+- Join our community forum
 
-Automatically detects:
-- Broken internal links
-- Dead external URLs
-- Redirect chains
-- Missing images
+## Feature Requests
 
-### Compliance Check
-
-Verifies documents meet your standards:
-- Required metadata present
-- Proper categorization
-- Approval workflow completed
-- Version history maintained
-
-### Duplicate Detection
-
-AI-powered detection of:
-- Exact duplicates
-- Near-duplicates
-- Overlapping content
-- Conflicting information
-
-## Setting Up Audit Rules
-
-Create custom audit rules:
-
-\`\`\`json
-{
-  "rule_name": "Quarterly Review Required",
-  "trigger": {
-    "last_updated_days": 90,
-    "categories": ["policies", "procedures"]
-  },
-  "action": {
-    "assign_reviewer": "category_owner",
-    "send_notification": true,
-    "due_days": 14
-  }
-}
-\`\`\`
-
-## Content Audit Reports
-
-### Dashboard Metrics
-
-- Total documents
-- Health score distribution
-- Stale content percentage
-- Documents reviewed this month
-
-### Export Reports
-
-Download audit reports:
-- PDF summary
-- CSV detailed data
-- Scheduled email reports
-
-## Best Practices
-
-1. **Set review cycles**: Different content needs different frequencies
-2. **Assign owners**: Every document should have a responsible person
-3. **Archive don't delete**: Keep historical records
-4. **Use templates**: Ensure consistency across documents
-5. **Automate reminders**: Don't rely on memory
+Have specific audit needs? Let us know:
+- Contact our support team
+- Post in our community forum
+- Vote on feature requests in our roadmap
 `,
   },
   {
@@ -1020,35 +727,23 @@ Download audit reports:
     title: 'Automated Backups & Disaster Recovery',
     description: 'How TyneBase protects your data with automated backups and recovery procedures.',
     category: 'Security & Compliance',
-    readTime: '4 min',
+    readTime: '3 min',
     lastUpdated: '2026-01-10',
     tags: ['backup', 'recovery', 'disaster-recovery', 'data-protection'],
     content: `
 # Automated Backups & Disaster Recovery
 
-TyneBase ensures your data is protected with comprehensive backup and recovery capabilities.
+TyneBase ensures your data is protected with automated backups via Supabase.
 
 ## Backup Schedule
 
 ### Automatic Backups
 
-<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Backup Type</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Frequency</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Retention</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Continuous</strong></div>
-  <div style="background: white; padding: 12px 16px;">Real-time WAL</div>
-  <div style="background: white; padding: 12px 16px;">7 days</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Daily</strong></div>
-  <div style="background: white; padding: 12px 16px;">Every 24 hours</div>
-  <div style="background: white; padding: 12px 16px;">30 days</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Weekly</strong></div>
-  <div style="background: white; padding: 12px 16px;">Every Sunday</div>
-  <div style="background: white; padding: 12px 16px;">90 days</div>
-  <div style="background: white; padding: 12px 16px;"><strong>Monthly</strong></div>
-  <div style="background: white; padding: 12px 16px;">1st of month</div>
-  <div style="background: white; padding: 12px 16px;">1 year</div>
-</div>
+| Backup Type | Frequency | Retention |
+|-------------|----------|-----------|
+| **Daily** | Every 24 hours | 30 days |
+| **Weekly** | Every 7 days | 8 weeks |
+| **Point-in-Time Recovery** | Continuous (WAL) | 7 days |
 
 ### What's Backed Up
 
@@ -1062,24 +757,23 @@ TyneBase ensures your data is protected with comprehensive backup and recovery c
 
 ## Recovery Options
 
-### Point-in-Time Recovery
-
-Restore to any point within retention period:
-
-1. Go to **Settings** → **Backups**
-2. Select **Point-in-Time Recovery**
-3. Choose date and time
-4. Preview affected data
-5. Confirm restoration
-
 ### Document-Level Recovery
 
-Restore individual documents:
+Restore individual documents using Version History:
 
 1. Open document
-2. Click **Version History**
+2. Click **⋮** menu → **Version History**
 3. Select version to restore
-4. Choose to restore or create copy
+4. Click **Restore**
+
+### Point-in-Time Recovery
+
+For critical data recovery:
+
+1. Contact support immediately
+2. Verify identity (admin required)
+3. Specify recovery point (within 7 days)
+4. Support team assists with recovery
 
 ### Full Workspace Recovery
 
@@ -1087,40 +781,12 @@ For disaster scenarios:
 
 1. Contact support immediately
 2. Verify identity (admin required)
-3. Specify recovery point
-4. Data restored within 4 hours
+3. Specify recovery requirements
+4. Recovery time depends on data size
 
-## Recovery Time Objectives
+## Self-Service Data Export
 
-| Scenario | RTO | RPO |
-|----------|-----|-----|
-| Single document | < 5 minutes | 0 (versioned) |
-| Category restore | < 15 minutes | < 1 hour |
-| Full workspace | < 4 hours | < 24 hours |
-| Disaster recovery | < 24 hours | < 24 hours |
-
-## Geographic Redundancy
-
-Your data is replicated across multiple regions:
-
-### Primary Region (EU-Frankfurt)
-- Active database
-- Real-time writes
-- Primary file storage
-
-### Secondary Region (EU-Dublin)
-- Standby replica
-- Async replication (< 1 second lag)
-- Failover capability
-
-### Backup Region (EU-Amsterdam)
-- Cold storage backups
-- Monthly archives
-- Long-term retention
-
-## Self-Service Backup Export
-
-Download your own backups:
+Download your data at any time:
 
 1. Go to **Settings** → **Data Export**
 2. Select export format:
@@ -1128,41 +794,37 @@ Download your own backups:
    - Markdown (documents)
    - ZIP (complete archive)
 3. Choose scope
-4. Download link emailed within 1 hour
+4. Download immediately
 
-## Disaster Recovery Plan
+## Data Residency
 
-### Automatic Failover
+Your data is stored in:
+- **Primary Region**: EU (Frankfurt)
+- **Provider**: Supabase (AWS infrastructure)
+- **Encryption**: AES-256 at rest, TLS 1.3 in transit
 
-System automatically fails over when:
-- Primary database unreachable > 30 seconds
-- Primary region unavailable
-- Corruption detected
+## Recovery Time Objectives
 
-### Manual Failover
+| Scenario | Estimated Recovery Time |
+|----------|----------------------|
+| Single document | < 1 minute (Version History) |
+| Point-in-Time Recovery | 4-8 hours (via support) |
+| Full workspace | 24-48 hours (via support) |
 
-Admins can trigger failover:
+## Best Practices
 
-1. Go to **Settings** → **Advanced** → **Disaster Recovery**
-2. Click **Initiate Failover**
-3. Confirm action
-4. System switches to secondary within 5 minutes
-
-## Testing Recovery
-
-We recommend quarterly recovery tests:
-
-1. **Test restore**: Restore sample data to verify integrity
-2. **Verify content**: Check restored documents are complete
-3. **Document results**: Keep records for compliance
-
-Enterprise customers can request assisted recovery testing.
+- **Export regularly**: Download backups periodically
+- **Use Version History**: Track document changes
+- **Monitor storage**: Check workspace size regularly
+- **Plan ahead**: Know your recovery procedures
 
 ## Contact
 
 For recovery assistance:
 - **Email**: support@tynebase.com
-- **Emergency**: +44xxxxxxxx-TYNEBASE (24/7 for Enterprise)
+- **Response Time**: Within 24 hours for Enterprise
+
+Enterprise customers can request custom backup schedules and SLAs.
 `,
   }
 ];

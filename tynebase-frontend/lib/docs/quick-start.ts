@@ -98,53 +98,37 @@ To make your document live. It will immediately:
 
 Your TyneBase workspace is your team's central knowledge hub. This guide covers essential configuration.
 
-## Workspace Structure
-
-![Workspace Structure](https://via.placeholder.com/700x300/1a1a1a/ffffff?text=Workspace+Structure:+Knowledge+Base+%7C+AI+Assistant+%7C+Community+%7C+Templates)
-
-*Your workspace includes Knowledge Base, AI Assistant, Community Forum, and Templates Library.*
+> Please note that this guide is intended for administrators.
 
 ## Step 1: Configure Branding
 
-Navigate to **Settings → Branding** to customize:
+Navigate to **Admin > Branding** to display the Branding & Domain screen. From here, you can customise the following:
 
+- **Custom Domain**: Point your own domain to your TyneBase workspace portal
 - **Logo**: Upload your company logo (SVG or PNG recommended)
-- **Favicon**: Custom browser tab icon
-- **Primary Color**: Your brand's main color
-- **Secondary Color**: Accent color for highlights
+- **Primary Colour**: Your brand's main colour
+- **Secondary Colour**: Accent colour for highlights
 
-Changes apply immediately with live preview.
+Click **Save** to save your changes.
 
 ## Step 2: Create Categories
 
-Categories organise your knowledge base. Go to **Knowledge → Categories**:
+Categories organise your knowledge base. Navigate to **Knowledge Base > Categories** and click **New Category**. The Create New Category screen is displayed. Here, you can give your new category a Name, Description, Icon and Colour.
 
-1. Click **+ New Category**
-2. Enter a name (e.g., "Engineering Docs")
-3. Choose a parent category (optional, for nesting)
-4. Set the sort order
+Once you have added the details of your category, click **Create Category**.
 
-**Pro Tip**: Create a logical hierarchy that mirrors your organization structure.
+To add documents to your category, from the **All documents** screen, select which documents you want to add and click **Assign a Category**. Select your category from the drop-down menu and click **Assign Category**.
 
-## Step 3: Set Up Permissions
+## Step 3: Understanding Permissions
 
 TyneBase uses role-based access control (RBAC):
 
 | Role | Capabilities |
 |------|-------------|
-| **Admin** | Full access, user management, branding |
-| **Editor** | Create, edit, publish documents |
-| **Contributor** | Create drafts, suggest edits |
+| **Admin** | Full access, user management and branding |
+| **Editor** | Create, edit and publish documents |
+| **Contributor** | Create drafts and suggest edits |
 | **View Only** | Read-only access |
-
-## Step 4: Configure AI Settings
-
-In **Settings → AI Configuration**:
-
-- Select your preferred AI provider (OpenAI, Google, or Anthropic)
-- Set monthly AI generation limits
-- Configure RAG indexing preferences
-- Enable/disable AI features per role
 
 ## Next Steps
 
@@ -171,13 +155,13 @@ Collaborate effectively by adding your team to TyneBase.
 
 ### Email Invitations
 
-1. Go to **Settings → Users**
-2. Click **+ Invite Users**
-3. Enter email addresses (one per line or comma-separated)
-4. Select the role for all invitees
-5. Click **Send Invitations**
+1. Navigate to **Admin > Users & Teams**
+2. Click **+ Invite Member**
+3. Enter the email address of the user you want to invite
+4. Select the role for the user
+5. Click **Send Invite**
 
-Invitees receive an email with a secure signup link.
+The user will receive an email with a secure signup link. Once followed, they will be able to access your platform, with access dependent on the role selected.
 
 ### Bulk Import (Enterprise)
 
@@ -198,22 +182,23 @@ With SCIM enabled, users are automatically provisioned when they authenticate vi
 
 | Team Type | Recommended Role |
 |-----------|------------------|
-| Documentation team | Editor |
-| Subject matter experts | Contributor |
-| General employees | View Only |
-| IT/Operations | Admin |
+| Documentation team | Editor – Can create and edit workspace content |
+| General employees | Viewer – Read-only access |
+| IT/Operations | Admin – Can manage members and workspace settings |
+| Your clients / Users | Community contributor – Can participate in community discussions |
+| IT/Operations | Community Admin – Can moderate community discussions |
 
 ## Pending Invitations
 
-Track invitation status in **Settings → Users → Pending**:
+Track invitation status in **Admin > Users & Teams > Pending**:
 
 - **Pending**: Invitation sent, not yet accepted
-- **Expired**: 7-day expiration, can resend
+- **Expired**: 7-day expiration — you can resend an invitation
 - **Accepted**: User has joined
 
 ## Managing Users
 
-After joining, you can:
+Once users have joined, you can:
 
 - Change roles at any time
 - Transfer document ownership
@@ -228,20 +213,19 @@ After joining, you can:
     description: 'Use AI to automatically generate documentation from a simple prompt.',
     category: 'Quick start',
     readTime: '4 min',
-    lastUpdated: '2026-01-10',
     tags: ['ai', 'generation', 'getting-started'],
+    lastUpdated: '2026-04-13',
     content: `
 # Your First AI Generation
 
-TyneBase's AI can generate comprehensive documentation from simple descriptions.
+Use AI to automatically generate documentation from a simple prompt. Your First AI Generation TyneBase's AI can generate comprehensive documentation from simple descriptions.
 
 ## Accessing AI Assistant
 
-Click **AI Assistant** in the sidebar to access three generation modes:
-
-1. **From Prompt**: Describe what you need in natural language
-2. **From Video**: Upload a YouTube link or video file
-3. **Enhance**: Improve existing documents
+From your dashboard, click AI Assistant to generate content from:
+- Prompt: Describe what you want your documentation to be
+- URL: Enter a URL to scape content from and output as various types
+- Import documents & media: Drag and drop various types of documentation to import them into TyneBase
 
 ## Generating from a Prompt
 
@@ -249,28 +233,24 @@ Click **AI Assistant** in the sidebar to access three generation modes:
 
 Enter a clear, detailed prompt:
 
-\`\`\`
-Create a comprehensive onboarding guide for new software engineers.
-Include sections on:
+Create a comprehensive onboarding guide for new software engineers. Include sections on:
 - Setting up development environment
 - Code review process
 - Deployment procedures
 - Team communication channels
-\`\`\`
 
 ### Step 2: Configure Options
 
 | Option | Description |
 |--------|-------------|
-| **Tone** | Professional, Casual, Technical |
-| **Length** | Brief, Standard, Comprehensive |
-| **Format** | Article, Guide, Runbook, FAQ |
+| **Output Style** | Select which output style of document you want: Full Article, Summary, Outline, With Template (Uses an existing template). You can select multiple output styles. |
+| **AI Provider** | You have 3 options of AI provider at the moment: Deepseek, Gemini 2.5, Claude Sonnet 4.5. Different AI providers cost different credits, so please ensure you check the final credit cost before generating your document. |
+| **With Template** | Select and use an existing template within TyneBase as the basis for your document. |
 | **Include** | Code examples, diagrams, checklists |
 
 ### Step 3: Generate & Review
 
-Click **Generate** and wait 15-30 seconds. The AI will:
-
+Click Generate and wait for the document to be produced. The AI will:
 1. Analyse your prompt
 2. Retrieve relevant context from your existing docs (RAG)
 3. Generate structured content
@@ -278,29 +258,30 @@ Click **Generate** and wait 15-30 seconds. The AI will:
 
 ### Step 4: Edit & Publish
 
-AI-generated content is created as a **Draft**. Review and edit before publishing:
-
+AI-generated content is created as a Draft. Review and edit your document before publishing:
 - Verify accuracy of technical details
 - Add company-specific information
 - Adjust tone and formatting
 - Include relevant links
+- Add any required screenshots
 
 ## Tips for Better Results
 
-- **Be Specific**: More detail = better output
-- **Provide Context**: Reference existing docs or standards
-- **Use Examples**: "Similar to our API documentation..."
-- **Iterate**: Generate multiple versions and combine the best parts
+- Be Specific: More detail = better output
+- Provide Context: Reference existing docs or standards
+- Use Examples: "Similar to our API documentation..."
+- Iterate: Generate multiple versions and combine the best parts
 
 ## Document Lineage
 
 All AI-generated documents automatically track:
-
 - Source prompt
 - AI model used
 - Generation timestamp
 - Token usage and cost
 - Edit history post-generation
+
+In addition to creating content via a prompt, on this screen, you can also generate content from a URL or by Importing Documents & media. This works in the same way as generating from a prompt, except you need to either enter a URL to scrape from, or select and upload the documents to create content from. Finally, you can also generate content from a video, from audio and also enhance your documents through AI. These will be covered in another article.
 `
   },
   {
@@ -310,18 +291,16 @@ All AI-generated documents automatically track:
     description: 'Navigate the TyneBase dashboard and understand key metrics.',
     category: 'Quick start',
     readTime: '4 min',
-    lastUpdated: '2026-01-10',
     tags: ['dashboard', 'navigation', 'overview'],
+    lastUpdated: '2026-04-13',
     content: `
 # Understanding Your Dashboard
 
-The TyneBase dashboard gives you a complete overview of your knowledge base health.
+Navigate the TyneBase dashboard and key metrics. Understanding Your Dashboard The TyneBase dashboard gives you a complete overview of your knowledge base and has quick buttons to help you generate content from AI, access your templates and access the content audit screen.
 
 ## Dashboard Layout
 
-![Dashboard Layout](https://via.placeholder.com/900x500/1a1a1a/ffffff?text=Dashboard:+Sidebar+Navigation+%7C+Quick+Stats+%7C+Recent+Activity+%7C+Content+Health)
-
-*The dashboard features a sidebar with navigation, main content area with quick stats, recent activity feed, and content health metrics.*
+The dashboard features a sidebar with navigation, main content area with quick stats, recent activity feed, and content health metrics.
 
 ## Key Metrics
 
@@ -329,39 +308,89 @@ The TyneBase dashboard gives you a complete overview of your knowledge base heal
 
 | Metric | Description |
 |--------|-------------|
-| **Total Documents** | Published articles in your knowledge base |
-| **Total Views** | Cumulative document views this month |
-| **AI Generations** | Documents created by AI this month |
-| **Active Users** | Team members active in last 7 days |
+| **Total Documents** | Total amount of articles in your knowledge base. Includes and numbers how many of these documents are published. |
+| **Team members** | How many active users you have. |
+| **AI Generations** | How many AI generations you have left based on the amount of credits you have. |
+| **Content Health** | Your overall content health. |
 
-### Content Health
+### Additional Features
 
-The audit dashboard shows:
+From the dashboard, you can also:
+- Access the AI Assistant
+- Browse the Template library
+- Access the Content audit screen
+- View your recent documents
+- View your recent activity
+- Create a new document
 
-- **Stale Content**: Documents not updated in 90+ days
-- **Low Engagement**: Articles with minimal views
-- **Pending Reviews**: Documents awaiting verification
-- **Orphaned Pages**: Unlinked or uncategorized docs
-
-## Sidebar Navigation
-
-| Section | Purpose |
-|---------|---------|
-| **Knowledge** | Browse all documents and categories |
-| **AI Assistant** | Generate new content with AI |
-| **Content Audit** | Monitor documentation health |
-| **Community** | Team discussions and Q&A |
-| **Templates** | Reusable document templates |
-| **Settings** | Workspace configuration |
+Each of these features will be covered more in-depth in other help articles.
 
 ## Global Search
 
-Press \`⌘ + K\` (Mac) or \`Ctrl + K\` (Windows) to open global search:
+In addition, you have access to a global search option. Press ⌘ + K (Mac) or Ctrl + K (Windows) to open global search, or click in the search box.
+`
+  },
+  {
+    id: 'qs-6',
+    slug: 'article-setting-up-workspace',
+    title: 'Setting Up Your Workspace Guide',
+    description: 'Configure your TyneBase workspace with branding, categories and team settings.',
+    category: 'Quick start',
+    readTime: '5 min',
+    tags: ['workspace', 'setup', 'branding', 'categories'],
+    lastUpdated: '2026-04-13',
+    content: `
+# Setting Up Your Workspace
 
-- Search documents by title and content
-- Find users and settings
-- Access recent items
-- Use AI to answer questions from your docs
+Configure your TyneBase workspace with branding, categories and team settings. Setting Up Your Workspace Your TyneBase workspace is your team's central knowledge hub. This guide covers essential configuration. Please note that this guide is intended for administrators.
+
+## Workspace Structure
+
+Your workspace includes Knowledge Base, AI Assistant, Community Forum and Templates Library.
+
+## Configure Branding
+
+Navigate to Admin > Branding to display the Branding & Domain screen.
+
+From here, you can customise the following:
+- Custom Domain: Point your own domain to your TyneBase workspace portal
+- Logo: Upload your company logo (SVG or PNG recommended)
+- Favicon: Custom browser tab icon
+- Primary Colour: Your brand's main colour
+- Secondary Colour: Accent colour for highlights
+
+Click Save to save your changes.
+
+## Create Categories
+
+Categories organise your knowledge base. To manage your categories, navigate to Knowledge Base > Categories.
+
+Click New Category.
+
+The Create New Category screen is displayed. Here, you can give your new category a Name, Description, Icon and Colour. Once you have added the details of your category, click Create Category. Your new category will be created.
+
+To add documents to your category, from the All documents screen, select which documents you want to add to your category and then click Assign a Category.
+
+The Assign a Category screen will be displayed. Select your category from the drop down menu and click Assign Category: Your documents will now be assigned to your chosen category.
+
+## Understanding Permissions
+
+TyneBase uses role-based access control (RBAC):
+
+| Role | Capabilities |
+|------|-------------|
+| **Admin** | Full access, user management and branding |
+| **Editor** | Create, edit and publish documents |
+| **Contributor** | Create drafts and suggest edits |
+| **View Only** | Read-only access |
+
+## Configure AI Settings
+
+In Settings → AI Configuration:
+- Select your preferred AI provider (OpenAI, Google, or Anthropic)
+- Set monthly AI generation limits
+- Configure RAG indexing preferences
+- Enable/disable AI features per role
 `
   },
   {

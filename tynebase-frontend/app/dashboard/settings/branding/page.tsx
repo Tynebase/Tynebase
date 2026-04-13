@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Palette, Upload, Globe, CheckCircle, AlertCircle, Copy, ExternalLink } from 'lucide-react';
+import { Palette, Upload, Globe, CheckCircle, AlertCircle, Copy, ExternalLink, Loader2, X } from 'lucide-react';
 import { FeatureGate } from '@/components/ui/UpgradePrompt';
 import { useTenant } from '@/contexts/TenantContext';
-import { updateTenant } from '@/lib/api/settings';
+import { updateTenant, uploadTenantLogo } from '@/lib/api/settings';
 
 function Label({ htmlFor, children }: { htmlFor?: string; children: React.ReactNode }) {
   return <label htmlFor={htmlFor} className="text-sm font-medium text-[var(--dash-text-primary)]">{children}</label>;
@@ -143,7 +143,16 @@ function CustomDomainSection() {
 // White-Label Branding Section (pro+)
 // ---------------------------------------------------------------------------
 function WhiteLabelBrandingSection() {
-  const { tenant } = useTenant();
+  const { tenant, refreshTenant } = useTenant() as any;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Logo state
+  const [logoUrl, setLogoUrl] = useState<string | null>(tenant?.settings?.branding?.logo_url ?? null);
+  const [uploading, setUploading] = useState(false);
+  const [logoError, setLogoError] = useState('');
+  const [logoSaved, setLogoSaved] = useState(false);
+
+  // Color state — synced from tenant context once it loads
   const [primaryColor, setPrimaryColor] = useState(
     tenant?.settings?.branding?.primary_color ?? '#E85002'
   );
@@ -152,11 +161,61 @@ function WhiteLabelBrandingSection() {
   );
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [error, setError] = useState('');
+  const [colorError, setColorError] = useState('');
 
-  const handleSave = async () => {
+  // Sync color & logo state when tenant context finishes loading
+  useEffect(() => {
+    if (!tenant) return;
+    setPrimaryColor(tenant.settings?.branding?.primary_color ?? '#E85002');
+    setSecondaryColor(tenant.settings?.branding?.secondary_color ?? '#6B7280');
+    setLogoUrl(tenant.settings?.branding?.logo_url ?? null);
+  }, [tenant?.id]);
+
+  // ---------- Logo upload ----------
+  const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !tenant?.id) return;
+
+    setLogoError('');
+    setUploading(true);
+    setLogoSaved(false);
+
+    try {
+      const result = await uploadTenantLogo(tenant.id, file);
+      setLogoUrl(result.logo_url);
+      setLogoSaved(true);
+      setTimeout(() => setLogoSaved(false), 3000);
+      // Refresh tenant context so the new logo propagates everywhere
+      if (typeof refreshTenant === 'function') refreshTenant();
+    } catch (e: any) {
+      setLogoError(e?.message ?? 'Failed to upload logo. Please try again.');
+    } finally {
+      setUploading(false);
+      // Reset file input so the same file can be re-selected if needed
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveLogo = async () => {
     if (!tenant?.id) return;
-    setError('');
+    try {
+      await updateTenant(tenant.id, {
+        settings: { branding: { logo_url: undefined } },
+      } as any);
+      setLogoUrl(null);
+      if (typeof refreshTenant === 'function') refreshTenant();
+    } catch (e: any) {
+      setLogoError(e?.message ?? 'Failed to remove logo.');
+    }
+  };
+
+  // ---------- Color save ----------
+  const handleSaveColors = async () => {
+    if (!tenant?.id) {
+      setColorError('Tenant not loaded yet. Please wait and try again.');
+      return;
+    }
+    setColorError('');
     setSaving(true);
     try {
       await updateTenant(tenant.id, {
@@ -170,7 +229,7 @@ function WhiteLabelBrandingSection() {
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (e: any) {
-      setError(e?.message ?? 'Failed to save. Please try again.');
+      setColorError(e?.message ?? 'Failed to save. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -191,23 +250,65 @@ function WhiteLabelBrandingSection() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-6">
-            <div className="w-20 h-20 bg-[var(--surface-ground)] rounded-xl flex items-center justify-center border border-dashed border-[var(--dash-border-subtle)]">
-              {tenant?.settings?.branding?.logo_url ? (
+            {/* Preview box */}
+            <div className="w-20 h-20 bg-[var(--surface-ground)] rounded-xl flex items-center justify-center border border-dashed border-[var(--dash-border-subtle)] overflow-hidden flex-shrink-0">
+              {logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={tenant.settings.branding.logo_url}
-                  alt="Logo"
-                  className="w-full h-full object-contain rounded-xl"
-                />
+                <img src={logoUrl} alt="Logo" className="w-full h-full object-contain p-1" />
               ) : (
                 <Upload className="h-7 w-7 text-[var(--dash-text-muted)]" />
               )}
             </div>
-            <div className="space-y-2">
-              <Button variant="outline" size="sm" disabled>
-                Upload Logo
-              </Button>
-              <p className="text-xs text-[var(--dash-text-muted)]">PNG, JPG or SVG · Max 2 MB</p>
+
+            <div className="space-y-2 min-w-0">
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".png,.jpg,.jpeg,.svg,.webp"
+                className="hidden"
+                onChange={handleLogoFileChange}
+              />
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={uploading}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {uploading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-1.5" />
+                      Uploading…
+                    </>
+                  ) : logoUrl ? (
+                    'Replace Logo'
+                  ) : (
+                    'Upload Logo'
+                  )}
+                </Button>
+                {logoUrl && !uploading && (
+                  <button
+                    onClick={handleRemoveLogo}
+                    className="flex items-center gap-1 text-xs text-[var(--dash-text-muted)] hover:text-[var(--status-error)] transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" /> Remove
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-[var(--dash-text-muted)]">PNG, JPG, SVG or WebP · Max 2 MB</p>
+              {logoError && (
+                <div className="flex items-center gap-1.5 text-xs text-[var(--status-error)]">
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                  {logoError}
+                </div>
+              )}
+              {logoSaved && (
+                <div className="flex items-center gap-1.5 text-xs text-[var(--status-success)]">
+                  <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                  Logo saved.
+                </div>
+              )}
             </div>
           </div>
         </CardContent>
@@ -221,7 +322,7 @@ function WhiteLabelBrandingSection() {
             Brand Colours
           </CardTitle>
           <CardDescription>
-            Set your brand colours - applied to buttons, links and accents throughout your workspace
+            Set your brand colours — applied to buttons, links and accents throughout your workspace
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -264,10 +365,10 @@ function WhiteLabelBrandingSection() {
             </div>
           </div>
 
-          {error && (
+          {colorError && (
             <div className="flex items-center gap-2 text-sm text-[var(--status-error)]">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              {error}
+              {colorError}
             </div>
           )}
           {saved && (
@@ -277,21 +378,44 @@ function WhiteLabelBrandingSection() {
             </div>
           )}
 
-          {/* Live preview swatch */}
-          <div className="flex items-center gap-3 p-4 bg-[var(--surface-ground)] rounded-xl border border-[var(--dash-border-subtle)]">
-            <div className="w-8 h-8 rounded-lg" style={{ backgroundColor: primaryColor }} />
-            <div className="w-8 h-8 rounded-lg" style={{ backgroundColor: secondaryColor }} />
-            <button
-              className="ml-auto px-4 py-1.5 rounded-lg text-white text-sm font-medium"
-              style={{ backgroundColor: primaryColor }}
-            >
-              Preview button
-            </button>
+          {/* Live preview */}
+          <div className="space-y-2">
+            <p className="text-xs text-[var(--dash-text-muted)] font-medium uppercase tracking-wide">Live preview</p>
+            <div className="flex items-center gap-4 p-4 bg-[var(--surface-ground)] rounded-xl border border-[var(--dash-border-subtle)]">
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-8 h-8 rounded-lg shadow-sm transition-colors"
+                  style={{ backgroundColor: primaryColor }}
+                  title="Primary colour"
+                />
+                <div
+                  className="w-8 h-8 rounded-lg shadow-sm transition-colors"
+                  style={{ backgroundColor: secondaryColor }}
+                  title="Secondary colour"
+                />
+              </div>
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  className="px-4 py-1.5 rounded-lg text-white text-sm font-medium transition-colors"
+                  style={{ backgroundColor: primaryColor }}
+                  tabIndex={-1}
+                >
+                  Primary button
+                </button>
+                <button
+                  className="px-4 py-1.5 rounded-lg text-white text-sm font-medium transition-colors"
+                  style={{ backgroundColor: secondaryColor }}
+                  tabIndex={-1}
+                >
+                  Secondary
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="flex justify-end">
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? 'Saving…' : saved ? 'Saved' : 'Save colours'}
+            <Button onClick={handleSaveColors} disabled={saving}>
+              {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save colours'}
             </Button>
           </div>
         </CardContent>

@@ -28,7 +28,7 @@ const helpCategories = [
     icon: BookOpen,
     color: "#3b82f6",
     articles: [
-      { title: "Organizing Articles", href: "/docs?slug=document-lifecycle" },
+      { title: "Organising Articles", href: "/docs?slug=document-lifecycle" },
       { title: "Using Categories & Tags", href: "/docs?slug=document-lineage" },
       { title: "Collections & Visibility", href: "/dashboard/help/collections" },
       { title: "Version History", href: "/docs?slug=document-lineage" },
@@ -50,7 +50,7 @@ const helpCategories = [
   },
   {
     id: "community",
-    title: "Community & Forums",
+    title: "Community",
     description: "Collaborate with your team",
     icon: Users,
     color: "#f59e0b",

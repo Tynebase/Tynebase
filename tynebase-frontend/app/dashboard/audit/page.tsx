@@ -27,6 +27,8 @@ import {
 } from "@/lib/api/audit";
 import { updateDocument } from "@/lib/api/documents";
 import { useToast } from "@/components/ui/Toast";
+import ScheduleModal from "@/components/audit/ScheduleModal";
+import NotificationRulesModal from "@/components/audit/NotificationRulesModal";
 
 interface StatItem {
   label: string;
@@ -76,6 +78,10 @@ export default function AuditPage() {
 
   // Dropdown menu state
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  // Modal states
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  const [notificationRulesModalOpen, setNotificationRulesModalOpen] = useState(false);
 
   const getDaysFromRange = (range: "7d" | "30d" | "90d"): number => {
     switch (range) {
@@ -782,22 +788,34 @@ export default function AuditPage() {
 
         {activeTab === "settings" && (
           <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-2xl p-8 text-center">
-            <Settings className="w-12 h-12 text-[var(--dash-text-muted)] mx-auto mb-4" />
+            <Settings className="w-12 h-12 text-[var(--brand)] mx-auto mb-4" />
             <h3 className="text-lg font-medium text-[var(--dash-text-primary)]">Audit Configurations</h3>
             <p className="text-sm text-[var(--dash-text-tertiary)] mt-2">
-              Automate your content audit process. Settings such as scan frequency and review notification preferences will be available here soon.
+              Automate your content audit process. Configure scan schedules and notification preferences.
             </p>
             <div className="mt-8 flex justify-center gap-4">
-              <button disabled className="px-5 py-2.5 bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] rounded-xl text-sm font-medium cursor-not-allowed">
+              <button
+                onClick={() => setScheduleModalOpen(true)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand)] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-all"
+              >
+                <Calendar className="w-4 h-4" />
                 Configure Schedule
               </button>
-              <button disabled className="px-5 py-2.5 bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)] rounded-xl text-sm font-medium cursor-not-allowed">
+              <button
+                onClick={() => setNotificationRulesModalOpen(true)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] text-[var(--dash-text-secondary)] rounded-xl text-sm font-medium hover:border-[var(--brand)] hover:text-[var(--brand)] transition-all"
+              >
+                <Settings className="w-4 h-4" />
                 Notification Rules
               </button>
             </div>
           </div>
         )}
       </div>
+
+      {/* Modals */}
+      <ScheduleModal isOpen={scheduleModalOpen} onClose={() => setScheduleModalOpen(false)} />
+      <NotificationRulesModal isOpen={notificationRulesModalOpen} onClose={() => setNotificationRulesModalOpen(false)} />
     </>
   );
 }

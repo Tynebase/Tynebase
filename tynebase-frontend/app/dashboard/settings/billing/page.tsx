@@ -100,8 +100,8 @@ const PLANS = [
   {
     key: 'enterprise' as const,
     name: 'Enterprise',
-    priceMonthly: 999,
-    priceYearly: 799,
+    priceMonthly: null,
+    priceYearly: null,
     credits: 1000,
     maxUsers: -1,
     storage: 'Unlimited',
@@ -135,7 +135,7 @@ const CREDIT_PACKS: Array<{
 }> = [
   { pack: '100', credits: 100, price: 10, pricePer: '£0.10 / credit' },
   { pack: '500', credits: 500, price: 40, pricePer: '£0.08 / credit' },
-  { pack: '1000', credits: 1000, price: 75, pricePer: '£0.07 / credit', popular: true },
+  { pack: '1000', credits: 1000, price: 70, pricePer: '£0.07 / credit', popular: true },
 ];
 
 // ---------------------------------------------------------------------------
@@ -211,7 +211,7 @@ function BillingPageInner() {
       return;
     }
     if (targetTier === 'enterprise') {
-      window.location.href = 'mailto:sales@tynebase.com?subject=Enterprise Plan Inquiry';
+      window.location.href = 'mailto:support@tynebase.com?subject=Enterprise Plan Inquiry';
       return;
     }
     setUpgradingTo(targetTier);
@@ -360,7 +360,7 @@ function BillingPageInner() {
             </div>
             <div className="text-right shrink-0">
               {currentPlan.priceMonthly === null ? (
-                <div className="text-2xl font-bold mb-1">Custom</div>
+                <div className="text-2xl font-bold mb-1">Contact Sales</div>
               ) : (
                 <div className="text-3xl font-bold mb-1">
                   £{currentPlan.priceMonthly}
@@ -518,14 +518,20 @@ function BillingPageInner() {
                   </CardHeader>
                   <CardContent>
                     <div className="mb-4">
-                      <div className="text-3xl font-bold">
-                        £{price}
-                        <span className="text-sm font-normal text-muted-foreground">/month</span>
-                      </div>
-                      {billingCycle === 'yearly' && (
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Billed annually (£{(price! * 12).toLocaleString()}/year)
-                        </p>
+                      {price === null ? (
+                        <div className="text-3xl font-bold">Contact Sales</div>
+                      ) : (
+                        <>
+                          <div className="text-3xl font-bold">
+                            £{price}
+                            <span className="text-sm font-normal text-muted-foreground">/month</span>
+                          </div>
+                          {billingCycle === 'yearly' && (
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Billed annually (£{(price! * 12).toLocaleString()}/year)
+                            </p>
+                          )}
+                        </>
                       )}
                     </div>
 

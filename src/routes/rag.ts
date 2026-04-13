@@ -570,13 +570,25 @@ export default async function ragRoutes(fastify: FastifyInstance) {
           .eq('tenant_id', tenant.id);
 
         // Get recent pipeline events (last 20 job queue entries for this tenant)
-        const { data: recentJobs } = await supabaseAdmin
+        const { data: recentJobs, error: jobsError } = await supabaseAdmin
           .from('job_queue')
           .select('id, type, status, progress, created_at, payload')
           .eq('tenant_id', tenant.id)
           .eq('type', 'rag_index')
           .order('created_at', { ascending: false })
           .limit(20);
+
+        if (jobsError) {
+          fastify.log.error(
+            { error: jobsError, tenantId: tenant.id },
+            'Failed to query recent jobs for pipeline events'
+          );
+        }
+
+        fastify.log.info(
+          { tenantId: tenant.id, recentJobsCount: recentJobs?.length || 0, jobs: recentJobs },
+          'Pipeline events query result'
+        );
 
         // Get documents that have never been indexed
         const { data: neverIndexedDocs, error: neverIndexedError } = await supabaseAdmin
@@ -637,7 +649,7 @@ export default async function ragRoutes(fastify: FastifyInstance) {
         const uniqueDocsNeedingReindex = Array.from(new Map(documentsNeedingReindex.map(doc => [doc.id, doc])).values());
 
         // Format pipeline events from recent jobs
-        const pipelineEvents = (recentJobs || []).map((job: any) => {
+        let pipelineEvents = (recentJobs || []).map((job: any) => {
           const title = job.payload?.document_title || job.payload?.title || 'Unknown document';
           let eventType: 'success' | 'warning' | 'error' | 'info' = 'info';
           let label = '';
@@ -684,6 +696,43 @@ export default async function ragRoutes(fastify: FastifyInstance) {
             status: job.status,
           };
         });
+
+        // Fallback: If no jobs in queue, show recent document activity as pipeline events
+        if (pipelineEvents.length === 0) {
+          const { data: recentDocs } = await supabaseAdmin
+            .from('documents')
+            .select('id, title, last_indexed_at, updated_at, created_at')
+            .eq('tenant_id', tenant.id)
+            .not('last_indexed_at', 'is', null)
+            .order('last_indexed_at', { ascending: false })
+            .limit(10);
+
+          if (recentDocs && recentDocs.length > 0) {
+            pipelineEvents = recentDocs.map((doc: any) => {
+              const indexedAt = new Date(doc.last_indexed_at);
+              const now = new Date();
+              const diffMs = now.getTime() - indexedAt.getTime();
+              const diffMins = Math.floor(diffMs / 60000);
+              const diffHours = Math.floor(diffMs / 3600000);
+              const diffDays = Math.floor(diffMs / 86400000);
+              let timeAgo = '';
+              if (diffMins < 1) timeAgo = 'Just now';
+              else if (diffMins < 60) timeAgo = `${diffMins} min ago`;
+              else if (diffHours < 24) timeAgo = `${diffHours}h ago`;
+              else if (diffDays === 1) timeAgo = 'Yesterday';
+              else timeAgo = `${diffDays} days ago`;
+
+              return {
+                id: doc.id,
+                type: 'success' as const,
+                label: 'Document indexed',
+                detail: `${doc.title} → embeddings available`,
+                time_ago: timeAgo,
+                status: 'completed',
+              };
+            });
+          }
+        }
 
         const stats = {
           total_documents: totalDocuments || 0,
@@ -871,7 +920,7 @@ export default async function ragRoutes(fastify: FastifyInstance) {
         const job = await dispatchJob({
           tenantId: tenant.id,
           type: 'rag_index',
-          payload: { document_id: documentId }
+          payload: { document_id: documentId, document_title: document.title }
         });
 
         fastify.log.info(

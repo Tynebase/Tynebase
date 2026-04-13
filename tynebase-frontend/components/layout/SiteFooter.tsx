@@ -43,7 +43,6 @@ export function SiteFooter({ currentPage }: SiteFooterProps) {
             <h4 className="text-sm font-semibold text-[var(--text-primary)] mb-6">Resources</h4>
             <ul className="space-y-3"><br/>
               <li><Link href="/community" className="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">Community</Link></li>
-              <li><Link href="/blog" className="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">Blog</Link></li>
               <li><Link href="/docs" className="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">Documentation</Link></li>
             </ul>
           </div>

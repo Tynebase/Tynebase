@@ -231,6 +231,161 @@ in the Q1 2026 product demo video.
 `
   },
   {
+    id: 'ai-2.5',
+    slug: 'ai-from-audio',
+    title: 'Generate Documentation from Audio',
+    description: 'Upload audio files and let AI create structured documentation from podcasts, meetings, and more.',
+    category: 'AI Features',
+    readTime: '4 min',
+    lastUpdated: '2026-01-10',
+    tags: ['ai', 'audio', 'transcription', 'podcast'],
+    content: `
+# Generate Documentation from Audio
+
+Transform audio content into searchable, structured documentation automatically.
+
+## Supported Audio Formats
+
+- **MP3**: Universal audio format
+- **WAV**: High-quality uncompressed audio
+- **M4A**: Apple audio format
+- **AAC**: Advanced Audio Coding
+- **OGG**: Open source audio format
+
+## Use Cases
+
+### Meeting Notes
+- Team meetings and standups
+- Client calls and discussions
+- Training sessions
+- Brainstorming sessions
+
+### Podcasts and Webinars
+- Industry podcasts
+- Educational webinars
+- Conference recordings
+- Interview transcripts
+
+### Voice Memos
+- Quick thoughts and ideas
+- Project updates
+- Personal notes
+- Voice journals
+
+## How It Works
+
+\`\`\`
+Audio Input → Transcription → Content Analysis → Documentation
+     │              │                │                │
+     │              │                │                └─ Formatted MD
+     │              │                └─ Key points extracted
+     │              └─ Gemini 2.5 Flash
+     └─ MP3, WAV, M4A upload
+\`\`\`
+
+### Step 1: Upload Audio
+
+1. Click **+ Create** → **From Audio**
+2. Drag and drop audio file or click to browse
+3. Wait for upload (files up to 500MB)
+
+### Step 2: Processing
+
+TyneBase automatically:
+1. Processes the audio file
+2. Transcribes using Gemini 2.5 Flash
+3. Identifies speakers and key topics
+4. Extracts action items and decisions
+
+### Step 3: Generate Documentation
+
+Choose your output format:
+
+| Format | Description |
+|--------|-------------|
+| **Meeting Notes** | Summary, action items, decisions |
+| **Transcript** | Full text with speaker labels |
+| **Key Points** | Bullet-point summary |
+| **Blog Post** | Article-style content |
+
+## Transcription Quality
+
+### Best Practices
+
+- **Clear Audio**: Use high-quality recordings
+- **Minimal Background Noise**: Quiet environment
+- **Single Speaker**: Better accuracy with one speaker
+- **Structured Content**: Meetings with clear agenda work best
+
+### Speaker Identification
+
+The AI can:
+- Detect different speakers
+- Label speakers automatically (Speaker A, Speaker B)
+- Identify names if mentioned in the audio
+- Separate dialogue and monologues
+
+## Example Output
+
+From a 30-minute team meeting:
+
+\`\`\`markdown
+# Team Meeting Notes - Q1 Planning
+
+**Date**: January 15, 2026
+**Duration**: 30 minutes
+**Attendees**: 4
+
+## Key Topics Discussed
+
+### 1. Q1 Goals (0:00 - 10:00)
+- Focus on user retention
+- Launch new mobile features
+- Improve documentation quality
+
+### 2. Resource Allocation (10:00 - 20:00)
+- Hire 2 new developers
+- Budget for marketing campaign
+- Allocate time for technical debt
+
+### 3. Action Items (20:00 - 30:00)
+- [ ] Finalize Q1 roadmap by Friday
+- [ ] Post job listings for developers
+- [ ] Schedule marketing review meeting
+
+## Decisions Made
+- Proceed with mobile app development
+- Allocate $50k for Q1 marketing
+- Dedicate 20% time to documentation
+\`\`\`
+
+## Processing Times
+
+| Audio Length | Estimated Time |
+|-------------|----------------|
+| 5 minutes | ~20 seconds |
+| 15 minutes | ~1 minute |
+| 30 minutes | ~2-3 minutes |
+| 1 hour | ~5-8 minutes |
+
+## Privacy & Security
+
+- All audio processing uses EU data centers
+- Audio files are encrypted at rest and in transit
+- Transcripts are stored securely
+- Full audit trail of audio processing
+- Option to delete original audio after processing
+
+## Tips for Best Results
+
+1. **Use Quality Equipment**: Good microphones improve accuracy
+2. **Speak Clearly**: Enunciate and moderate your pace
+3. **Minimize Interruptions**: Let speakers finish thoughts
+4. **Provide Context**: Include meeting agenda if possible
+5. **Review Output**: Always review and edit generated content
+`
+  },
+  {
     id: 'ai-3',
     slug: 'ai-search-rag',
     title: 'AI-Powered Semantic Search',
@@ -361,12 +516,12 @@ After initial retrieval, we use cross-encoder reranking for precision:
     description: 'Use AI to improve, expand, and optimize your existing documentation.',
     category: 'AI Features',
     readTime: '4 min',
-    lastUpdated: '2026-01-10',
     tags: ['ai', 'enhancement', 'editing', 'optimization'],
+    lastUpdated: '2026-04-13',
     content: `
 # Enhance Existing Documents
 
-AI can improve your documentation quality without starting from scratch.
+Use AI to improve, expand and optimise your existing documentation. Enhance Existing Documents AI can improve your documentation quality without starting from scratch.
 
 ## Enhancement Options
 
@@ -374,16 +529,13 @@ AI can improve your documentation quality without starting from scratch.
 
 Simplify complex sentences and improve readability:
 
-**Before:**
-> The implementation of the aforementioned functionality necessitates the configuration of multiple parameters...
+Before: The implementation of the aforementioned functionality necessitates the configuration of multiple parameters...
 
-**After:**
-> To set up this feature, configure these parameters...
+After: To set up this feature, configure these parameters...
 
 ### Expand Content
 
 Add depth to thin sections:
-
 - Generate missing examples
 - Add context and explanations
 - Include related information
@@ -391,8 +543,7 @@ Add depth to thin sections:
 
 ### Add Structure
 
-Improve document organization:
-
+Improve document organisation:
 - Convert prose to bullet points
 - Add section headings
 - Create tables from lists
@@ -401,7 +552,6 @@ Improve document organization:
 ### Technical Enhancement
 
 For technical documentation:
-
 - Add code examples
 - Generate API request/response samples
 - Create configuration snippets
@@ -409,39 +559,24 @@ For technical documentation:
 
 ## How to Enhance
 
-1. Open any document in the editor
+1. Open any document in the editor or navigate to AI Assistant > Enhance and select the document you want to enhance
 2. Select the content to enhance (or select all)
-3. Click **AI → Enhance** or press \`⌘ + E\`
-4. Choose enhancement type
-5. Review and apply suggestions
-
-## Enhancement Modes
-
-| Mode | Description |
-|------|-------------|
-| **Polish** | Fix grammar, improve clarity |
-| **Expand** | Add more detail and examples |
-| **Simplify** | Reduce complexity, shorter sentences |
-| **Technical** | Add code samples, specifications |
-| **Executive** | Summary-focused, high-level |
+3. Click AI > Analyse Document
+4. Review the enhancements and apply suggestions
 
 ## Suggested Improvements
 
 AI continuously Analyses your docs and suggests:
-
-- **Stale Content**: Needs updating
-- **Missing Sections**: Gaps in coverage
-- **Unclear Language**: Readability issues
-- **Broken Links**: Dead internal links
-
-Find suggestions in **Content Audit → AI Suggestions**.
+- Stale Content: Needs updating
+- Missing Sections: Gaps in coverage
+- Unclear Language: Readability issues
+- Broken Links: Dead internal links
 
 ## Best Practices
 
-1. **Review Changes**: Always review AI suggestions
-2. **Preserve Voice**: Maintain your documentation style
-3. **Verify Accuracy**: Check technical details
-4. **Track Changes**: Use version history
+1. Review Changes: Always review AI suggestions
+2. Voice: Maintain your documentation style
+3. Verify Accuracy: Check technical details
 `
   }
 ];

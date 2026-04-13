@@ -218,7 +218,7 @@ export default function SourcesHealthPage() {
               <div className="p-8 text-center">
                 <Clock className="w-8 h-8 text-[var(--dash-text-muted)] mx-auto mb-2" />
                 <p className="text-sm text-[var(--dash-text-muted)]">No pipeline events yet</p>
-                <p className="text-xs text-[var(--dash-text-tertiary)] mt-1">Events will appear here when documents are indexed.</p>
+                <p className="text-xs text-[var(--dash-text-tertiary)] mt-1">Events will appear here when documents are published or re-indexed.</p>
               </div>
             ) : (
               data.pipeline_events.map((event) => {

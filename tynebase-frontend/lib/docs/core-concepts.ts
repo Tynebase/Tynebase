@@ -180,13 +180,12 @@ When AI generates a document, we capture:
 Access document lineage:
 
 1. Open any document
-2. Click **⋮** menu → **View History**
-3. See complete timeline of events
-
-Filter by:
-- Event type
-- Date range
-- Actor (user or system)
+2. Click **⋮** menu → **Version History**
+3. See complete timeline of document versions with:
+   - Version number and timestamp
+   - Author information
+   - Content preview
+   - Ability to restore previous versions
 
 ## Compliance Benefits
 
@@ -314,48 +313,36 @@ GET /v1/audit/suggestions
     description: 'Use and create reusable document templates for consistent documentation.',
     category: 'Core Concepts',
     readTime: '5 min',
-    lastUpdated: '2026-01-10',
     tags: ['templates', 'community', 'reusable'],
+    lastUpdated: '2026-04-13',
     content: `
 # Templates & Community Library
 
-Templates ensure consistency and speed up documentation creation.
+Use and create reusable document templates for consistent documentation. Templates & Community Library Templates ensure consistency and speed up documentation creation.
 
 ## Using Templates
 
-### From Template Library
-
-1. Click **+ Create** → **From Template**
-2. Browse categories or search
+Navigate to the template library via Tools > Templates. From here, you can:
+1. Create a template via Create a Template
+2. Browse and search through existing templates
 3. Preview template content
-4. Click **Use Template**
-5. Customize for your needs
-
-### Template Categories
-
-| Category | Examples |
-|----------|----------|
-| **Engineering** | API docs, runbooks, ADRs |
-| **HR** | Policies, handbooks, onboarding |
-| **Product** | PRDs, release notes, roadmaps |
-| **Support** | FAQs, troubleshooting, guides |
-| **Sales** | Playbooks, proposals, battle cards |
+4. Use a Template
 
 ## Creating Templates
 
-### Save as Template
+1. Enter a template title and description
+2. Select the templates category, or create a new one via New Category
+3. Choose visibility:
+   - Internal: Only visible and usable by your team
+   - Public: Share with your community
+4. Enter your template content
+5. Click Create Template
 
-1. Create a document with your desired structure
-2. Click **⋮** menu → **Save as Template**
-3. Add title and description
-4. Choose visibility:
-   - **Private**: Only you can use
-   - **Team**: Your workspace
-   - **Community**: Public library
+You can also create a template using AI. Click Open AI Generator to open the Generate Template with AI screen. Describe your template and select your AI model. Click Generate template to generate your new template.
 
-### Template Best Practices
+## Template Best Practices
 
-- Use placeholders: \`[Company Name]\`, \`[Date]\`
+- Use placeholders: [Company Name], [Date]
 - Include instructional comments
 - Provide example content
 - Structure with clear headings
@@ -365,44 +352,32 @@ Templates ensure consistency and speed up documentation creation.
 ### Discovering Templates
 
 Browse community-contributed templates:
-
-- **Featured**: Curated by TyneBase team
-- **Popular**: Most used templates
-- **Recent**: Newly published
-- **Categories**: Filter by type
+- Featured: Curated by TyneBase team
+- Popular: Most used templates
+- Recent: Newly published
+- Categories: Filter by type
 
 ### Contributing Templates
 
 Share your templates with the community:
-
 1. Create and refine your template
-2. Click **Share to Community**
+2. Ensure Public visibility is selected
 3. Add description and tags
 4. Submit for review
 
-Approved templates appear in the public library.
-
-### Template Ratings
-
-- ⭐ Rate templates you've used
-- 📊 View usage statistics
-- 💬 Read community feedback
+Approved templates will appear in the public library.
 
 ## Template Variables
 
 Templates support dynamic variables:
 
-\`\`\`markdown
-# {{project_name}} API Documentation
-
+# {{ project_name }} API Documentation
 **Version**: {{version}}
 **Last Updated**: {{date}}
 **Author**: {{author}}
 
 ## Overview
-
-{{project_name}} provides...
-\`\`\`
+{{ project_name }} provides...
 
 Variables are prompted when using the template.
 `

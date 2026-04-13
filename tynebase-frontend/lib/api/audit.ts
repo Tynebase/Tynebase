@@ -268,3 +268,173 @@ export async function markDocumentReviewed(documentId: string): Promise<{ messag
 export async function trackDocumentView(documentId: string): Promise<void> {
   await apiPost(`/api/documents/${documentId}/view`);
 }
+
+// ============================================================================
+// Audit Schedules
+// ============================================================================
+
+export interface AuditSchedule {
+  id: string;
+  tenant_id: string;
+  name: string;
+  frequency: 'daily' | 'weekly' | 'monthly';
+  interval_value: number;
+  day_of_week: number | null;
+  day_of_month: number | null;
+  hour_of_day: number;
+  minute_of_hour: number;
+  timezone: string;
+  is_active: boolean;
+  auto_create_reviews: boolean;
+  stale_threshold_days: number;
+  last_run_at: string | null;
+  next_run_at: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  creator?: {
+    id: string;
+    full_name: string;
+    email: string;
+  };
+}
+
+export interface CreateScheduleParams {
+  name: string;
+  frequency: 'daily' | 'weekly' | 'monthly';
+  interval_value?: number;
+  day_of_week?: number;
+  day_of_month?: number;
+  hour_of_day?: number;
+  minute_of_hour?: number;
+  timezone?: string;
+  is_active?: boolean;
+  auto_create_reviews?: boolean;
+  stale_threshold_days?: number;
+}
+
+export interface UpdateScheduleParams {
+  name?: string;
+  frequency?: 'daily' | 'weekly' | 'monthly';
+  interval_value?: number;
+  day_of_week?: number;
+  day_of_month?: number;
+  hour_of_day?: number;
+  minute_of_hour?: number;
+  timezone?: string;
+  is_active?: boolean;
+  auto_create_reviews?: boolean;
+  stale_threshold_days?: number;
+}
+
+/**
+ * Get all audit schedules for the tenant
+ */
+export async function getAuditSchedules(): Promise<{ schedules: AuditSchedule[] }> {
+  return apiGet<{ schedules: AuditSchedule[] }>('/api/audit/schedules');
+}
+
+/**
+ * Create a new audit schedule
+ */
+export async function createAuditSchedule(params: CreateScheduleParams): Promise<{ schedule: AuditSchedule }> {
+  return apiPost<{ schedule: AuditSchedule }>('/api/audit/schedules', params);
+}
+
+/**
+ * Update an audit schedule
+ */
+export async function updateAuditSchedule(id: string, params: UpdateScheduleParams): Promise<{ schedule: AuditSchedule }> {
+  return apiPatch<{ schedule: AuditSchedule }>(`/api/audit/schedules/${id}`, params);
+}
+
+/**
+ * Delete an audit schedule
+ */
+export async function deleteAuditSchedule(id: string): Promise<{ message: string }> {
+  return apiDelete<{ message: string }>(`/api/audit/schedules/${id}`);
+}
+
+// ============================================================================
+// Notification Rules
+// ============================================================================
+
+export interface NotificationRule {
+  id: string;
+  tenant_id: string;
+  name: string;
+  rule_type: 'review_due' | 'review_overdue' | 'stale_content' | 'audit_complete' | 'health_threshold';
+  priority_filter: 'low' | 'medium' | 'high' | 'all' | null;
+  days_before_due: number | null;
+  stale_threshold_days: number | null;
+  health_threshold_percentage: number | null;
+  notify_via_email: boolean;
+  notify_via_in_app: boolean;
+  notify_users: string[];
+  notify_roles: string[];
+  is_active: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  creator?: {
+    id: string;
+    full_name: string;
+    email: string;
+  };
+}
+
+export interface CreateNotificationRuleParams {
+  name: string;
+  rule_type: 'review_due' | 'review_overdue' | 'stale_content' | 'audit_complete' | 'health_threshold';
+  priority_filter?: 'low' | 'medium' | 'high' | 'all';
+  days_before_due?: number;
+  stale_threshold_days?: number;
+  health_threshold_percentage?: number;
+  notify_via_email?: boolean;
+  notify_via_in_app?: boolean;
+  notify_users?: string[];
+  notify_roles?: string[];
+  is_active?: boolean;
+}
+
+export interface UpdateNotificationRuleParams {
+  name?: string;
+  rule_type?: 'review_due' | 'review_overdue' | 'stale_content' | 'audit_complete' | 'health_threshold';
+  priority_filter?: 'low' | 'medium' | 'high' | 'all';
+  days_before_due?: number;
+  stale_threshold_days?: number;
+  health_threshold_percentage?: number;
+  notify_via_email?: boolean;
+  notify_via_in_app?: boolean;
+  notify_users?: string[];
+  notify_roles?: string[];
+  is_active?: boolean;
+}
+
+/**
+ * Get all notification rules for the tenant
+ */
+export async function getNotificationRules(): Promise<{ rules: NotificationRule[] }> {
+  return apiGet<{ rules: NotificationRule[] }>('/api/audit/notification-rules');
+}
+
+/**
+ * Create a new notification rule
+ */
+export async function createNotificationRule(params: CreateNotificationRuleParams): Promise<{ rule: NotificationRule }> {
+  return apiPost<{ rule: NotificationRule }>('/api/audit/notification-rules', params);
+}
+
+/**
+ * Update a notification rule
+ */
+export async function updateNotificationRule(id: string, params: UpdateNotificationRuleParams): Promise<{ rule: NotificationRule }> {
+  return apiPatch<{ rule: NotificationRule }>(`/api/audit/notification-rules/${id}`, params);
+}
+
+/**
+ * Delete a notification rule
+ */
+export async function deleteNotificationRule(id: string): Promise<{ message: string }> {
+  return apiDelete<{ message: string }>(`/api/audit/notification-rules/${id}`);
+}

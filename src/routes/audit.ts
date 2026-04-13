@@ -1483,4 +1483,706 @@ export default async function auditRoutes(fastify: FastifyInstance) {
       }
     }
   );
+
+  // ============================================================================
+  // Audit Schedules Routes
+  // ============================================================================
+
+  /**
+   * Schema for creating an audit schedule
+   */
+  const createScheduleBodySchema = z.object({
+    name: z.string().min(1).max(100),
+    frequency: z.enum(['daily', 'weekly', 'monthly']),
+    interval_value: z.number().int().min(1).max(365).default(1),
+    day_of_week: z.number().int().min(0).max(6).optional(),
+    day_of_month: z.number().int().min(1).max(31).optional(),
+    hour_of_day: z.number().int().min(0).max(23).default(9),
+    minute_of_hour: z.number().int().min(0).max(59).default(0),
+    timezone: z.string().default('UTC'),
+    is_active: z.boolean().default(true),
+    auto_create_reviews: z.boolean().default(true),
+    stale_threshold_days: z.number().int().min(30).max(365).default(90),
+  });
+
+  /**
+   * Schema for updating an audit schedule
+   */
+  const updateScheduleBodySchema = z.object({
+    name: z.string().min(1).max(100).optional(),
+    frequency: z.enum(['daily', 'weekly', 'monthly']).optional(),
+    interval_value: z.number().int().min(1).max(365).optional(),
+    day_of_week: z.number().int().min(0).max(6).optional(),
+    day_of_month: z.number().int().min(1).max(31).optional(),
+    hour_of_day: z.number().int().min(0).max(23).optional(),
+    minute_of_hour: z.number().int().min(0).max(59).optional(),
+    timezone: z.string().optional(),
+    is_active: z.boolean().optional(),
+    auto_create_reviews: z.boolean().optional(),
+    stale_threshold_days: z.number().int().min(30).max(365).optional(),
+  }).refine((data) => Object.keys(data).length > 0, {
+    message: 'At least one field must be provided for update',
+  });
+
+  /**
+   * GET /api/audit/schedules
+   * Returns all audit schedules for the tenant
+   */
+  fastify.get(
+    '/api/audit/schedules',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        const { data: schedules, error } = await supabaseAdmin
+          .from('audit_schedules')
+          .select(`
+            *,
+            creator:created_by (
+              id,
+              full_name,
+              email
+            )
+          `)
+          .eq('tenant_id', tenant.id)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          fastify.log.error(
+            { error, tenantId: tenant.id },
+            'Failed to fetch audit schedules'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'FETCH_FAILED',
+              message: 'Failed to fetch audit schedules',
+              details: {},
+            },
+          });
+        }
+
+        fastify.log.info(
+          { tenantId: tenant.id, userId: user.id, count: schedules?.length || 0 },
+          'Audit schedules fetched successfully'
+        );
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            schedules: schedules || [],
+          },
+        });
+      } catch (error) {
+        fastify.log.error({ error }, 'Unexpected error in GET /api/audit/schedules');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
+   * POST /api/audit/schedules
+   * Creates a new audit schedule
+   */
+  fastify.post(
+    '/api/audit/schedules',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        const body = createScheduleBodySchema.parse(request.body);
+
+        const { data: schedule, error: createError } = await supabaseAdmin
+          .from('audit_schedules')
+          .insert({
+            tenant_id: tenant.id,
+            name: body.name,
+            frequency: body.frequency,
+            interval_value: body.interval_value,
+            day_of_week: body.day_of_week,
+            day_of_month: body.day_of_month,
+            hour_of_day: body.hour_of_day,
+            minute_of_hour: body.minute_of_hour,
+            timezone: body.timezone,
+            is_active: body.is_active,
+            auto_create_reviews: body.auto_create_reviews,
+            stale_threshold_days: body.stale_threshold_days,
+            created_by: user.id,
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          fastify.log.error(
+            { error: createError, tenantId: tenant.id },
+            'Failed to create audit schedule'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'CREATE_FAILED',
+              message: 'Failed to create audit schedule',
+              details: {},
+            },
+          });
+        }
+
+        fastify.log.info(
+          { tenantId: tenant.id, userId: user.id, scheduleId: schedule.id },
+          'Audit schedule created successfully'
+        );
+
+        return reply.code(201).send({
+          success: true,
+          data: {
+            schedule,
+          },
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid request body',
+              details: error.errors,
+            },
+          });
+        }
+
+        fastify.log.error({ error }, 'Unexpected error in POST /api/audit/schedules');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
+   * PATCH /api/audit/schedules/:id
+   * Updates an audit schedule
+   */
+  fastify.patch(
+    '/api/audit/schedules/:id',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+        const { id } = request.params as { id: string };
+
+        if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid schedule ID format',
+              details: {},
+            },
+          });
+        }
+
+        const body = updateScheduleBodySchema.parse(request.body);
+
+        const { data: schedule, error: updateError } = await supabaseAdmin
+          .from('audit_schedules')
+          .update(body)
+          .eq('id', id)
+          .eq('tenant_id', tenant.id)
+          .select()
+          .single();
+
+        if (updateError) {
+          if (updateError.code === 'PGRST116') {
+            return reply.code(404).send({
+              error: {
+                code: 'SCHEDULE_NOT_FOUND',
+                message: 'Schedule not found',
+                details: {},
+              },
+            });
+          }
+
+          fastify.log.error(
+            { error: updateError, tenantId: tenant.id, scheduleId: id },
+            'Failed to update audit schedule'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'UPDATE_FAILED',
+              message: 'Failed to update audit schedule',
+              details: {},
+            },
+          });
+        }
+
+        fastify.log.info(
+          { tenantId: tenant.id, userId: user.id, scheduleId: id },
+          'Audit schedule updated successfully'
+        );
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            schedule,
+          },
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid request body',
+              details: error.errors,
+            },
+          });
+        }
+
+        fastify.log.error({ error }, 'Unexpected error in PATCH /api/audit/schedules/:id');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
+   * DELETE /api/audit/schedules/:id
+   * Deletes an audit schedule
+   */
+  fastify.delete(
+    '/api/audit/schedules/:id',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+        const { id } = request.params as { id: string };
+
+        if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid schedule ID format',
+              details: {},
+            },
+          });
+        }
+
+        const { error: deleteError } = await supabaseAdmin
+          .from('audit_schedules')
+          .delete()
+          .eq('id', id)
+          .eq('tenant_id', tenant.id);
+
+        if (deleteError) {
+          fastify.log.error(
+            { error: deleteError, tenantId: tenant.id, scheduleId: id },
+            'Failed to delete audit schedule'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'DELETE_FAILED',
+              message: 'Failed to delete audit schedule',
+              details: {},
+            },
+          });
+        }
+
+        fastify.log.info(
+          { tenantId: tenant.id, userId: user.id, scheduleId: id },
+          'Audit schedule deleted successfully'
+        );
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            message: 'Schedule deleted successfully',
+          },
+        });
+      } catch (error) {
+        fastify.log.error({ error }, 'Unexpected error in DELETE /api/audit/schedules/:id');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  // ============================================================================
+  // Notification Rules Routes
+  // ============================================================================
+
+  /**
+   * Schema for creating a notification rule
+   */
+  const createNotificationRuleBodySchema = z.object({
+    name: z.string().min(1).max(100),
+    rule_type: z.enum(['review_due', 'review_overdue', 'stale_content', 'audit_complete', 'health_threshold']),
+    priority_filter: z.enum(['low', 'medium', 'high', 'all']).optional(),
+    days_before_due: z.number().int().min(0).max(30).optional(),
+    stale_threshold_days: z.number().int().min(30).max(365).optional(),
+    health_threshold_percentage: z.number().int().min(0).max(100).optional(),
+    notify_via_email: z.boolean().default(true),
+    notify_via_in_app: z.boolean().default(true),
+    notify_users: z.array(z.string().uuid()).default([]),
+    notify_roles: z.array(z.string()).default([]),
+    is_active: z.boolean().default(true),
+  });
+
+  /**
+   * Schema for updating a notification rule
+   */
+  const updateNotificationRuleBodySchema = z.object({
+    name: z.string().min(1).max(100).optional(),
+    rule_type: z.enum(['review_due', 'review_overdue', 'stale_content', 'audit_complete', 'health_threshold']).optional(),
+    priority_filter: z.enum(['low', 'medium', 'high', 'all']).optional(),
+    days_before_due: z.number().int().min(0).max(30).optional(),
+    stale_threshold_days: z.number().int().min(30).max(365).optional(),
+    health_threshold_percentage: z.number().int().min(0).max(100).optional(),
+    notify_via_email: z.boolean().optional(),
+    notify_via_in_app: z.boolean().optional(),
+    notify_users: z.array(z.string().uuid()).optional(),
+    notify_roles: z.array(z.string()).optional(),
+    is_active: z.boolean().optional(),
+  }).refine((data) => Object.keys(data).length > 0, {
+    message: 'At least one field must be provided for update',
+  });
+
+  /**
+   * GET /api/audit/notification-rules
+   * Returns all notification rules for the tenant
+   */
+  fastify.get(
+    '/api/audit/notification-rules',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        const { data: rules, error } = await supabaseAdmin
+          .from('notification_rules')
+          .select(`
+            *,
+            creator:created_by (
+              id,
+              full_name,
+              email
+            )
+          `)
+          .eq('tenant_id', tenant.id)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          fastify.log.error(
+            { error, tenantId: tenant.id },
+            'Failed to fetch notification rules'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'FETCH_FAILED',
+              message: 'Failed to fetch notification rules',
+              details: {},
+            },
+          });
+        }
+
+        fastify.log.info(
+          { tenantId: tenant.id, userId: user.id, count: rules?.length || 0 },
+          'Notification rules fetched successfully'
+        );
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            rules: rules || [],
+          },
+        });
+      } catch (error) {
+        fastify.log.error({ error }, 'Unexpected error in GET /api/audit/notification-rules');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
+   * POST /api/audit/notification-rules
+   * Creates a new notification rule
+   */
+  fastify.post(
+    '/api/audit/notification-rules',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+
+        const body = createNotificationRuleBodySchema.parse(request.body);
+
+        const { data: rule, error: createError } = await supabaseAdmin
+          .from('notification_rules')
+          .insert({
+            tenant_id: tenant.id,
+            name: body.name,
+            rule_type: body.rule_type,
+            priority_filter: body.priority_filter,
+            days_before_due: body.days_before_due,
+            stale_threshold_days: body.stale_threshold_days,
+            health_threshold_percentage: body.health_threshold_percentage,
+            notify_via_email: body.notify_via_email,
+            notify_via_in_app: body.notify_via_in_app,
+            notify_users: body.notify_users,
+            notify_roles: body.notify_roles,
+            is_active: body.is_active,
+            created_by: user.id,
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          fastify.log.error(
+            { error: createError, tenantId: tenant.id },
+            'Failed to create notification rule'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'CREATE_FAILED',
+              message: 'Failed to create notification rule',
+              details: {},
+            },
+          });
+        }
+
+        fastify.log.info(
+          { tenantId: tenant.id, userId: user.id, ruleId: rule.id },
+          'Notification rule created successfully'
+        );
+
+        return reply.code(201).send({
+          success: true,
+          data: {
+            rule,
+          },
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid request body',
+              details: error.errors,
+            },
+          });
+        }
+
+        fastify.log.error({ error }, 'Unexpected error in POST /api/audit/notification-rules');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
+   * PATCH /api/audit/notification-rules/:id
+   * Updates a notification rule
+   */
+  fastify.patch(
+    '/api/audit/notification-rules/:id',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+        const { id } = request.params as { id: string };
+
+        if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid rule ID format',
+              details: {},
+            },
+          });
+        }
+
+        const body = updateNotificationRuleBodySchema.parse(request.body);
+
+        const { data: rule, error: updateError } = await supabaseAdmin
+          .from('notification_rules')
+          .update(body)
+          .eq('id', id)
+          .eq('tenant_id', tenant.id)
+          .select()
+          .single();
+
+        if (updateError) {
+          if (updateError.code === 'PGRST116') {
+            return reply.code(404).send({
+              error: {
+                code: 'RULE_NOT_FOUND',
+                message: 'Notification rule not found',
+                details: {},
+              },
+            });
+          }
+
+          fastify.log.error(
+            { error: updateError, tenantId: tenant.id, ruleId: id },
+            'Failed to update notification rule'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'UPDATE_FAILED',
+              message: 'Failed to update notification rule',
+              details: {},
+            },
+          });
+        }
+
+        fastify.log.info(
+          { tenantId: tenant.id, userId: user.id, ruleId: id },
+          'Notification rule updated successfully'
+        );
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            rule,
+          },
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid request body',
+              details: error.errors,
+            },
+          });
+        }
+
+        fastify.log.error({ error }, 'Unexpected error in PATCH /api/audit/notification-rules/:id');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
+
+  /**
+   * DELETE /api/audit/notification-rules/:id
+   * Deletes a notification rule
+   */
+  fastify.delete(
+    '/api/audit/notification-rules/:id',
+    {
+      preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard],
+    },
+    async (request, reply) => {
+      try {
+        const tenant = (request as any).tenant;
+        const user = (request as any).user;
+        const { id } = request.params as { id: string };
+
+        if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid rule ID format',
+              details: {},
+            },
+          });
+        }
+
+        const { error: deleteError } = await supabaseAdmin
+          .from('notification_rules')
+          .delete()
+          .eq('id', id)
+          .eq('tenant_id', tenant.id);
+
+        if (deleteError) {
+          fastify.log.error(
+            { error: deleteError, tenantId: tenant.id, ruleId: id },
+            'Failed to delete notification rule'
+          );
+          return reply.code(500).send({
+            error: {
+              code: 'DELETE_FAILED',
+              message: 'Failed to delete notification rule',
+              details: {},
+            },
+          });
+        }
+
+        fastify.log.info(
+          { tenantId: tenant.id, userId: user.id, ruleId: id },
+          'Notification rule deleted successfully'
+        );
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            message: 'Notification rule deleted successfully',
+          },
+        });
+      } catch (error) {
+        fastify.log.error({ error }, 'Unexpected error in DELETE /api/audit/notification-rules/:id');
+        return reply.code(500).send({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred',
+            details: {},
+          },
+        });
+      }
+    }
+  );
 }

@@ -536,6 +536,7 @@ function TyneBaseDocsPage() {
     setMobileSidebar(false);
     setActiveHeading("");
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.history.replaceState(null, '', `/docs?slug=${article.slug}`);
   };
 
   const goHome = () => {
@@ -543,6 +544,7 @@ function TyneBaseDocsPage() {
     setIsSearching(false);
     setSearchQuery("");
     setActiveHeading("");
+    window.history.replaceState(null, '', '/docs');
   };
 
   const toggleCategory = (id: string) => {

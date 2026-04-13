@@ -357,7 +357,7 @@ export default function DashboardPage() {
               ))}
             </div>
             <div className="px-6 py-4 border-t border-[var(--dash-border-subtle)]">
-              <Link href="/dashboard/community" className="text-sm text-[var(--brand)] hover:underline">
+              <Link href="/dashboard/knowledge/activity" className="text-sm text-[var(--brand)] hover:underline">
                 View all activity
               </Link>
             </div>

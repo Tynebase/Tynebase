@@ -8,20 +8,14 @@ export const teamManagementArticles: DocArticle[] = [
     description: 'Understanding different user roles and what they can do in your workspace.',
     category: 'Team Management',
     readTime: '4 min',
-    lastUpdated: '2026-01-15',
     tags: ['users', 'roles', 'permissions', 'security'],
+    lastUpdated: '2026-04-13',
     content: `
 # User Roles & Permissions
 
-TyneBase provides a flexible role-based system to control what users can do in your workspace.
+Understanding different user roles and what they can do in your workspace. TyneBase provides a flexible role-based system to control what users can do in your workspace.
 
 ## Role Hierarchy
-
-### Super Admin
-- Full platform access
-- Can manage all tenants
-- Can access super admin features
-- Only available to TyneBase staff
 
 ### Admin
 - Full workspace access
@@ -34,37 +28,44 @@ TyneBase provides a flexible role-based system to control what users can do in y
 - Can manage categories and collections
 - Cannot manage users or settings
 
-### Member
-- Can view and edit documents (if permissions allow)
-- Can comment on documents
-- Cannot manage workspace settings
-
 ### Viewer
 - Read-only access to documents
 - Can comment if enabled
 - Cannot edit or create content
 
+### Community Contributor
+- Can participate in community discussions
+- Create posts
+- Can reply to other posts and interact
+- Does not count toward workspace seat limits
+
+### Community Admin
+- Can moderate community discussions
+- Delete posts
+- Manage community content
+- Does not count toward workspace seat limits
+
 ## Permission Matrix
 
-| Action | Super Admin | Admin | Editor | Member | Viewer |
-|--------|-------------|-------|--------|---------|--------|
-| View Documents | Yes | Yes | Yes | Yes | Yes |
-| Create Documents | Yes | Yes | Yes | No | No |
-| Edit Documents | Yes | Yes | Yes | Yes* | No |
-| Delete Documents | Yes | Yes | Yes | No | No |
-| Manage Users | Yes | Yes | No | No | No |
-| Manage Settings | Yes | Yes | No | No | No |
-| Manage Billing | Yes | Yes | No | No | No |
+| Action | Admin | Editor | Member | Viewer |
+|--------|-------|--------|---------|--------|
+| View Documents | Yes | Yes | Yes | Yes |
+| Create Documents | Yes | Yes | No | No |
+| Edit Documents | Yes | Yes | Yes* | No |
+| Delete Documents | Yes | Yes | No | No |
+| Manage Users | Yes | No | No | No |
+| Manage Settings | Yes | No | No | No |
+| Manage Billing | Yes | No | No | No |
 
-*Members can only edit documents they have permission for
+*Members can only edit documents they have the permission for
 
 ## Setting User Roles
 
-1. Go to **Settings** > **Users & Teams**
+1. Navigate to Admin > Users & Teams
 2. Find the user you want to modify
-3. Click the **Role** dropdown
+3. Click Change role
 4. Select the new role
-5. Click **Save**
+5. Click Save Changes
 
 ## Custom Permissions
 
@@ -78,27 +79,21 @@ For more granular control, you can set custom permissions on individual document
     description: 'How to invite new users to your workspace and manage their onboarding.',
     category: 'Team Management',
     readTime: '3 min',
-    lastUpdated: '2026-01-12',
     tags: ['invitations', 'onboarding', 'users'],
+    lastUpdated: '2026-04-13',
     content: `
 # Inviting Team Members
 
-Learn how to add new users to your TyneBase workspace and get them started quickly.
+How to invite new users to your workspace and manage their onboarding. Inviting Team Members Learn how to add new users to your TyneBase workspace and get them started quickly.
 
 ## Sending Invitations
 
-### Method 1: Email Invitation
-1. Go to **Settings** > **Users & Teams**
-2. Click **+ Invite Team Member**
-3. Enter the email address
+### Email Invitation
+1. Navigate to Admin > Users & Teams
+2. Click + Invite Member
+3. Enter the new member's email address
 4. Select the user role
-5. Click **Send Invite**
-
-### Method 2: Share Invitation Link
-1. Go to **Settings** > **Users & Teams**
-2. Click **Generate Invite Link**
-3. Copy the link and share it
-4. Anyone with the link can join (with the selected role)
+5. Click Send Invite
 
 ## Managing Invitations
 
@@ -143,104 +138,57 @@ Learn how to add new users to your TyneBase workspace and get them started quick
   },
   {
     id: 'tm-3',
-    slug: 'managing-user-access',
-    title: 'Managing User Access',
-    description: 'Control user access, suspend accounts, and handle offboarding.',
+    slug: 'inviting-your-team',
+    title: 'Inviting Your Team',
+    description: 'Add team members to your workspace and assign appropriate roles with bulk import and SSO options.',
     category: 'Team Management',
-    readTime: '5 min',
-    lastUpdated: '2026-01-18',
-    tags: ['access-control', 'suspension', 'offboarding'],
+    readTime: '3 min',
+    tags: ['invitations', 'bulk-import', 'sso', 'onboarding'],
+    lastUpdated: '2026-04-13',
     content: `
-# Managing User Access
+# Inviting Your Team
 
-Control who can access your workspace and how they interact with your content.
+Add team members to your workspace and assign appropriate roles. Inviting Your Team Collaborate effectively by adding your team to TyneBase.
 
-## User Status Types
+## Invitation Methods
 
-### Active
-- Full access based on their role
-- Can log in and use all permitted features
-- Normal operating status
+### Email Invitations
+1. Navigate to Admin > Users & Teams
+2. Click + Invite Member
+3. Enter the email address of the user you want to invite
+4. Select the role for the user
+5. Click Send Invite
 
-### Suspended
-- Cannot log in or access the workspace
-- Account and data are preserved
-- Can be reactivated at any time
+The user will receive an email with a secure signup link. Once followed, they will be able to access your platform, with access dependent on the role selected.
 
-### Archived
-- Soft-deleted from the workspace
-- Data is preserved but user cannot access
-- Can be restored if needed
+### Bulk Import (Enterprise Level Feature)
+For larger teams you can use CSV import:
 
-## Suspending Users
+email,role,department
+john@company.com,editor,Engineering
+jane@company.com,admin,Product
+bob@company.com,contributor,Sales
 
-### When to Suspend
-- Temporary leave of absence
-- Security investigations
-- Policy violations (temporary)
+### SSO Auto-Provisioning (Enterprise)
+With SCIM enabled, users are automatically provisioned when they authenticate via your identity provider.
 
-### How to Suspend
-1. Go to **Settings** > **Users & Teams**
-2. Find the user
-3. Click the **Suspend** button
-4. Confirm the action
+## Role Assignment Best Practices
 
-### Unsuspending
-1. Find the suspended user
-2. Click **Reactivate**
-3. User can log in immediately
+| Team Type | Recommended Role |
+|-----------|------------------|
+| Documentation team | Editor – Can create and edit workspace content |
+| General employees | Viewer – Read-only access |
+| IT/Operations | Admin – Can manage members and workspace settings |
+| Your clients / Users | Community contributor – Can participate in community discussions |
+| IT/Operations | Community Admin – Can moderate community discussions |
 
-## Archiving Users
+## Managing Users
 
-### When to Archive
-- Employee leaves the company
-- Contract ends
-- Long-term inactivity
-
-### How to Archive
-1. Go to **Settings** > **Users & Teams**
-2. Find the user
-3. Click **Archive**
-4. Confirm the action
-
-### What Happens
-- User cannot log in
-- All their content remains
-- Documents they created stay in the workspace
-- Can be restored if needed
-
-## Offboarding Process
-
-### Before Offboarding
-1. **Document Transfer**: Reassign their documents to other users
-2. **Review Access**: Remove access to sensitive information
-3. **Backup Data**: Export any important information
-4. **Update Permissions**: Remove from shared documents
-
-### Offboarding Steps
-1. Archive the user account
-2. Reassign their documents
-3. Remove from any shared collections
-4. Update any external integrations
-
-## Security Considerations
-
-### Immediate Actions
-- Suspend immediately for security concerns
-- Change shared passwords
-- Review recent activity
-
-### Long-term Management
-- Regular access reviews
-- Monitor for suspicious activity
-- Keep audit logs
-
-## Compliance Notes
-
-- Maintain records of user changes
-- Follow data retention policies
-- Document reasons for access changes
-- Consider legal requirements for data preservation
+Once users have joined, you can:
+- Change roles at any time
+- Transfer document ownership
+- Revoke access immediately
+- View activity logs per user
 `
   },
   {
@@ -586,20 +534,6 @@ Work together efficiently with TyneBase's real-time collaboration tools.
 - **Resource Planning**: Track document resources
 - **Progress Reports**: Automated progress updates
 
-## Mobile Collaboration
-
-### Mobile Apps
-- **iOS and Android**: Native mobile apps
-- **Offline Mode**: Work without internet
-- **Push Notifications**: Real-time alerts
-- **Touch Optimization**: Mobile-friendly interface
-
-### Responsive Design
-- **Tablet Support**: Optimized for tablets
-- **Phone Support**: Full mobile functionality
-- **Progressive Web App**: Browser-based mobile access
-- **Cross-Device Sync**: Seamless device switching
-
 ## Best Practices
 
 ### Effective Collaboration
@@ -668,12 +602,6 @@ Customise how you receive updates and manage your workspace experience.
 - **Daily Digest**: Daily summary of activity
 - **Weekly Summary**: Weekly activity reports
 - **Custom Schedule**: Set your preferred frequency
-
-### Mobile Push Notifications
-- **Mobile App**: Push notifications on mobile
-- **Critical Only**: Only important notifications
-- **Quiet Hours**: Do not disturb periods
-- **Sound Settings**: Custom notification sounds
 
 ## Notification Settings
 
@@ -790,7 +718,7 @@ Customise how you receive updates and manage your workspace experience.
     title: 'API Integrations',
     description: 'Connect TyneBase with external tools and services using APIs and webhooks.',
     category: 'Team Management',
-    readTime: '5 min',
+    readTime: '2 min',
     lastUpdated: '2026-01-30',
     tags: ['api', 'integrations', 'webhooks'],
     content: `
@@ -798,251 +726,53 @@ Customise how you receive updates and manage your workspace experience.
 
 Extend TyneBase functionality with custom integrations and automations.
 
-## API Overview
+## Coming Soon
 
-### REST API
-- **Base URL**: \`https://api.tynebase.com/v1\`
-- **Authentication**: Bearer token or API key
-- **Rate Limits**: 1000 requests per hour
-- **Data Format**: JSON requests and responses
+We're working on a comprehensive API and integration platform that will include:
 
-### Authentication Methods
-- **API Keys**: Generate keys for integrations
-- **OAuth 2.0**: Secure user authentication
-- **Service Accounts**: For server-to-server communication
-- **Webhook Signatures**: Verify webhook authenticity
+### Planned Features
 
-## Core API Endpoints
+- **REST API**: Full programmatic access to documents, users, and workspace settings
+- **Webhooks**: Real-time notifications for document events, user actions, and more
+- **SDK Libraries**: Official SDKs for JavaScript/Node.js, Python, and other popular languages
+- **Popular Integrations**: 
+  - Slack integration for notifications
+  - Microsoft Teams integration
+  - Google Workspace sync
+  - Zapier automation
 
-### Documents
-- **GET /documents**: List all documents
-- **POST /documents**: Create new document
-- **GET /documents/:id**: Get document details
-- **PUT /documents/:id**: Update document
-- **DELETE /documents/:id**: Delete document
+### What to Expect
 
-### Users
-- **GET /users**: List workspace users
-- **POST /users**: Invite new user
-- **GET /users/:id**: Get user details
-- **PUT /users/:id**: Update user
-- **DELETE /users/:id**: Remove user
+- **API Keys**: Secure authentication for your integrations
+- **Rate Limiting**: Fair usage limits based on your plan
+- **Webhook Signatures**: Verify webhook authenticity for security
+- **Comprehensive Documentation**: Complete API reference and integration guides
+- **Developer Portal**: Testing tools and sandbox environment
 
-### Categories
-- **GET /categories**: List categories
-- **POST /categories**: Create category
-- **GET /categories/:id**: Get category details
-- **PUT /categories/:id**: Update category
-- **DELETE /categories/:id**: Delete category
+## Stay Updated
 
-## Webhooks
+This feature is currently in development. To be notified when it launches:
 
-### Event Types
-- **document.created**: New document created
-- **document.updated**: Document modified
-- **document.deleted**: Document removed
-- **user.invited**: User invited to workspace
-- **user.joined**: User joined workspace
+1. Watch our GitHub repository for announcements
+2. Follow our blog for product updates
+3. Join our community forum for early access opportunities
 
-### Webhook Configuration
-1. Go to **Settings** > **Integrations**
-2. Click **Add Webhook**
-3. Enter endpoint URL
-4. Select events to subscribe
-5. Set secret key for security
+## In the Meantime
 
-### Webhook Payload
-\`\`\`json
-{
-  "event": "document.created",
-  "timestamp": "2026-01-30T10:00:00Z",
-  "workspace": "workspace-123",
-  "data": {
-    "document": {
-      "id": "doc-456",
-      "title": "New Document",
-      "url": "https://workspace.tynebase.com/docs/doc-456"
-    },
-    "user": {
-      "id": "user-789",
-      "email": "user@example.com"
-    }
-  }
-}
-\`\`\`
+While we build our API platform, you can:
+- Use our export features to download your data
+- Leverage our AI features for content generation
+- Set up automated workflows within the platform
+- Provide feedback on what integrations you'd like to see
 
-## Popular Integrations
+## Request Features
 
-### Slack Integration
-- **Document Notifications**: Post updates to Slack channels
-- **Search Integration**: Search documents from Slack
-- **Quick Actions**: Create documents from Slack commands
+Have a specific integration need? Let us know:
+- Contact our support team
+- Post in our community forum
+- Vote on feature requests in our roadmap
 
-#### Setup
-1. Install Slack app
-2. Connect workspace
-3. Configure channels
-4. Set notification preferences
-
-### Microsoft Teams
-- **Tab Integration**: Access documents within Teams
-- **Meeting Notes**: Auto-generate meeting summaries
-- **Notifications**: Get updates in Teams channels
-
-#### Setup
-1. Install Teams app
-2. Connect workspace
-3. Add tabs to channels
-4. Configure notifications
-
-### Google Workspace
-- **Drive Sync**: Sync documents with Google Drive
-- **Calendar Integration**: Link documents to events
-- **Gmail Integration**: Access documents from Gmail
-
-#### Setup
-1. Connect Google account
-2. Grant permissions
-3. Configure sync settings
-4. Set up integrations
-
-### Zapier Automation
-- **Triggers**: Document events, user actions
-- **Actions**: Create documents, send notifications
-- **Workflows**: Multi-step automations
-
-#### Popular Zaps
-- Create documents from form submissions
-- Send notifications for document updates
-- Sync with CRM systems
-- Archive old documents
-
-## Custom Integrations
-
-### SDK Libraries
-- **JavaScript/Node.js**: npm install tynebase-sdk
-- **Python**: pip install tynebase-python
-- **Ruby**: gem install tynebase-ruby
-- **PHP**: composer require tynebase/php
-
-### Example Integration
-\`\`\`javascript
-const TyneBase = require('tynebase-sdk');
-
-const client = new TyneBase({
-  apiKey: 'your-api-key',
-  workspace: 'your-workspace'
-});
-
-// Create a document
-const document = await client.documents.create({
-  title: 'New Document',
-  content: 'Document content here',
-  category: 'documentation'
-});
-
-// Listen for webhooks
-app.post('/webhook', (req, res) => {
-  const signature = req.headers['x-tynebase-signature'];
-  const payload = req.body;
-  
-  if (verifyWebhook(signature, payload)) {
-    handleWebhookEvent(payload);
-  }
-  
-  res.sendStatus(200);
-});
-\`\`\`
-
-## Security Best Practices
-
-### API Security
-- **Use HTTPS**: Always encrypt API calls
-- **Rotate Keys**: Regularly update API keys
-- **Limit Permissions**: Grant minimum required access
-- **Monitor Usage**: Track API usage and anomalies
-
-### Webhook Security
-- **Verify Signatures**: Always validate webhook signatures
-- **Use HTTPS**: Secure webhook endpoints
-- **Rate Limiting**: Protect against abuse
-- **Logging**: Log webhook events for debugging
-
-## Error Handling
-
-### Common Errors
-- **401 Unauthorized**: Invalid API key or token
-- **403 Forbidden**: Insufficient permissions
-- **404 Not Found**: Resource doesn't exist
-- **429 Rate Limited**: Too many requests
-
-### Error Response Format
-\`\`\`json
-{
-  "error": {
-    "code": "RATE_LIMITED",
-    "message": "Too many requests",
-    "details": {
-      "limit": 1000,
-      "reset_at": "2026-01-30T11:00:00Z"
-    }
-  }
-}
-\`\`\`
-
-## Rate Limiting
-
-### Limits
-- **Standard Plan**: 1000 requests/hour
-- **Pro Plan**: 5000 requests/hour
-- **Enterprise**: Unlimited requests
-
-### Headers
-- **X-RateLimit-Limit**: Request limit
-- **X-RateLimit-Remaining**: Requests remaining
-- **X-RateLimit-Reset**: When limit resets
-
-## Monitoring and Analytics
-
-### API Usage
-- **Request Metrics**: Track API call volume
-- **Error Rates**: Monitor error frequencies
-- **Response Times**: Track performance
-- **User Analytics**: Understand usage patterns
-
-### Integration Health
-- **Webhook Status**: Monitor webhook delivery
-- **Error Tracking**: Identify integration issues
-- **Performance Metrics**: Track response times
-- **Usage Reports**: Generate usage reports
-
-## Support Resources
-
-### Documentation
-- **API Reference**: Complete API documentation
-- **Integration Guides**: Step-by-step tutorials
-- **Code Examples**: Ready-to-use code samples
-- **Best Practices**: Security and performance tips
-
-### Community
-- **Developer Forum**: Get help from other developers
-- **GitHub Issues**: Report bugs and request features
-- **Stack Overflow**: Get answers to technical questions
-- **Discord Community**: Chat with other developers
-
-## Getting Help
-
-### Troubleshooting
-- **Check Status**: Verify API service status
-- **Review Logs**: Check error logs and messages
-- **Test Configuration**: Validate API settings
-- **Contact Support**: Get help from our team
-
-### Development Support
-- **Sandbox Environment**: Test integrations safely
-- **Development Tools**: Debug and test utilities
-- **Sample Applications**: Reference implementations
-- **Technical Consulting**: Expert integration assistance
+We're prioritizing integrations based on customer feedback.
 `
   }
 ];

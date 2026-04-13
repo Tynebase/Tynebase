@@ -2,61 +2,32 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Search, BookOpen, MessageSquare, FileText, Users, Settings, Zap, Shield, Palette, CreditCard } from "lucide-react";
+import { Search, BookOpen, MessageSquare, FileText, Users, Settings, Zap, Shield, Palette, CreditCard, Bot, Code } from "lucide-react";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
+import { categories as docCategories } from "@/lib/docs";
 
-const categories = [
-  { 
-    icon: BookOpen, 
-    title: "Getting Started", 
-    description: "Learn the basics of TyneBase", 
-    count: 12,
-    href: "/docs?slug=getting-started-tutorial"
-  },
-  { 
-    icon: FileText, 
-    title: "Documentation", 
-    description: "Create and manage documents", 
-    count: 24,
-    href: "/docs?slug=document-lifecycle"
-  },
-  { 
-    icon: Users, 
-    title: "Team Management", 
-    description: "Invite and manage team members", 
-    count: 8,
-    href: "/docs?slug=inviting-team"
-  },
-  { 
-    icon: Zap, 
-    title: "AI Features", 
-    description: "Use AI to generate content", 
-    count: 10,
-    href: "/docs?slug=first-ai-generation"
-  },
-  { 
-    icon: Palette, 
-    title: "Branding & White-Label", 
-    description: "Customise your workspace branding", 
-    count: 6,
-    href: "/docs?slug=branding-overview"
-  },
-  { 
-    icon: CreditCard, 
-    title: "Billing & Plans", 
-    description: "Pricing plans and payment options", 
-    count: 4,
-    href: "/docs?slug=billing-overview"
-  },
-  { 
-    icon: Shield, 
-    title: "Security & Privacy", 
-    description: "SSO, permissions, and compliance", 
-    count: 18,
-    href: "/docs?slug=permissions-rbac"
-  }
-];
+const iconMap: Record<string, any> = {
+  BookOpen,
+  FileText,
+  Users,
+  Zap,
+  Palette,
+  CreditCard,
+  Shield,
+  Bot,
+  Code,
+};
+
+const categories = docCategories
+  .filter(cat => cat.id !== 'api-reference')
+  .map(cat => ({
+    icon: iconMap[cat.icon] || BookOpen,
+    title: cat.title,
+    description: cat.description,
+    count: cat.articles.length,
+    href: `/docs?slug=${cat.articles[0]?.slug || cat.slug}`,
+  }));
 
 const popularArticles = [
   { title: "How to create your first document", href: "/docs?slug=creating-first-document" },

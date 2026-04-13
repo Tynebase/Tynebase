@@ -45,7 +45,7 @@ TyneBase offers comprehensive white-labeling capabilities to make the platform t
 - Ensure your custom domain has proper SSL certificates`,
     tags: ['branding', 'white-label', 'customization', 'visual'],
     category: 'branding',
-    lastUpdated: '2024-01-15',
+    lastUpdated: '2026-04-13',
     readTime: '5 min',
   },
   {
@@ -55,7 +55,7 @@ TyneBase offers comprehensive white-labeling capabilities to make the platform t
     description: 'Configure your custom domain for a fully branded experience.',
     content: `# Custom Domain Setup
 
-Setting up a custom domain gives your workspace a professional appearance and strengthens your brand identity.
+Configure your custom domain for a fully branded experience. Setting up a custom domain gives your workspace a professional appearance and strengthens your brand identity.
 
 ## Prerequisites
 
@@ -67,24 +67,22 @@ Setting up a custom domain gives your workspace a professional appearance and st
 
 ### 1. Choose Your Domain
 Select a subdomain that represents your brand:
-- \`docs.yourcompany.com\` - for documentation
-- \`knowledge.yourcompany.com\` - for knowledge base
-- \`wiki.yourcompany.com\` - for internal wiki
+- docs.com - for documentation
+- knowledge.com - for knowledge base
+- wiki.com - for internal wiki
 
 ### 2. Configure DNS
 Add a CNAME record in your DNS settings:
 
-\`\`\`
 Type: CNAME
 Name: docs (or your chosen subdomain)
 Value: tynebase.yourdomain.com
 TTL: 3600 (or 1 hour)
-\`\`\`
 
 ### 3. Verify Domain
-1. Go to **Settings > Branding** in TyneBase
+1. Navigate to Admin > Branding in TyneBase
 2. Enter your custom domain
-3. Click "Verify Domain"
+3. Click Verify Domain
 4. Wait for DNS propagation (typically 5-15 minutes)
 
 ### 4. Configure SSL
@@ -94,7 +92,7 @@ TyneBase automatically provides SSL certificates for verified domains. The proce
 
 ### Domain Not Verifying
 - Check that your CNAME record points to the correct value
-- Wait for DNS propagation (use \`nslookup\` to verify)
+- Wait for DNS propagation (use nslookup to verify)
 - Ensure no conflicting records exist
 
 ### SSL Issues
@@ -106,27 +104,18 @@ TyneBase automatically provides SSL certificates for verified domains. The proce
 
 ### Wildcard Domains
 For enterprise plans, you can set up wildcard domains:
-\`\`\`
 Type: CNAME
 Name: *
-Value: tynebase.yourdomain.com
-\`\`\`
+Value: tynebase.com
 
 ### Multiple Domains
 Add multiple domains to serve different teams or regions:
-- \`docs.us.yourcompany.com\` - US team
-- \`docs.eu.yourcompany.com\` - EU team
-- \`docs.apac.yourcompany.com\` - APAC team
-
-## Security Considerations
-
-- Always use HTTPS for custom domains
-- Regularly update your SSL certificates
-- Monitor domain expiration dates
-- Use DNSSEC for additional security`,
+- docs.com - US team
+- docs.com - EU team
+- docs.com - APAC team`,
     tags: ['domain', 'dns', 'ssl', 'custom-domain', 'configuration'],
     category: 'branding',
-    lastUpdated: '2024-01-15',
+    lastUpdated: '2026-04-13',
     readTime: '8 min',
   },
   {
@@ -136,7 +125,7 @@ Add multiple domains to serve different teams or regions:
     description: 'Personalize your workspace colors to match your brand identity.',
     content: `# Color Customization
 
-Make TyneBase truly yours with custom color schemes that reflect your brand identity.
+Personalize your workspace colors to match your brand identity. Make TyneBase truly yours with custom color schemes that reflect your brand identity.
 
 ## Color Options
 
@@ -168,9 +157,9 @@ Make TyneBase truly yours with custom color schemes that reflect your brand iden
 
 ### Custom Colors
 You can specify colors using:
-- **Hex Codes**: \`#FF5733\`
-- **RGB Values**: \`rgb(255, 87, 51)\`
-- **HSL Values**: \`hsl(9, 100%, 61%)\`
+- **Hex Codes**: #FF5733
+- **RGB Values**: rgb(255, 87, 51)
+- **HSL Values**: hsl(9, 100%, 61%)
 
 ## Best Practices
 
@@ -193,13 +182,11 @@ You can specify colors using:
 
 ### CSS Variables
 For advanced users, you can override CSS variables:
-\`\`\css
 :root {
   --brand-primary: #your-color;
   --brand-secondary: #your-secondary-color;
   --text-primary: #your-text-color;
 }
-\`\`\`
 
 ### Theme Switching
 Configure how colors adapt between themes:
@@ -225,7 +212,7 @@ Configure how colors adapt between themes:
 - Test with different browsers`,
     tags: ['colors', 'branding', 'customization', 'design', 'accessibility'],
     category: 'branding',
-    lastUpdated: '2024-01-15',
+    lastUpdated: '2026-04-13',
     readTime: '7 min',
   },
   {
@@ -235,7 +222,7 @@ Configure how colors adapt between themes:
     description: 'Upload and manage your company logo across the platform.',
     content: `# Logo Upload & Management
 
-Your company logo is a key element of your brand identity. Learn how to upload and manage logos effectively in TyneBase.
+Upload and manage your company logo across the platform. Your company logo is a key element of your brand identity. Learn how to upload and manage logos effectively in TyneBase.
 
 ## Supported Formats
 
@@ -350,7 +337,7 @@ Ensure you have:
 - Custom domains with logos enhance credibility`,
     tags: ['logo', 'upload', 'branding', 'images', 'management'],
     category: 'branding',
-    lastUpdated: '2024-01-15',
+    lastUpdated: '2026-04-13',
     readTime: '6 min',
   },
 ];

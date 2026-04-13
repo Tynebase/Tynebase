@@ -8,7 +8,8 @@
  * - Account deletion (right to be forgotten)
  */
 
-import { apiGet, apiPatch } from './client';
+import { apiGet, apiPatch, apiUpload } from './client';
+
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -193,6 +194,23 @@ export async function updateTenant(
   data: UpdateTenantData
 ): Promise<TenantResponse> {
   return apiPatch<TenantResponse>(`/api/tenants/${tenantId}`, data);
+}
+
+/**
+ * Upload a logo image for the tenant.
+ * Stores the file in Supabase storage and saves the public URL to tenant settings.
+ *
+ * @param tenantId - Tenant UUID
+ * @param file - Image file (PNG, JPG, SVG, WebP — max 2 MB)
+ * @returns The public URL of the uploaded logo
+ */
+export async function uploadTenantLogo(
+  tenantId: string,
+  file: File
+): Promise<{ logo_url: string }> {
+  const form = new FormData();
+  form.append('file', file);
+  return apiUpload<{ logo_url: string }>(`/api/tenants/${tenantId}/logo`, form);
 }
 
 // ============================================================================
