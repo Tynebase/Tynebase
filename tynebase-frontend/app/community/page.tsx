@@ -300,7 +300,12 @@ function CommunityContent() {
             {discussions.length > 0 ? (
               <div className="grid grid-cols-1 gap-4">
                 {discussions.map((d) => (
-                  <div key={d.id} className="bento-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px" }}>
+                  <Link
+                    key={d.id}
+                    href={user ? `/dashboard/community/${d.id}` : `/community/login`}
+                    className="bento-item block"
+                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", textDecoration: "none", cursor: "pointer" }}
+                  >
                      <div style={{ display: "flex", gap: "16px" }}>
                         <div className="feature-icon feature-icon-brand" style={{ flexShrink: 0 }}>
                            <MessageSquare className="w-5 h-5" />
@@ -314,12 +319,8 @@ function CommunityContent() {
                            </div>
                         </div>
                      </div>
-                     {user ? (
-                       <Link href={`/dashboard/community/${d.id}`} className="btn btn-ghost btn-sm" style={{ border: "1px solid var(--border-subtle)" }}>Read More</Link>
-                     ) : (
-                       <Link href="/community/login" className="btn btn-ghost btn-sm" style={{ border: "1px solid var(--border-subtle)" }}>Read More</Link>
-                     )}
-                  </div>
+                     <div className="btn btn-ghost btn-sm" style={{ border: "1px solid var(--border-subtle)", pointerEvents: "none" }}>Read More</div>
+                  </Link>
                 ))}
               </div>
             ) : (
