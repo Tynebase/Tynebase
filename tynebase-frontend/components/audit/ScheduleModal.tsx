@@ -51,7 +51,7 @@ export default function ScheduleModal({ isOpen, onClose }: ScheduleModalProps) {
       setSchedules(data.schedules);
     } catch (error) {
       console.error("Failed to fetch schedules:", error);
-      addToast({ type: 'error', title: 'Failed to load schedules' });
+      setSchedules([]);
     } finally {
       setLoading(false);
     }

@@ -47,7 +47,7 @@ export default function NotificationRulesModal({ isOpen, onClose }: Notification
       setRules(data.rules);
     } catch (error) {
       console.error("Failed to fetch notification rules:", error);
-      addToast({ type: 'error', title: 'Failed to load notification rules' });
+      setRules([]);
     } finally {
       setLoading(false);
     }
