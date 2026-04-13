@@ -20,7 +20,8 @@
       "Bash(fly deploy:*)",
       "Bash(find \"C:\\\\Users\\\\Mai\\\\Desktop\\\\TyneBase\\\\tynebase-frontend\" -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" \\\\\\) -exec grep -l \"customDomain\\\\|custom.domain\\\\|custom-domain\" {} \\\\;)",
       "Bash(find \"C:\\\\Users\\\\Mai\\\\Desktop\\\\TyneBase\\\\tynebase-frontend\" -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" \\\\\\) -exec grep -l \"whiteLabel\\\\|white-label\\\\|white_label\" {} \\\\;)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(ls C:\\\\Users\\\\Mai\\\\Desktop\\\\TyneBase\\\\tynebase-frontend\\\\middleware*)"
     ]
   }
 }
