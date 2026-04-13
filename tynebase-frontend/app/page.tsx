@@ -206,8 +206,7 @@ export default function Home() {
                 <CanvasImage
                   src="/mainhero.png"
                   alt="Platform Preview Coming Soon"
-                  containerWidth={1200}
-                  containerHeight={500}
+                  fit="cover"
                 />
               </div>
             </div>
@@ -454,8 +453,7 @@ export default function Home() {
                 <CanvasImage
                   src={knowledgeFeatures[activeFeature].image}
                   alt={knowledgeFeatures[activeFeature].title}
-                  containerWidth={1200}
-                  containerHeight={750}
+                  fit="contain"
                 />
               </div>
             </div>
