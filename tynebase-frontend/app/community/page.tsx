@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { MessageSquare, Users, BookOpen, ArrowRight, Lock, TrendingUp, HelpCircle, Bell, Shield, Loader2, Calendar, LogOut, User, Hash } from "lucide-react";
+import { MessageSquare, Users, BookOpen, ArrowRight, Lock, TrendingUp, HelpCircle, Bell, Shield, Loader2, Calendar, LogOut, User, Hash, Eye, ThumbsUp } from "lucide-react";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +14,19 @@ const iconMap: Record<string, any> = {
   HelpCircle,
   TrendingUp,
   MessageSquare,
+};
+
+const formatTimeAgo = (dateString: string) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
 };
 
 interface Category {
@@ -314,8 +327,10 @@ function CommunityContent() {
                            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-1">{d.title}</h3>
                            <div style={{ display: "flex", gap: "12px", fontSize: "14px", color: "var(--text-muted)" }}>
                               <span style={{ display: "flex", alignItems: "center", gap: "4px" }}><Users className="w-3.5 h-3.5" /> {d.author?.full_name || 'Member'}</span>
-                              <span style={{ display: "flex", alignItems: "center", gap: "4px" }}><Calendar className="w-3.5 h-3.5" /> {new Date(d.created_at).toLocaleDateString()}</span>
-                              <span style={{ display: "flex", alignItems: "center", gap: "4px" }}><MessageSquare className="w-3.5 h-3.5" /> {d.replies_count} replies</span>
+                              <span style={{ display: "flex", alignItems: "center", gap: "4px" }}><Calendar className="w-3.5 h-3.5" /> {formatTimeAgo(d.created_at)}</span>
+                              <span style={{ display: "flex", alignItems: "center", gap: "4px" }}><MessageSquare className="w-3.5 h-3.5" /> {d.replies_count}</span>
+                              <span style={{ display: "flex", alignItems: "center", gap: "4px" }}><Eye className="w-3.5 h-3.5" /> {d.views_count || 0}</span>
+                              <span style={{ display: "flex", alignItems: "center", gap: "4px" }}><ThumbsUp className="w-3.5 h-3.5" /> {d.likes_count || 0}</span>
                            </div>
                         </div>
                      </div>
