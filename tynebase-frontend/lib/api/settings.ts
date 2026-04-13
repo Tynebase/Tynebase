@@ -45,6 +45,9 @@ export interface TenantSettings {
     primary_color?: string;
     secondary_color?: string;
     company_name?: string;
+    kb_eyebrow?: string;
+    kb_heading?: string;
+    kb_subheading?: string;
   };
   ai_preferences?: {
     default_provider?: 'openai' | 'anthropic' | 'cohere';

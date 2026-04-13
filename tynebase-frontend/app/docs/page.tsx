@@ -159,6 +159,9 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
 
   const brandColor = tenant?.branding.primary_color || "var(--brand)";
   const companyName = tenant?.branding.company_name || tenant?.name || "Knowledge Base";
+  const kbEyebrow = (tenant?.branding as any)?.kb_eyebrow || "Help Center";
+  const kbHeading = (tenant?.branding as any)?.kb_heading || "How can we help?";
+  const kbSubheading = (tenant?.branding as any)?.kb_subheading || "Search our knowledge base or browse by category";
 
   if (loading) {
     return (
@@ -205,7 +208,7 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
               )}
               <div>
                 <h1 style={{ fontWeight: 600, fontSize: '18px', color: 'var(--text-primary)', lineHeight: 1.2 }}>{companyName}</h1>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Help Center</p>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{kbEyebrow}</p>
               </div>
             </div>
             <Link href="/community" style={{ fontSize: '14px', color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: 500 }}>
@@ -220,13 +223,13 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
         <div className="container">
           <div style={{ textAlign: 'center', maxWidth: '800px', margin: '0 auto' }}>
             <p style={{ fontSize: '14px', fontWeight: 600, color: brandColor, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '24px' }}>
-              Help Center
+              {kbEyebrow}
             </p>
             <h1 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: '24px', lineHeight: 1.1 }}>
-              How can we help?
+              {kbHeading}
             </h1>
             <p style={{ fontSize: '18px', color: 'var(--text-secondary)', marginBottom: '48px', lineHeight: 1.6 }}>
-              Search our knowledge base or browse by category
+              {kbSubheading}
             </p>
 
             {/* Search - same style as /docs */}

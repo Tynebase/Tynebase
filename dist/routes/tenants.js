@@ -18,6 +18,9 @@ const settingsSchema = zod_1.z.object({
         primary_color: zod_1.z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
         secondary_color: zod_1.z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
         company_name: zod_1.z.string().max(100).optional(),
+        kb_eyebrow: zod_1.z.string().max(100).optional(),
+        kb_heading: zod_1.z.string().max(200).optional(),
+        kb_subheading: zod_1.z.string().max(300).optional(),
     }).optional(),
     ai_preferences: zod_1.z.object({
         default_provider: zod_1.z.enum(['openai', 'anthropic', 'cohere']).optional(),

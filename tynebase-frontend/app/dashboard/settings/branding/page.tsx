@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Palette, Upload, Globe, CheckCircle, AlertCircle, Copy, ExternalLink, Loader2, X } from 'lucide-react';
+import { Palette, Upload, Globe, CheckCircle, AlertCircle, Copy, ExternalLink, Loader2, X, Type } from 'lucide-react';
 import { FeatureGate } from '@/components/ui/UpgradePrompt';
 import { useTenant } from '@/contexts/TenantContext';
 import { updateTenant, uploadTenantLogo } from '@/lib/api/settings';
@@ -134,6 +134,115 @@ function CustomDomainSection() {
             </div>
           </>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// KB Text Section (pro+)
+// ---------------------------------------------------------------------------
+function KBTextSection() {
+  const { tenant, refreshTenant } = useTenant() as any;
+  const [eyebrow, setEyebrow] = useState(tenant?.settings?.branding?.kb_eyebrow ?? '');
+  const [heading, setHeading] = useState(tenant?.settings?.branding?.kb_heading ?? '');
+  const [subheading, setSubheading] = useState(tenant?.settings?.branding?.kb_subheading ?? '');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!tenant) return;
+    setEyebrow(tenant.settings?.branding?.kb_eyebrow ?? '');
+    setHeading(tenant.settings?.branding?.kb_heading ?? '');
+    setSubheading(tenant.settings?.branding?.kb_subheading ?? '');
+  }, [tenant?.id]);
+
+  const handleSave = async () => {
+    if (!tenant?.id) return;
+    setError('');
+    setSaving(true);
+    try {
+      await updateTenant(tenant.id, {
+        settings: {
+          branding: {
+            kb_eyebrow: eyebrow.trim() || undefined,
+            kb_heading: heading.trim() || undefined,
+            kb_subheading: subheading.trim() || undefined,
+          },
+        },
+      } as any);
+      setSaved(true);
+      if (typeof refreshTenant === 'function') refreshTenant();
+      setTimeout(() => setSaved(false), 3000);
+    } catch (e: any) {
+      setError(e?.message ?? 'Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Type className="h-5 w-5 text-[var(--brand)]" />
+          Knowledge Base Text
+        </CardTitle>
+        <CardDescription>
+          Customise the heading text on your public knowledge base landing page
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="kb-eyebrow">Eyebrow label</Label>
+          <Input
+            id="kb-eyebrow"
+            placeholder="Help Center"
+            value={eyebrow}
+            onChange={(e) => setEyebrow(e.target.value)}
+          />
+          <p className="text-xs text-[var(--dash-text-muted)]">Small label above the main heading. Default: "Help Center"</p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="kb-heading">Main heading</Label>
+          <Input
+            id="kb-heading"
+            placeholder="How can we help?"
+            value={heading}
+            onChange={(e) => setHeading(e.target.value)}
+          />
+          <p className="text-xs text-[var(--dash-text-muted)]">The large H1. Default: "How can we help?"</p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="kb-subheading">Subheading</Label>
+          <Input
+            id="kb-subheading"
+            placeholder="Search our knowledge base or browse by category"
+            value={subheading}
+            onChange={(e) => setSubheading(e.target.value)}
+          />
+          <p className="text-xs text-[var(--dash-text-muted)]">Subtitle below the heading. Default: "Search our knowledge base or browse by category"</p>
+        </div>
+
+        {error && (
+          <div className="flex items-center gap-2 text-sm text-[var(--status-error)]">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            {error}
+          </div>
+        )}
+        {saved && (
+          <div className="flex items-center gap-2 text-sm text-[var(--status-success)]">
+            <CheckCircle className="w-4 h-4 flex-shrink-0" />
+            Text saved.
+          </div>
+        )}
+
+        <div className="flex justify-end">
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save text'}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
@@ -445,6 +554,7 @@ export default function BrandingSettings() {
       {/* White-Label Branding — Pro+ only */}
       <FeatureGate feature="whiteLabel">
         <WhiteLabelBrandingSection />
+        <KBTextSection />
       </FeatureGate>
     </div>
   );
