@@ -345,20 +345,11 @@ TyneBase implements multiple layers of security to protect your data.
 
 All stored data is encrypted:
 
-<div style="display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Data Type</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Encryption</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Key Management</div>
-  <div style="background: white; padding: 12px 16px;">Database</div>
-  <div style="background: white; padding: 12px 16px;">AES-256</div>
-  <div style="background: white; padding: 12px 16px;">Supabase managed</div>
-  <div style="background: white; padding: 12px 16px;">File storage</div>
-  <div style="background: white; padding: 12px 16px;">AES-256</div>
-  <div style="background: white; padding: 12px 16px;">Supabase managed</div>
-  <div style="background: white; padding: 12px 16px;">Backups</div>
-  <div style="background: white; padding: 12px 16px;">AES-256</div>
-  <div style="background: white; padding: 12px 16px;">Isolated keys</div>
-</div>
+| Data Type | Encryption | Key Management |
+|-----------|------------|----------------|
+| Database | AES-256 | Supabase managed |
+| File storage | AES-256 | Supabase managed |
+| Backups | AES-256 | Isolated keys |
 
 ## Encryption in Transit
 
@@ -387,18 +378,12 @@ MFA is currently in development. Coming soon:
 
 ## Session Security
 
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 16px 0;">
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Setting</div>
-  <div style="background: #f9fafb; padding: 12px 16px; font-weight: 600;">Value</div>
-  <div style="background: white; padding: 12px 16px;">Session timeout</div>
-  <div style="background: white; padding: 12px 16px;">24 hours</div>
-  <div style="background: white; padding: 12px 16px;">Idle timeout</div>
-  <div style="background: white; padding: 12px 16px;">1 hour</div>
-  <div style="background: white; padding: 12px 16px;">Concurrent sessions</div>
-  <div style="background: white; padding: 12px 16px;">Unlimited</div>
-  <div style="background: white; padding: 12px 16px;">Session revocation</div>
-  <div style="background: white; padding: 12px 16px;">Immediate</div>
-</div>
+| Setting | Value |
+|---------|-------|
+| Session timeout | 24 hours |
+| Idle timeout | 1 hour |
+| Concurrent sessions | Unlimited |
+| Session revocation | Immediate |
 
 View and revoke sessions in **Settings** → **Security** → **Sessions**.
 
