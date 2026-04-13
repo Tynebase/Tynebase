@@ -302,7 +302,7 @@ function CommunityContent() {
                 {discussions.map((d) => (
                   <Link
                     key={d.id}
-                    href={user ? `/dashboard/community/${d.id}` : `/community/login`}
+                    href={`/community/${d.id}`}
                     className="bento-item block"
                     style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", textDecoration: "none", cursor: "pointer" }}
                   >
