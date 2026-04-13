@@ -83,7 +83,7 @@ export async function processAIGenerationJob(job: Job): Promise<void> {
       const generatedContent = await callAIProvider(
         validated.prompt,
         validated.model,
-        validated.max_tokens || 2000,
+        validated.max_tokens || 8000,
         outputType,
         validated.template_content
       );

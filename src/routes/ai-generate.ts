@@ -25,9 +25,9 @@ const GenerateRequestSchema = z.object({
   max_tokens: z.number()
     .int()
     .min(100)
-    .max(4000)
+    .max(8000)
     .optional()
-    .default(2000),
+    .default(8000),
   output_types: z.array(
     z.enum(['full_article', 'summary', 'outline', 'with_template'])
   )

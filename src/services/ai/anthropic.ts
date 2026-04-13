@@ -83,7 +83,7 @@ export async function generateText(
 ): Promise<AIGenerationResponse> {
   const client = getBedrockClient();
   const model = request.model || 'claude-sonnet-4.5';
-  const maxTokens = request.maxTokens || 4000;
+  const maxTokens = request.maxTokens || 8000;
   const temperature = request.temperature ?? 0.7;
 
   try {
@@ -183,7 +183,7 @@ export async function* generateTextStream(
 ): AsyncGenerator<string, AIGenerationResponse, undefined> {
   const client = getBedrockClient();
   const model = request.model || 'claude-sonnet-4.5';
-  const maxTokens = request.maxTokens || 4000;
+  const maxTokens = request.maxTokens || 8000;
   const temperature = request.temperature ?? 0.7;
 
   try {

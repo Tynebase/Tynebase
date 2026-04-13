@@ -340,7 +340,7 @@ export async function generateText(
     model: GEMINI_MODEL,
   });
 
-  const maxTokens = request.maxTokens || 4000;
+  const maxTokens = request.maxTokens || 8000;
   const temperature = request.temperature ?? 0.7;
 
   try {
@@ -438,7 +438,7 @@ export async function* generateTextStream(
     model: GEMINI_MODEL,
   });
 
-  const maxTokens = request.maxTokens || 4000;
+  const maxTokens = request.maxTokens || 8000;
   const temperature = request.temperature ?? 0.7;
 
   try {
