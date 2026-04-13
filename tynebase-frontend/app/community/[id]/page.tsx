@@ -43,7 +43,7 @@ function formatDate(dateString: string) {
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 8640000);
+  const diffDays = Math.floor(diffMs / 86400000);
   if (diffMins < 60) return `${diffMins} min ago`;
   if (diffHours < 24) return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
   if (diffDays === 1) return "Yesterday";
@@ -56,8 +56,8 @@ const HtmlContent = ({ content, className }: { content: string; className: strin
 );
 
 export default function PublicDiscussionPage() {
-  const params = useParams();
   const router = useRouter();
+  const params = useParams();
   const discussionId = params.id as string;
   const subdomain = getSubdomainFromHost();
 
@@ -65,10 +65,6 @@ export default function PublicDiscussionPage() {
   const [replies, setReplies] = useState<DiscussionReply[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [reply, setReply] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [replyingTo, setReplyingTo] = useState<string | null>(null);
-  const [nestedReply, setNestedReply] = useState("");
 
   useEffect(() => {
     if (!subdomain) {
@@ -93,14 +89,6 @@ export default function PublicDiscussionPage() {
     }
     fetchDiscussion();
   }, [subdomain, discussionId]);
-
-  const handleSubmitReply = async (parentId?: string) => {
-    const content = parentId ? nestedReply.trim() : reply.trim();
-    if (!content || submitting) return;
-    
-    // For public page, we'd need to redirect to login
-    router.push('/community/login');
-  };
 
   const buildReplyTree = (replies: DiscussionReply[], parentId: string | null = null): DiscussionReply[] => {
     return replies
