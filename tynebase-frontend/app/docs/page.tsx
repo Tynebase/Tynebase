@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { Search, BookOpen, Zap, Shield, ArrowRight, Code, Bot, FileText, Lock, BarChart3, FolderSync, Globe, Video, FileCheck, FolderOpen, ChevronRight, Eye, Clock, User, Users, Loader2, AlertCircle, ThumbsUp, ThumbsDown } from "lucide-react";
@@ -514,6 +515,7 @@ function TyneBaseDocsPage() {
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   const [mobileSidebar, setMobileSidebar] = useState(false);
   const [activeHeading, setActiveHeading] = useState("");
+  const router = useRouter();
 
   const headings = selectedArticle ? extractHeadings(selectedArticle.content) : [];
 
@@ -544,7 +546,7 @@ function TyneBaseDocsPage() {
     setIsSearching(false);
     setSearchQuery("");
     setActiveHeading("");
-    window.history.replaceState(null, '', '/help');
+    router.push('/help');
   };
 
   const toggleCategory = (id: string) => {
