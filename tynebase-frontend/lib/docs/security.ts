@@ -650,14 +650,13 @@ While we build this feature, you can:
 
 This feature is in development. To be notified when it launches:
 - Watch our GitHub repository
-- Follow our blog for product updates
-- Join our community forum
+- Join our Community
 
 ## Feature Requests
 
 Have specific audit needs? Let us know:
 - Contact our support team
-- Post in our community forum
+- Post in our Community
 - Vote on feature requests in our roadmap
 `,
   },

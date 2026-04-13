@@ -346,7 +346,7 @@ Configure your TyneBase workspace with branding, categories and team settings. S
 
 ## Workspace Structure
 
-Your workspace includes Knowledge Base, AI Assistant, Community Forum and Templates Library.
+Your workspace includes Knowledge Base, AI Assistant, Community, and Templates Library.
 
 ## Configure Branding
 

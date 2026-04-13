@@ -384,19 +384,19 @@ Variables are prompted when using the template.
   },
   {
     id: 'cc-5',
-    slug: 'community-forum',
-    title: 'Community Forum',
+    slug: 'community',
+    title: 'Community',
     description: 'Collaborate with your team through discussions, Q&A, and announcements.',
     category: 'Core Concepts',
     readTime: '4 min',
     lastUpdated: '2026-01-10',
-    tags: ['community', 'forum', 'collaboration', 'discussions'],
+    tags: ['community', 'collaboration', 'discussions'],
     content: `
-# Community Forum
+# Community
 
-The Community Forum enables team collaboration beyond documentation.
+The Community enables team collaboration beyond documentation.
 
-## Forum Features
+## Community Features
 
 ### Discussions
 

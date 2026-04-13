@@ -8,30 +8,30 @@ export const brandingArticles: DocArticle[] = [
     description: 'Customise your workspace with your company\'s branding and white-label options.',
     content: `# Branding Overview
 
-TyneBase offers branding capabilities to make your workspace reflect your brand identity. Upload your logo, set your brand colors, and configure a custom domain.
+TyneBase offers branding capabilities to make your workspace reflect your brand identity. Upload your logo, set your brand colours, and configure a custom domain.
 
-## What You Can Customize
+## What You Can Customise
 
 ### Visual Branding
 - **Company Logo**: Upload your logo (Pro+ tier)
-- **Color Scheme**: Choose primary and secondary colors that match your brand (Pro+ tier)
+- **Colour Scheme**: Choose primary and secondary colours that match your brand (Pro+ tier)
 - **Custom Domain**: Use your own domain (e.g., docs.yourcompany.com) (Base+ tier)
 
 ## Getting Started
 
 1. Navigate to **Settings > Branding**
 2. Upload your company logo
-3. Choose your brand colors
+3. Choose your brand colours
 4. Configure your custom domain
 5. Preview changes before publishing
 
 ## Best Practices
 
 - Keep your logo under 2MB for optimal loading
-- Use high-contrast colors for accessibility
+- Use high-contrast colours for accessibility
 - Test your branding on both light and dark themes
 - Ensure your custom domain has proper SSL certificates (automatically provisioned)`,
-    tags: ['branding', 'white-label', 'customization', 'visual'],
+    tags: ['branding', 'white-label', 'customisation', 'visual'],
     category: 'branding',
     lastUpdated: '2026-04-13',
     readTime: '5 min',
@@ -109,37 +109,37 @@ Add multiple domains to serve different teams or regions:
   {
     id: 'color-customization',
     slug: 'color-customization',
-    title: 'Color Customization',
-    description: 'Personalize your workspace colors to match your brand identity.',
-    content: `# Color Customization
+    title: 'Colour Customisation',
+    description: 'Personalise your workspace colours to match your brand identity.',
+    content: `# Colour Customisation
 
-Personalize your workspace colors to match your brand identity. Set primary and secondary colors that are applied to buttons, links, and accents throughout your workspace.
+Personalise your workspace colours to match your brand identity. Set primary and secondary colours that are applied to buttons, links, and accents throughout your workspace.
 
-## Color Options
+## Colour Options
 
-### Brand Colors
-- **Primary Brand Color**: Main accent color for buttons, links, and highlights
-- **Secondary Brand Color**: Complementary color for secondary actions
+### Brand Colours
+- **Primary Brand Colour**: Main accent colour for buttons, links, and highlights
+- **Secondary Brand Colour**: Complementary colour for secondary actions
 
 ## Getting Started
 
 1. Navigate to **Settings > Branding**
 2. Click on "Brand Colours"
-3. Use the color picker or enter hex codes
+3. Use the colour picker or enter hex codes
 4. Preview changes in real-time
 5. Save your preferences
 
-## Color Picker Options
+## Colour Picker Options
 
-### Custom Colors
-You can specify colors using:
-- **Color Picker**: Click to select from a color palette
+### Custom Colours
+You can specify colours using:
+- **Colour Picker**: Click to select from a colour palette
 - **Hex Codes**: Enter directly (e.g., #FF5733)
 
 ### Live Preview
-See your colors in action before saving:
-- Preview swatches showing both colors
-- Sample buttons displaying how colors appear
+See your colours in action before saving:
+- Preview swatches showing both colours
+- Sample buttons displaying how colours appear
 - Real-time updates as you adjust
 
 ## Best Practices
@@ -147,21 +147,21 @@ See your colors in action before saving:
 ### Accessibility
 - Ensure sufficient contrast between text and background
 - Follow WCAG 2.1 AA guidelines (4.5:1 contrast ratio minimum)
-- Test with color blindness simulators if needed
+- Test with colour blindness simulators if needed
 
 ### Brand Consistency
-- Use your brand's official color codes
+- Use your brand's official colour codes
 - Maintain consistency across all marketing materials
-- Consider how colors appear in different contexts
+- Consider how colours appear in different contexts
 
 ### User Experience
-- Test colors in both light and dark themes
-- Ensure colors work well on different devices
-- Consider cultural implications of color choices
+- Test colours in both light and dark themes
+- Ensure colours work well on different devices
+- Consider cultural implications of colour choices
 
 ## Troubleshooting
 
-### Colors Not Applying
+### Colours Not Applying
 - Clear your browser cache
 - Ensure you have proper permissions (Pro+ tier required)
 - Check that you clicked Save after making changes
@@ -169,13 +169,13 @@ See your colors in action before saving:
 ### Contrast Issues
 - Use online contrast checker tools
 - Adjust brightness or saturation
-- Consider alternative color combinations
+- Consider alternative colour combinations
 
-### Brand Colors Not Working
+### Brand Colours Not Working
 - Verify hex code format (must be 7 characters including #)
-- Check for typos in color codes
+- Check for typos in colour codes
 - Test with different browsers`,
-    tags: ['colors', 'branding', 'customization', 'design', 'accessibility'],
+    tags: ['colours', 'branding', 'customisation', 'design', 'accessibility'],
     category: 'branding',
     lastUpdated: '2026-04-13',
     readTime: '7 min',

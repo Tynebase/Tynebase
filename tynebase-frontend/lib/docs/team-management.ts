@@ -192,126 +192,6 @@ Once users have joined, you can:
 `
   },
   {
-    id: 'tm-4',
-    slug: 'workspace-settings',
-    title: 'Workspace Settings',
-    description: 'Configure your workspace preferences, security, and branding.',
-    category: 'Team Management',
-    readTime: '4 min',
-    lastUpdated: '2026-01-20',
-    tags: ['settings', 'configuration', 'security'],
-    content: `
-# Workspace Settings
-
-Customise your workspace to match your team's needs and brand.
-
-## General Settings
-
-### Workspace Information
-- **Name**: Your workspace display name
-- **Description**: What your workspace is used for
-- **Time Zone**: Set your team's time zone
-- **Language**: Default language for the interface
-
-### Default Preferences
-- **Document Visibility**: Default visibility for new documents
-- **Comment Permissions**: Who can comment on documents
-- **Notification Settings**: Default notification preferences
-
-## Security Settings
-
-### Authentication
-- **Two-Factor Authentication**: Require 2FA for all users
-- **Session Duration**: How long users stay logged in
-- **Password Requirements**: Set password complexity rules
-
-### Access Control
-- **IP Restrictions**: Limit access to specific IP ranges
-- **Domain Restrictions**: Only allow specific email domains
-- **SSO Integration**: Connect to your identity provider
-
-### Data Protection
-- **Export Restrictions**: Control who can export data
-- **API Access**: Manage API keys and permissions
-- **Audit Logs**: Track all workspace activity
-
-## Branding Settings
-
-### Company Branding
-- **Logo**: Upload your company logo
-- **Colors**: Set primary and secondary colors
-- **Font**: Choose your preferred font family
-
-### Custom Domain
-- **Domain**: Use your own domain (e.g., docs.yourcompany.com)
-- **SSL Certificate**: Automatic SSL certificate provision
-- **DNS Settings**: Instructions for domain configuration
-
-### Email Customization
-- **Email Headers**: Customize email headers
-- **Footer Text**: Add custom footer to emails
-- **Reply-to Address**: Set custom reply-to address
-
-## Integration Settings
-
-### Single Sign-On (SSO)
-- **SAML 2.0**: Connect to enterprise identity providers
-- **OAuth 2.0**: Use Google, Microsoft, or other providers
-- **LDAP**: Connect to your directory service
-
-### Webhooks
-- **Document Events**: Notifications for document changes
-- **User Events**: Notifications for user management
-- **Custom Events**: Set up your own webhook endpoints
-
-### API Access
-- **API Keys**: Generate and manage API keys
-- **Rate Limiting**: Control API usage limits
-- **IP Whitelisting**: Restrict API access by IP
-
-## Billing Settings
-
-### Subscription Management
-- **Plan Details**: View your current plan
-- **Usage Metrics**: Monitor your usage
-- **Payment Methods**: Manage payment options
-
-### Usage Alerts
-- **Credit Alerts**: Get notified when credits are low
-- **User Limits**: Monitor user count limits
-- **Storage Alerts**: Monitor storage usage
-
-## Advanced Settings
-
-### Data Management
-- **Export Data**: Download all your workspace data
-- **Import Data**: Import from other platforms
-- **Backup Settings**: Configure automatic backups
-
-### Compliance
-- **GDPR Settings**: Configure privacy settings
-- **Data Retention**: Set data retention policies
-- **Audit Reports**: Generate compliance reports
-
-## Best Practices
-
-### Security
-- Enable 2FA for all admin users
-- Regularly review access permissions
-- Monitor audit logs for suspicious activity
-
-### Performance
-- Optimize images and media files
-- Regularly clean up unused content
-- Monitor API usage and limits
-
-### User Experience
-- Keep branding consistent
-- Use clear, descriptive names
-- Provide proper training for new users
-`
-  },
-  {
     id: 'tm-5',
     slug: 'activity-monitoring',
     title: 'Activity Monitoring',
@@ -635,7 +515,7 @@ This feature is currently in development. To be notified when it launches:
 
 1. Watch our GitHub repository for announcements
 2. Follow our blog for product updates
-3. Join our community forum for early access opportunities
+3. Join our Community for early access opportunities
 
 ## In the Meantime
 
@@ -649,7 +529,7 @@ While we build our API platform, you can:
 
 Have a specific integration need? Let us know:
 - Contact our support team
-- Post in our community forum
+- Post in our Community
 - Vote on feature requests in our roadmap
 
 We're prioritizing integrations based on customer feedback.
