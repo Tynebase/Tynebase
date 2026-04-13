@@ -63,8 +63,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   // Play notification sound (ding)
   // ------------------------------------------------------------------
   const playNotificationSound = useCallback(() => {
+    console.log('[NotificationContext] Playing notification sound');
     try {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      
+      // Resume audio context if suspended (required by browsers after user interaction)
+      if (audioContext.state === 'suspended') {
+        console.log('[NotificationContext] Resuming suspended audio context');
+        audioContext.resume();
+      }
+      
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
 
@@ -75,7 +83,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5
       oscillator.frequency.exponentialRampToValueAtTime(440, audioContext.currentTime + 0.1);
       
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.setValueAtTime(0.5, audioContext.currentTime); // Increased volume
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
 
       oscillator.start(audioContext.currentTime);
