@@ -336,7 +336,7 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
               )}
             </div>
           ) : (
-            /* Category cards - SAME design as TyneBase /docs */
+            /* Category cards - Match help page design */
             <div>
               <div style={{ textAlign: 'center', marginBottom: '48px' }}>
                 <h2 style={{ fontSize: '28px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>
@@ -347,34 +347,27 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
                 </p>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px', maxWidth: '1100px', margin: '0 auto' }}>
-                {categories.map((category) => (
-                  <button
-                    key={category.id}
-                    onClick={() => handleCategoryClick(category)}
-                    className="bento-item"
-                    style={{ padding: '32px', display: 'flex', flexDirection: 'column', cursor: 'pointer', border: 'none', background: 'var(--bg-elevated)', textAlign: 'left', width: '100%' }}
-                  >
-                    <div
-                      style={{ width: '40px', height: '40px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px', background: `${category.color}20` }}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" style={{ maxWidth: '1024px', margin: '0 auto' }}>
+                {categories.map((category) => {
+                  const Icon = category.icon && iconMap[category.icon] ? iconMap[category.icon] : FolderOpen;
+                  return (
+                    <button
+                      key={category.id}
+                      onClick={() => handleCategoryClick(category)}
+                      className="bento-item cursor-pointer group block"
+                      style={{ padding: '24px', display: 'flex', flexDirection: 'column', cursor: 'pointer', border: 'none', background: 'var(--bg-elevated)', textAlign: 'left', width: '100%' }}
                     >
-                      <FolderOpen style={{ width: '20px', height: '20px', color: category.color }} />
-                    </div>
-                    <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px' }}>
-                      {category.name}
-                    </h3>
-                    {category.description && (
-                      <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: 1.6 }}>
-                        {category.description}
-                      </p>
-                    )}
-                    <div style={{ marginTop: 'auto' }}>
-                      <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                        {category.document_count} article{category.document_count !== 1 ? 's' : ''}
-                      </p>
-                    </div>
-                  </button>
-                ))}
+                      <div className="feature-icon feature-icon-brand mb-4" style={{ color: category.color }}>
+                        <Icon className="w-5 h-5" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2 group-hover:text-[var(--brand)] transition-colors">
+                        {category.name}
+                      </h3>
+                      <p className="text-sm text-[var(--text-secondary)] mb-3">{category.description || "Articles in this category"}</p>
+                      <p className="text-xs text-[var(--text-muted)]">{category.document_count} article{category.document_count !== 1 ? 's' : ''}</p>
+                    </button>
+                  );
+                })}
               </div>
 
               {/* View all link */}
