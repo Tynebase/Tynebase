@@ -82,7 +82,7 @@ export default async function dmRoutes(fastify: FastifyInstance) {
         }
 
         // Get participants for each conversation
-        const { data: allParticipants } = await supabaseAdmin
+        const { data: allParticipants, error: participantsError } = await supabaseAdmin
           .from('dm_participants')
           .select(`
             conversation_id,
@@ -96,18 +96,32 @@ export default async function dmRoutes(fastify: FastifyInstance) {
           `)
           .in('conversation_id', conversationIds);
 
+        if (participantsError) {
+          fastify.log.error({ error: participantsError, conversationIds }, 'Failed to fetch DM participants');
+          return reply.code(500).send({
+            error: { code: 'FETCH_FAILED', message: 'Failed to fetch participants', details: {} },
+          });
+        }
+
         // Get unread counts
         const participationMap = new Map(
           participations.map(p => [p.conversation_id, p])
         );
 
         // Get last message for each conversation
-        const { data: lastMessages } = await supabaseAdmin
+        const { data: lastMessages, error: lastMessagesError } = await supabaseAdmin
           .from('dm_messages')
           .select('conversation_id, content, created_at, author_id')
           .in('conversation_id', conversationIds)
           .is('deleted_at', null)
           .order('created_at', { ascending: false });
+
+        if (lastMessagesError) {
+          fastify.log.error({ error: lastMessagesError, conversationIds }, 'Failed to fetch last messages');
+          return reply.code(500).send({
+            error: { code: 'FETCH_FAILED', message: 'Failed to fetch messages', details: {} },
+          });
+        }
 
         // Group last messages by conversation (take first one per conversation)
         const lastMessageMap = new Map<string, any>();
@@ -126,19 +140,24 @@ export default async function dmRoutes(fastify: FastifyInstance) {
             // Count unread messages
             let unreadCount = 0;
             if (lastReadAt) {
-              const { count } = await supabaseAdmin
-                .from('dm_messages')
-                .select('*', { count: 'exact', head: true })
-                .eq('conversation_id', conv.id)
-                .is('deleted_at', null)
-                .gt('created_at', lastReadAt)
-                .neq('author_id', user.id);
-              unreadCount = count || 0;
+              try {
+                const { count } = await supabaseAdmin
+                  .from('dm_messages')
+                  .select('*', { count: 'exact', head: true })
+                  .eq('conversation_id', conv.id)
+                  .is('deleted_at', null)
+                  .gt('created_at', lastReadAt)
+                  .neq('author_id', user.id);
+                unreadCount = count || 0;
+              } catch (unreadError) {
+                fastify.log.error({ error: unreadError, conversationId: conv.id }, 'Failed to count unread messages');
+                unreadCount = 0;
+              }
             }
 
-            // Get participants for this conversation
+            // Get participants for this conversation (filter out null users from broken foreign keys)
             const participants = (allParticipants || [])
-              .filter(p => p.conversation_id === conv.id)
+              .filter(p => p.conversation_id === conv.id && p.user)
               .map(p => p.user);
 
             // Get the other user for 1:1 conversations
@@ -160,9 +179,11 @@ export default async function dmRoutes(fastify: FastifyInstance) {
           data: { conversations: conversationsWithDetails },
         });
       } catch (error) {
-        fastify.log.error({ error }, 'Unexpected error in GET /api/dm/conversations');
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        fastify.log.error({ error: errorMessage, stack: errorStack }, 'Unexpected error in GET /api/dm/conversations');
         return reply.code(500).send({
-          error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred', details: {} },
+          error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred', details: { message: errorMessage } },
         });
       }
     }

@@ -47,32 +47,30 @@ async function sendEmail(options) {
 function emailTemplate(content) {
     return `
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f8fafc;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; padding: 40px 20px;">
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f8fafc; line-height: 1.6;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc;">
     <tr>
-      <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 520px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 520px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);">
           <!-- Header -->
           <tr>
-            <td style="padding: 32px 40px 24px; text-align: left; border-bottom: 1px solid #e2e8f0; background-color: #111111; border-radius: 16px 16px 0 0;">
-              <div style="display: inline-block; font-family: 'Helvetica', Arial, sans-serif; font-size: 24px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;">
-                TyneBase
-              </div>
+            <td style="background: linear-gradient(135deg, #E85002 0%, #8b5cf6 100%); padding: 40px 40px 32px; text-align: center;">
+              <img src="https://fsybthuvikyetueizado.supabase.co/storage/v1/object/public/platform-assets/email/tynebase-logo-white.png" alt="TyneBase" width="140" style="display: block; margin: 0 auto;" />
             </td>
           </tr>
-          
+
           <!-- Content -->
           <tr>
-            <td style="padding: 32px 40px;">
+            <td style="padding: 40px;">
               ${content}
             </td>
           </tr>
-          
+
           <!-- Footer -->
           <tr>
             <td style="padding: 24px 40px; background-color: #f8fafc; border-top: 1px solid #e2e8f0;">

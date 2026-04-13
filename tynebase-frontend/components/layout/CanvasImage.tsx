@@ -53,24 +53,24 @@ export function CanvasImage({ src, alt, className = '', containerWidth = 1200, c
       ctx.fillStyle = bgColor;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Calculate scaling to fit image while maintaining aspect ratio
+      // Calculate scaling to cover the entire canvas (like object-fit: cover)
       const imgAspect = img.width / img.height;
       const canvasAspect = canvas.width / canvas.height;
 
       let drawWidth, drawHeight, drawX, drawY;
 
       if (imgAspect > canvasAspect) {
-        // Image is wider than canvas - fit to width
-        drawWidth = canvas.width;
-        drawHeight = canvas.width / imgAspect;
-        drawX = 0;
-        drawY = (canvas.height - drawHeight) / 2;
-      } else {
-        // Image is taller than canvas - fit to height
+        // Image is wider than canvas - fit to height, crop width
         drawHeight = canvas.height;
         drawWidth = canvas.height * imgAspect;
         drawX = (canvas.width - drawWidth) / 2;
         drawY = 0;
+      } else {
+        // Image is taller than canvas - fit to width, crop height
+        drawWidth = canvas.width;
+        drawHeight = canvas.width / imgAspect;
+        drawX = 0;
+        drawY = (canvas.height - drawHeight) / 2;
       }
 
       // Draw image centered

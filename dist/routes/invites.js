@@ -274,79 +274,86 @@ async function invitesRoutes(fastify) {
             }
             else {
                 const redirectTo = buildSupabaseInviteRedirect(frontendUrl, tenant.subdomain, inviteRecord.id);
-                fastify.log.info({ email, redirectTo, frontendUrl, inviteId: inviteRecord.id }, 'Sending invite with redirect URL');
-                const { data: invitedAuthData, error: inviteError } = await supabase_1.supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-                    data: {
-                        invite_id: inviteRecord.id,
-                        tenant_id: tenant.id,
-                        tenant_subdomain: tenant.subdomain,
-                        tenant_name: tenant.name,
-                        role,
-                        invited_by: user.id,
-                        invited_by_name: user.full_name || user.email,
+                fastify.log.info({ email, redirectTo, frontendUrl, inviteId: inviteRecord.id }, 'Generating invite link');
+                const { data: linkData, error: linkError } = await supabase_1.supabaseAdmin.auth.admin.generateLink({
+                    type: 'invite',
+                    email,
+                    options: {
+                        data: {
+                            invite_id: inviteRecord.id,
+                            tenant_id: tenant.id,
+                            tenant_subdomain: tenant.subdomain,
+                            tenant_name: tenant.name,
+                            role,
+                            invited_by: user.id,
+                            invited_by_name: user.full_name || user.email,
+                        },
+                        redirectTo,
                     },
-                    redirectTo,
                 });
-                if (inviteError) {
+                if (linkError) {
                     fastify.log.error({
-                        error: inviteError,
-                        errorMessage: inviteError.message,
-                        errorStatus: inviteError.status,
-                        errorCode: inviteError.code,
+                        error: linkError,
+                        errorMessage: linkError.message,
+                        errorStatus: linkError.status,
+                        errorCode: linkError.code,
                         email,
                         tenantId: tenant.id,
                         inviteId: inviteRecord.id,
-                    }, 'Failed to send invite');
-                    const errMsg = inviteError.message?.toLowerCase() || '';
-                    const isExistingAccountError = errMsg.includes('already registered') ||
-                        errMsg.includes('already been registered') ||
-                        errMsg.includes('user already exists') ||
-                        errMsg.includes('email address already');
-                    if (isExistingAccountError) {
-                        const emailSent = await (0, email_1.sendWorkspaceInviteEmail)({
-                            to: email,
-                            tenantName: tenant.name,
-                            role,
-                            invitedBy: user.full_name || user.email,
-                            acceptUrl: buildExistingUserInviteUrl(frontendUrl, inviteRecord.id),
-                            declineUrl: `${frontendUrl}/auth/invite-callback?invite_id=${inviteRecord.id}&action=decline`,
-                        });
-                        if (!emailSent) {
-                            await supabase_1.supabaseAdmin.from('workspace_invites').delete().eq('id', inviteRecord.id);
-                            return reply.code(500).send({
-                                error: {
-                                    code: 'INVITE_FAILED',
-                                    message: 'Failed to send invitation email',
-                                    details: {},
-                                },
-                            });
-                        }
-                    }
-                    else {
-                        await supabase_1.supabaseAdmin.from('workspace_invites').delete().eq('id', inviteRecord.id);
-                        if (inviteError.message?.includes('rate limit') || inviteError.status === 429) {
-                            return reply.code(429).send({
-                                error: {
-                                    code: 'RATE_LIMITED',
-                                    message: 'Too many invite requests. Please wait a moment and try again.',
-                                    details: {},
-                                },
-                            });
-                        }
-                        return reply.code(500).send({
+                    }, 'Failed to generate invite link');
+                    await supabase_1.supabaseAdmin.from('workspace_invites').delete().eq('id', inviteRecord.id);
+                    if (linkError.message?.includes('rate limit') || linkError.status === 429) {
+                        return reply.code(429).send({
                             error: {
-                                code: 'INVITE_FAILED',
-                                message: inviteError.message || 'Failed to send invitation email',
+                                code: 'RATE_LIMITED',
+                                message: 'Too many invite requests. Please wait a moment and try again.',
                                 details: {},
                             },
                         });
                     }
+                    return reply.code(500).send({
+                        error: {
+                            code: 'INVITE_FAILED',
+                            message: 'Failed to create invitation. Please try again.',
+                            details: {},
+                        },
+                    });
                 }
-                else if (invitedAuthData?.user?.id) {
+                if (linkData?.user?.id) {
                     await supabase_1.supabaseAdmin
                         .from('workspace_invites')
-                        .update({ auth_user_id: invitedAuthData.user.id })
+                        .update({ auth_user_id: linkData.user.id })
                         .eq('id', inviteRecord.id);
+                }
+                const inviteLink = linkData?.properties?.action_link;
+                if (!inviteLink) {
+                    fastify.log.error({ email, inviteId: inviteRecord.id }, 'generateLink succeeded but action_link is missing');
+                    await supabase_1.supabaseAdmin.from('workspace_invites').delete().eq('id', inviteRecord.id);
+                    return reply.code(500).send({
+                        error: {
+                            code: 'INVITE_FAILED',
+                            message: 'Failed to create invitation. Please try again.',
+                            details: {},
+                        },
+                    });
+                }
+                const emailSent = await (0, email_1.sendWorkspaceInviteEmail)({
+                    to: email,
+                    tenantName: tenant.name,
+                    role,
+                    invitedBy: user.full_name || user.email,
+                    acceptUrl: inviteLink,
+                    declineUrl: `${frontendUrl}/auth/invite-callback?invite_id=${inviteRecord.id}&action=decline`,
+                });
+                if (!emailSent) {
+                    await supabase_1.supabaseAdmin.from('workspace_invites').delete().eq('id', inviteRecord.id);
+                    return reply.code(500).send({
+                        error: {
+                            code: 'INVITE_FAILED',
+                            message: 'Failed to send invitation email',
+                            details: {},
+                        },
+                    });
                 }
             }
             fastify.log.info({ email, role, tenantId: tenant.id, invitedBy: user.id, inviteId: inviteRecord.id }, 'User invitation sent successfully');
@@ -1141,44 +1148,34 @@ async function invitesRoutes(fastify) {
             }
             else {
                 const redirectTo = buildSupabaseInviteRedirect(frontendUrl, tenant.subdomain, inviteRecord.id);
-                const { data: invitedAuthData, error: resendError } = await supabase_1.supabaseAdmin.auth.admin.inviteUserByEmail(inviteRecord.email, {
-                    data: {
-                        invite_id: inviteRecord.id,
-                        tenant_id: tenant.id,
-                        tenant_subdomain: tenant.subdomain,
-                        tenant_name: tenant.name,
-                        role: (0, roles_1.normalizeWorkspaceRole)(inviteRecord.role),
-                        invited_by: user.id,
-                        invited_by_name: user.full_name || user.email,
-                    },
-                    redirectTo,
-                });
-                if (resendError) {
-                    const errMsg = resendError.message?.toLowerCase() || '';
-                    const isExistingAccountError = errMsg.includes('already registered') ||
-                        errMsg.includes('already been registered') ||
-                        errMsg.includes('user already exists') ||
-                        errMsg.includes('email address already');
-                    if (isExistingAccountError) {
-                        const emailSent = await (0, email_1.sendWorkspaceInviteEmail)({
-                            to: inviteRecord.email,
-                            tenantName: tenant.name,
+                fastify.log.info({ email: inviteRecord.email, redirectTo, frontendUrl, inviteId: inviteRecord.id }, 'Generating invite link for resend');
+                const { data: linkData, error: linkError } = await supabase_1.supabaseAdmin.auth.admin.generateLink({
+                    type: 'invite',
+                    email: inviteRecord.email,
+                    options: {
+                        data: {
+                            invite_id: inviteRecord.id,
+                            tenant_id: tenant.id,
+                            tenant_subdomain: tenant.subdomain,
+                            tenant_name: tenant.name,
                             role: (0, roles_1.normalizeWorkspaceRole)(inviteRecord.role),
-                            invitedBy: user.full_name || user.email,
-                            acceptUrl: buildExistingUserInviteUrl(frontendUrl, inviteRecord.id),
-                            declineUrl: `${frontendUrl}/auth/invite-callback?invite_id=${inviteRecord.id}&action=decline`,
-                        });
-                        if (!emailSent) {
-                            return reply.code(500).send({
-                                error: {
-                                    code: 'INVITE_FAILED',
-                                    message: 'Failed to resend invitation email',
-                                    details: {},
-                                },
-                            });
-                        }
-                    }
-                    else if (resendError.message?.includes('rate limit') || resendError.status === 429) {
+                            invited_by: user.id,
+                            invited_by_name: user.full_name || user.email,
+                        },
+                        redirectTo,
+                    },
+                });
+                if (linkError) {
+                    fastify.log.error({
+                        error: linkError,
+                        errorMessage: linkError.message,
+                        errorStatus: linkError.status,
+                        errorCode: linkError.code,
+                        email: inviteRecord.email,
+                        tenantId: tenant.id,
+                        inviteId: inviteRecord.id,
+                    }, 'Failed to generate invite link for resend');
+                    if (linkError.message?.includes('rate limit') || linkError.status === 429) {
                         return reply.code(429).send({
                             error: {
                                 code: 'RATE_LIMITED',
@@ -1187,21 +1184,47 @@ async function invitesRoutes(fastify) {
                             },
                         });
                     }
-                    else {
-                        return reply.code(500).send({
-                            error: {
-                                code: 'INVITE_FAILED',
-                                message: resendError.message || 'Failed to resend invitation email',
-                                details: {},
-                            },
-                        });
-                    }
+                    return reply.code(500).send({
+                        error: {
+                            code: 'INVITE_FAILED',
+                            message: 'Failed to resend invitation. Please try again.',
+                            details: {},
+                        },
+                    });
                 }
-                else if (invitedAuthData?.user?.id) {
+                if (linkData?.user?.id) {
                     await supabase_1.supabaseAdmin
                         .from('workspace_invites')
-                        .update({ auth_user_id: invitedAuthData.user.id })
+                        .update({ auth_user_id: linkData.user.id })
                         .eq('id', inviteRecord.id);
+                }
+                const inviteLink = linkData?.properties?.action_link;
+                if (!inviteLink) {
+                    fastify.log.error({ email: inviteRecord.email, inviteId: inviteRecord.id }, 'generateLink succeeded but action_link is missing for resend');
+                    return reply.code(500).send({
+                        error: {
+                            code: 'INVITE_FAILED',
+                            message: 'Failed to resend invitation. Please try again.',
+                            details: {},
+                        },
+                    });
+                }
+                const emailSent = await (0, email_1.sendWorkspaceInviteEmail)({
+                    to: inviteRecord.email,
+                    tenantName: tenant.name,
+                    role: (0, roles_1.normalizeWorkspaceRole)(inviteRecord.role),
+                    invitedBy: user.full_name || user.email,
+                    acceptUrl: inviteLink,
+                    declineUrl: `${frontendUrl}/auth/invite-callback?invite_id=${inviteRecord.id}&action=decline`,
+                });
+                if (!emailSent) {
+                    return reply.code(500).send({
+                        error: {
+                            code: 'INVITE_FAILED',
+                            message: 'Failed to resend invitation email',
+                            details: {},
+                        },
+                    });
                 }
             }
             (0, auditLog_1.writeAuditLog)({

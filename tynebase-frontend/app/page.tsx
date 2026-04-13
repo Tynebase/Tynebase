@@ -454,8 +454,8 @@ export default function Home() {
                 <CanvasImage
                   src={knowledgeFeatures[activeFeature].image}
                   alt={knowledgeFeatures[activeFeature].title}
-                  containerWidth={800}
-                  containerHeight={500}
+                  containerWidth={1200}
+                  containerHeight={750}
                 />
               </div>
             </div>

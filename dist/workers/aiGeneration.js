@@ -60,7 +60,7 @@ async function processAIGenerationJob(job) {
         let lastModel = null;
         for (const outputType of outputTypes) {
             console.log(`[Worker ${workerId}] Generating output type: ${outputType}`);
-            const generatedContent = await callAIProvider(validated.prompt, validated.model, validated.max_tokens || 2000, outputType, validated.template_content);
+            const generatedContent = await callAIProvider(validated.prompt, validated.model, validated.max_tokens || 8000, outputType, validated.template_content);
             console.log(`[Worker ${workerId}] AI generation completed for ${outputType}. Content length: ${generatedContent.content?.length || 0}`);
             const sanitizedContent = sanitizeAIOutput(generatedContent.content);
             generatedContents.push(sanitizedContent);

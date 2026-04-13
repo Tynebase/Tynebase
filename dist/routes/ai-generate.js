@@ -26,9 +26,9 @@ const GenerateRequestSchema = zod_1.z.object({
     max_tokens: zod_1.z.number()
         .int()
         .min(100)
-        .max(4000)
+        .max(8000)
         .optional()
-        .default(2000),
+        .default(8000),
     output_types: zod_1.z.array(zod_1.z.enum(['full_article', 'summary', 'outline', 'with_template']))
         .min(1, 'At least one output type is required')
         .max(4)

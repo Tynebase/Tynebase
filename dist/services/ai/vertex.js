@@ -297,7 +297,7 @@ async function generateText(request) {
     const model = client.getGenerativeModel({
         model: GEMINI_MODEL,
     });
-    const maxTokens = request.maxTokens || 4000;
+    const maxTokens = request.maxTokens || 8000;
     const temperature = request.temperature ?? 0.7;
     try {
         // Count input tokens
@@ -378,7 +378,7 @@ async function* generateTextStream(request) {
     const model = client.getGenerativeModel({
         model: GEMINI_MODEL,
     });
-    const maxTokens = request.maxTokens || 4000;
+    const maxTokens = request.maxTokens || 8000;
     const temperature = request.temperature ?? 0.7;
     try {
         const inputTokens = (0, tokenCounter_1.countTokens)(request.prompt, 'gpt-4');

@@ -201,6 +201,86 @@ async function tenantRoutes(fastify) {
         }
     });
     /**
+     * POST /api/tenants/:id/logo
+     * Upload a logo image for the tenant.
+     * Stores the file in Supabase storage and saves the public URL to tenant settings.
+     */
+    fastify.post('/api/tenants/:id/logo', {
+        preHandler: [rateLimit_1.rateLimitMiddleware, auth_1.authMiddleware],
+    }, async (request, reply) => {
+        try {
+            const { id } = request.params;
+            const user = request.user;
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (!uuidRegex.test(id)) {
+                return reply.code(400).send({ error: { code: 'INVALID_ID', message: 'Invalid tenant ID', details: {} } });
+            }
+            if (!user.is_super_admin && (user.tenant_id !== id || user.role !== 'admin')) {
+                return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'Only admins can upload a logo', details: {} } });
+            }
+            const data = await request.file();
+            if (!data) {
+                return reply.code(400).send({ error: { code: 'NO_FILE', message: 'No file uploaded', details: {} } });
+            }
+            const ALLOWED = ['.png', '.jpg', '.jpeg', '.svg', '.webp'];
+            const ext = data.filename.substring(data.filename.lastIndexOf('.')).toLowerCase();
+            if (!ALLOWED.includes(ext)) {
+                return reply.code(400).send({ error: { code: 'INVALID_FILE_TYPE', message: `Allowed types: ${ALLOWED.join(', ')}`, details: {} } });
+            }
+            const fileBuffer = await data.toBuffer();
+            if (fileBuffer.length > 2 * 1024 * 1024) {
+                return reply.code(400).send({ error: { code: 'FILE_TOO_LARGE', message: 'Logo must be under 2 MB', details: {} } });
+            }
+            const sanitized = data.filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+            const storagePath = `tenant-logos/${id}/${Date.now()}_${sanitized}`;
+            const { data: uploadData, error: uploadError } = await supabase_1.supabaseAdmin
+                .storage
+                .from('platform-assets')
+                .upload(storagePath, fileBuffer, { contentType: data.mimetype, upsert: true });
+            if (uploadError || !uploadData) {
+                fastify.log.error({ error: uploadError }, 'Failed to upload tenant logo');
+                return reply.code(500).send({ error: { code: 'UPLOAD_FAILED', message: 'Failed to upload logo', details: {} } });
+            }
+            const { data: publicUrlData } = supabase_1.supabaseAdmin.storage.from('platform-assets').getPublicUrl(storagePath);
+            const logoUrl = publicUrlData.publicUrl;
+            // Persist the URL to tenant settings
+            const { data: existing } = await supabase_1.supabaseAdmin
+                .from('tenants')
+                .select('settings')
+                .eq('id', id)
+                .single();
+            const merged = {
+                ...(existing?.settings ?? {}),
+                branding: {
+                    ...(existing?.settings?.branding ?? {}),
+                    logo_url: logoUrl,
+                },
+            };
+            const { error: updateError } = await supabase_1.supabaseAdmin
+                .from('tenants')
+                .update({ settings: merged })
+                .eq('id', id);
+            if (updateError) {
+                fastify.log.error({ error: updateError }, 'Failed to save logo URL to tenant settings');
+                return reply.code(500).send({ error: { code: 'SAVE_FAILED', message: 'Logo uploaded but failed to save URL', details: {} } });
+            }
+            (0, auditLog_1.writeAuditLog)({
+                tenantId: id,
+                actorId: user.id,
+                action: 'tenant.logo_updated',
+                actionType: 'settings',
+                targetName: sanitized,
+                ipAddress: (0, auditLog_1.getClientIp)(request),
+                metadata: { logo_url: logoUrl },
+            });
+            return reply.code(200).send({ success: true, data: { logo_url: logoUrl } });
+        }
+        catch (error) {
+            fastify.log.error({ error }, 'Unexpected error in POST /api/tenants/:id/logo');
+            return reply.code(500).send({ error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred', details: {} } });
+        }
+    });
+    /**
      * GET /api/public/tenant-by-domain
      * Resolves a tenant by its subdomain or verified custom domain.
      */

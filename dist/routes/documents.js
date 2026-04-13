@@ -895,7 +895,7 @@ async function documentRoutes(fastify) {
                         const job = await (0, dispatchJob_1.dispatchJob)({
                             tenantId: tenant.id,
                             type: 'rag_index',
-                            payload: { document_id: updatedDoc.id }
+                            payload: { document_id: updatedDoc.id, document_title: updatedDoc.title }
                         });
                         fastify.log.info({ documentId: updatedDoc.id, jobId: job.id, tenantId: tenant.id }, 'RAG index job dispatched for document update');
                     }
@@ -1288,7 +1288,7 @@ async function documentRoutes(fastify) {
                     const job = await (0, dispatchJob_1.dispatchJob)({
                         tenantId: tenant.id,
                         type: 'rag_index',
-                        payload: { document_id: publishedDoc.id }
+                        payload: { document_id: publishedDoc.id, document_title: publishedDoc.title }
                     });
                     fastify.log.info({ documentId: publishedDoc.id, jobId: job.id, tenantId: tenant.id }, 'RAG index job dispatched for published document');
                 }

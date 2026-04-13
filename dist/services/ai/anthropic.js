@@ -71,7 +71,7 @@ function getBedrockModelId(model) {
 async function generateText(request) {
     const client = getBedrockClient();
     const model = request.model || 'claude-sonnet-4.5';
-    const maxTokens = request.maxTokens || 4000;
+    const maxTokens = request.maxTokens || 8000;
     const temperature = request.temperature ?? 0.7;
     try {
         const modelId = getBedrockModelId(model);
@@ -152,7 +152,7 @@ async function generateText(request) {
 async function* generateTextStream(request) {
     const client = getBedrockClient();
     const model = request.model || 'claude-sonnet-4.5';
-    const maxTokens = request.maxTokens || 4000;
+    const maxTokens = request.maxTokens || 8000;
     const temperature = request.temperature ?? 0.7;
     try {
         const modelId = getBedrockModelId(model);

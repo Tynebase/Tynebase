@@ -56,7 +56,7 @@ function getBedrockClient() {
  */
 async function generateText(request) {
     const client = getBedrockClient();
-    const maxTokens = request.maxTokens || 4000;
+    const maxTokens = request.maxTokens || 8000;
     const temperature = request.temperature ?? 0.7;
     try {
         const inputTokens = (0, tokenCounter_1.countTokens)(request.prompt, 'gpt-4');
@@ -123,7 +123,7 @@ async function generateText(request) {
  */
 async function* generateTextStream(request) {
     const client = getBedrockClient();
-    const maxTokens = request.maxTokens || 4000;
+    const maxTokens = request.maxTokens || 8000;
     const temperature = request.temperature ?? 0.7;
     try {
         const inputTokens = (0, tokenCounter_1.countTokens)(request.prompt, 'gpt-4');
