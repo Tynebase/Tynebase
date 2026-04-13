@@ -8,8 +8,14 @@
  * 3. Delete embeddings associated with user documents
  * 4. Anonymize usage history (preserve for audit but remove PII)
  * 5. Delete templates created by user
- * 6. Preserve audit trails as required by law
- * 7. Mark job as completed
+ * 6. Delete DM messages from the user
+ * 7. Remove user from DM participants and clean up empty conversations
+ * 8. Delete DM reactions from the user
+ * 9. Delete regular chat messages from the user
+ * 10. Delete chat reactions from the user
+ * 11. Delete chat read receipts for the user
+ * 12. Preserve audit trails as required by law
+ * 13. Mark job as completed
  *
  * GDPR Compliance:
  * - Right to be forgotten (Article 17)

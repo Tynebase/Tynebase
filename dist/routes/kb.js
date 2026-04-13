@@ -62,13 +62,12 @@ async function kbRoutes(fastify) {
                     }
                 }
             }
-            // Filter categories to only those with at least 1 public doc, exclude "Default"
+            // Show all tenant categories with their public document counts
             const filteredCategories = (categories || [])
                 .map((cat) => ({
                 ...cat,
                 document_count: countMap[cat.id] || 0,
-            }))
-                .filter((cat) => cat.document_count > 0 && cat.name.toLowerCase() !== 'default');
+            }));
             const totalPublicDocs = docCounts?.length || 0;
             return reply.code(200).send({
                 success: true,

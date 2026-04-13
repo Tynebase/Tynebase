@@ -70,13 +70,12 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           }
         }
 
-        // Filter categories to only those with at least 1 public doc, exclude "Default"
+        // Show all tenant categories with their public document counts
         const filteredCategories = (categories || [])
           .map((cat: any) => ({
             ...cat,
             document_count: countMap[cat.id] || 0,
-          }))
-          .filter((cat: any) => cat.document_count > 0 && cat.name.toLowerCase() !== 'default');
+          }));
 
         const totalPublicDocs = docCounts?.length || 0;
 
