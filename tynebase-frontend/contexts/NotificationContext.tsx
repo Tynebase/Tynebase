@@ -63,13 +63,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   // Play notification sound (ding)
   // ------------------------------------------------------------------
   const playNotificationSound = useCallback(() => {
-    console.log('[NotificationContext] Playing notification sound');
     try {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       
       // Resume audio context if suspended (required by browsers after user interaction)
       if (audioContext.state === 'suspended') {
-        console.log('[NotificationContext] Resuming suspended audio context');
         audioContext.resume();
       }
       
@@ -83,13 +81,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5
       oscillator.frequency.exponentialRampToValueAtTime(440, audioContext.currentTime + 0.1);
       
-      gainNode.gain.setValueAtTime(0.5, audioContext.currentTime); // Increased volume
+      gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
 
       oscillator.start(audioContext.currentTime);
       oscillator.stop(audioContext.currentTime + 0.3);
     } catch (err) {
-      console.error('[NotificationContext] Failed to play notification sound:', err);
+      // Silently fail - audio might be blocked by browser
     }
   }, []);
 

@@ -9,6 +9,15 @@ import { SiteFooter } from "@/components/layout/SiteFooter";
 import { useAuth } from "@/contexts/AuthContext";
 import { listPublicDiscussions, Discussion } from "@/lib/api/discussions";
 
+// Forum categories - must match dashboard community page
+const categories = [
+  { id: "all", label: "All Discussions", icon: null, color: "#6b7280", description: "Browse all community discussions" },
+  { id: "Announcements", label: "Announcements", icon: Bell, color: "#ef4444", description: "Official updates and news" },
+  { id: "Questions", label: "Questions", icon: HelpCircle, color: "#3b82f6", description: "Get help from the community" },
+  { id: "Ideas", label: "Ideas & Feedback", icon: TrendingUp, color: "#8b5cf6", description: "Share suggestions and vote" },
+  { id: "General", label: "General Discussion", icon: MessageSquare, color: "#10b981", description: "Chat about anything" },
+];
+
 interface TenantInfo {
   id: string;
   subdomain: string;
@@ -29,6 +38,7 @@ function CommunityContent() {
   const [tenant, setTenant] = useState<TenantInfo | null>(null);
   const [discussions, setDiscussions] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(false);
+  const [activeCategory, setActiveCategory] = useState("all");
 
   useEffect(() => {
     if (!domain) return;
@@ -44,7 +54,10 @@ function CommunityContent() {
           setTenant(tenantData);
 
           if (tenantData?.subdomain) {
-            const discussionsRes = await listPublicDiscussions(tenantData.subdomain, { limit: 5 }).catch(err => {
+            const discussionsRes = await listPublicDiscussions(tenantData.subdomain, { 
+              limit: 5,
+              category: activeCategory === "all" ? undefined : activeCategory
+            }).catch(err => {
               console.error("[Community] Failed to fetch discussions:", err);
               return null;
             });
@@ -58,7 +71,7 @@ function CommunityContent() {
       }
     }
     fetchData();
-  }, [domain]);
+  }, [domain, activeCategory]);
 
   useEffect(() => {
     if (tenant?.branding?.primary_color) {
@@ -155,8 +168,57 @@ function CommunityContent() {
         </div>
       </section>
 
+      {/* Category Filter */}
+      {tenant && (
+        <section className="section py-8">
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 24px' }}>
+            <div style={{ width: '100%', maxWidth: '1152px' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {categories.map((cat) => {
+                  const Icon = cat.icon;
+                  const isActive = activeCategory === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => setActiveCategory(cat.id)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        border: isActive ? '1px solid var(--brand)' : '1px solid var(--border-subtle)',
+                        background: isActive ? `${cat.color}15` : 'var(--surface-subtle)',
+                        color: isActive ? cat.color : 'var(--text-secondary)',
+                        fontSize: '14px',
+                        fontWeight: 500,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isActive) {
+                          e.currentTarget.style.background = 'var(--surface-hover)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isActive) {
+                          e.currentTarget.style.background = 'var(--surface-subtle)';
+                        }
+                      }}
+                    >
+                      {Icon && <Icon className="w-4 h-4" />}
+                      {cat.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Recent Discussions */}
-      <section className="section py-16">
+      <section className="section py-8">
         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 24px' }}>
           <div style={{ width: '100%', maxWidth: '1152px' }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px" }}>
