@@ -162,51 +162,20 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           return reply.code(404).send({ error: { code: 'TENANT_NOT_FOUND', message: 'Knowledge base not found' } });
         }
 
-        // Resolve hidden category IDs (default, uncategorised)
-        const { data: hiddenCats } = await supabaseAdmin
-          .from('categories')
-          .select('id')
+        // Tags are tenant-scoped — query the tags table directly by tenant_id.
+        // This is simpler and avoids RLS/join issues on document_tags.
+        const { data: tags, error } = await supabaseAdmin
+          .from('tags')
+          .select('id, name')
           .eq('tenant_id', tenant.id)
-          .in('name', ['Default', 'default', 'Uncategorised', 'uncategorised', 'Uncategorized', 'uncategorized']);
-        const hiddenCatIds = (hiddenCats || []).map((c: { id: string }) => c.id);
-
-        // Fetch document IDs that are published, categorised, and publicly visible
-        let docsQuery = supabaseAdmin
-          .from('documents')
-          .select('id')
-          .eq('tenant_id', tenant.id)
-          .eq('status', 'published')
-          .in('visibility', ['public', 'community'])
-          .not('category_id', 'is', null);
-        if (hiddenCatIds.length > 0) {
-          docsQuery = docsQuery.not('category_id', 'in', `(${hiddenCatIds.join(',')})`);
-        }
-        const { data: docs } = await docsQuery;
-
-        const docIds = (docs || []).map((d: { id: string }) => d.id);
-        if (docIds.length === 0) {
-          return reply.code(200).send({ success: true, data: { tags: [] } });
-        }
-
-        // Fetch tags used by those documents
-        const { data: rows, error } = await supabaseAdmin
-          .from('document_tags')
-          .select('tag:tags(id, name)')
-          .in('document_id', docIds);
+          .order('name', { ascending: true });
 
         if (error) {
           fastify.log.error({ error }, 'Failed to fetch KB tags');
           return reply.code(500).send({ error: { code: 'FETCH_FAILED', message: 'Failed to fetch tags' } });
         }
 
-        // Deduplicate by tag id
-        const seen = new Set<string>();
-        const tags = (rows || [])
-          .map((r: any) => r.tag)
-          .filter((t: any) => t && !seen.has(t.id) && seen.add(t.id))
-          .sort((a: any, b: any) => a.name.localeCompare(b.name));
-
-        return reply.code(200).send({ success: true, data: { tags } });
+        return reply.code(200).send({ success: true, data: { tags: tags || [] } });
       } catch (error) {
         fastify.log.error({ error }, 'Error in GET /api/public/kb/:subdomain/tags');
         return reply.code(500).send({ error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' } });
