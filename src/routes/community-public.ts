@@ -1,6 +1,13 @@
 import { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import { supabaseAdmin } from '../lib/supabase';
 import { rateLimitMiddleware } from '../middleware/rateLimit';
+import { authMiddleware } from '../middleware/auth';
+import { canWriteContent } from '../lib/roles';
+
+const voteOnPollSchema = z.object({
+  optionId: z.string().uuid(),
+});
 
 export default async function communityPublicRoutes(fastify: FastifyInstance) {
   /**
@@ -329,6 +336,134 @@ export default async function communityPublicRoutes(fastify: FastifyInstance) {
         return reply.code(500).send({
           error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' },
         });
+      }
+    }
+  );
+
+  /**
+   * POST /api/public/community/:subdomain/discussions/:id/like
+   */
+  fastify.post(
+    '/api/public/community/:subdomain/discussions/:id/like',
+    { preHandler: [rateLimitMiddleware, authMiddleware] },
+    async (request, reply) => {
+      try {
+        const { id } = request.params as { id: string };
+        const user = (request as any).user;
+
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'Read-only users cannot like' } });
+        }
+
+        const { data: existingLike } = await supabaseAdmin
+          .from('discussion_likes')
+          .select('discussion_id')
+          .eq('discussion_id', id)
+          .eq('user_id', user.id)
+          .single();
+
+        if (existingLike) {
+          await supabaseAdmin.from('discussion_likes').delete().eq('discussion_id', id).eq('user_id', user.id);
+          return reply.code(200).send({ success: true, liked: false });
+        } else {
+          await supabaseAdmin.from('discussion_likes').insert({ discussion_id: id, user_id: user.id });
+          return reply.code(200).send({ success: true, liked: true });
+        }
+      } catch (error) {
+        fastify.log.error({ error }, 'Error in POST /api/public/community/discussions/:id/like');
+        return reply.code(500).send({ error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' } });
+      }
+    }
+  );
+
+  /**
+   * POST /api/public/community/:subdomain/discussions/:id/poll/vote
+   */
+  fastify.post(
+    '/api/public/community/:subdomain/discussions/:id/poll/vote',
+    { preHandler: [rateLimitMiddleware, authMiddleware] },
+    async (request, reply) => {
+      try {
+        const { id } = request.params as { id: string };
+        const user = (request as any).user;
+        const body = voteOnPollSchema.parse(request.body);
+
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'Read-only users cannot vote' } });
+        }
+
+        const { data: poll } = await supabaseAdmin
+          .from('polls')
+          .select('id, ends_at')
+          .eq('discussion_id', id)
+          .single();
+
+        if (!poll) {
+          return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Poll not found' } });
+        }
+
+        if (poll.ends_at && new Date(poll.ends_at) < new Date()) {
+          return reply.code(400).send({ error: { code: 'POLL_ENDED', message: 'This poll has ended' } });
+        }
+
+        // Remove existing vote and add new one
+        await supabaseAdmin.from('poll_votes').delete().eq('poll_id', poll.id).eq('user_id', user.id);
+        await supabaseAdmin.from('poll_votes').insert({ poll_id: poll.id, user_id: user.id, option_id: body.optionId });
+
+        // Get updated results
+        const { data: options } = await supabaseAdmin
+          .from('poll_options')
+          .select('id, text, votes_count')
+          .eq('poll_id', poll.id);
+
+        return reply.code(200).send({
+          success: true,
+          poll: {
+            ...poll,
+            options: options || [],
+            has_voted: true,
+            selected_option_id: body.optionId,
+          },
+        });
+      } catch (error) {
+        fastify.log.error({ error }, 'Error in POST /api/public/community/poll/vote');
+        return reply.code(500).send({ error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' } });
+      }
+    }
+  );
+
+  /**
+   * POST /api/public/community/:subdomain/replies/:bid/like
+   */
+  fastify.post(
+    '/api/public/community/:subdomain/replies/:bid/like',
+    { preHandler: [rateLimitMiddleware, authMiddleware] },
+    async (request, reply) => {
+      try {
+        const { bid: replyId } = request.params as { bid: string };
+        const user = (request as any).user;
+
+        if (!canWriteContent(user.role, user.is_super_admin)) {
+          return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'Read-only users cannot like' } });
+        }
+
+        const { data: existingLike } = await supabaseAdmin
+          .from('discussion_reply_likes')
+          .select('reply_id')
+          .eq('reply_id', replyId)
+          .eq('user_id', user.id)
+          .single();
+
+        if (existingLike) {
+          await supabaseAdmin.from('discussion_reply_likes').delete().eq('reply_id', replyId).eq('user_id', user.id);
+          return reply.code(200).send({ success: true, liked: false });
+        } else {
+          await supabaseAdmin.from('discussion_reply_likes').insert({ reply_id: replyId, user_id: user.id });
+          return reply.code(200).send({ success: true, liked: true });
+        }
+      } catch (error) {
+        fastify.log.error({ error }, 'Error in POST /api/public/community/replies/:bid/like');
+        return reply.code(500).send({ error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' } });
       }
     }
   );

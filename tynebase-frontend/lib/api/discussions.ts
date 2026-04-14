@@ -373,3 +373,35 @@ export async function uploadDiscussionAsset(
 
   return response.json();
 }
+
+/**
+ * Public: Toggle like on a discussion
+ */
+export async function togglePublicDiscussionLike(
+  subdomain: string,
+  id: string
+): Promise<{ liked: boolean }> {
+  return apiPost<{ liked: boolean }>(`/api/public/community/${subdomain}/discussions/${id}/like`, {});
+}
+
+/**
+ * Public: Vote on a poll
+ */
+export async function voteOnPublicPoll(
+  subdomain: string,
+  discussionId: string,
+  optionId: string
+): Promise<{ poll: Poll }> {
+  return apiPost<{ poll: Poll }>(`/api/public/community/${subdomain}/discussions/${discussionId}/poll/vote`, { optionId });
+}
+
+/**
+ * Public: Toggle like on a reply
+ */
+export async function togglePublicReplyLike(
+  subdomain: string,
+  replyId: string
+): Promise<{ liked: boolean }> {
+  return apiPost<{ liked: boolean }>(`/api/public/community/${subdomain}/replies/${replyId}/like`, {});
+}
+

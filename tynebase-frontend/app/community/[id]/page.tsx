@@ -11,6 +11,9 @@ import {
   DiscussionReply,
   getPublicDiscussion,
   createReply,
+  togglePublicDiscussionLike,
+  voteOnPublicPoll,
+  togglePublicReplyLike,
 } from "@/lib/api/discussions";
 import {
   ArrowLeft,
@@ -135,6 +138,47 @@ export default function PublicDiscussionPage() {
     }
   };
 
+  const handleLikeDiscussion = async () => {
+    if (!user || !subdomain || !discussion) return;
+    try {
+      const result = await togglePublicDiscussionLike(subdomain, discussion.id);
+      setDiscussion(prev => prev ? {
+        ...prev,
+        has_liked: result.liked,
+        likes_count: prev.likes_count + (result.liked ? 1 : -1)
+      } : null);
+    } catch (err) {
+      console.error("Failed to like discussion:", err);
+    }
+  };
+
+  const handleVote = async (optionId: string) => {
+    if (!user || !subdomain || !discussion || !discussion.poll) return;
+    try {
+      const result = await voteOnPublicPoll(subdomain, discussion.id, optionId);
+      setDiscussion(prev => prev ? {
+        ...prev,
+        poll: result.poll
+      } : null);
+    } catch (err) {
+      console.error("Failed to vote:", err);
+    }
+  };
+
+  const handleLikeReply = async (replyId: string) => {
+    if (!user || !subdomain) return;
+    try {
+      const result = await togglePublicReplyLike(subdomain, replyId);
+      setReplies(prev => prev.map(r => r.id === replyId ? {
+        ...r,
+        has_liked: result.liked,
+        likes_count: r.likes_count + (result.liked ? 1 : -1)
+      } : r));
+    } catch (err) {
+      console.error("Failed to like reply:", err);
+    }
+  };
+
   const buildReplyTree = (replies: DiscussionReply[], parentId: string | null = null): DiscussionReply[] => {
     return replies
       .filter(r => (r.parent_id || null) === parentId)
@@ -184,6 +228,18 @@ export default function PublicDiscussionPage() {
             className="text-sm text-[var(--dash-text-tertiary)] mt-3 leading-relaxed [&>p]:my-1 [&>p]:leading-relaxed [&>p:empty]:h-2 [&>ul]:list-disc [&>ul]:pl-4 [&>ol]:list-decimal [&>ol]:pl-4 [&>strong]:font-semibold [&>em]:italic [&>code]:bg-[var(--surface-ground)] [&>code]:px-1 [&>code]:rounded [&>code]:text-xs [&_a]:!text-[#f97316] [&_a]:!underline [&_a]:hover:!opacity-80"
             content={r.content}
           />
+          
+          <div className="mt-4 flex items-center gap-4">
+            <button
+              onClick={() => handleLikeReply(r.id)}
+              disabled={!user}
+              className={`inline-flex items-center gap-1 text-xs font-medium transition-colors ${r.has_liked ? "text-[var(--brand)]" : "text-[var(--dash-text-muted)] hover:text-[var(--dash-text-secondary)]"}`}
+            >
+              <ThumbsUp className={`w-3.5 h-3.5 ${r.has_liked ? "fill-current" : ""}`} />
+              {r.likes_count > 0 && <span>{r.likes_count}</span>}
+              <span>Like</span>
+            </button>
+          </div>
         </div>
         
         {childReplies.length > 0 && (
@@ -298,7 +354,13 @@ export default function PublicDiscussionPage() {
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Calendar className="w-4 h-4" /> {formatDate(discussion.created_at)}</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><MessageSquare className="w-4 h-4" /> {discussion.replies_count} replies</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Eye className="w-4 h-4" /> {discussion.views_count} views</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><ThumbsUp className="w-4 h-4" /> {discussion.likes_count} likes</span>
+            <button
+              onClick={handleLikeDiscussion}
+              disabled={!user}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: user ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: '4px', color: discussion.has_liked ? 'var(--brand)' : 'var(--text-muted)', fontSize: 'inherit' }}
+            >
+              <ThumbsUp className={`w-4 h-4 ${discussion.has_liked ? "fill-current" : ""}`} /> {discussion.likes_count} likes
+            </button>
           </div>
 
           <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '32px', marginBottom: '32px' }}>
@@ -318,17 +380,79 @@ export default function PublicDiscussionPage() {
             />
 
             {discussion.poll && (
-              <div style={{ marginTop: '24px', padding: '20px', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
-                <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>Poll</h3>
-                <p style={{ fontSize: '18px', color: 'var(--text-primary)', marginBottom: '20px' }}>{discussion.poll.question}</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {discussion.poll.options.map((option) => (
-                    <div key={option.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--bg-elevated)', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
-                      <span style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{option.text}</span>
-                      <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{option.votes_count} votes</span>
-                    </div>
-                  ))}
+              <div style={{ marginTop: '24px', padding: '24px', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)' }}>Poll</h3>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)', background: 'var(--surface-subtle)', padding: '4px 8px', borderRadius: '4px' }}>
+                    {discussion.poll.total_votes} total votes
+                  </span>
                 </div>
+                <p style={{ fontSize: '18px', color: 'var(--text-primary)', marginBottom: '24px', fontWeight: 500 }}>{discussion.poll.question}</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {discussion.poll.options.map((option) => {
+                    const percentage = discussion.poll!.total_votes > 0 ? Math.round((option.votes_count / discussion.poll!.total_votes) * 100) : 0;
+                    const isSelected = discussion.poll!.selected_option_id === option.id;
+                    
+                    return (
+                      <button
+                        key={option.id}
+                        onClick={() => handleVote(option.id)}
+                        disabled={!user || (discussion.poll!.ends_at && new Date(discussion.poll!.ends_at) < new Date())}
+                        style={{ 
+                          position: 'relative',
+                          width: '100%',
+                          textAlign: 'left',
+                          padding: '16px',
+                          background: 'var(--bg-elevated)',
+                          borderRadius: '10px',
+                          border: `1px solid ${isSelected ? 'var(--brand)' : 'var(--border-subtle)'}`,
+                          cursor: user ? 'pointer' : 'default',
+                          overflow: 'hidden',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        {/* Progress bar background */}
+                        <div style={{ 
+                          position: 'absolute', 
+                          top: 0, 
+                          left: 0, 
+                          bottom: 0, 
+                          width: `${percentage}%`, 
+                          background: isSelected ? 'var(--brand-primary-muted)' : 'var(--surface-subtle)', 
+                          opacity: 0.3,
+                          zIndex: 0,
+                          transition: 'width 0.5s ease-out'
+                        }} />
+                        
+                        <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{ 
+                              width: '18px', 
+                              height: '18px', 
+                              borderRadius: '50%', 
+                              border: `2px solid ${isSelected ? 'var(--brand)' : 'var(--text-tertiary)'}`,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}>
+                              {isSelected && <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--brand)' }} />}
+                            </div>
+                            <span style={{ fontSize: '15px', fontWeight: isSelected ? 600 : 400, color: 'var(--text-primary)' }}>{option.text}</span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{option.votes_count} votes</span>
+                            <span style={{ fontSize: '14px', fontWeight: 600, color: isSelected ? 'var(--brand)' : 'var(--text-primary)', width: '40px', textAlign: 'right' }}>{percentage}%</span>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                {!user && (
+                  <p style={{ marginTop: '16px', fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center' }}>
+                    Please <Link href="/community/login" style={{ color: 'var(--brand)', fontWeight: 500 }}>sign in</Link> to vote.
+                  </p>
+                )}
               </div>
             )}
 

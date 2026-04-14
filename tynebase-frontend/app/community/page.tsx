@@ -79,8 +79,12 @@ function CommunityContent() {
           document.documentElement.style.setProperty("--brand", t.branding.primary_color);
           document.documentElement.style.setProperty("--brand-primary", t.branding.primary_color);
         }
+        setLoading(false);
       })
-      .catch(console.error);
+      .catch((err) => {
+        console.error("Failed to resolve tenant:", err);
+        setLoading(false);
+      });
   }, [domain]);
 
   const fetchDiscussions = useCallback(

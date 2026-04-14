@@ -80,6 +80,21 @@ export default async function kbRoutes(fastify: FastifyInstance) {
             document_count: countMap[cat.id] || 0,
           }));
 
+        // If there are uncategorized articles, add a "virtual" category for them
+        // so the user can see them on the landing page and counts add up.
+        if (uncategorizedCount > 0) {
+          filteredCategories.push({
+            id: 'uncategorized',
+            name: 'Uncategorized',
+            description: 'Articles that haven\'t been assigned to a category yet.',
+            color: '#64748b',
+            icon: 'FileText',
+            sort_order: 999,
+            parent_id: null,
+            document_count: uncategorizedCount,
+          });
+        }
+
         const totalPublicDocs = docCounts?.length || 0;
 
         return reply.code(200).send({
@@ -120,7 +135,7 @@ export default async function kbRoutes(fastify: FastifyInstance) {
         const querySchema = z.object({
           page: z.coerce.number().int().min(1).default(1),
           limit: z.coerce.number().int().min(1).max(100).default(20),
-          category_id: z.string().uuid().optional(),
+          category_id: z.string().optional(),
           search: z.string().max(200).optional(),
         });
 
@@ -169,7 +184,11 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           .order('published_at', { ascending: false });
 
         if (query.category_id) {
-          dbQuery = dbQuery.eq('category_id', query.category_id);
+          if (query.category_id === 'uncategorized') {
+            dbQuery = dbQuery.is('category_id', null);
+          } else if (z.string().uuid().safeParse(query.category_id).success) {
+            dbQuery = dbQuery.eq('category_id', query.category_id);
+          }
         }
         if (query.search) {
           dbQuery = dbQuery.or(`title.ilike.%${query.search}%,content.ilike.%${query.search}%`);
@@ -257,11 +276,12 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           .from('documents')
           .select(`
             id, title, content, created_at, updated_at, published_at, view_count,
-            categories:category_id (id, name, color)
+            categories:category_id (id, name, color),
+            users (id, full_name, avatar_url)
           `)
           .eq('id', id)
           .eq('tenant_id', tenant.id)
-          .eq('visibility', 'public')
+          .in('visibility', ['public', 'community'])
           .eq('status', 'published')
           .single();
 

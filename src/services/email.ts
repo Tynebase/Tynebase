@@ -18,6 +18,17 @@ interface SendEmailOptions {
 }
 
 /**
+ * Format role name for display (e.g. "community_admin" -> "Community Admin")
+ */
+function formatRole(role: string): string {
+  if (!role) return '';
+  return role
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
+/**
  * Send an email using Resend
  */
 export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
@@ -117,7 +128,7 @@ export async function sendRoleChangeEmail(params: {
         <tr>
           <td width="40%" style="text-align: center; vertical-align: middle; padding: 8px 0;">
             <p style="margin: 0 0 6px 0; color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Previous Role</p>
-            <p style="margin: 0; color: #64748b; font-size: 20px; font-weight: 600; text-transform: capitalize; line-height: 1.2;">${oldRole}</p>
+            <p style="margin: 0; color: #64748b; font-size: 20px; font-weight: 600; line-height: 1.2;">${formatRole(oldRole)}</p>
           </td>
           <td width="20%" style="text-align: center; vertical-align: middle; padding: 8px 0;">
             <p style="margin: 0; color: transparent; font-size: 11px; line-height: 1;">&nbsp;</p>
@@ -125,7 +136,7 @@ export async function sendRoleChangeEmail(params: {
           </td>
           <td width="40%" style="text-align: center; vertical-align: middle; padding: 8px 0;">
             <p style="margin: 0 0 6px 0; color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">New Role</p>
-            <p style="margin: 0; color: #E85002; font-size: 20px; font-weight: 600; text-transform: capitalize; line-height: 1.2;">${newRole}</p>
+            <p style="margin: 0; color: #E85002; font-size: 20px; font-weight: 600; line-height: 1.2;">${formatRole(newRole)}</p>
           </td>
         </tr>
       </table>
@@ -199,7 +210,7 @@ export async function sendWelcomeEmail(params: {
       Hi ${userName || 'there'},
     </p>
     <p style="margin: 0 0 24px; color: #64748b; font-size: 15px; line-height: 1.6;">
-      ${addedBy} has added you to <strong style="color: #1e293b;">${tenantName}</strong> as a <strong style="color: #E85002; text-transform: capitalize;">${role}</strong>.
+      ${addedBy} has added you to <strong style="color: #1e293b;">${tenantName}</strong> as a <strong style="color: #E85002;">${formatRole(role)}</strong>.
     </p>
     <p style="margin: 0 0 24px; color: #64748b; font-size: 15px; line-height: 1.6;">
       You can now access the workspace and start collaborating with your team.
@@ -236,7 +247,7 @@ export async function sendWorkspaceInviteEmail(params: {
       You're invited to join ${tenantName}
     </h2>
     <p style="margin: 0 0 24px; color: #64748b; font-size: 15px; line-height: 1.6;">
-      ${invitedBy} invited you to join <strong style="color: #1e293b;">${tenantName}</strong> as a <strong style="color: #E85002; text-transform: capitalize;">${role}</strong>.
+      ${invitedBy} invited you to join <strong style="color: #1e293b;">${tenantName}</strong> as a <strong style="color: #E85002;">${formatRole(role)}</strong>.
     </p>
     <p style="margin: 0 0 24px; color: #64748b; font-size: 15px; line-height: 1.6;">
       Accept this invitation to join their workspace. If you're not signed in, we'll ask you to sign in first and then finish joining automatically.

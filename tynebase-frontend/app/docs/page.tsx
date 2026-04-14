@@ -20,6 +20,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Shield,
   Code,
   Users,
+  FileText,
 };
 
 const aiFeatures = [
