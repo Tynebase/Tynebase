@@ -410,7 +410,7 @@ export default async function tagRoutes(fastify: FastifyInstance) {
 
         const { error: insertError } = await supabaseAdmin
           .from('document_tags')
-          .insert(relationships);
+          .upsert(relationships, { onConflict: 'tag_id,document_id', ignoreDuplicates: true });
 
         if (insertError) {
           request.log.error({ error: insertError }, 'Failed to add tags to documents');
