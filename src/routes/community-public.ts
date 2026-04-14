@@ -208,13 +208,27 @@ export default async function communityPublicRoutes(fastify: FastifyInstance) {
           });
         }
 
+        // Fetch polls for discussions
+        const discussionIds = (discussions || []).map(d => d.id);
+        const { data: polls } = await supabaseAdmin
+          .from('polls')
+          .select('id, discussion_id, question, ends_at, created_at')
+          .in('discussion_id', discussionIds);
+
+        const pollsMap = new Map((polls || []).map(p => [p.discussion_id, p]));
+
+        const discussionsWithPolls = (discussions || []).map(d => ({
+          ...d,
+          poll: pollsMap.get(d.id) || null,
+        }));
+
         const total = count || 0;
         const totalPages = Math.ceil(total / limit);
 
         return reply.code(200).send({
           success: true,
           data: {
-            discussions: discussions || [],
+            discussions: discussionsWithPolls,
             pagination: { page, limit, total, totalPages, hasNextPage: page < totalPages, hasPrevPage: page > 1 },
           },
         });
@@ -278,10 +292,35 @@ export default async function communityPublicRoutes(fastify: FastifyInstance) {
           .eq('discussion_id', id)
           .order('created_at', { ascending: true });
 
+        // Get poll
+        const { data: pollData } = await supabaseAdmin
+          .from('polls')
+          .select('id, question, ends_at, created_at')
+          .eq('discussion_id', id)
+          .single();
+
+        let poll = null;
+        if (pollData) {
+          const { data: options } = await supabaseAdmin
+            .from('poll_options')
+            .select('id, text, votes_count')
+            .eq('poll_id', pollData.id);
+
+          const totalVotes = (options || []).reduce((sum, o) => sum + o.votes_count, 0);
+
+          poll = {
+            ...pollData,
+            options: options || [],
+            total_votes: totalVotes,
+            has_voted: false,
+            selected_option_id: null,
+          };
+        }
+
         return reply.code(200).send({
           success: true,
           data: {
-            discussion,
+            discussion: { ...discussion, poll },
             replies: replies || [],
           },
         });

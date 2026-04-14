@@ -58,6 +58,12 @@ function getRoleBadgeClass(role: string) {
   return roleColors[role] ?? "bg-gray-500/10 text-gray-600";
 }
 
+function formatRoleName(role: string) {
+  if (role === 'community_contributor') return 'Community Contributor';
+  if (role === 'community_admin') return 'Community Admin';
+  return role.charAt(0).toUpperCase() + role.slice(1);
+}
+
 function UsersPageHeader({ onInvite, onShowRoles, canInvite, tier }: { onInvite: () => void; onShowRoles: () => void; canInvite: boolean; tier: string }) {
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -538,7 +544,7 @@ export default function UsersPage() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
                 <div className="text-left sm:text-right">
                   <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleBadgeClass(member.role)}`}>
-                    {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
+                    {formatRoleName(member.role)}
                   </span>
                   {member.is_original_admin && (
                     <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-500/10 text-amber-600 ml-1">
@@ -614,7 +620,7 @@ export default function UsersPage() {
                     <div className="min-w-0">
                       <p className="font-medium text-[var(--text-primary)] truncate">{invite.email}</p>
                       <p className="text-sm text-[var(--text-tertiary)]">
-                        Invited as <span className={`font-medium ${getRoleBadgeClass(invite.role)} px-1.5 py-0.5 rounded text-xs`}>{invite.role.charAt(0).toUpperCase() + invite.role.slice(1)}</span> by {invite.invited_by}
+                        Invited as <span className={`font-medium ${getRoleBadgeClass(invite.role)} px-1.5 py-0.5 rounded text-xs`}>{formatRoleName(invite.role)}</span> by {invite.invited_by}
                       </p>
                     </div>
                   </div>

@@ -323,55 +323,14 @@ export default async function usersRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // If target user has an original_tenant_id, restore them to their original workspace
-        if (targetUser.original_tenant_id) {
-          const { data: originalTenant } = await supabaseAdmin
-            .from('tenants')
-            .select('id, subdomain, name')
-            .eq('id', targetUser.original_tenant_id)
-            .single();
+        // Soft delete the membership from THIS workspace
+        const { error: deleteError } = await supabaseAdmin
+          .from('users')
+          .update({ status: 'deleted' })
+          .eq('id', id)
+          .eq('tenant_id', tenant.id);
 
-          if (originalTenant) {
-            // Restore user to their original workspace as admin
-            await supabaseAdmin
-              .from('users')
-              .update({
-                tenant_id: targetUser.original_tenant_id,
-                original_tenant_id: null,
-                role: 'admin',
-                status: 'active',
-              })
-              .eq('id', id);
 
-            // Update Supabase Auth metadata
-            await supabaseAdmin.auth.admin.updateUserById(id, {
-              user_metadata: {
-                tenant_id: originalTenant.id,
-                tenant_subdomain: originalTenant.subdomain,
-                tenant_name: originalTenant.name,
-                role: 'admin',
-              },
-            });
-
-            fastify.log.info({ userId: id, restoredTo: originalTenant.id }, 'Removed user restored to original workspace');
-          } else {
-            // Original tenant no longer exists - soft delete
-            await supabaseAdmin
-              .from('users')
-              .update({ status: 'deleted' })
-              .eq('id', id)
-              .eq('tenant_id', tenant.id);
-          }
-        } else {
-          // No original workspace - soft delete
-          await supabaseAdmin
-            .from('users')
-            .update({ status: 'deleted' })
-            .eq('id', id)
-            .eq('tenant_id', tenant.id);
-        }
-
-        const deleteError = null; // Handled above
 
         if (deleteError) {
           return reply.code(500).send({

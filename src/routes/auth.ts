@@ -142,9 +142,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
           .insert({
             subdomain: finalSubdomain,
             name: tenant_name,
-            tier: tier,
+            tier: 'free',
             settings: {},
-            storage_limit: tierStorage > 0 ? tierStorage : 107374182400, // Use tier limit or 100GB for unlimited
+            storage_limit: TIER_STORAGE.free, // Initialize with free tier storage
           })
           .select()
           .single();
@@ -217,7 +217,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
             .insert({
               tenant_id: tenantId,
               month_year: new Date().toISOString().slice(0, 7), // YYYY-MM format
-              total_credits: tierCredits,
+              total_credits: TIER_CREDITS.free,
               used_credits: 0,
             });
 
@@ -253,7 +253,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
                 id: tenantId,
                 subdomain,
                 name: tenant_name,
-                tier: tier,
+                tier: 'free',
               },
             },
             message: 'Account created successfully. Please log in.',
@@ -475,9 +475,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
         .insert({
           subdomain: finalSubdomain,
           name: tenant_name,
-          tier,
+          tier: 'free',
           settings: {},
-          storage_limit: tierStorage > 0 ? tierStorage : 107374182400,
+          storage_limit: TIER_STORAGE.free,
         })
         .select()
         .single();
@@ -531,7 +531,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
         await supabaseAdmin.from('credit_pools').insert({
           tenant_id: tenantId,
           month_year: new Date().toISOString().slice(0, 7),
-          total_credits: tierCredits,
+          total_credits: TIER_CREDITS.free,
           used_credits: 0,
         });
       } catch (creditErr) {
@@ -554,7 +554,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
         success: true,
         data: {
           user: { id: userId, email, full_name: full_name || null, role: 'admin' },
-          tenant: { id: tenantId, subdomain, name: tenant_name, tier },
+          tenant: { id: tenantId, subdomain, name: tenant_name, tier: 'free' },
         },
         message: 'Workspace created successfully',
       });

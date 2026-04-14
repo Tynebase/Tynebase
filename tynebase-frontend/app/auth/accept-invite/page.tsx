@@ -23,7 +23,7 @@ interface InviteData {
 }
 
 function normalizeInviteRole(role?: string): WorkspaceRole {
-  if (role === "admin" || role === "editor" || role === "viewer") {
+  if (role === "admin" || role === "editor" || role === "viewer" || role === "community_contributor" || role === "community_admin") {
     return role;
   }
 

@@ -65,7 +65,7 @@ function FinalizeContent() {
            console.log('[Finalize Join] Success, pinning tenant and refreshing user...');
            setTenantSubdomain(subdomain);
            await refreshUser();
-           router.replace("/community");
+           window.location.replace("/community");
          }
        } catch (err: any) {
          console.error("[Finalize Join] Error:", err);
