@@ -177,7 +177,7 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
   const fetchDocuments = useCallback(async () => {
     try {
       setDocsLoading(true);
-      const data = await getKBDocuments(subdomain, { 
+      const data = await getKBDocuments(subdomain, {
         category_id: selectedCategory === "all" ? undefined : selectedCategory,
         tag_id: filterTagId || undefined,
         search: searchQuery || undefined,
@@ -192,11 +192,11 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
     } finally {
       setDocsLoading(false);
     }
-  }, [subdomain, selectedCategory, searchQuery, currentPage]);
+  }, [subdomain, selectedCategory, filterTagId, searchQuery, currentPage]);
 
   useEffect(() => {
     fetchDocuments();
-  }, [fetchDocuments, filterTagId]);
+  }, [fetchDocuments]);
 
   // Resize Handler
   const handleResizeStart = useCallback((e: React.MouseEvent, colIndex: number) => {
@@ -250,10 +250,7 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
       filtered = filtered.filter(doc => doc.status === filterStatus);
     }
 
-    // Tag Filter
-    if (filterTagId) {
-      filtered = filtered.filter(doc => doc.tags?.some(t => t.id === filterTagId));
-    }
+    // Tag filter is applied server-side via fetchDocuments
 
     // Sort
     return filtered.sort((a, b) => {
@@ -500,26 +497,12 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
               <div ref={tableRef} className="bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-2xl overflow-hidden flex flex-col shadow-sm">
                 {/* Table Header */}
                 <div className="hidden md:grid px-6 py-4 bg-[var(--bg-tertiary)] border-b border-[var(--border-subtle)] text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider" style={gridStyle}>
-                  {[
-                    <div key="doc" className="flex items-center gap-2 pr-2">DOCUMENT</div>,
-                    <div key="cat" className="px-2">CATEGORY</div>,
-                    <div key="tags" className="px-2">TAGS</div>,
-                    <div key="status" className="text-center px-2">STATUS</div>,
-                    <div key="updated" className="px-2">UPDATED</div>,
-                    <div key="views" className="text-right pl-2">VIEWS</div>,
-                  ].flatMap((header, i, arr) => {
-                    const elements = [<div key={`h-c-${i}`} className="relative min-w-0">{header}</div>];
-                    if (i < arr.length - 1) {
-                      elements.push(
-                        <div
-                          key={`resizer-${i}`}
-                          className="w-1 cursor-col-resize hover:bg-[var(--brand)] transition-colors"
-                          onMouseDown={(e) => handleResizeStart(e, i)}
-                        />
-                      );
-                    }
-                    return elements;
-                  })}
+                  <div className="flex items-center gap-2 pr-4">DOCUMENT</div>
+                  <div className="px-2">CATEGORY</div>
+                  <div className="px-2">TAGS</div>
+                  <div className="text-center px-2">STATUS</div>
+                  <div className="px-2">UPDATED</div>
+                  <div className="text-right pl-2">VIEWS</div>
                 </div>
 
                 <div className="divide-y divide-[var(--border-subtle)]">
