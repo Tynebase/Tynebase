@@ -132,10 +132,6 @@ export default async function authRoutes(fastify: FastifyInstance) {
       fastify.log.info({ userId }, 'Auth user created');
 
       try {
-        // Get tier-specific limits
-        const tierCredits = TIER_CREDITS[tier] || TIER_CREDITS.free;
-        const tierStorage = TIER_STORAGE[tier] || TIER_STORAGE.free;
-
         // Start transaction by creating tenant
         const { data: tenant, error: tenantError } = await supabaseAdmin
           .from('tenants')
@@ -464,10 +460,6 @@ export default async function authRoutes(fastify: FastifyInstance) {
         }
         finalSubdomain = uniqueSubdomain;
       }
-
-      // Get tier-specific limits
-      const tierCredits = TIER_CREDITS[tier] || TIER_CREDITS.free;
-      const tierStorage = TIER_STORAGE[tier] || TIER_STORAGE.free;
 
       // Create tenant
       const { data: tenant, error: tenantError } = await supabaseAdmin
