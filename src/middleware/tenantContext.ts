@@ -63,7 +63,8 @@ const tenantCache = new LRUCache(1000, 300000); // 5 min TTL
  * Sanitize subdomain input to prevent injection.
  */
 function sanitizeSubdomain(subdomain: string): string {
-  return subdomain.toLowerCase().replace(/[^a-z0-9-]/g, '');
+  // Allow dots for custom domain resolution
+  return subdomain.toLowerCase().replace(/[^a-z0-9.-]/g, '');
 }
 
 /**
@@ -112,11 +113,21 @@ export async function tenantContextMiddleware(
   let tenant = tenantCache.get(sanitizedSubdomain);
 
   if (!tenant) {
-    const { data, error } = await supabaseAdmin
+    // Determine if we should query by subdomain or custom domain
+    // If it contains a dot, it's likely a custom domain
+    const isDomain = sanitizedSubdomain.includes('.');
+    
+    let dbQuery = supabaseAdmin
       .from('tenants')
-      .select('id, subdomain, name, tier, settings, storage_limit')
-      .eq('subdomain', sanitizedSubdomain)
-      .single();
+      .select('id, subdomain, name, tier, settings, storage_limit');
+      
+    if (isDomain) {
+      dbQuery = dbQuery.eq('custom_domain', sanitizedSubdomain).eq('custom_domain_verified', true);
+    } else {
+      dbQuery = dbQuery.eq('subdomain', sanitizedSubdomain);
+    }
+
+    const { data, error } = await dbQuery.single();
 
     if (error || !data) {
       request.log.warn(

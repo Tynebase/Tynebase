@@ -30,12 +30,19 @@ export default async function kbRoutes(fastify: FastifyInstance) {
       try {
         const { subdomain } = request.params as { subdomain: string };
 
-        // Fetch tenant by subdomain
-        const { data: tenant, error: tenantError } = await supabaseAdmin
+        // Fetch tenant by subdomain or custom domain
+        const isFullDomain = subdomain.includes('.');
+        let tenantQuery = supabaseAdmin
           .from('tenants')
-          .select('id, subdomain, name, tier, settings')
-          .eq('subdomain', subdomain.toLowerCase())
-          .single();
+          .select('id, subdomain, name, tier, settings');
+          
+        if (isFullDomain) {
+          tenantQuery = tenantQuery.eq('custom_domain', subdomain.toLowerCase()).eq('custom_domain_verified', true);
+        } else {
+          tenantQuery = tenantQuery.eq('subdomain', subdomain.toLowerCase());
+        }
+
+        const { data: tenant, error: tenantError } = await tenantQuery.single();
 
         if (tenantError || !tenant) {
           return reply.code(404).send({
@@ -95,7 +102,9 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           });
         }
 
-        const totalPublicDocs = docCounts?.length || 0;
+        // Sum up documents only from categories we are actually showing.
+        // This ensures the header count matches the sum of the boxes.
+        const totalPublicDocs = filteredCategories.reduce((acc, cat) => acc + (cat.document_count || 0), 0);
 
         return reply.code(200).send({
           success: true,
@@ -142,12 +151,19 @@ export default async function kbRoutes(fastify: FastifyInstance) {
         const query = querySchema.parse(request.query);
         const offset = (query.page - 1) * query.limit;
 
-        // Resolve tenant
-        const { data: tenant, error: tenantError } = await supabaseAdmin
+        // Resolve tenant by subdomain or custom domain
+        const isFullDomain = subdomain.includes('.');
+        let tenantQuery = supabaseAdmin
           .from('tenants')
-          .select('id')
-          .eq('subdomain', subdomain.toLowerCase())
-          .single();
+          .select('id');
+          
+        if (isFullDomain) {
+          tenantQuery = tenantQuery.eq('custom_domain', subdomain.toLowerCase()).eq('custom_domain_verified', true);
+        } else {
+          tenantQuery = tenantQuery.eq('subdomain', subdomain.toLowerCase());
+        }
+
+        const { data: tenant, error: tenantError } = await tenantQuery.single();
 
         if (tenantError || !tenant) {
           return reply.code(404).send({
@@ -261,12 +277,19 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Resolve tenant
-        const { data: tenant } = await supabaseAdmin
+        // Resolve tenant by subdomain or custom domain
+        const isFullDomain = subdomain.includes('.');
+        let tenantQuery = supabaseAdmin
           .from('tenants')
-          .select('id, subdomain, name, settings')
-          .eq('subdomain', subdomain.toLowerCase())
-          .single();
+          .select('id, subdomain, name, settings');
+          
+        if (isFullDomain) {
+          tenantQuery = tenantQuery.eq('custom_domain', subdomain.toLowerCase()).eq('custom_domain_verified', true);
+        } else {
+          tenantQuery = tenantQuery.eq('subdomain', subdomain.toLowerCase());
+        }
+
+        const { data: tenant } = await tenantQuery.single();
 
         if (!tenant) {
           return reply.code(404).send({

@@ -15,12 +15,22 @@ function getSubdomainFromHost(): string | null {
   if (typeof window === 'undefined') return null;
   const hostname = window.location.hostname;
   const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || 'tynebase.com';
+  
+  // Try to extract standard subdomain
   const parts = hostname.split('.');
   const baseParts = baseDomain.split('.');
-  if (parts.length <= baseParts.length) return null;
-  const sub = parts.slice(0, parts.length - baseParts.length).join('.');
-  if (!sub || sub === 'www') return null;
-  return sub;
+  
+  if (parts.length > baseParts.length && hostname.endsWith(`.${baseDomain}`)) {
+    const sub = parts.slice(0, parts.length - baseParts.length).join('.');
+    if (sub && sub !== 'www') return sub;
+  }
+  
+  // If it's a custom domain (contains dots but doesn't end with baseDomain)
+  if (hostname !== 'localhost' && hostname !== baseDomain) {
+    return hostname;
+  }
+  
+  return null;
 }
 
 function formatDate(dateString: string): string {

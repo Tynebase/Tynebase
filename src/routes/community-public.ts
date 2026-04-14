@@ -21,12 +21,19 @@ export default async function communityPublicRoutes(fastify: FastifyInstance) {
       try {
         const { subdomain } = request.params as { subdomain: string };
 
-        // Resolve tenant
-        const { data: tenant, error: tenantError } = await supabaseAdmin
+        // Resolve tenant by subdomain or custom domain
+        const isFullDomain = subdomain.includes('.');
+        let tenantQuery = supabaseAdmin
           .from('tenants')
-          .select('id')
-          .eq('subdomain', subdomain.toLowerCase())
-          .single();
+          .select('id');
+          
+        if (isFullDomain) {
+          tenantQuery = tenantQuery.eq('custom_domain', subdomain.toLowerCase()).eq('custom_domain_verified', true);
+        } else {
+          tenantQuery = tenantQuery.eq('subdomain', subdomain.toLowerCase());
+        }
+
+        const { data: tenant, error: tenantError } = await tenantQuery.single();
 
         if (tenantError || !tenant) {
           return reply.code(404).send({
@@ -96,12 +103,19 @@ export default async function communityPublicRoutes(fastify: FastifyInstance) {
         const { subdomain } = request.params as { subdomain: string };
         const query = request.query as { limit?: string };
 
-        // Resolve tenant
-        const { data: tenant, error: tenantError } = await supabaseAdmin
+        // Resolve tenant by subdomain or custom domain
+        const isFullDomain = subdomain.includes('.');
+        let tenantQuery = supabaseAdmin
           .from('tenants')
-          .select('id')
-          .eq('subdomain', subdomain.toLowerCase())
-          .single();
+          .select('id');
+          
+        if (isFullDomain) {
+          tenantQuery = tenantQuery.eq('custom_domain', subdomain.toLowerCase()).eq('custom_domain_verified', true);
+        } else {
+          tenantQuery = tenantQuery.eq('subdomain', subdomain.toLowerCase());
+        }
+
+        const { data: tenant, error: tenantError } = await tenantQuery.single();
 
         if (tenantError || !tenant) {
           return reply.code(404).send({
@@ -165,12 +179,19 @@ export default async function communityPublicRoutes(fastify: FastifyInstance) {
         const { subdomain } = request.params as { subdomain: string };
         const query = request.query as { category?: string; page?: string; limit?: string };
 
-        // Resolve tenant
-        const { data: tenant, error: tenantError } = await supabaseAdmin
+        // Resolve tenant by subdomain or custom domain
+        const isFullDomain = subdomain.includes('.');
+        let tenantQuery = supabaseAdmin
           .from('tenants')
-          .select('id')
-          .eq('subdomain', subdomain.toLowerCase())
-          .single();
+          .select('id');
+          
+        if (isFullDomain) {
+          tenantQuery = tenantQuery.eq('custom_domain', subdomain.toLowerCase()).eq('custom_domain_verified', true);
+        } else {
+          tenantQuery = tenantQuery.eq('subdomain', subdomain.toLowerCase());
+        }
+
+        const { data: tenant, error: tenantError } = await tenantQuery.single();
 
         if (tenantError || !tenant) {
           return reply.code(404).send({
@@ -259,12 +280,19 @@ export default async function communityPublicRoutes(fastify: FastifyInstance) {
       try {
         const { subdomain, id } = request.params as { subdomain: string; id: string };
 
-        // Resolve tenant
-        const { data: tenant } = await supabaseAdmin
+        // Resolve tenant by subdomain or custom domain
+        const isFullDomain = subdomain.includes('.');
+        let tenantQuery = supabaseAdmin
           .from('tenants')
-          .select('id')
-          .eq('subdomain', subdomain.toLowerCase())
-          .single();
+          .select('id');
+          
+        if (isFullDomain) {
+          tenantQuery = tenantQuery.eq('custom_domain', subdomain.toLowerCase()).eq('custom_domain_verified', true);
+        } else {
+          tenantQuery = tenantQuery.eq('subdomain', subdomain.toLowerCase());
+        }
+
+        const { data: tenant } = await tenantQuery.single();
 
         if (!tenant) {
           return reply.code(404).send({

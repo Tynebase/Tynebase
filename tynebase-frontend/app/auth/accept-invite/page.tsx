@@ -30,6 +30,13 @@ function normalizeInviteRole(role?: string): WorkspaceRole {
   return role === "member" ? "editor" : "viewer";
 }
 
+function formatRoleName(role: string): string {
+  if (!role) return "";
+  return role
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 function buildInviteLoginHref(inviteId?: string, existingInvite?: boolean): string {
   if (!inviteId) {
     return "/login";
@@ -411,8 +418,8 @@ function AcceptInviteContent() {
                 </div>
                 <div className="flex items-center justify-between text-sm mt-2">
                   <span className="text-[var(--text-secondary)]">Role</span>
-                  <span className="px-2 py-0.5 text-xs font-medium bg-blue-500/10 text-blue-500 rounded-full capitalize">
-                    {invite.role}
+                  <span className="px-2 py-0.5 text-xs font-medium bg-blue-500/10 text-blue-500 rounded-full">
+                    {formatRoleName(invite.role)}
                   </span>
                 </div>
               </div>

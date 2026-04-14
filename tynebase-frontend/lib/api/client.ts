@@ -167,6 +167,10 @@ function getTenantSubdomain(): string | null {
   const { getCurrentSubdomain } = require('@/lib/utils');
   const urlSubdomain = getCurrentSubdomain();
   
+  const hostname = window.location.hostname;
+  const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || 'tynebase.com';
+  const isCustomDomain = hostname !== 'localhost' && !hostname.endsWith(`.${baseDomain}`) && hostname !== baseDomain;
+
   if (urlSubdomain && urlSubdomain !== 'www' && urlSubdomain !== 'main' && urlSubdomain !== 'app') {
     // Sync localStorage so subsequent bare-domain requests use this too
     const stored = localStorage.getItem('tenant_subdomain');
@@ -176,7 +180,12 @@ function getTenantSubdomain(): string | null {
     return urlSubdomain;
   }
   
-  // 2. Fallback to localStorage (for bare-domain or localhost access)
+  // 2. If it's a custom domain, return the full hostname as the "subdomain" identifier
+  if (isCustomDomain) {
+    return hostname;
+  }
+
+  // 3. Fallback to localStorage (for bare-domain or localhost access)
   const stored = localStorage.getItem('tenant_subdomain');
   if (stored && stored !== 'main' && stored !== 'www' && stored !== 'app') return stored;
   
