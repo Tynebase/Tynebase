@@ -289,6 +289,12 @@ export default async function communityPublicRoutes(fastify: FastifyInstance) {
           });
         }
 
+        // Increment view count
+        await supabaseAdmin
+          .from('discussions')
+          .update({ views_count: ((discussion as any).views_count || 0) + 1 })
+          .eq('id', id);
+
         // Fetch replies
         const { data: replies } = await supabaseAdmin
           .from('discussion_replies')

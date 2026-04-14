@@ -297,7 +297,11 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
               ) : documents && documents.documents.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {documents.documents.map((doc) => {
-                    const authorName = (doc as any).users?.full_name || "Unknown";
+                    const authorData = (doc as any).users;
+                    const authorName = Array.isArray(authorData)
+                      ? (authorData[0]?.full_name || "Unknown")
+                      : (authorData?.full_name || "Unknown");
+
                     const readTime = estimateReadTime(doc.content || "");
                     const snippet = stripHtmlForSnippet(doc.content || "").slice(0, 180);
                     const updatedDate = doc.updated_at ? new Date(doc.updated_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : null;

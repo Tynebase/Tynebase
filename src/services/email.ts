@@ -23,7 +23,9 @@ interface SendEmailOptions {
 function formatRole(role: string): string {
   if (!role) return '';
   return role
-    .split('_')
+    .replace(/_/g, ' ')
+    .split(' ')
+    .filter(word => word.length > 0)
     .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(' ');
 }

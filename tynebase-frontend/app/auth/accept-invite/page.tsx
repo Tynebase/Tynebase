@@ -102,10 +102,18 @@ function AcceptInviteContent() {
       description: `You've joined ${response.tenant.name}`,
     });
 
-    setStatus("success");
+    const isCommunityRole = inviteToAccept.role === "community_admin" || inviteToAccept.role === "community_contributor";
+    const targetPath = isCommunityRole ? "/community" : "/dashboard";
 
     setTimeout(() => {
-      window.location.href = "/dashboard";
+      // If we're on www but have a subdomain, redirect to the subdomain
+      const currentHost = window.location.hostname;
+      const sub = inviteToAccept.tenantSubdomain;
+      if (sub && (currentHost === "www.tynebase.com" || currentHost === "tynebase.com")) {
+        window.location.href = `https://${sub}.tynebase.com${targetPath}`;
+      } else {
+        window.location.href = targetPath;
+      }
     }, 1500);
   };
 
@@ -116,9 +124,18 @@ function AcceptInviteContent() {
       if (inviteToAccept.tenantSubdomain) {
         setTenantSubdomain(inviteToAccept.tenantSubdomain);
       }
+      const isCommunityRole = inviteToAccept.role === "community_admin" || inviteToAccept.role === "community_contributor";
+      const targetPath = isCommunityRole ? "/community" : "/dashboard";
+
       setStatus("success");
       setTimeout(() => {
-        window.location.href = "/dashboard";
+        const currentHost = window.location.hostname;
+        const sub = inviteToAccept.tenantSubdomain;
+        if (sub && (currentHost === "www.tynebase.com" || currentHost === "tynebase.com")) {
+          window.location.href = `https://${sub}.tynebase.com${targetPath}`;
+        } else {
+          window.location.href = targetPath;
+        }
       }, 1500);
       return;
     }

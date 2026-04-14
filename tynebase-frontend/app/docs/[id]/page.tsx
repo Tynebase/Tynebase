@@ -119,9 +119,20 @@ export default function PublicDocumentPage() {
     );
   }
 
-  const authorName = (doc as any).users?.full_name || "Unknown Author";
-  const categoryName = (doc as any).categories?.name;
-  const categoryColor = (doc as any).categories?.color || "#6b7280";
+  const authorData = (doc as any).users;
+  const authorName = Array.isArray(authorData) 
+    ? (authorData[0]?.full_name || "Unknown Author")
+    : (authorData?.full_name || "Unknown Author");
+
+  const categoryData = (doc as any).categories;
+  const categoryName = Array.isArray(categoryData)
+    ? categoryData[0]?.name
+    : categoryData?.name;
+
+  const categoryColor = Array.isArray(categoryData)
+    ? (categoryData[0]?.color || "#6b7280")
+    : (categoryData?.color || "#6b7280");
+
   const readTime = estimateReadTime(doc.content || "");
 
   return (

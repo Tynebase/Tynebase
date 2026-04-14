@@ -210,6 +210,8 @@ export default async function kbRoutes(fastify: FastifyInstance) {
 
         const processedDocs = (documents || []).map((doc: any) => ({
           ...doc,
+          users: Array.isArray(doc.users) ? doc.users[0] : doc.users,
+          categories: Array.isArray(doc.categories) ? doc.categories[0] : doc.categories,
           content: rewriteAssetUrlsForPublicAccess(doc.content || '', doc.id, apiBaseUrl),
         }));
 
@@ -298,9 +300,12 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           .eq('id', id);
 
         const apiBaseUrl = process.env.API_BASE_URL || 'https://tynebase-backend.fly.dev';
+        const rawDoc = document as any;
         const processedDoc = {
-          ...document,
-          content: rewriteAssetUrlsForPublicAccess((document as any).content || '', id, apiBaseUrl),
+          ...rawDoc,
+          users: Array.isArray(rawDoc.users) ? rawDoc.users[0] : rawDoc.users,
+          categories: Array.isArray(rawDoc.categories) ? rawDoc.categories[0] : rawDoc.categories,
+          content: rewriteAssetUrlsForPublicAccess(rawDoc.content || '', id, apiBaseUrl),
         };
 
         return reply.code(200).send({

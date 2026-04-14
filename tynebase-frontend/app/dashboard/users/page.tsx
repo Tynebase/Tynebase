@@ -59,9 +59,13 @@ function getRoleBadgeClass(role: string) {
 }
 
 function formatRoleName(role: string) {
-  if (role === 'community_contributor') return 'Community Contributor';
-  if (role === 'community_admin') return 'Community Admin';
-  return role.charAt(0).toUpperCase() + role.slice(1);
+  if (!role) return '';
+  return role
+    .replace(/_/g, ' ')
+    .split(' ')
+    .filter(word => word.length > 0)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
 }
 
 function UsersPageHeader({ onInvite, onShowRoles, canInvite, tier }: { onInvite: () => void; onShowRoles: () => void; canInvite: boolean; tier: string }) {
