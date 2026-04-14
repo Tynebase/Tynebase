@@ -224,8 +224,8 @@ export default async function kbRoutes(fastify: FastifyInstance) {
               full_name,
               avatar_url
             ),
-            document_tag_junction (
-              tags (
+            tags:document_tags (
+              tag:tags (
                 id,
                 name,
                 description
@@ -266,8 +266,8 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           ...doc,
           author: doc.author || { full_name: 'Unknown Author' },
           category: doc.category,
+          tags: (doc.tags || []).map((jt: any) => jt.tag).filter(Boolean),
           content: rewriteAssetUrlsForPublicAccess(doc.content || '', doc.id, apiBaseUrl),
-          tags: doc.document_tag_junction?.map((jt: any) => jt.tags).filter(Boolean) || [],
         }));
 
         return reply.code(200).send({
@@ -361,7 +361,10 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           .select(`
             id, title, content, created_at, updated_at, published_at, view_count,
             category:categories (id, name, color),
-            author:users (id, full_name, avatar_url)
+            author:users (id, full_name, avatar_url),
+            tags:document_tags (
+              tag:tags (id, name, description)
+            )
           `)
           .eq('id', id)
           .eq('tenant_id', tenant.id)
@@ -387,6 +390,7 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           ...rawDoc,
           author: rawDoc.author || { full_name: 'Unknown Author' },
           category: rawDoc.category,
+          tags: (rawDoc.tags || []).map((t: any) => t.tag).filter(Boolean),
           content: rewriteAssetUrlsForPublicAccess(rawDoc.content || '', id, apiBaseUrl),
         };
 

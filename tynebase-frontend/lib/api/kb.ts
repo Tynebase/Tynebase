@@ -37,6 +37,9 @@ export interface KBDocumentsData {
   documents: (Document & {
     author?: { id: string; full_name: string; avatar_url: string | null };
     category?: { id: string; name: string; color: string };
+    tags?: { id: string; name: string }[];
+    visibility: 'public' | 'team' | 'private' | 'community';
+    status: 'draft' | 'published';
   })[];
   pagination: {
     page: number;
@@ -52,6 +55,9 @@ export interface KBDocumentData {
   document: Document & {
     author?: { id: string; full_name: string; avatar_url: string | null };
     category?: { id: string; name: string; color: string };
+    tags?: { id: string; name: string }[];
+    visibility: 'public' | 'team' | 'private' | 'community';
+    status: 'draft' | 'published';
   };
   tenant: KBTenant;
 }

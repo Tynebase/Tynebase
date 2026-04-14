@@ -208,7 +208,52 @@ export default function PublicDocumentPage() {
             <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
               {formatDate(doc.created_at)}
             </span>
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '3px 10px',
+              borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: 500,
+              background: doc.visibility === 'public' ? '#10b98120' : doc.visibility === 'team' ? '#3b82f620' : '#6b728020',
+              color: doc.visibility === 'public' ? '#10b981' : doc.visibility === 'team' ? '#3b82f6' : '#6b7280',
+              textTransform: 'capitalize'
+            }}>
+              {doc.visibility}
+            </span>
+            {doc.status !== 'published' && (
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '3px 10px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: 500,
+                background: '#f59e0b20',
+                color: '#f59e0b',
+                textTransform: 'capitalize'
+              }}>
+                {doc.status}
+              </span>
+            )}
           </div>
+
+          {/* Tags */}
+          {doc.tags && doc.tags.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '32px' }}>
+              {doc.tags.map(tag => (
+                <span key={tag.id} style={{
+                  padding: '4px 12px',
+                  borderRadius: '6px',
+                  background: 'var(--bg-secondary)',
+                  color: 'var(--text-secondary)',
+                  fontSize: '13px',
+                }}>
+                  #{tag.name}
+                </span>
+              ))}
+            </div>
+          )}
 
           {/* Document Content */}
           <TiptapReader 
