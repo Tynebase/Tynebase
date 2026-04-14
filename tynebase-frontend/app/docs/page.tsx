@@ -117,8 +117,8 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
   const [showTagFilterDropdown, setShowTagFilterDropdown] = useState(false);
 
   // Resizable column widths
-  const defaultColWidths = [3.5, 1, 1.5, 0.8, 0.8, 0.8, 1.5, 0.8];
-  const COL_WIDTHS_KEY = 'kb_portal_col_widths';
+  const defaultColWidths = [4.3, 1, 1.5, 0.8, 0.8, 1.5, 0.8];
+  const COL_WIDTHS_KEY = 'kb_portal_col_widths_v2'; // Bumped version to reset layout
   const [colWidths, setColWidths] = useState<number[]>(() => {
     if (typeof window === 'undefined') return defaultColWidths;
     try {
@@ -505,7 +505,6 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
                     <div key="tags" className="px-2">TAGS</div>,
                     <div key="vis" className="text-center px-2">VISIBILITY</div>,
                     <div key="status" className="text-center px-2">STATUS</div>,
-                    <div key="ai" className="text-center px-2">AI SCORE</div>,
                     <div key="updated" className="px-2">UPDATED</div>,
                     <div key="views" className="text-right pl-2">VIEWS</div>,
                   ].flatMap((header, i, arr) => {
@@ -555,14 +554,6 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
                             {doc.status}
                           </span>
                         </div>
-                        <div className="text-center px-2">
-                          <div className={`flex flex-col items-center leading-tight ${getAiScoreColor(doc.ai_score)}`}>
-                            <span className="text-sm font-bold flex items-center gap-1.5">
-                              <Sparkles className="w-3 h-3" />
-                              {doc.ai_score !== null ? `${doc.ai_score}%` : '--'}</span>
-                            <span className="text-[9px] font-medium opacity-80">{getAiScoreLabel(doc.ai_score)}</span>
-                          </div>
-                        </div>
                         <div className="px-2">
                           <p className="text-xs text-[var(--text-secondary)] font-medium">{formatRelativeTime(doc.updated_at)}</p>
                         </div>
@@ -584,10 +575,6 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
                                <span className="text-[10px] text-[var(--text-muted)]">{formatRelativeTime(doc.updated_at)}</span>
                             </div>
                           </div>
-                          <div className={`text-right ${getAiScoreColor(doc.ai_score)}`}>
-                            <p className="text-sm font-bold">{doc.ai_score !== null ? `${doc.ai_score}%` : '--'}</p>
-                            <p className="text-[10px] opacity-70">AI Score</p>
-                          </div>
                         </div>
                       </div>
                     </Link>
@@ -601,13 +588,6 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
                       <div className="flex items-center justify-between mb-4">
                         <div className="w-12 h-12 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 duration-300" style={{ backgroundColor: (doc.category?.color || brandColor) + '15' }}>
                           <FileText className="w-6 h-6" style={{ color: doc.category?.color || brandColor }} />
-                        </div>
-                        <div className={`flex flex-col items-end leading-tight ${getAiScoreColor(doc.ai_score)}`}>
-                          <span className="text-sm font-black flex items-center gap-1.5">
-                            <Sparkles className="w-3.5 h-3.5" />
-                            {doc.ai_score !== null ? `${doc.ai_score}%` : '--'}
-                          </span>
-                          <span className="text-[10px] font-bold uppercase tracking-wider opacity-70">{getAiScoreLabel(doc.ai_score)}</span>
                         </div>
                       </div>
 
