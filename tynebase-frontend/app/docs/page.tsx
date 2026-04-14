@@ -737,7 +737,7 @@ function MainKBPage() {
                 <h3 className="h3-premium" style={{ marginBottom: '12px' }}>{category.name}</h3>
                 <p className="p-premium" style={{ fontSize: '15px' }}>{category.description}</p>
                 <div className="flex items-center gap-2 mt-6 font-medium" style={{ color: category.color }}>
-                  <span>{category.articles} articles</span>
+                  <span>{category.articles.length} articles</span>
                   <ArrowRight className="w-4 h-4" />
                 </div>
               </button>
