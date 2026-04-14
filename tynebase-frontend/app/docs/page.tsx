@@ -15,8 +15,25 @@ import {
 } from "lucide-react";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
+import { categories, allArticles } from "@/lib/docs";
 import { getKBLanding, getKBDocuments, estimateReadTime } from "@/lib/api/kb";
 import type { KBTenant, KBCategory, KBDocumentsData, KBDocumentData } from "@/lib/api/kb";
+import React from "react";
+
+const enterpriseFeatures = [
+  { icon: Lock, title: "SSO/SAML Integration", description: "Okta, Azure AD and Google Workspace" },
+  { icon: Shield, title: "SOC 2 Type II", description: "Enterprise-grade compliance" },
+  { icon: Globe, title: "GDPR Compliant", description: "EU data residency options" },
+  { icon: BarChart3, title: "Analytics Dashboard", description: "Usage insights and adoption metrics" },
+  { icon: FileCheck, title: "Content Audit", description: "Document health and verification" },
+  { icon: FolderSync, title: "Automated Backups", description: "Data protection and recovery" },
+];
+
+const apiDocs = [
+  { icon: Code, title: "REST API Reference", description: "Complete API documentation with examples and SDKs", slug: "api-overview" },
+  { icon: Globe, title: "Webhooks", description: "Real-time event notifications for document changes", slug: "webhooks" },
+  { icon: FileText, title: "Local Development", description: "Set up local environment for API integration", slug: "local-development" },
+];
 
 const iconMap: Record<string, any> = {
   Zap,
