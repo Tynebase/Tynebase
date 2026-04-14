@@ -213,18 +213,32 @@ export default async function stripeBillingRoutes(fastify: FastifyInstance) {
       const customerId = tenant.settings?.stripe_customer_id;
       if (!customerId) {
         return reply.code(400).send({
-          error: { code: 'NO_SUBSCRIPTION', message: 'No active subscription found' },
+          error: { code: 'NO_SUBSCRIPTION', message: 'No active Stripe subscription found. Please upgrade your plan first.' },
+        });
+      }
+
+      // Verify the customer actually has at least one active subscription
+      const subs = await stripe.subscriptions.list({ customer: customerId, status: 'active', limit: 1 });
+      if (subs.data.length === 0) {
+        return reply.code(400).send({
+          error: { code: 'NO_SUBSCRIPTION', message: 'No active subscription found. Please complete checkout to start your plan.' },
         });
       }
 
       const frontendUrl = process.env.FRONTEND_URL || 'https://www.tynebase.com';
 
-      const session = await stripe.billingPortal.sessions.create({
-        customer: customerId,
-        return_url: `${frontendUrl}/dashboard/settings/billing`,
-      });
-
-      return reply.send({ success: true, data: { url: session.url } });
+      try {
+        const session = await stripe.billingPortal.sessions.create({
+          customer: customerId,
+          return_url: `${frontendUrl}/dashboard/settings/billing`,
+        });
+        return reply.send({ success: true, data: { url: session.url } });
+      } catch (stripeErr: any) {
+        fastify.log.error({ error: stripeErr }, 'Stripe billing portal creation failed');
+        return reply.code(400).send({
+          error: { code: 'PORTAL_ERROR', message: stripeErr?.message || 'Could not open billing portal. Please contact support.' },
+        });
+      }
     }
   );
 

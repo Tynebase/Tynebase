@@ -195,6 +195,8 @@ function BillingPageInner() {
   const isAdmin = user?.role === 'admin' || user?.is_super_admin;
   const hasPaidPlan = currentTier !== 'free';
   const hasStripeCustomer = !!(tenant?.settings as any)?.stripe_customer_id;
+  // Only show the portal button when we know there's a real active Stripe subscription
+  const hasStripeSubscription = hasStripeCustomer && !!(tenant?.settings as any)?.stripe_subscription_id;
 
   // Plans that are available to upgrade to
   const upgradablePlans = PLANS.filter(
@@ -306,7 +308,7 @@ function BillingPageInner() {
           <h1 className="text-3xl font-bold">Billing & Plans</h1>
           <p className="text-muted-foreground">Manage your plan, credits and billing information</p>
         </div>
-        {hasPaidPlan && hasStripeCustomer && (
+        {hasPaidPlan && hasStripeSubscription && (
           <Button variant="outline" onClick={handleOpenPortal} disabled={openingPortal}>
             {openingPortal ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
