@@ -214,6 +214,7 @@ export default async function kbRoutes(fastify: FastifyInstance) {
             updated_at,
             published_at,
             view_count,
+            ai_score,
             category:categories (
               id,
               name,

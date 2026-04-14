@@ -1,19 +1,24 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
-import { Search, BookOpen, Zap, Shield, ArrowRight, Code, Bot, FileText, Lock, BarChart3, FolderSync, Globe, Video, FileCheck, FolderOpen, ChevronRight, Eye, Clock, User, Users, Loader2, AlertCircle, ThumbsUp, ThumbsDown } from "lucide-react";
+import { 
+  Search, BookOpen, Zap, Shield, ArrowRight, Code, Bot, 
+  FileText, Lock, BarChart3, FolderSync, Globe, 
+  Video, FileCheck, FolderOpen, 
+  ChevronRight, Eye, Clock, User, 
+  Users, Loader2, AlertCircle, Star, 
+  Filter, Grid, List, MoreHorizontal, 
+  Sparkles, RotateCcw, Tag as TagIcon, ChevronDown,
+  SortAsc, Square, CheckSquare, Minus, Plus, Trash2, X, Download
+} from "lucide-react";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
-import { DocModal } from "@/components/docs/DocModal";
-import { CategoryModal } from "@/components/docs/CategoryModal";
-import { categories, searchDocs, allArticles, type DocArticle } from "@/lib/docs";
 import { getKBLanding, getKBDocuments, estimateReadTime } from "@/lib/api/kb";
-import type { KBTenant, KBCategory, KBDocumentsData } from "@/lib/api/kb";
+import type { KBTenant, KBCategory, KBDocumentsData, KBDocumentData } from "@/lib/api/kb";
 
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+const iconMap: Record<string, any> = {
   Zap,
   BookOpen,
   Bot,
@@ -23,45 +28,19 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   FileText,
 };
 
-const aiFeatures = [
-  { 
-    icon: Video, 
-    title: "From Video", 
-    description: "Upload YouTube links or video files. AI extracts key information and generates structured documentation automatically."
-  },
-  { 
-    icon: FileText, 
-    title: "From Prompt", 
-    description: "Describe what you need in natural language. AI creates comprehensive articles, guides and runbooks."
-  },
-  { 
-    icon: Search, 
-    title: "AI Search (RAG)", 
-    description: "Ask questions in plain English. Semantic search finds answers across your entire knowledge base with cited sources."
-  },
-];
+function formatRelativeTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
 
-const enterpriseFeatures = [
-  { icon: Lock, title: "SSO/SAML Integration", description: "Okta, Azure AD and Google Workspace" },
-  { icon: Shield, title: "SOC 2 Type II", description: "Enterprise-grade compliance" },
-  { icon: Globe, title: "GDPR Compliant", description: "EU data residency options" },
-  { icon: BarChart3, title: "Analytics Dashboard", description: "Usage insights and adoption metrics" },
-  { icon: FileCheck, title: "Content Audit", description: "Document health and verification" },
-  { icon: FolderSync, title: "Automated Backups", description: "Data protection and recovery" },
-];
-
-const apiDocs = [
-  { icon: Code, title: "REST API Reference", description: "Complete API documentation with examples and SDKs", slug: "api-overview" },
-  { icon: Globe, title: "Webhooks", description: "Real-time event notifications for document changes", slug: "webhooks" },
-  { icon: FileText, title: "Local Development", description: "Set up local environment for API integration", slug: "local-development" },
-];
-
-function stripHtmlForSnippet(text: string): string {
-  return text.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
-}
-
-function formatKBDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  if (diffMins < 60) return `${diffMins} ${diffMins === 1 ? 'minute' : 'minutes'} ago`;
+  if (diffHours < 24) return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+  if (diffDays < 7) return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} ${Math.floor(diffDays / 7) === 1 ? 'week' : 'weeks'} ago`;
+  return date.toLocaleDateString();
 }
 
 function getSubdomainFromHost(): string | null {
@@ -69,7 +48,6 @@ function getSubdomainFromHost(): string | null {
   const hostname = window.location.hostname;
   const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || 'tynebase.com';
   
-  // Try to extract standard subdomain
   const parts = hostname.split('.');
   const baseParts = baseDomain.split('.');
   
@@ -78,7 +56,6 @@ function getSubdomainFromHost(): string | null {
     if (sub && sub !== 'www') return sub;
   }
   
-  // If it's a custom domain (contains dots but doesn't end with baseDomain)
   if (hostname !== 'localhost' && hostname !== baseDomain) {
     return hostname;
   }
@@ -88,36 +65,87 @@ function getSubdomainFromHost(): string | null {
 
 /** Tenant KB page — rendered when visiting companyname.tynebase.com/docs */
 function TenantKBPage({ subdomain }: { subdomain: string }) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // State from Dashboard Page
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('kb_view_mode') as 'grid' | 'list') || 'list';
+    }
+    return 'list';
+  });
+
   const [tenant, setTenant] = useState<KBTenant | null>(null);
   const [categories, setCategories] = useState<KBCategory[]>([]);
-  const [tags, setTags] = useState<{ name: string; count: number }[]>([]);
-  const [totalDocs, setTotalDocs] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<KBCategory | null>(null);
-  const [documents, setDocuments] = useState<KBDocumentsData | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [documents, setDocuments] = useState<KBDocumentData[]>([]);
+  const [totalDocs, setTotalDocs] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
   const [docsLoading, setDocsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchInput, setSearchInput] = useState("");
+  const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft'>('all');
+  const [filterTagId, setFilterTagId] = useState<string | null>(null);
+  const [availableTags, setAvailableTags] = useState<any[]>([]);
+  const [sortBy, setSortBy] = useState<'updated' | 'title' | 'created'>('updated');
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
 
+  // UI State
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [showTagFilterDropdown, setShowTagFilterDropdown] = useState(false);
+
+  // Resizable column widths
+  const defaultColWidths = [3.5, 1, 1.5, 0.8, 0.8, 0.8, 1.5, 0.8];
+  const COL_WIDTHS_KEY = 'kb_portal_col_widths';
+  const [colWidths, setColWidths] = useState<number[]>(() => {
+    if (typeof window === 'undefined') return defaultColWidths;
+    try {
+      const saved = localStorage.getItem(COL_WIDTHS_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length === defaultColWidths.length) return parsed;
+      }
+    } catch {}
+    return defaultColWidths;
+  });
+  const resizingCol = useRef<number | null>(null);
+  const resizeStartX = useRef<number>(0);
+  const resizeStartWidths = useRef<number[]>([...defaultColWidths]);
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  const gridStyle = useMemo(() => {
+    const template = colWidths.map((w, i) => i === 0 ? `minmax(0,${w}fr)` : `${w}fr`).join(' ');
+    return { gridTemplateColumns: template };
+  }, [colWidths]);
+
+  // Sync viewMode to localStorage
+  useEffect(() => {
+    localStorage.setItem('kb_view_mode', viewMode);
+  }, [viewMode]);
+
+  // Initial Fetch - Landing Page Data
   useEffect(() => {
     const fetchKB = async () => {
       try {
         setLoading(true);
-        const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
-        const [kbData, tagsRes] = await Promise.all([
-          getKBLanding(subdomain),
-          fetch(`${API_BASE}/api/public/community/${subdomain}/tags?limit=12`),
-        ]);
-        setTenant(kbData.tenant);
-        setCategories(kbData.categories);
-        setTotalDocs(kbData.totalDocuments);
-        if (kbData.tenant.branding.primary_color) {
-          document.documentElement.style.setProperty("--brand", kbData.tenant.branding.primary_color);
+        const data = await getKBLanding(subdomain);
+        setTenant(data.tenant);
+        setCategories(data.categories);
+        if (data.tenant.branding.primary_color) {
+          document.documentElement.style.setProperty("--brand", data.tenant.branding.primary_color);
         }
+
+        // Fetch available tags for this tenant/community
+        const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
+        const tagsRes = await fetch(`${API_BASE}/api/public/community/${subdomain}/tags?limit=50`);
         if (tagsRes.ok) {
           const tagsData = await tagsRes.json();
-          setTags(tagsData.data?.tags || []);
+          setAvailableTags(tagsData.data?.tags || []);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Knowledge base not found");
@@ -128,51 +156,123 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
     fetchKB();
   }, [subdomain]);
 
-  const fetchDocuments = useCallback(async (categoryId?: string, search?: string) => {
+  // Fetch Documents with active filters
+  const fetchDocuments = useCallback(async () => {
     try {
       setDocsLoading(true);
-      const data = await getKBDocuments(subdomain, { category_id: categoryId, search: search || undefined, limit: 50 });
-      setDocuments(data);
+      const data = await getKBDocuments(subdomain, { 
+        category_id: selectedCategory === "all" ? undefined : selectedCategory,
+        search: searchQuery || undefined,
+        limit: 20,
+        page: currentPage
+      });
+      setDocuments(data.documents);
+      setTotalDocs(data.pagination.total);
+      setTotalPages(data.pagination.totalPages);
     } catch (err) {
       console.error("Failed to fetch documents:", err);
     } finally {
       setDocsLoading(false);
     }
-  }, [subdomain]);
+  }, [subdomain, selectedCategory, searchQuery, currentPage]);
 
-  const handleCategoryClick = (category: KBCategory) => {
-    setSelectedCategory(category);
-    setSearchQuery("");
-    setSearchInput("");
-    fetchDocuments(category.id);
-  };
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
 
-  const handleBackToCategories = () => {
-    setSelectedCategory(null);
-    setDocuments(null);
-    setSearchQuery("");
-    setSearchInput("");
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
+  // Resize Handler
+  const handleResizeStart = useCallback((e: React.MouseEvent, colIndex: number) => {
     e.preventDefault();
-    if (searchInput.trim()) {
-      setSearchQuery(searchInput.trim());
-      setSelectedCategory(null);
-      fetchDocuments(undefined, searchInput.trim());
+    e.stopPropagation();
+    resizingCol.current = colIndex;
+    resizeStartX.current = e.clientX;
+    resizeStartWidths.current = [...colWidths];
+
+    const handleMouseMove = (ev: MouseEvent) => {
+      if (resizingCol.current === null || !tableRef.current) return;
+      const tableWidth = tableRef.current.getBoundingClientRect().width;
+      const totalFr = resizeStartWidths.current.reduce((a, b) => a + b, 0);
+      const pxPerFr = tableWidth / totalFr;
+      const delta = ev.clientX - resizeStartX.current;
+      const deltaFr = delta / pxPerFr;
+
+      const idx = resizingCol.current;
+      const minFr = 0.4;
+      const newLeft = Math.max(minFr, resizeStartWidths.current[idx] + deltaFr);
+      const newRight = Math.max(minFr, resizeStartWidths.current[idx + 1] - deltaFr);
+
+      setColWidths(prev => {
+        const next = [...resizeStartWidths.current];
+        next[idx] = newLeft;
+        next[idx + 1] = newRight;
+        return next;
+      });
+    };
+
+    const handleMouseUp = () => {
+      resizingCol.current = null;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      setColWidths(current => {
+        try { localStorage.setItem(COL_WIDTHS_KEY, JSON.stringify(current)); } catch {}
+        return current;
+      });
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [colWidths]);
+
+  // Filtering & Sorting Logic (Mapped from Dashboard)
+  const filteredDocs = useMemo(() => {
+    let filtered = [...documents];
+
+    // Status Filter (Note: Client-side for now as KB API primarily returns published)
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(doc => doc.status === filterStatus);
+    }
+
+    // Tag Filter
+    if (filterTagId) {
+      filtered = filtered.filter(doc => doc.tags?.some(t => t.id === filterTagId));
+    }
+
+    // Sort
+    return filtered.sort((a, b) => {
+      let comparison = 0;
+      if (sortBy === 'title') {
+        comparison = a.title.localeCompare(b.title);
+      } else if (sortBy === 'created') {
+        comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      } else {
+        comparison = new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
+      }
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+  }, [documents, filterStatus, filterTagId, sortBy, sortOrder]);
+
+  const getStateColor = (state: string) => {
+    switch (state) {
+      case "published": return "bg-[#10b98120] text-[#10b981]";
+      case "draft": return "bg-[var(--bg-secondary)] text-[var(--text-muted)]";
+      default: return "bg-[var(--bg-secondary)] text-[var(--text-muted)]";
     }
   };
 
-  const handleViewAll = () => {
-    setSelectedCategory(null);
-    fetchDocuments();
+  const getAiScoreColor = (score: number | null) => {
+    if (score === null) return "text-[var(--text-muted)]";
+    if (score >= 90) return "text-[#10b981]";
+    if (score >= 70) return "text-[#f59e0b]";
+    return "text-[#ef4444]";
   };
 
-  const brandColor = tenant?.branding.primary_color || "var(--brand)";
-  const companyName = tenant?.branding.company_name || tenant?.name || "Knowledge Base";
-  const kbEyebrow = (tenant?.branding as any)?.kb_eyebrow || "Help Center";
-  const kbHeading = (tenant?.branding as any)?.kb_heading || "How can we help?";
-  const kbSubheading = (tenant?.branding as any)?.kb_subheading || "Search our knowledge base or browse by category";
+  const getAiScoreLabel = (score: number | null) => {
+    if (score === null) return 'Not Scored';
+    if (score >= 90) return 'Excellent';
+    if (score >= 70) return 'Good';
+    if (score >= 50) return 'Fair';
+    return 'Needs Work';
+  };
 
   if (loading) {
     return (
@@ -201,936 +301,489 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
     );
   }
 
+  const brandColor = tenant.branding.primary_color || "var(--brand)";
+  const companyName = tenant.branding.company_name || tenant.name;
+
   return (
-    <div className="min-h-screen relative">
+    <div className="min-h-screen relative pb-20">
       <div className="hero-gradient" />
 
-      {/* Custom header with tenant branding */}
-      <header style={{ position: 'sticky', top: 0, zIndex: 50, backdropFilter: 'blur(20px)', borderBottom: '1px solid var(--border-subtle)' }}>
-        <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', maxWidth: '1200px', margin: '0 auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+      {/* Branded Portal Header */}
+      <header style={{ position: 'sticky', top: 0, zIndex: 100, backdropFilter: 'blur(20px)', borderBottom: '1px solid var(--border-subtle)', background: 'rgba(var(--bg-primary-rgb), 0.8)' }}>
+        <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', maxWidth: '1400px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               {tenant.branding.logo_url ? (
                 <img src={tenant.branding.logo_url} alt={companyName} style={{ height: '32px', width: 'auto' }} />
               ) : (
-                <div style={{ width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '14px', background: brandColor }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, background: brandColor }}>
                   {companyName.charAt(0)}
                 </div>
               )}
-              <div>
-                <h1 style={{ fontWeight: 600, fontSize: '18px', color: 'var(--text-primary)', lineHeight: 1.2 }}>{companyName}</h1>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{kbEyebrow}</p>
-              </div>
+              <h1 style={{ fontWeight: 600, fontSize: '18px', color: 'var(--text-primary)' }}>{companyName}</h1>
             </div>
-            <Link href="/community" style={{ fontSize: '14px', color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: 500 }}>
-              Community →
-            </Link>
+            <nav style={{ display: 'flex', gap: '16px' }}>
+              <Link href="/docs" style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 500, textDecoration: 'none' }}>Docs</Link>
+              <Link href="/community" style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: 500, textDecoration: 'none' }}>Community</Link>
+            </nav>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+             {/* Search in header toggle? */}
           </div>
         </div>
       </header>
 
-      {/* Hero - same style as /docs */}
-      <section style={{ paddingTop: '80px', paddingBottom: '60px' }}>
-        <div className="container">
-          <div style={{ textAlign: 'center', maxWidth: '800px', margin: '0 auto' }}>
-            <p style={{ fontSize: '14px', fontWeight: 600, color: brandColor, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '24px' }}>
-              {kbEyebrow}
-            </p>
-            <h1 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: '24px', lineHeight: 1.1 }}>
-              {kbHeading}
-            </h1>
-            <p style={{ fontSize: '18px', color: 'var(--text-secondary)', marginBottom: '48px', lineHeight: 1.6 }}>
-              {kbSubheading}
-            </p>
-
-            {/* Search - same style as /docs */}
-            <div style={{ maxWidth: '600px', margin: '0 auto', position: 'relative' }}>
-              <form onSubmit={handleSearch} style={{ position: 'relative' }}>
-                <Search style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', width: '20px', height: '20px', color: 'var(--text-muted)' }} />
-                <input
-                  type="text"
-                  placeholder="Search articles..."
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '18px 20px 18px 56px',
-                    background: 'var(--bg-secondary)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: '12px',
-                    color: 'var(--text-primary)',
-                    fontSize: '16px',
-                    outline: 'none'
-                  }}
-                />
-              </form>
-            </div>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '16px' }}>
-              {totalDocs} article{totalDocs !== 1 ? 's' : ''} across {categories.length} categor{categories.length !== 1 ? 'ies' : 'y'}
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Main content */}
-      <section style={{ paddingTop: '8px', paddingBottom: '80px' }}>
-        <div className="container">
-          {(selectedCategory || searchQuery || documents) ? (
-            <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-              {/* Breadcrumb */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '32px' }}>
-                <button
-                  onClick={handleBackToCategories}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer' }}
-                >
-                  ← All Categories
-                </button>
-                {selectedCategory && (
-                  <>
-                    <ChevronRight style={{ width: '16px', height: '16px', color: 'var(--text-muted)' }} />
-                    <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)' }}>{selectedCategory.name}</span>
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '4px' }}>({selectedCategory.document_count})</span>
-                  </>
-                )}
-                {searchQuery && (
-                  <>
-                    <ChevronRight style={{ width: '16px', height: '16px', color: 'var(--text-muted)' }} />
-                    <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Results for &ldquo;<span style={{ color: 'var(--text-primary)' }}>{searchQuery}</span>&rdquo;</span>
-                  </>
-                )}
-              </div>
-
-              {docsLoading ? (
-                <div style={{ textAlign: 'center', padding: '80px 0' }}>
-                  <Loader2 className="w-6 h-6 animate-spin mx-auto" style={{ color: 'var(--text-muted)' }} />
-                </div>
-              ) : documents && documents.documents.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {documents.documents.map((doc) => {
-                    const authorName = doc.author?.full_name || "Unknown Author";
-
-                    const readTime = estimateReadTime(doc.content || "");
-                    const snippet = stripHtmlForSnippet(doc.content || "").slice(0, 180);
-                    const updatedDate = doc.updated_at ? new Date(doc.updated_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : null;
-
-                    return (
-                      <Link
-                        key={doc.id}
-                        href={`/docs/${doc.id}`}
-                        style={{
-                          display: 'block',
-                          padding: '20px 24px',
-                          background: 'var(--bg-elevated)',
-                          border: '1px solid var(--border-subtle)',
-                          borderRadius: '12px',
-                          transition: 'all 0.2s ease',
-                          textDecoration: 'none',
-                        }}
-                        onMouseEnter={e => {
-                          e.currentTarget.style.borderColor = brandColor;
-                          e.currentTarget.style.transform = 'translateX(4px)';
-                        }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.borderColor = 'var(--border-subtle)';
-                          e.currentTarget.style.transform = 'translateX(0)';
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '12px' }}>
-                          <FileText style={{ width: '20px', height: '20px', color: 'var(--text-muted)', flexShrink: 0, marginTop: '2px' }} />
-                          <div style={{ minWidth: 0, flex: 1 }}>
-                            <h4 style={{ fontSize: '16px', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '6px' }}>
-                              {doc.title}
-                            </h4>
-                            <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {snippet || 'No description'}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Metadata row */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', fontSize: '12px' }}>
-                          {/* Category */}
-                          {doc.category && (
-                            <span style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              padding: '4px 10px',
-                              borderRadius: '6px',
-                              background: `${doc.category.color}20`,
-                              color: doc.category.color,
-                              fontWeight: 500,
-                            }}>
-                              {doc.category.name}
-                            </span>
-                          )}
-
-                          {/* Tags */}
-                          {doc.tags && doc.tags.length > 0 && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                              {doc.tags.slice(0, 3).map((tag) => (
-                                <span key={tag.id} style={{
-                                  padding: '4px 10px',
-                                  borderRadius: '6px',
-                                  background: 'var(--bg-secondary)',
-                                  color: 'var(--text-secondary)',
-                                  fontSize: '11px',
-                                }}>
-                                  {tag.name}
-                                </span>
-                              ))}
-                              {doc.tags.length > 3 && (
-                                <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
-                                  +{doc.tags.length - 3}
-                                </span>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Visibility */}
-                          <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            padding: '4px 10px',
-                            borderRadius: '6px',
-                            background: doc.visibility === 'public' ? '#10b98120' : doc.visibility === 'team' ? '#3b82f620' : '#6b728020',
-                            color: doc.visibility === 'public' ? '#10b981' : doc.visibility === 'team' ? '#3b82f6' : '#6b7280',
-                            fontWeight: 500,
-                            textTransform: 'capitalize',
-                          }}>
-                            {doc.visibility}
-                          </span>
-
-                          {/* Status */}
-                          <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            padding: '4px 10px',
-                            borderRadius: '6px',
-                            background: doc.status === 'published' ? '#10b98120' : '#f59e0b20',
-                            color: doc.status === 'published' ? '#10b981' : '#f59e0b',
-                            fontWeight: 500,
-                            textTransform: 'capitalize',
-                          }}>
-                            {doc.status}
-                          </span>
-
-                          {/* Metadata */}
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)' }}>
-                            <User style={{ width: '11px', height: '11px' }} />{authorName}
-                          </span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)' }}>
-                            <Clock style={{ width: '11px', height: '11px' }} />{readTime} min
-                          </span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)' }}>
-                            <Eye style={{ width: '11px', height: '11px' }} />{doc.view_count || 0}
-                          </span>
-                          {updatedDate && <span style={{ color: 'var(--text-muted)' }}>Updated {updatedDate}</span>}
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div style={{ textAlign: 'center', padding: '80px 0' }}>
-                  <FileText style={{ width: '48px', height: '48px', color: 'var(--text-muted)', margin: '0 auto 12px' }} />
-                  <p style={{ color: 'var(--text-secondary)' }}>No articles found</p>
-                </div>
-              )}
-            </div>
-          ) : (
-            /* Category cards - Match help page design */
-            <div>
-              <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-                <h2 style={{ fontSize: '28px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>
-                  Browse by category
-                </h2>
-                <p style={{ fontSize: '16px', color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto' }}>
-                  Find the article you need, organised by topic.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" style={{ maxWidth: '1024px', margin: '0 auto' }}>
-                {categories.map((category) => {
-                  const Icon = category.icon && iconMap[category.icon] ? iconMap[category.icon] : FolderOpen;
-                  return (
-                    <button
-                      key={category.id}
-                      onClick={() => handleCategoryClick(category)}
-                      className="bento-item cursor-pointer group block"
-                      style={{ padding: '24px', display: 'flex', flexDirection: 'column', cursor: 'pointer', border: 'none', background: 'var(--bg-elevated)', textAlign: 'left', width: '100%' }}
-                    >
-                      <div className="feature-icon feature-icon-brand mb-4" style={{ color: category.color }}>
-                        <Icon className="w-5 h-5" />
-                      </div>
-                      <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2 group-hover:text-[var(--brand)] transition-colors">
-                        {category.name}
-                      </h3>
-                      <p className="text-sm text-[var(--text-secondary)] mb-3">{category.description || "Articles in this category"}</p>
-                      <p className="text-xs text-[var(--text-muted)]">{category.document_count} article{category.document_count !== 1 ? 's' : ''}</p>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* View all link */}
-              <div style={{ textAlign: 'center', marginTop: '48px' }}>
-                <button
-                  onClick={handleViewAll}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '15px', fontWeight: 500, color: brandColor, background: 'none', border: 'none', cursor: 'pointer' }}
-                >
-                  View all articles
-                  <ArrowRight style={{ width: '16px', height: '16px' }} />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
-
-
-      {/* Footer */}
-      <footer style={{ borderTop: '1px solid var(--border-subtle)', padding: '32px 0' }}>
-        <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: '1200px', margin: '0 auto', padding: '0 24px' }}>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            © {new Date().getFullYear()} {companyName}
-          </p>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            Powered by <span style={{ color: 'var(--text-secondary)' }}>TyneBase</span>
-          </p>
-        </div>
-      </footer>
-    </div>
-  );
-}
-
-export default function DocsPage() {
-  const [subdomain, setSubdomain] = useState<string | null>(null);
-  const [checked, setChecked] = useState(false);
-
-  useEffect(() => {
-    setSubdomain(getSubdomainFromHost());
-    setChecked(true);
-  }, []);
-
-  // If on a tenant subdomain, show their KB
-  if (!checked) return null;
-  if (subdomain) return <TenantKBPage subdomain={subdomain} />;
-
-  // Otherwise, show TyneBase's own documentation
-  return <TyneBaseDocsPage />;
-}
-
-function renderMarkdown(content: string): string {
-  const blocks: string[] = [];
-
-  // Protect fenced code blocks
-  let md = content.replace(/```(\w*)\n([\s\S]*?)```/g, (_, _lang, code) => {
-    const escaped = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const idx = blocks.length;
-    blocks.push(`<pre style="background:var(--bg-secondary);border:1px solid var(--border-subtle);border-radius:8px;padding:16px 20px;overflow-x:auto;margin:16px 0;"><code style="font-family:monospace;font-size:13px;color:var(--text-primary);white-space:pre;">${escaped}</code></pre>`);
-    return `\x02${idx}\x03`;
-  });
-
-  // Convert markdown tables to HTML
-  md = md.replace(/((?:^\|[^\n]*(?:\n|$))+)/gm, (block) => {
-    const lines = block.trim().split('\n').filter(Boolean);
-    const isSep = (l: string) => /^\|[\s|:=-]+\|$/.test(l.trim());
-    const nonSep = lines.filter(l => !isSep(l));
-    if (nonSep.length < 2) return block;
-    const parse = (l: string) => l.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
-    const cellInner = (t: string) => t
-      .replace(/\*\*(.+?)\*\*/g, '<strong style="font-weight:600;color:var(--text-primary);">$1</strong>')
-      .replace(/`([^`]+)`/g, '<code style="background:var(--bg-secondary);padding:1px 5px;border-radius:3px;font-size:12px;font-family:monospace;color:var(--text-primary);">$1</code>');
-    const [header, ...rows] = nonSep;
-    const ths = parse(header).map(h =>
-      `<th style="padding:10px 16px;text-align:left;font-weight:600;font-size:13px;color:var(--text-primary);background:var(--bg-secondary);border-bottom:2px solid var(--border-subtle);white-space:nowrap;">${cellInner(h)}</th>`
-    ).join('');
-    const trs = rows.map(r =>
-      `<tr>${parse(r).map(c =>
-        `<td style="padding:10px 16px;font-size:13px;color:var(--text-secondary);border-bottom:1px solid var(--border-subtle);">${cellInner(c)}</td>`
-      ).join('')}</tr>`
-    ).join('');
-    const idx = blocks.length;
-    blocks.push(`<div style="overflow-x:auto;margin:20px 0;border-radius:8px;border:1px solid var(--border-subtle);"><table style="width:100%;border-collapse:collapse;"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`);
-    return `\x02${idx}\x03`;
-  });
-
-  // Protect image blocks before paragraph transform
-  // Supports optional max-width via pipe in alt: ![caption|240px](url)
-  md = md.replace(/^!\[([^\]]*)\]\(([^)]+)\)$/gm, (_, alt, src) => {
-    let displayAlt = alt;
-    let maxWidth = '100%';
-    const pipeIdx = alt.indexOf('|');
-    if (pipeIdx !== -1) {
-      displayAlt = alt.slice(0, pipeIdx).trim();
-      maxWidth = alt.slice(pipeIdx + 1).trim();
-    }
-    const idx = blocks.length;
-    blocks.push(`<figure style="margin:24px 0;"><img src="${src}" alt="${displayAlt}" style="width:100%;max-width:${maxWidth};border-radius:10px;border:1px solid var(--border-subtle);display:block;" />${displayAlt ? `<figcaption style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:8px;">${displayAlt}</figcaption>` : ''}</figure>`);
-    return `\x02${idx}\x03`;
-  });
-
-  // Apply remaining inline/block transforms
-  md = md
-    .replace(/^### (.+)$/gm, '<h3 id="$1" style="font-size:17px;font-weight:600;color:var(--text-primary);margin:28px 0 12px;letter-spacing:-0.01em;">$1</h3>')
-    .replace(/^## (.+)$/gm, (_, t) => `<h2 id="${t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}" style="font-size:22px;font-weight:600;color:var(--text-primary);margin:40px 0 16px;padding-bottom:12px;border-bottom:1px solid var(--border-subtle);">${t}</h2>`)
-    .replace(/^# (.+)$/gm, '<h1 style="font-size:28px;font-weight:700;color:var(--text-primary);margin:40px 0 20px;">$1</h1>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong style="font-weight:600;color:var(--text-primary);">$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/`([^`]+)`/g, '<code style="background:var(--bg-secondary);padding:2px 6px;border-radius:4px;font-size:13px;font-family:monospace;">$1</code>')
-    .replace(/^- (.+)$/gm, '<li style="margin-bottom:6px;padding-left:4px;">$1</li>')
-    .replace(/(<li[^>]*>.*<\/li>\n?)+/g, match => `<ul style="margin:12px 0 20px 20px;list-style:disc;">${match}</ul>`)
-    .replace(/^> (.+)$/gm, '<blockquote style="border-left:3px solid var(--brand);padding:12px 16px;margin:16px 0;background:var(--bg-secondary);border-radius:0 8px 8px 0;font-style:italic;color:var(--text-secondary);">$1</blockquote>')
-    .replace(/\n{2,}/g, '</p><p style="margin-bottom:16px;">')
-    .replace(/^(?!\x02)(?!<[hublop])(.+)$/gm, '<p style="margin-bottom:16px;color:var(--text-secondary);">$1</p>');
-
-  // Restore protected blocks
-  md = md.replace(/\x02(\d+)\x03/g, (_, i) => blocks[+i] ?? '');
-  return md;
-}
-
-function extractHeadings(content: string) {
-  const lines = content.split('\n');
-  const headings: { id: string; text: string; level: number }[] = [];
-  lines.forEach(line => {
-    const match = line.match(/^(#{2,3})\s+(.+)/);
-    if (match) {
-      const text = match[2].trim();
-      const id = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-      headings.push({ id, text, level: match[1].length });
-    }
-  });
-  return headings;
-}
-
-function TyneBaseDocsPage() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<DocArticle[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [selectedArticle, setSelectedArticle] = useState<DocArticle | null>(null);
-  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
-  const [mobileSidebar, setMobileSidebar] = useState(false);
-  const [activeHeading, setActiveHeading] = useState("");
-  const router = useRouter();
-
-  const headings = selectedArticle ? extractHeadings(selectedArticle.content) : [];
-
-  const handleSearch = useCallback((query: string) => {
-    setSearchQuery(query);
-    if (query.trim().length > 2) {
-      setIsSearching(true);
-      const results = searchDocs(query);
-      setSearchResults(results);
-    } else {
-      setIsSearching(false);
-      setSearchResults([]);
-    }
-  }, []);
-
-  const openArticle = (article: DocArticle) => {
-    setSelectedArticle(article);
-    setIsSearching(false);
-    setSearchQuery("");
-    setMobileSidebar(false);
-    setActiveHeading("");
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    window.history.replaceState(null, '', `/docs?slug=${article.slug}`);
-  };
-
-  const goHome = () => {
-    setSelectedArticle(null);
-    setIsSearching(false);
-    setSearchQuery("");
-    setActiveHeading("");
-    router.replace('/help');
-  };
-
-  const toggleCategory = (id: string) => {
-    setExpandedCategories(prev => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  // Expand the category of the selected article
-  useEffect(() => {
-    if (selectedArticle) {
-      const cat = categories.find(c => c.articles.some(a => a.id === selectedArticle.id));
-      if (cat) setExpandedCategories(prev => ({ ...prev, [cat.id]: true }));
-    }
-  }, [selectedArticle]);
-
-  // On mount: open article from ?slug= param, sessionStorage tutorial flag, or default first article
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const slugParam = params.get('slug');
-
-    const shouldOpenTutorial = sessionStorage.getItem("tynebase_open_tutorial");
-    if (shouldOpenTutorial) sessionStorage.removeItem("tynebase_open_tutorial");
-
-    const targetSlug = slugParam || (shouldOpenTutorial ? 'getting-started-tutorial' : null);
-    const article = targetSlug
-      ? allArticles.find(a => a.slug === targetSlug) ?? allArticles[0]
-      : allArticles[0];
-
-    if (article) {
-      setSelectedArticle(article);
-      const cat = categories.find(c => c.articles.some(a => a.id === article.id));
-      if (cat) setExpandedCategories(prev => ({ ...prev, [cat.id]: true }));
-    }
-  }, []);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        document.getElementById('doc-search')?.focus();
-      }
-      if (e.key === 'Escape' && selectedArticle) {
-        goHome();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedArticle]);
-
-  // Find prev/next articles
-  const currentIndex = selectedArticle ? allArticles.findIndex(a => a.id === selectedArticle.id) : -1;
-  const prevArticle = currentIndex > 0 ? allArticles[currentIndex - 1] : null;
-  const nextArticle = currentIndex >= 0 && currentIndex < allArticles.length - 1 ? allArticles[currentIndex + 1] : null;
-
-  // ======================== ARTICLE VIEW ========================
-  if (selectedArticle) {
-    return (
-      <div className="min-h-screen relative">
-        <div className="hero-gradient" />
-        <SiteNavbar currentPage="docs" />
-
-        <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', paddingTop: '80px' }}>
-          {/* Left Sidebar - Navigation */}
-          <aside
-            className="hidden lg:block"
-            style={{
-              width: '280px',
-              flexShrink: 0,
-              position: 'sticky',
-              top: '80px',
-              height: 'calc(100vh - 80px)',
-              overflowY: 'auto',
-              padding: '24px 16px 24px 24px',
-              borderRight: '1px solid var(--border-subtle)',
-            }}
+      <div className="container" style={{ maxWidth: '1400px', margin: '40px auto', padding: '0 24px' }}>
+        
+        {/* Category Pills (Top Navigation) */}
+        <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+          <button
+            onClick={() => setSelectedCategory("all")}
+            className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2 flex-shrink-0 ${
+              selectedCategory === "all"
+                ? "bg-[var(--brand)] text-white shadow-lg shadow-[var(--brand)]/20"
+                : "bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)]"
+            }`}
           >
+            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: selectedCategory === "all" ? "white" : "#6b7280" }} />
+            All
+            <span className={`px-1.5 py-0.5 text-[10px] rounded-md ${selectedCategory === "all" ? "bg-white/20" : "bg-[var(--bg-tertiary)]"}`}>
+              {totalDocs}
+            </span>
+          </button>
+          {categories.map(cat => (
             <button
-              onClick={goHome}
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', marginBottom: '24px', padding: 0 }}
+              key={cat.id}
+              onClick={() => setSelectedCategory(cat.id)}
+              className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2 flex-shrink-0 ${
+                selectedCategory === cat.id
+                  ? "bg-[var(--brand)] text-white shadow-lg shadow-[var(--brand)]/20"
+                  : "bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)]"
+              }`}
             >
-              <ArrowRight style={{ width: '14px', height: '14px', transform: 'rotate(180deg)' }} />
-              All Documentation
+              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cat.color || brandColor }} />
+              {cat.name}
+              <span className={`px-1.5 py-0.5 text-[10px] rounded-md ${selectedCategory === cat.id ? "bg-white/20" : "bg-[var(--bg-tertiary)]"}`}>
+                {cat.document_count || 0}
+              </span>
             </button>
+          ))}
+        </div>
 
-            {/* Search */}
-            <div style={{ position: 'relative', marginBottom: '20px' }}>
-              <Search style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', width: '14px', height: '14px', color: 'var(--text-muted)' }} />
-              <input
-                id="doc-search"
-                type="text"
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => handleSearch(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px 8px 32px',
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '8px',
-                  color: 'var(--text-primary)',
-                  fontSize: '13px',
-                  outline: 'none',
-                }}
-              />
-              {isSearching && (
-                <div style={{
-                  position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px',
-                  background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
-                  borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.15)', zIndex: 50, maxHeight: '300px', overflowY: 'auto',
-                }}>
-                  {searchResults.length > 0 ? searchResults.map(a => (
-                    <button key={a.id} onClick={() => openArticle(a)}
-                      style={{ width: '100%', padding: '10px 12px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '13px' }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    >
-                      <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{a.title}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{a.category}</div>
-                    </button>
-                  )) : (
-                    <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>No results</div>
-                  )}
+        {/* Search, Sort, and View Controls */}
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-4 mb-6">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+            <input 
+              type="text"
+              placeholder="Search by title, content or author..."
+              className="w-full h-12 pl-12 pr-4 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] transition-all"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Sort Toggle */}
+            <div className="relative">
+              <button 
+                onClick={() => { setShowSortDropdown(!showSortDropdown); setShowFilterDropdown(false); }}
+                className="flex items-center gap-2 px-4 h-12 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-xl text-[var(--text-secondary)] hover:border-[var(--brand)] transition-all"
+              >
+                <SortAsc className="w-4 h-4" />
+                <span className="text-sm">Sort: {sortBy === 'title' ? 'Title' : sortBy === 'updated' ? 'Updated' : 'Created'}</span>
+                <ChevronDown className="w-3 h-3" />
+              </button>
+              {showSortDropdown && (
+                <div className="absolute top-full right-0 mt-2 w-48 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-xl shadow-xl z-[100] overflow-hidden">
+                  <button onClick={() => { setSortBy('updated'); setSortOrder('desc'); setShowSortDropdown(false); }} className={`w-full px-4 py-3 text-left text-sm hover:bg-[var(--bg-tertiary)] ${sortBy === 'updated' ? 'text-[var(--brand)]' : 'text-[var(--text-secondary)]'}`}>Recently Updated</button>
+                  <button onClick={() => { setSortBy('title'); setSortOrder('asc'); setShowSortDropdown(false); }} className={`w-full px-4 py-3 text-left text-sm hover:bg-[var(--bg-tertiary)] ${sortBy === 'title' && sortOrder === 'asc' ? 'text-[var(--brand)]' : 'text-[var(--text-secondary)]'}`}>Title (A-Z)</button>
+                  <button onClick={() => { setSortBy('created'); setSortOrder('desc'); setShowSortDropdown(false); }} className={`w-full px-4 py-3 text-left text-sm hover:bg-[var(--bg-tertiary)] ${sortBy === 'created' ? 'text-[var(--brand)]' : 'text-[var(--text-secondary)]'}`}>Newest First</button>
                 </div>
               )}
             </div>
 
-            {/* Category Tree */}
-            <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              {categories.map(cat => {
-                const isExpanded = expandedCategories[cat.id] ?? false;
-                const IconComponent = iconMap[cat.icon] || Zap;
-                return (
-                  <div key={cat.id}>
-                    <button
-                      onClick={() => toggleCategory(cat.id)}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: '8px', width: '100%',
-                        padding: '8px 10px', background: 'none', border: 'none', cursor: 'pointer',
-                        borderRadius: '6px', fontSize: '13px', fontWeight: 600,
-                        color: 'var(--text-primary)', transition: 'background 0.15s',
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    >
-                      <ChevronRight style={{ width: '14px', height: '14px', color: 'var(--text-muted)', transition: 'transform 0.15s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }} />
-                      <IconComponent className="w-4 h-4 text-[var(--brand)]" />
-                      {cat.title}
-                      {cat.id === 'api-reference' && (
-                        <span style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', padding: '2px 6px', borderRadius: '4px', letterSpacing: '0.04em', flexShrink: 0 }}>SOON</span>
-                      )}
-                    </button>
-                    {isExpanded && (
-                      <div style={{ paddingLeft: '32px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                        {cat.articles.map(article => (
-                          <button
-                            key={article.id}
-                            onClick={() => openArticle(article)}
-                            style={{
-                              display: 'block', width: '100%', padding: '6px 10px',
-                              background: selectedArticle?.id === article.id ? 'var(--bg-secondary)' : 'transparent',
-                              border: 'none', borderRadius: '6px', textAlign: 'left', cursor: 'pointer',
-                              fontSize: '13px', color: selectedArticle?.id === article.id ? 'var(--brand)' : 'var(--text-secondary)',
-                              fontWeight: selectedArticle?.id === article.id ? 500 : 400,
-                              transition: 'all 0.15s',
-                              borderLeft: selectedArticle?.id === article.id ? '2px solid var(--brand)' : '2px solid transparent',
-                            }}
-                            onMouseEnter={e => { if (selectedArticle?.id !== article.id) e.currentTarget.style.color = 'var(--text-primary)'; }}
-                            onMouseLeave={e => { if (selectedArticle?.id !== article.id) e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                          >
-                            {article.title}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </nav>
-          </aside>
-
-          {/* Main Content */}
-          <main style={{ flex: 1, minWidth: 0, padding: '24px 32px 80px 48px', maxWidth: '820px' }}>
-            {/* Breadcrumb */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '24px', flexWrap: 'wrap' }}>
-              <button onClick={goHome} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '13px' }}
-                onMouseEnter={e => e.currentTarget.style.color = 'var(--brand)'}
-                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
-              >Docs</button>
-              <ChevronRight style={{ width: '12px', height: '12px' }} />
-              <span style={{ color: 'var(--text-secondary)' }}>{selectedArticle.category}</span>
-              <ChevronRight style={{ width: '12px', height: '12px' }} />
-              <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{selectedArticle.title}</span>
+            {/* Filter Toggle */}
+            <div className="relative">
+              <button 
+                onClick={() => { setShowFilterDropdown(!showFilterDropdown); setShowSortDropdown(false); }}
+                className={`flex items-center gap-2 px-4 h-12 bg-[var(--bg-secondary)] border rounded-xl transition-all ${filterStatus !== 'all' ? 'border-[var(--brand)] text-[var(--brand)]' : 'border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--brand)]'}`}
+              >
+                <Filter className="w-4 h-4" />
+                <span className="text-sm">{filterStatus === 'all' ? 'Status' : filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)}</span>
+                <ChevronDown className="w-3 h-3" />
+              </button>
+              {showFilterDropdown && (
+                <div className="absolute top-full right-0 mt-2 w-40 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-xl shadow-xl z-[100] overflow-hidden">
+                   <button onClick={() => { setFilterStatus('all'); setShowFilterDropdown(false); }} className="w-full px-4 py-3 text-left text-sm hover:bg-[var(--bg-tertiary)]">All Status</button>
+                   <button onClick={() => { setFilterStatus('published'); setShowFilterDropdown(false); }} className="w-full px-4 py-3 text-left text-sm hover:bg-[var(--bg-tertiary)]">Published</button>
+                   <button onClick={() => { setFilterStatus('draft'); setShowFilterDropdown(false); }} className="w-full px-4 py-3 text-left text-sm hover:bg-[var(--bg-tertiary)]">Drafts</button>
+                </div>
+              )}
             </div>
 
-            {/* Article Header */}
-            <div style={{ marginBottom: '32px' }}>
-              <span style={{
-                display: 'inline-block', padding: '4px 12px', borderRadius: '6px', fontSize: '12px',
-                fontWeight: 600, background: 'var(--bg-secondary)', color: 'var(--brand)',
-                textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px',
-              }}>
-                {selectedArticle.category}
-              </span>
-              <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.2, marginBottom: '12px' }}>
-                {selectedArticle.title}
-              </h1>
-              <p style={{ fontSize: '17px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '16px' }}>
-                {selectedArticle.description}
-              </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '13px', color: 'var(--text-muted)' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Clock style={{ width: '14px', height: '14px' }} /> {selectedArticle.readTime}
-                </span>
-                <span>Updated {selectedArticle.lastUpdated}</span>
-              </div>
-              {selectedArticle.tags.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '12px' }}>
-                  {selectedArticle.tags.map(tag => (
-                    <span key={tag} style={{ padding: '2px 8px', background: 'var(--bg-secondary)', borderRadius: '4px', fontSize: '11px', color: 'var(--text-muted)' }}>{tag}</span>
+            {/* Tag Filter Toggle */}
+            <div className="relative">
+              <button 
+                onClick={() => { setShowTagFilterDropdown(!showTagFilterDropdown); setShowFilterDropdown(false); setShowSortDropdown(false); }}
+                className={`flex items-center gap-2 px-4 h-12 bg-[var(--bg-secondary)] border rounded-xl transition-all ${filterTagId ? 'border-[var(--brand)] text-[var(--brand)]' : 'border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--brand)]'}`}
+              >
+                <TagIcon className="w-4 h-4" />
+                <span className="text-sm">{filterTagId ? availableTags.find(t => t.id === filterTagId)?.name : 'Tag'}</span>
+                <ChevronDown className="w-3 h-3" />
+              </button>
+              {showTagFilterDropdown && (
+                <div className="absolute top-full right-0 mt-2 w-48 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-xl shadow-xl z-[100] overflow-hidden max-h-80 overflow-y-auto">
+                  <button onClick={() => { setFilterTagId(null); setShowTagFilterDropdown(false); }} className="w-full px-4 py-3 text-left text-sm hover:bg-[var(--bg-tertiary)]">All Tags</button>
+                  {availableTags.map(tag => (
+                    <button key={tag.id} onClick={() => { setFilterTagId(tag.id); setShowTagFilterDropdown(false); }} className="w-full px-4 py-3 text-left text-sm hover:bg-[var(--bg-tertiary)]">#{tag.name}</button>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Article Content (Markdown) */}
-            <div className="docs-prose" style={{ lineHeight: 1.8, color: 'var(--text-primary)' }}>
-              <div
-                style={{ fontSize: '15px' }}
-                dangerouslySetInnerHTML={{ __html: renderMarkdown(selectedArticle.content) }}
-              />
+            <div className="flex bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-xl overflow-hidden ml-2 h-12">
+              <button 
+                onClick={() => setViewMode('list')}
+                className={`w-12 flex items-center justify-center transition-all ${viewMode === 'list' ? 'bg-[var(--brand)] text-white' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}
+              >
+                <List className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={() => setViewMode('grid')}
+                className={`w-12 flex items-center justify-center transition-all ${viewMode === 'grid' ? 'bg-[var(--brand)] text-white' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}
+              >
+                <Grid className="w-5 h-5" />
+              </button>
             </div>
-
-            {/* Prev / Next Navigation */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', marginTop: '64px', paddingTop: '32px', borderTop: '1px solid var(--border-subtle)' }}>
-              {prevArticle ? (
-                <button
-                  onClick={() => openArticle(prevArticle)}
-                  style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '16px 20px', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: '12px', cursor: 'pointer', textAlign: 'left', transition: 'border-color 0.15s' }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--brand)'}
-                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
-                >
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>← Previous</span>
-                  <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)' }}>{prevArticle.title}</span>
-                </button>
-              ) : <div />}
-              {nextArticle ? (
-                <button
-                  onClick={() => openArticle(nextArticle)}
-                  style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', padding: '16px 20px', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: '12px', cursor: 'pointer', textAlign: 'right', transition: 'border-color 0.15s' }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--brand)'}
-                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
-                >
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Next →</span>
-                  <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)' }}>{nextArticle.title}</span>
-                </button>
-              ) : <div />}
-            </div>
-          </main>
-
-          {/* Right Sidebar - Table of Contents */}
-          {headings.length > 0 && (
-            <aside
-              className="hidden xl:block"
-              style={{
-                width: '220px', flexShrink: 0, position: 'sticky', top: '80px',
-                height: 'calc(100vh - 80px)', overflowY: 'auto', padding: '24px 24px 24px 16px',
-              }}
-            >
-              <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>
-                On this page
-              </p>
-              <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {headings.map(h => (
-                  <a
-                    key={h.id}
-                    href={`#${h.id}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      document.getElementById(h.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      setActiveHeading(h.id);
-                    }}
-                    style={{
-                      fontSize: '12px', color: activeHeading === h.id ? 'var(--brand)' : 'var(--text-muted)',
-                      textDecoration: 'none', padding: '3px 0',
-                      borderLeft: activeHeading === h.id ? '2px solid var(--brand)' : '2px solid transparent',
-                      paddingLeft: h.level === 3 ? '16px' : '8px',
-                      transition: 'color 0.15s',
-                    }}
-                    onMouseEnter={e => { if (activeHeading !== h.id) (e.target as HTMLElement).style.color = 'var(--text-primary)'; }}
-                    onMouseLeave={e => { if (activeHeading !== h.id) (e.target as HTMLElement).style.color = 'var(--text-muted)'; }}
-                  >
-                    {h.text}
-                  </a>
-                ))}
-              </nav>
-            </aside>
-          )}
+          </div>
         </div>
 
-        <SiteFooter currentPage="docs" />
-      </div>
-    );
-  }
+        {/* Document Listing */}
+        <div style={{ marginBottom: '16px' }}>
+          <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
+            Showing <strong>{filteredDocs.length}</strong> documents
+          </p>
+        </div>
 
-  // ======================== HOME VIEW ========================
+        {docsLoading ? (
+          <div style={{ padding: '80px 0', textAlign: 'center' }}>
+            <Loader2 className="w-8 h-8 animate-spin mx-auto" style={{ color: 'var(--brand)' }} />
+          </div>
+        ) : filteredDocs.length === 0 ? (
+          <div style={{ padding: '80px 0', textAlign: 'center', background: 'var(--bg-secondary)', borderRadius: '24px', border: '1px dashed var(--border-subtle)' }}>
+            <FileText className="w-12 h-12 mx-auto" style={{ color: 'var(--text-muted)', marginBottom: '16px' }} />
+            <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)' }}>No articles found</h3>
+            <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>Try adjusting your search or filters</p>
+          </div>
+        ) : (
+          <div>
+            {viewMode === 'list' ? (
+              <div ref={tableRef} className="bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-2xl overflow-hidden flex flex-col shadow-sm">
+                {/* Table Header */}
+                <div className="hidden md:grid px-6 py-4 bg-[var(--bg-tertiary)] border-b border-[var(--border-subtle)] text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider" style={gridStyle}>
+                  {[
+                    <div key="doc" className="flex items-center gap-2 pr-2">DOCUMENT</div>,
+                    <div key="cat" className="px-2">CATEGORY</div>,
+                    <div key="tags" className="px-2">TAGS</div>,
+                    <div key="vis" className="text-center px-2">VISIBILITY</div>,
+                    <div key="status" className="text-center px-2">STATUS</div>,
+                    <div key="ai" className="text-center px-2">AI SCORE</div>,
+                    <div key="updated" className="px-2">UPDATED</div>,
+                    <div key="views" className="text-right pl-2">VIEWS</div>,
+                  ].flatMap((header, i, arr) => {
+                    const elements = [<div key={`h-c-${i}`} className="relative min-w-0">{header}</div>];
+                    if (i < arr.length - 1) {
+                      elements.push(
+                        <div
+                          key={`resizer-${i}`}
+                          className="w-1 cursor-col-resize hover:bg-[var(--brand)] transition-colors"
+                          onMouseDown={(e) => handleResizeStart(e, i)}
+                        />
+                      );
+                    }
+                    return elements;
+                  })}
+                </div>
+
+                <div className="divide-y divide-[var(--border-subtle)]">
+                  {filteredDocs.map((doc) => (
+                    <Link key={doc.id} href={`/docs/${doc.id}`} className="block group hover:bg-[var(--bg-tertiary)] transition-colors">
+                      <div className="hidden md:grid px-6 py-5 items-center" style={gridStyle}>
+                        <div className="flex items-center gap-4 min-w-0 pr-4">
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: (doc.category?.color || brandColor) + '15' }}>
+                            <FileText className="w-5 h-5" style={{ color: doc.category?.color || brandColor }} />
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="font-semibold text-sm text-[var(--text-primary)] group-hover:text-[var(--brand)] truncate transition-colors">{doc.title}</h3>
+                            <p className="text-xs text-[var(--text-muted)] truncate mt-0.5">Author: {doc.author?.full_name || 'System'}</p>
+                          </div>
+                        </div>
+                        <div className="px-2">
+                          <span className="text-xs text-[var(--text-secondary)] font-medium bg-[var(--bg-tertiary)] px-2 py-1 rounded-md">{doc.category?.name || 'Uncategorised'}</span>
+                        </div>
+                        <div className="px-2 flex gap-1 flex-wrap">
+                          {doc.tags?.slice(0, 2).map(tag => (
+                            <span key={tag.id} className="text-[10px] text-[var(--text-muted)] border border-[var(--border-subtle)] px-1.5 py-0.5 rounded-full">#{tag.name}</span>
+                          ))}
+                          {doc.tags && doc.tags.length > 2 && <span className="text-[10px] text-[var(--text-muted)]">+{doc.tags.length - 2}</span>}
+                        </div>
+                        <div className="text-center px-2">
+                          <span title={doc.visibility} className="flex justify-center">
+                            {doc.visibility === 'public' ? <Globe className="w-4 h-4 text-[#10b981]" /> : doc.visibility === 'team' ? <Users className="w-4 h-4 text-[var(--brand)]" /> : <Lock className="w-4 h-4 text-[var(--text-muted)]" />}
+                          </span>
+                        </div>
+                        <div className="text-center px-2">
+                           <span className={`inline-flex px-2 py-1 text-[10px] font-bold rounded-full uppercase tracking-tight ${getStateColor(doc.status)}`}>
+                            {doc.status}
+                          </span>
+                        </div>
+                        <div className="text-center px-2">
+                          <div className={`flex flex-col items-center leading-tight ${getAiScoreColor(doc.ai_score)}`}>
+                            <span className="text-sm font-bold flex items-center gap-1.5">
+                              <Sparkles className="w-3 h-3" />
+                              {doc.ai_score !== null ? `${doc.ai_score}%` : '--'}</span>
+                            <span className="text-[9px] font-medium opacity-80">{getAiScoreLabel(doc.ai_score)}</span>
+                          </div>
+                        </div>
+                        <div className="px-2">
+                          <p className="text-xs text-[var(--text-secondary)] font-medium">{formatRelativeTime(doc.updated_at)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs font-bold text-[var(--text-primary)]">{doc.view_count || 0}</p>
+                        </div>
+                      </div>
+
+                      {/* Mobile Row */}
+                      <div className="flex md:hidden flex-col p-4 gap-3">
+                        <div className="flex gap-3">
+                           <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: (doc.category?.color || brandColor) + '15' }}>
+                            <FileText className="w-5 h-5" style={{ color: doc.category?.color || brandColor }} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-sm text-[var(--text-primary)] truncate">{doc.title}</h3>
+                            <div className="flex items-center gap-2 mt-1">
+                               <span className={`inline-flex px-1.5 py-0.5 text-[9px] font-bold rounded-full uppercase ${getStateColor(doc.status)}`}>{doc.status}</span>
+                               <span className="text-[10px] text-[var(--text-muted)]">{formatRelativeTime(doc.updated_at)}</span>
+                            </div>
+                          </div>
+                          <div className={`text-right ${getAiScoreColor(doc.ai_score)}`}>
+                            <p className="text-sm font-bold">{doc.ai_score !== null ? `${doc.ai_score}%` : '--'}</p>
+                            <p className="text-[10px] opacity-70">AI Score</p>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                 {filteredDocs.map((doc) => (
+                    <Link key={doc.id} href={`/docs/${doc.id}`} className="bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-2xl p-6 hover:border-[var(--brand)] hover:shadow-xl transition-all group flex flex-col h-full active:scale-[0.98]">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="w-12 h-12 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 duration-300" style={{ backgroundColor: (doc.category?.color || brandColor) + '15' }}>
+                          <FileText className="w-6 h-6" style={{ color: doc.category?.color || brandColor }} />
+                        </div>
+                        <div className={`flex flex-col items-end leading-tight ${getAiScoreColor(doc.ai_score)}`}>
+                          <span className="text-sm font-black flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5" />
+                            {doc.ai_score !== null ? `${doc.ai_score}%` : '--'}
+                          </span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider opacity-70">{getAiScoreLabel(doc.ai_score)}</span>
+                        </div>
+                      </div>
+
+                      <h3 className="text-lg font-bold text-[var(--text-primary)] mb-2 group-hover:text-[var(--brand)] transition-colors line-clamp-2">{doc.title}</h3>
+                      <p className="text-sm text-[var(--text-secondary)] line-clamp-3 flex-1 leading-relaxed mb-6">
+                        {doc.content ? doc.content.replace(/<[^>]*>/g, '').slice(0, 150) : 'No description available'}...
+                      </p>
+
+                      <div className="pt-4 border-t border-[var(--border-subtle)] mt-auto">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                             <span className="text-[10px] font-bold px-2 py-1 bg-[var(--bg-tertiary)] rounded-md text-[var(--text-muted)] uppercase tracking-tight">{doc.category?.name || 'Article'}</span>
+                             <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-tight ${getStateColor(doc.status)}`}>{doc.status}</span>
+                          </div>
+                          <div className="flex items-center gap-3 text-[var(--text-muted)]">
+                            <div className="flex items-center gap-1.5 text-xs font-semibold">
+                              <Eye className="w-3.5 h-3.5" />
+                              {doc.view_count || 0}
+                            </div>
+                            <span className="text-[10px] font-bold uppercase">{formatRelativeTime(doc.updated_at)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                 ))}
+              </div>
+            )}
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-4 mt-12">
+                <button 
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(p => p - 1)}
+                  className="px-6 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-xl text-sm font-bold text-[var(--text-primary)] disabled:opacity-40 hover:border-[var(--brand)] transition-all"
+                >
+                  Previous
+                </button>
+                <span className="text-sm font-bold text-[var(--text-muted)]">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button 
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(p => p + 1)}
+                  className="px-6 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-xl text-sm font-bold text-[var(--text-primary)] disabled:opacity-40 hover:border-[var(--brand)] transition-all"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <SiteFooter />
+    </div>
+  );
+}
+
+/** TyneBase main docs page — rendered when visiting tynebase.com/docs */
+function MainKBPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const cat = searchParams.get("cat");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(cat);
+
+  const filteredArticles = selectedCategory
+    ? allArticles.filter((a) => a.category === selectedCategory)
+    : allArticles;
+
   return (
     <div className="min-h-screen relative">
       <div className="hero-gradient" />
       <SiteNavbar currentPage="docs" />
 
-      {/* Hero Section */}
-      <section style={{ paddingTop: '160px', paddingBottom: '80px' }}>
-        <div className="container">
+      {/* Hero */}
+      <section style={{ paddingTop: '120px', paddingBottom: '80px' }}>
+        <div className="container" style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 24px' }}>
           <div style={{ textAlign: 'center', maxWidth: '800px', margin: '0 auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
-              <Image
-                src="/docs_logo1.webp"
-                alt="Documentation"
-                width={60}
-                height={60}
-                style={{ width: 'auto', height: 'auto' }}
-                priority
+            <div className="badge-modern mx-auto" style={{ marginBottom: '24px' }}>
+              <Zap className="w-4 h-4 text-[var(--brand)]" />
+              <span>Knowledge Base & Docs</span>
+            </div>
+            <h1 className="h1-premium" style={{ marginBottom: '24px' }}>
+              The smartest way to <span className="text-gradient">document</span> your work.
+            </h1>
+            <p className="p-premium" style={{ marginBottom: '48px' }}>
+              Search across our guides, API documentation, and community resources to find exactly what you need.
+            </p>
+
+            {/* Search Bar */}
+            <div style={{ maxWidth: '600px', margin: '0 auto', position: 'relative' }}>
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-muted)]" />
+              <input
+                type="text"
+                className="input-premium"
+                placeholder="Search for documentation..."
+                style={{ paddingLeft: '64px', height: '64px' }}
               />
             </div>
-            <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--brand)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '24px' }}>
-              Documentation
-            </p>
-            <h1 style={{ fontSize: 'clamp(2.5rem, 5vw, 4rem)', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: '24px', lineHeight: 1.1 }}>
-              Discover TyneBase
-            </h1>
-            <p style={{ fontSize: '20px', color: 'var(--text-secondary)', marginBottom: '48px', lineHeight: 1.6 }}>
-              Everything you need to build, manage and scale your knowledge base.
-              From quick start guides to advanced AI features and enterprise security.
-            </p>
-
-            {/* Search Box */}
-            <div style={{ maxWidth: '600px', margin: '0 auto', position: 'relative' }}>
-              <div style={{ position: 'relative' }}>
-                <Search style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', width: '20px', height: '20px', color: 'var(--text-muted)' }} />
-                <input
-                  id="doc-search"
-                  type="text"
-                  placeholder="Search documentation..."
-                  value={searchQuery}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  style={{
-                    width: '100%', padding: '18px 100px 18px 56px', background: 'var(--bg-secondary)',
-                    border: '1px solid var(--border-subtle)', borderRadius: '12px',
-                    color: 'var(--text-primary)', fontSize: '16px', outline: 'none',
-                  }}
-                />
-                <div style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <kbd style={{ padding: '4px 8px', fontSize: '12px', background: 'var(--bg-tertiary)', borderRadius: '4px', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>⌘</kbd>
-                  <kbd style={{ padding: '4px 8px', fontSize: '12px', background: 'var(--bg-tertiary)', borderRadius: '4px', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>K</kbd>
-                </div>
-              </div>
-
-              {isSearching && (
-                <div style={{
-                  position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '8px',
-                  background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
-                  borderRadius: '12px', boxShadow: '0 10px 40px rgba(0,0,0,0.2)', zIndex: 50,
-                  maxHeight: '400px', overflowY: 'auto',
-                }}>
-                  {searchResults.length > 0 ? (
-                    <div style={{ padding: '8px' }}>
-                      {searchResults.map((article) => (
-                        <button key={article.id} onClick={() => openArticle(article)}
-                          style={{ width: '100%', padding: '12px 16px', background: 'transparent', border: 'none', borderRadius: '8px', textAlign: 'left', cursor: 'pointer', transition: 'background 0.15s ease' }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
-                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                        >
-                          <div style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '4px' }}>{article.title}</div>
-                          <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{article.category} · {article.readTime} read</div>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>No results found for &ldquo;{searchQuery}&rdquo;</div>
-                  )}
-                </div>
-              )}
-            </div>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '16px' }}>
-              {allArticles.length} articles across {categories.length} categories
-            </p>
           </div>
         </div>
       </section>
 
-      {/* Browse by Category */}
-      <section style={{ paddingTop: '80px', paddingBottom: '80px' }}>
-        <div className="container">
-          <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-            <h2 style={{ fontSize: '28px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>Browse by category</h2>
-            <p style={{ fontSize: '16px', color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto' }}>Find the documentation you need, organised by topic.</p>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px', maxWidth: '1100px', margin: '0 auto' }}>
-            {categories.map((category) => {
-              const IconComponent = iconMap[category.icon] || Zap;
-              return (
-                <div
-                  key={category.id}
-                  className="bento-item"
-                  style={{ padding: '32px', display: 'flex', flexDirection: 'column', background: 'var(--bg-elevated)', textAlign: 'left', width: '100%', position: 'relative' }}
-                >
-                  {category.id === 'api-reference' && (
-                    <span style={{ position: 'absolute', top: '16px', right: '16px', fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', padding: '3px 8px', borderRadius: '6px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Coming soon</span>
-                  )}
-                  <div className={`feature-icon feature-icon-${category.color}`} style={{ marginBottom: '20px' }}>
-                    <IconComponent className="w-5 h-5" />
-                  </div>
-                  <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px' }}>{category.title}</h3>
-                  <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: 1.6 }}>{category.description}</p>
-                  <div style={{ marginTop: 'auto' }}>
-                    <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>{category.articles.length} articles</p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      {category.articles.map((article) => (
-                        <button
-                          key={article.id}
-                          onClick={() => openArticle(article)}
-                          style={{ background: 'transparent', padding: '8px 12px', borderRadius: '6px', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: 'var(--text-secondary)', border: 'none', transition: 'all 0.15s ease', display: 'flex', alignItems: 'center', gap: '8px' }}
-                          onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-secondary)'; e.currentTarget.style.color = 'var(--brand)'; }}
-                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                        >
-                          <FileText style={{ width: '14px', height: '14px', flexShrink: 0 }} />
-                          {article.title}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* AI Features Highlight */}
-      <section style={{ paddingTop: '80px', paddingBottom: '80px', background: 'var(--bg-secondary)' }}>
-        <div className="container">
-          <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-            <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--brand)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '16px' }}>AI-Powered</p>
-            <h2 style={{ fontSize: '28px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>Generate Documentation with AI</h2>
-            <p style={{ fontSize: '16px', color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto' }}>
-              TyneBase uses advanced AI models with EU-compliant data processing to help you create and find knowledge faster.
-            </p>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', maxWidth: '1000px', margin: '0 auto' }}>
-            {aiFeatures.map((feature) => (
-              <div key={feature.title}
-                style={{ padding: '32px', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: '16px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s ease' }}
-                onClick={() => { const a = allArticles.find(a => a.title.toLowerCase().includes(feature.title.toLowerCase().replace('(rag)', '').trim())); if (a) openArticle(a); }}
-                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 10px 40px rgba(0,0,0,0.1)'; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
+      {/* Main Content */}
+      <section style={{ paddingBottom: '100px' }}>
+        <div className="container" style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 24px' }}>
+          
+          {/* Categories Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" style={{ marginBottom: '80px' }}>
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                onClick={() => setSelectedCategory(category.id)}
+                className={`card-premium transition-all ${selectedCategory === category.id ? 'active' : ''}`}
+                style={{ textAlign: 'left', padding: '40px' }}
               >
-                <div className="feature-icon feature-icon-purple" style={{ marginBottom: '20px', marginLeft: 'auto', marginRight: 'auto' }}>
-                  <feature.icon className="w-5 h-5" />
+                <div 
+                  className="w-12 h-12 rounded-xl flex items-center justify-center" 
+                  style={{ backgroundColor: `${category.color}15`, marginBottom: '24px' }}
+                >
+                  {iconMap[category.icon] && React.createElement(iconMap[category.icon], { 
+                    className: "w-6 h-6", 
+                    style: { color: category.color } 
+                  })}
                 </div>
-                <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px' }}>{feature.title}</h3>
-                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{feature.description}</p>
-              </div>
+                <h3 className="h3-premium" style={{ marginBottom: '12px' }}>{category.name}</h3>
+                <p className="p-premium" style={{ fontSize: '15px' }}>{category.description}</p>
+                <div className="flex items-center gap-2 mt-6 font-medium" style={{ color: category.color }}>
+                  <span>{category.articles} articles</span>
+                  <ArrowRight className="w-4 h-4" />
+                </div>
+              </button>
             ))}
           </div>
-        </div>
-      </section>
 
-      {/* CTA */}
-      <section style={{ paddingTop: '80px', paddingBottom: '80px' }}>
-        <div className="container">
-          <div style={{ position: 'relative', maxWidth: '700px', margin: '0 auto' }}>
-            <div style={{ position: 'absolute', inset: '-16px', background: 'linear-gradient(135deg, var(--accent-blue), var(--accent-purple), var(--accent-pink))', opacity: 0.15, filter: 'blur(40px)', borderRadius: '24px' }} />
-            <div style={{ position: 'relative', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: '20px', padding: '48px', textAlign: 'center' }}>
-              <h2 style={{ fontSize: '24px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>Can&apos;t find what you need?</h2>
-              <p style={{ fontSize: '16px', color: 'var(--text-secondary)', marginBottom: '32px' }}>Our support team is here to help you succeed.</p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
-                <Link href="/contact" className="btn btn-primary">Contact Support<ArrowRight className="w-4 h-4" /></Link>
-                <Link href="/community" className="btn btn-secondary">Join Community</Link>
+          {/* Featured Sections */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 pt-20 border-t border-[var(--border-subtle)]">
+            <div>
+              <h2 className="h2-premium" style={{ marginBottom: '32px' }}>Enterprise Readiness</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {enterpriseFeatures.map((f) => (
+                  <div key={f.title} className="flex gap-4">
+                    <f.icon className="w-5 h-5 text-[var(--brand)] flex-shrink-0" />
+                    <div>
+                      <h4 className="font-bold text-[var(--text-primary)]" style={{ fontSize: '15px', marginBottom: '4px' }}>{f.title}</h4>
+                      <p className="text-sm text-[var(--text-secondary)]">{f.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h2 className="h2-premium" style={{ marginBottom: '32px' }}>Developer API</h2>
+              <div className="flex flex-col gap-4">
+                {apiDocs.map((f) => (
+                  <Link key={f.title} href={`/docs/${f.slug}`} className="card-premium flex items-center justify-between p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-lg bg-[var(--brand-faint)] flex items-center justify-center">
+                        <f.icon className="w-5 h-5 text-[var(--brand)]" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-[var(--text-primary)]" style={{ fontSize: '15px' }}>{f.title}</h4>
+                        <p className="text-sm text-[var(--text-secondary)]">{f.description}</p>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-[var(--text-muted)]" />
+                  </Link>
+                ))}
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <SiteFooter currentPage="docs" />
+      <SiteFooter />
     </div>
   );
+}
+
+export default function DocsPage() {
+  const searchParams = useSearchParams();
+  const subdomainFromParams = searchParams.get('community_id');
+  const [subdomain, setSubdomain] = useState<string | null>(null);
+
+  useEffect(() => {
+    const sub = getSubdomainFromHost();
+    setSubdomain(sub || subdomainFromParams);
+  }, [subdomainFromParams]);
+
+  if (subdomain) {
+    return <TenantKBPage subdomain={subdomain} />;
+  }
+
+  return <MainKBPage />;
 }
