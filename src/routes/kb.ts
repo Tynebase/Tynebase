@@ -70,8 +70,11 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           }
         }
 
-        // Show all tenant categories with their public document counts
+        // Show tenant categories with their public document counts.
+        // Exclude internal placeholder names: 'default' and 'uncategorised'/'uncategorized'.
+        const hiddenNames = new Set(['default', 'uncategorised', 'uncategorized']);
         const filteredCategories = (categories || [])
+          .filter((cat: any) => !hiddenNames.has((cat.name || '').toLowerCase()))
           .map((cat: any) => ({
             ...cat,
             document_count: countMap[cat.id] || 0,

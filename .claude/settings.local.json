@@ -22,7 +22,8 @@
       "Bash(find \"C:\\\\Users\\\\Mai\\\\Desktop\\\\TyneBase\\\\tynebase-frontend\" -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" \\\\\\) -exec grep -l \"whiteLabel\\\\|white-label\\\\|white_label\" {} \\\\;)",
       "Bash(npx tsc:*)",
       "Bash(ls C:\\\\Users\\\\Mai\\\\Desktop\\\\TyneBase\\\\tynebase-frontend\\\\middleware*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(wc -l /c/Users/Mai/Desktop/TyneBase/src/routes/*.ts)"
     ]
   }
 }

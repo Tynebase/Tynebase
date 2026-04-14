@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { Search, BookOpen, Zap, Shield, ArrowRight, Code, Bot, FileText, Lock, BarChart3, FolderSync, Globe, Video, FileCheck, FolderOpen, ChevronRight, Eye, Clock, User, Users, Loader2, AlertCircle, ThumbsUp, ThumbsDown, Tag } from "lucide-react";
+import { Search, BookOpen, Zap, Shield, ArrowRight, Code, Bot, FileText, Lock, BarChart3, FolderSync, Globe, Video, FileCheck, FolderOpen, ChevronRight, Eye, Clock, User, Users, Loader2, AlertCircle, ThumbsUp, ThumbsDown } from "lucide-react";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { DocModal } from "@/components/docs/DocModal";
@@ -262,7 +262,7 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
       </section>
 
       {/* Main content */}
-      <section style={{ paddingTop: '40px', paddingBottom: '80px' }}>
+      <section style={{ paddingTop: '8px', paddingBottom: '80px' }}>
         <div className="container">
           {(selectedCategory || searchQuery || documents) ? (
             <div style={{ maxWidth: '900px', margin: '0 auto' }}>
@@ -299,6 +299,7 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
                     const authorName = (doc as any).users?.full_name || "Unknown";
                     const readTime = estimateReadTime(doc.content || "");
                     const snippet = stripHtmlForSnippet(doc.content || "").slice(0, 180);
+                    const updatedDate = doc.updated_at ? new Date(doc.updated_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : null;
 
                     return (
                       <Link
@@ -333,10 +334,11 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
                             <p style={{ fontSize: '13px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {snippet || 'No description'}
                             </p>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>
-                              <span>{authorName}</span>
-                              <span>{readTime} min read</span>
-                              <span>{doc.view_count || 0} views</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '8px', fontSize: '12px', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><User style={{ width: '11px', height: '11px' }} />{authorName}</span>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Clock style={{ width: '11px', height: '11px' }} />{readTime} min read</span>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Eye style={{ width: '11px', height: '11px' }} />{doc.view_count || 0} views</span>
+                              {updatedDate && <span>Updated {updatedDate}</span>}
                             </div>
                           </div>
                         </div>
@@ -402,27 +404,6 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
         </div>
       </section>
 
-      {/* Popular Tags */}
-      {tags.length > 0 && (
-        <section style={{ paddingBottom: '60px' }}>
-          <div className="container" style={{ maxWidth: '1024px', margin: '0 auto' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '20px' }}>Popular Tags</h2>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {tags.map((tag) => (
-                <button
-                  key={tag.name}
-                  onClick={() => { setSearchInput(tag.name); setSearchQuery(tag.name); fetchDocuments(undefined, tag.name); }}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '20px', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}
-                >
-                  <Tag style={{ width: '12px', height: '12px' }} />
-                  {tag.name}
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{tag.count}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* Footer */}
       <footer style={{ borderTop: '1px solid var(--border-subtle)', padding: '32px 0' }}>

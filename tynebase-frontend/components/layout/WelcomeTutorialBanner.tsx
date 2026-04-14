@@ -57,6 +57,8 @@ export function WelcomeTutorialBanner() {
             <div className="flex flex-wrap items-center gap-3">
               <Link
                 href="/docs"
+                target="_blank"
+                rel="noopener noreferrer"
                 onClick={() => {
                   // Set a flag so the docs page opens the tutorial article
                   sessionStorage.setItem("tynebase_open_tutorial", "true");

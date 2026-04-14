@@ -27,11 +27,15 @@ import type {
  */
 export async function signup(data: SignupRequest): Promise<AuthResponse> {
   const response = await apiPost<AuthResponse>('/api/auth/signup', data);
-  
-  // Store tokens and tenant subdomain
-  setAuthTokens(response.access_token, response.refresh_token);
-  setTenantSubdomain(response.tenant.subdomain);
-  
+
+  // Store tokens only when present (backend may omit them on rare sign-in failures)
+  if (response.access_token && response.refresh_token) {
+    setAuthTokens(response.access_token, response.refresh_token);
+  }
+  if (response.tenant?.subdomain) {
+    setTenantSubdomain(response.tenant.subdomain);
+  }
+
   return response;
 }
 

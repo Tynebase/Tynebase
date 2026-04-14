@@ -10,6 +10,7 @@ import {
   Discussion,
   DiscussionReply,
   getPublicDiscussion,
+  createReply,
 } from "@/lib/api/discussions";
 import {
   ArrowLeft,
@@ -23,6 +24,9 @@ import {
   CornerDownRight,
   Users,
   Calendar,
+  User,
+  LogOut,
+  Send,
 } from "lucide-react";
 
 function getSubdomainFromHost(): string | null {
@@ -60,11 +64,21 @@ export default function PublicDiscussionPage() {
   const params = useParams();
   const discussionId = params.id as string;
   const subdomain = getSubdomainFromHost();
+  const { user, signOut: authSignOut } = useAuth();
+
+  const signOut = async () => {
+    await authSignOut();
+    window.location.href = '/community/login';
+  };
 
   const [discussion, setDiscussion] = useState<Discussion | null>(null);
   const [replies, setReplies] = useState<DiscussionReply[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [replyContent, setReplyContent] = useState("");
+  const [submittingReply, setSubmittingReply] = useState(false);
+  const [replyError, setReplyError] = useState<string | null>(null);
+  const [tenant, setTenant] = useState<{ name: string; branding: { primary_color?: string; company_name?: string; logo_url?: string } } | null>(null);
 
   useEffect(() => {
     if (!subdomain) {
@@ -72,6 +86,21 @@ export default function PublicDiscussionPage() {
       setLoading(false);
       return;
     }
+
+    // Fetch tenant branding
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+    fetch(`${baseUrl}/api/public/tenant-by-domain?domain=${encodeURIComponent(window.location.hostname)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        const t = data?.data?.tenant || null;
+        if (t) {
+          setTenant(t);
+          if (t.branding?.primary_color) {
+            document.documentElement.style.setProperty('--brand', t.branding.primary_color);
+          }
+        }
+      })
+      .catch(() => {});
 
     async function fetchDiscussion() {
       try {
@@ -89,6 +118,22 @@ export default function PublicDiscussionPage() {
     }
     fetchDiscussion();
   }, [subdomain, discussionId]);
+
+  const handleSubmitReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!replyContent.trim() || !discussion) return;
+    setSubmittingReply(true);
+    setReplyError(null);
+    try {
+      const result = await createReply(discussion.id, { content: replyContent });
+      setReplies(prev => [...prev, result.reply]);
+      setReplyContent("");
+    } catch (err) {
+      setReplyError(err instanceof Error ? err.message : "Failed to post reply");
+    } finally {
+      setSubmittingReply(false);
+    }
+  };
 
   const buildReplyTree = (replies: DiscussionReply[], parentId: string | null = null): DiscussionReply[] => {
     return replies
@@ -179,12 +224,54 @@ export default function PublicDiscussionPage() {
     );
   }
 
-  const companyName = discussion.tenant_id ? "" : "Community";
+  const companyName = tenant?.branding?.company_name || tenant?.name || "Community";
+  const primaryColor = tenant?.branding?.primary_color || 'var(--brand)';
 
   return (
     <div className="min-h-screen relative">
       <div className="hero-gradient" />
-      <SiteNavbar currentPage="other" />
+      {tenant ? (
+        <header style={{ position: 'sticky', top: 0, zIndex: 50, backdropFilter: 'blur(20px)', borderBottom: '1px solid var(--border-subtle)', background: 'rgba(10,10,15,0.8)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', maxWidth: '1400px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <Link href="/community" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none' }}>
+                {tenant.branding.logo_url ? (
+                  <img src={tenant.branding.logo_url} alt={companyName} style={{ height: '32px', width: 'auto' }} />
+                ) : (
+                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '14px', background: primaryColor }}>
+                    {companyName.charAt(0)}
+                  </div>
+                )}
+                <div>
+                  <p style={{ fontWeight: 600, fontSize: '18px', color: 'var(--text-primary)', lineHeight: 1.2 }}>{companyName}</p>
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Community</p>
+                </div>
+              </Link>
+            </div>
+            {user ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px', background: 'var(--surface-subtle)', border: '1px solid var(--border-subtle)' }}>
+                  <User className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
+                  <span style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 500 }}>{user.email}</span>
+                </div>
+                <button
+                  onClick={signOut}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px', background: 'var(--surface-tertiary)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 500, cursor: 'pointer' }}
+                >
+                  <LogOut className="w-4 h-4" /> Log out
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <Link href="/community/login" className="btn btn-secondary btn-sm">Sign In</Link>
+                <Link href="/community/signup" className="btn btn-primary btn-sm">Join</Link>
+              </div>
+            )}
+          </div>
+        </header>
+      ) : (
+        <SiteNavbar currentPage="other" />
+      )}
 
       <section style={{ paddingTop: '120px', paddingBottom: '60px' }}>
         <div className="container" style={{ maxWidth: '900px', margin: '0 auto' }}>
@@ -266,9 +353,31 @@ export default function PublicDiscussionPage() {
             )}
 
             <div style={{ marginTop: '32px', paddingTop: '24px', borderTop: '1px solid var(--border-subtle)' }}>
-              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-                Want to reply? <Link href="/community/login" style={{ color: 'var(--brand)', textDecoration: 'underline' }}>Sign in</Link> to join the conversation.
-              </p>
+              {user ? (
+                <form onSubmit={handleSubmitReply}>
+                  <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px' }}>Leave a reply</p>
+                  <textarea
+                    value={replyContent}
+                    onChange={e => setReplyContent(e.target.value)}
+                    placeholder="Write your reply..."
+                    rows={4}
+                    style={{ width: '100%', padding: '12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '14px', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                  {replyError && <p style={{ fontSize: '13px', color: 'var(--status-error)', marginTop: '8px' }}>{replyError}</p>}
+                  <button
+                    type="submit"
+                    disabled={submittingReply || !replyContent.trim()}
+                    style={{ marginTop: '12px', display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 20px', background: primaryColor, color: '#fff', borderRadius: '8px', fontSize: '14px', fontWeight: 600, border: 'none', cursor: submittingReply || !replyContent.trim() ? 'not-allowed' : 'pointer', opacity: submittingReply || !replyContent.trim() ? 0.6 : 1 }}
+                  >
+                    {submittingReply ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    {submittingReply ? 'Posting...' : 'Post Reply'}
+                  </button>
+                </form>
+              ) : (
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+                  Want to reply? <Link href="/community/login" style={{ color: 'var(--brand)', textDecoration: 'underline' }}>Sign in</Link> to join the conversation.
+                </p>
+              )}
             </div>
           </div>
         </div>

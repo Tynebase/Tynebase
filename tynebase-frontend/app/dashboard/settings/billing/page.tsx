@@ -73,7 +73,6 @@ const PLANS = [
     ],
     icon: Zap,
     cta: 'Upgrade to Base',
-    popular: true,
   },
   {
     key: 'pro' as const,
@@ -96,6 +95,7 @@ const PLANS = [
     ],
     icon: TrendingUp,
     cta: 'Upgrade to Pro',
+    popular: true,
   },
   {
     key: 'enterprise' as const,
@@ -217,6 +217,12 @@ function BillingPageInner() {
     setUpgradingTo(targetTier);
     try {
       const result = await createCheckoutSession(targetTier, billingCycle);
+      if ((result as any)?.redirectToBilling) {
+        // In-place subscription upgrade — no Stripe checkout needed
+        addToast({ type: 'success', title: 'Plan upgraded!', description: 'Your subscription has been upgraded successfully.' });
+        router.replace('/dashboard/settings/billing');
+        return;
+      }
       if (result?.url) {
         window.location.href = result.url;
       }

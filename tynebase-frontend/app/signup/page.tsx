@@ -11,6 +11,7 @@ import { SiteFooter } from "@/components/layout/SiteFooter";
 import { TierType } from "@/types/api";
 import { createClient } from "@/lib/supabase/client";
 import { ArrowRight, Check, Eye, EyeOff, Building2, Crown, User, Users, Zap, ArrowLeft } from "lucide-react";
+import { createCheckoutSession } from "@/lib/api/billing";
 
 const PLANS = {
   free: {
@@ -151,6 +152,22 @@ export default function SignupPage() {
       }
 
       await signup(signupData);
+
+      // For paid tiers, redirect straight to Stripe checkout before giving dashboard access
+      if (selectedTier === "base" || selectedTier === "pro") {
+        addToast({ type: "success", title: "Account created!", description: "Redirecting to payment..." });
+        try {
+          const checkoutResult = await createCheckoutSession(selectedTier, 'monthly');
+          if (checkoutResult?.url) {
+            window.location.href = checkoutResult.url;
+            return;
+          }
+        } catch {
+          // If Stripe redirect fails, fall through to billing page
+        }
+        window.location.href = "/dashboard/settings/billing";
+        return;
+      }
 
       addToast({ type: "success", title: "Welcome to TyneBase!", description: "Redirecting to your dashboard..." });
       await new Promise(r => setTimeout(r, 400));

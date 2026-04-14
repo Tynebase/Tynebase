@@ -95,6 +95,7 @@ export default function SuperAdminPage() {
   const [tenantsPage, setTenantsPage] = useState(1);
   const [tenantsTotalPages, setTenantsTotalPages] = useState(1);
   const [tenantsLoading, setTenantsLoading] = useState(false);
+  const [tenantsSearch, setTenantsSearch] = useState("");
 
   // Modal state
   const [creditsModal, setCreditsModal] = useState<CreditsModal | null>(null);
@@ -691,13 +692,24 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
         {/* ==================== TENANTS TAB ==================== */}
         {activeTab === "tenants" && (
           <div className="space-y-6">
+            {/* Search bar */}
+            <div className="relative max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--dash-text-muted)]" />
+              <input
+                type="text"
+                placeholder="Search workspaces..."
+                value={tenantsSearch}
+                onChange={e => setTenantsSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg text-sm text-[var(--dash-text-primary)] outline-none focus:border-[var(--brand)]"
+              />
+            </div>
             <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl overflow-hidden">
               {tenantsLoading ? (
                 <div className="flex items-center justify-center py-16">
                   <Loader2 className="w-6 h-6 animate-spin text-[var(--brand)]" />
                 </div>
-              ) : tenants.length === 0 ? (
-                <div className="text-center py-16 text-[var(--dash-text-muted)] text-sm">No tenants found</div>
+              ) : tenants.filter(t => !tenantsSearch || t.name.toLowerCase().includes(tenantsSearch.toLowerCase()) || t.subdomain.toLowerCase().includes(tenantsSearch.toLowerCase())).length === 0 ? (
+                <div className="text-center py-16 text-[var(--dash-text-muted)] text-sm">{tenantsSearch ? `No workspaces matching "${tenantsSearch}"` : "No tenants found"}</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -715,7 +727,7 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--dash-border-subtle)]">
-                      {tenants.map((t) => {
+                      {tenants.filter(t => !tenantsSearch || t.name.toLowerCase().includes(tenantsSearch.toLowerCase()) || t.subdomain.toLowerCase().includes(tenantsSearch.toLowerCase())).map((t) => {
                         const isArchived = t.status === "archived" || t.status === "suspended" || t.status === "deleted";
                         
                         // Auto-detect location based on subdomain (mock implementation)

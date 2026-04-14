@@ -113,6 +113,49 @@ export default async function stripeBillingRoutes(fastify: FastifyInstance) {
           .eq('id', tenant.id);
       }
 
+      // If the customer already has an active subscription, upgrade it in-place
+      // (Stripe prorates automatically) to avoid double-charging.
+      const existingSubscriptions = await stripe.subscriptions.list({
+        customer: customerId,
+        status: 'active',
+        limit: 5,
+      });
+
+      const activeSubscription = existingSubscriptions.data[0] ?? null;
+
+      if (activeSubscription) {
+        // Upgrade the existing subscription item to the new price
+        const itemId = activeSubscription.items.data[0]?.id;
+        if (itemId) {
+          const updatedSub = await stripe.subscriptions.update(activeSubscription.id, {
+            items: [{ id: itemId, price: priceId }],
+            proration_behavior: 'create_prorations',
+            metadata: { tenant_id: tenant.id, tier: target_tier },
+          });
+
+          // Immediately update tenant tier in DB (webhook will also fire, which is fine)
+          const settings = {
+            ...(tenant.settings || {}),
+            stripe_customer_id: customerId,
+            stripe_subscription_id: updatedSub.id,
+          };
+          await supabaseAdmin
+            .from('tenants')
+            .update({ tier: target_tier, settings })
+            .eq('id', tenant.id);
+
+          fastify.log.info(
+            { tenantId: tenant.id, from: tenant.tier, to: target_tier, subscriptionId: updatedSub.id },
+            'Subscription upgraded in-place (no new checkout)'
+          );
+
+          return reply.code(200).send({
+            success: true,
+            data: { upgraded: true, redirectToBilling: true },
+          });
+        }
+      }
+
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         mode: 'subscription',
@@ -322,8 +365,9 @@ export default async function stripeBillingRoutes(fastify: FastifyInstance) {
         case 'customer.subscription.deleted': {
           const subscription = event.data.object as Stripe.Subscription;
           const tenantId = subscription.metadata?.tenant_id;
+          const customerId = subscription.customer as string;
 
-          if (tenantId) {
+          if (tenantId && customerId) {
             const { data: tenant } = await supabaseAdmin
               .from('tenants')
               .select('id, tier, settings')
@@ -331,23 +375,41 @@ export default async function stripeBillingRoutes(fastify: FastifyInstance) {
               .single();
 
             if (tenant) {
+              // Check if the customer still has other active subscriptions
+              const remainingSubs = await stripe!.subscriptions.list({
+                customer: customerId,
+                status: 'active',
+                limit: 10,
+              });
+
+              // Determine the highest tier from remaining active subscriptions
+              let newTier = 'free';
+              for (const sub of remainingSubs.data) {
+                const subTier = (sub.metadata?.tier as string) || 'free';
+                if ((TIER_ORDER[subTier] ?? 0) > (TIER_ORDER[newTier] ?? 0)) {
+                  newTier = subTier;
+                }
+              }
+
               const settings = { ...(tenant.settings || {}) };
-              delete (settings as any).stripe_subscription_id;
+              if (newTier === 'free') {
+                delete (settings as any).stripe_subscription_id;
+              }
 
               await supabaseAdmin
                 .from('tenants')
-                .update({ tier: 'free', settings })
+                .update({ tier: newTier, settings })
                 .eq('id', tenantId);
 
-              fastify.log.info({ tenantId }, 'Tenant downgraded to free after subscription cancellation');
+              fastify.log.info({ tenantId, newTier }, 'Tenant tier updated after subscription cancellation');
               writeAuditLog({
                 tenantId,
                 actorId: 'stripe',
                 action: 'settings.tier_downgraded',
                 actionType: 'settings',
-                targetName: `${tenant.tier} → free`,
+                targetName: `${tenant.tier} → ${newTier}`,
                 ipAddress: 'stripe-webhook',
-                metadata: { from_tier: tenant.tier, to_tier: 'free', reason: 'subscription_canceled' },
+                metadata: { from_tier: tenant.tier, to_tier: newTier, reason: 'subscription_canceled' },
               });
             }
           }

@@ -46,7 +46,11 @@ interface TenantInfo {
 }
 
 function CommunityContent() {
-  const { user, signOut } = useAuth();
+  const { user, signOut: authSignOut } = useAuth();
+  const signOut = async () => {
+    await authSignOut();
+    window.location.href = '/community/login';
+  };
   const searchParams = useSearchParams();
   const domain =
     searchParams.get("domain") ||

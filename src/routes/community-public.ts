@@ -174,6 +174,7 @@ export default async function communityPublicRoutes(fastify: FastifyInstance) {
         const page = Math.max(1, parseInt(query.page || '1', 10));
         const limit = Math.min(50, Math.max(1, parseInt(query.limit || '20', 10)));
         const offset = (page - 1) * limit;
+        const sortBy = (query as any).sortBy || 'recent';
 
         let dbQuery = supabaseAdmin
           .from('discussions')
@@ -182,12 +183,18 @@ export default async function communityPublicRoutes(fastify: FastifyInstance) {
             replies_count, views_count, likes_count, tags, created_at, updated_at,
             author:users!discussions_author_id_fkey (id, full_name, avatar_url)
           `, { count: 'exact' })
-          .eq('tenant_id', tenant.id)
-          .order('is_pinned', { ascending: false })
-          .order('created_at', { ascending: false });
+          .eq('tenant_id', tenant.id);
 
         if (query.category && query.category !== 'all') {
           dbQuery = dbQuery.eq('category', query.category);
+        }
+
+        if (sortBy === 'popular') {
+          dbQuery = dbQuery.order('is_pinned', { ascending: false }).order('likes_count', { ascending: false });
+        } else if (sortBy === 'unanswered') {
+          dbQuery = dbQuery.eq('is_resolved', false).order('is_pinned', { ascending: false }).order('replies_count', { ascending: true });
+        } else {
+          dbQuery = dbQuery.order('is_pinned', { ascending: false }).order('created_at', { ascending: false });
         }
 
         dbQuery = dbQuery.range(offset, offset + limit - 1);

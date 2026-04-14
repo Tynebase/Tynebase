@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { supabaseAdmin } from '../lib/supabase';
 import { loginRateLimitMiddleware } from '../middleware/rateLimit';
 import { writeAuditLog, getClientIp } from '../lib/auditLog';
+import { sendEmail, emailTemplate } from '../services/email';
 
 // Tier credit allocations
 const TIER_CREDITS: Record<string, number> = {
@@ -270,6 +271,39 @@ export default async function authRoutes(fastify: FastifyInstance) {
           ipAddress: getClientIp(request),
           metadata: { full_name: full_name || null },
         });
+
+        // Send welcome email to the new user (non-critical)
+        sendEmail({
+          to: email,
+          subject: 'Welcome to TyneBase! 🎉',
+          html: emailTemplate(`
+            <tr><td style="padding: 32px 40px 24px;">
+              <h1 style="margin: 0 0 8px; font-size: 24px; font-weight: 700; color: #111827;">Welcome to TyneBase${full_name ? `, ${full_name}` : ''}!</h1>
+              <p style="margin: 0 0 20px; color: #6b7280;">Your account for <strong>${tenant_name}</strong> has been created successfully.</p>
+              <p style="margin: 0 0 20px; color: #6b7280;">You can now create documents, use AI features, collaborate with your team, and publish your knowledge base.</p>
+              <a href="https://tynebase.com/dashboard" style="display:inline-block;padding:12px 24px;background:#E85002;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">Go to Dashboard</a>
+              <p style="margin: 24px 0 0; color: #9ca3af; font-size: 13px;">Need help? Reply to this email or visit our documentation.</p>
+            </td></tr>
+          `),
+        }).catch(err => fastify.log.warn({ err }, 'Failed to send welcome email (non-critical)'));
+
+        // Notify support about new signup (non-critical)
+        sendEmail({
+          to: 'support@tynebase.com',
+          subject: `New signup: ${tenant_name} (${tier} plan)`,
+          html: emailTemplate(`
+            <tr><td style="padding: 32px 40px 24px;">
+              <h1 style="margin: 0 0 16px; font-size: 20px; font-weight: 700; color: #111827;">New Account Signup</h1>
+              <table style="width:100%;border-collapse:collapse;">
+                <tr><td style="padding:6px 0;color:#6b7280;font-size:14px;">Name</td><td style="padding:6px 0;color:#111827;font-size:14px;font-weight:500;">${full_name || 'Not provided'}</td></tr>
+                <tr><td style="padding:6px 0;color:#6b7280;font-size:14px;">Email</td><td style="padding:6px 0;color:#111827;font-size:14px;">${email}</td></tr>
+                <tr><td style="padding:6px 0;color:#6b7280;font-size:14px;">Workspace</td><td style="padding:6px 0;color:#111827;font-size:14px;">${tenant_name}</td></tr>
+                <tr><td style="padding:6px 0;color:#6b7280;font-size:14px;">Plan</td><td style="padding:6px 0;color:#111827;font-size:14px;font-weight:500;">${tier}</td></tr>
+                <tr><td style="padding:6px 0;color:#6b7280;font-size:14px;">Signed up at</td><td style="padding:6px 0;color:#111827;font-size:14px;">${new Date().toUTCString()}</td></tr>
+              </table>
+            </td></tr>
+          `),
+        }).catch(err => fastify.log.warn({ err }, 'Failed to send support notification (non-critical)'));
 
         return reply.code(201).send({
           success: true,
