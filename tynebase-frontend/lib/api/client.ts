@@ -199,8 +199,12 @@ export function setAuthTokens(accessToken: string, refreshToken: string): void {
   const accessExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
   const refreshExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
   
-  document.cookie = `access_token=${accessToken}; path=/; expires=${accessExpiry.toUTCString()}; SameSite=Lax`;
-  document.cookie = `refresh_token=${refreshToken}; path=/; expires=${refreshExpiry.toUTCString()}; SameSite=Lax`;
+  const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || 'tynebase.com';
+  const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+  const cookieDomain = !isLocalhost ? `domain=.${baseDomain};` : '';
+
+  document.cookie = `access_token=${accessToken}; path=/; ${cookieDomain} expires=${accessExpiry.toUTCString()}; SameSite=Lax`;
+  document.cookie = `refresh_token=${refreshToken}; path=/; ${cookieDomain} expires=${refreshExpiry.toUTCString()}; SameSite=Lax`;
 }
 
 /**
@@ -214,7 +218,12 @@ export function setTenantSubdomain(subdomain: string): void {
   
   // Store in cookie for server-side access
   const expiry = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // 1 year
-  document.cookie = `tenant_subdomain=${subdomain}; path=/; expires=${expiry.toUTCString()}; SameSite=Lax`;
+  
+  const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || 'tynebase.com';
+  const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+  const cookieDomain = !isLocalhost ? `domain=.${baseDomain};` : '';
+
+  document.cookie = `tenant_subdomain=${subdomain}; path=/; ${cookieDomain} expires=${expiry.toUTCString()}; SameSite=Lax`;
 }
 
 /**
@@ -228,7 +237,16 @@ export function clearAuth(): void {
   localStorage.removeItem('refresh_token');
   localStorage.removeItem('tenant_subdomain');
   
+  const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || 'tynebase.com';
+  const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+  const cookieDomain = !isLocalhost ? `domain=.${baseDomain};` : '';
+
   // Clear cookies by setting expired date
+  document.cookie = `access_token=; path=/; ${cookieDomain} expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+  document.cookie = `refresh_token=; path=/; ${cookieDomain} expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+  document.cookie = `tenant_subdomain=; path=/; ${cookieDomain} expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+  
+  // As a fallback, try to clear them without the domain as well, in case they were set locally directly on the subdomain
   document.cookie = 'access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
   document.cookie = 'refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
   document.cookie = 'tenant_subdomain=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useToast } from "@/components/ui/Toast";
 import { login } from "@/lib/api/auth";
+import { useAuth } from "@/contexts/AuthContext";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { ArrowRight, Eye, EyeOff, LogIn, Mail, Lock, AlertCircle } from "lucide-react";
@@ -13,6 +14,7 @@ import { createClient } from "@/lib/supabase/client";
 export default function CommunityLoginPage() {
   const router = useRouter();
   const { addToast } = useToast();
+  const { refreshUser } = useAuth(); // Added refreshUser to update context post-login
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,6 +42,9 @@ export default function CommunityLoginPage() {
     setIsLoading(true);
     try {
       await login({ email, password });
+      
+      // Force the AuthContext to recognize the new session immediately
+      await refreshUser();
 
       addToast({ type: "success", title: "Welcome back!", description: "Redirecting to the community hub..." });
       setTimeout(() => {
