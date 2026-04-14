@@ -104,7 +104,7 @@ export default async function kbRoutes(fastify: FastifyInstance) {
         }
 
         // Show tenant categories with their public document counts.
-        // Exclude internal placeholder names: 'default' and 'uncategorised'/'uncategorized'.
+        // Exclude system/placeholder names: 'default' and 'uncategorised'/'uncategorized'.
         const hiddenNames = new Set(['default', 'uncategorised', 'uncategorized']);
         const filteredCategories = (categories || [])
           .filter((cat: any) => !hiddenNames.has((cat.name || '').toLowerCase()))
@@ -113,24 +113,8 @@ export default async function kbRoutes(fastify: FastifyInstance) {
             document_count: countMap[cat.id] || 0,
           }));
 
-        // If there are uncategorized articles, add a "virtual" category for them
-        // so the user can see them on the landing page and counts add up.
-        if (uncategorizedCount > 0) {
-          filteredCategories.push({
-            id: 'uncategorized',
-            name: 'Uncategorized',
-            description: 'Articles that haven\'t been assigned to a category yet.',
-            color: '#64748b',
-            icon: 'FileText',
-            sort_order: 999,
-            parent_id: null,
-            document_count: uncategorizedCount,
-          });
-        }
-
-        // Sum up documents only from categories we are actually showing.
-        // This ensures the header count matches the sum of the boxes.
-        const totalPublicDocs = filteredCategories.reduce((acc, cat) => acc + (cat.document_count || 0), 0);
+        // Total documents is the sum of documents in the VISIBLE categories only.
+        const totalDocuments = filteredCategories.reduce((acc, cat) => acc + (cat.document_count || 0), 0);
 
         return reply.code(200).send({
           success: true,
@@ -142,8 +126,7 @@ export default async function kbRoutes(fastify: FastifyInstance) {
               branding: tenant.settings?.branding || {},
             },
             categories: filteredCategories,
-            totalDocuments: totalPublicDocs,
-            uncategorizedCount,
+            totalDocuments,
           },
         });
       } catch (error) {
@@ -229,12 +212,12 @@ export default async function kbRoutes(fastify: FastifyInstance) {
             updated_at,
             published_at,
             view_count,
-            category:category_id (
+            category:categories (
               id,
               name,
               color
             ),
-            author:author_id (
+            author:users (
               id,
               full_name,
               avatar_url
@@ -367,8 +350,8 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           .from('documents')
           .select(`
             id, title, content, created_at, updated_at, published_at, view_count,
-            category:category_id (id, name, color),
-            author:author_id (id, full_name, avatar_url)
+            category:categories (id, name, color),
+            author:users (id, full_name, avatar_url)
           `)
           .eq('id', id)
           .eq('tenant_id', tenant.id)
