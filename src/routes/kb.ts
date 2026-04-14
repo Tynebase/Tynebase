@@ -208,6 +208,8 @@ export default async function kbRoutes(fastify: FastifyInstance) {
             title,
             content,
             category_id,
+            visibility,
+            status,
             created_at,
             updated_at,
             published_at,
@@ -221,6 +223,13 @@ export default async function kbRoutes(fastify: FastifyInstance) {
               id,
               full_name,
               avatar_url
+            ),
+            document_tag_junction (
+              tags (
+                id,
+                name,
+                description
+              )
             )
           `, { count: 'exact' })
           .eq('tenant_id', tenant.id)
@@ -258,6 +267,7 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           author: doc.author || { full_name: 'Unknown Author' },
           category: doc.category,
           content: rewriteAssetUrlsForPublicAccess(doc.content || '', doc.id, apiBaseUrl),
+          tags: doc.document_tag_junction?.map((jt: any) => jt.tags).filter(Boolean) || [],
         }));
 
         return reply.code(200).send({

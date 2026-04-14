@@ -318,9 +318,7 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
                         key={doc.id}
                         href={`/docs/${doc.id}`}
                         style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
+                          display: 'block',
                           padding: '20px 24px',
                           background: 'var(--bg-elevated)',
                           border: '1px solid var(--border-subtle)',
@@ -337,7 +335,7 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
                           e.currentTarget.style.transform = 'translateX(0)';
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '12px' }}>
                           <FileText style={{ width: '20px', height: '20px', color: 'var(--text-muted)', flexShrink: 0, marginTop: '2px' }} />
                           <div style={{ minWidth: 0, flex: 1 }}>
                             <h4 style={{ fontSize: '16px', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '6px' }}>
@@ -346,15 +344,91 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
                             <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {snippet || 'No description'}
                             </p>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '8px', fontSize: '12px', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
-                              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><User style={{ width: '11px', height: '11px' }} />{authorName}</span>
-                              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Clock style={{ width: '11px', height: '11px' }} />{readTime} min read</span>
-                              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Eye style={{ width: '11px', height: '11px' }} />{doc.view_count || 0} views</span>
-                              {updatedDate && <span>Updated {updatedDate}</span>}
-                            </div>
                           </div>
                         </div>
-                        <ArrowRight style={{ width: '16px', height: '16px', color: 'var(--text-muted)', flexShrink: 0 }} />
+
+                        {/* Metadata row */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', fontSize: '12px' }}>
+                          {/* Category */}
+                          {doc.category && (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              background: `${doc.category.color}20`,
+                              color: doc.category.color,
+                              fontWeight: 500,
+                            }}>
+                              {doc.category.name}
+                            </span>
+                          )}
+
+                          {/* Tags */}
+                          {doc.tags && doc.tags.length > 0 && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                              {doc.tags.slice(0, 3).map((tag) => (
+                                <span key={tag.id} style={{
+                                  padding: '4px 10px',
+                                  borderRadius: '6px',
+                                  background: 'var(--bg-secondary)',
+                                  color: 'var(--text-secondary)',
+                                  fontSize: '11px',
+                                }}>
+                                  {tag.name}
+                                </span>
+                              ))}
+                              {doc.tags.length > 3 && (
+                                <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                                  +{doc.tags.length - 3}
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Visibility */}
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            background: doc.visibility === 'public' ? '#10b98120' : doc.visibility === 'team' ? '#3b82f620' : '#6b728020',
+                            color: doc.visibility === 'public' ? '#10b981' : doc.visibility === 'team' ? '#3b82f6' : '#6b7280',
+                            fontWeight: 500,
+                            textTransform: 'capitalize',
+                          }}>
+                            {doc.visibility}
+                          </span>
+
+                          {/* Status */}
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            background: doc.status === 'published' ? '#10b98120' : '#f59e0b20',
+                            color: doc.status === 'published' ? '#10b981' : '#f59e0b',
+                            fontWeight: 500,
+                            textTransform: 'capitalize',
+                          }}>
+                            {doc.status}
+                          </span>
+
+                          {/* Metadata */}
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)' }}>
+                            <User style={{ width: '11px', height: '11px' }} />{authorName}
+                          </span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)' }}>
+                            <Clock style={{ width: '11px', height: '11px' }} />{readTime} min
+                          </span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)' }}>
+                            <Eye style={{ width: '11px', height: '11px' }} />{doc.view_count || 0}
+                          </span>
+                          {updatedDate && <span style={{ color: 'var(--text-muted)' }}>Updated {updatedDate}</span>}
+                        </div>
                       </Link>
                     );
                   })}
