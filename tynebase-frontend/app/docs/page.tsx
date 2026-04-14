@@ -307,10 +307,7 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
               ) : documents && documents.documents.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {documents.documents.map((doc) => {
-                    const authorData = (doc as any).users;
-                    const authorName = Array.isArray(authorData)
-                      ? (authorData[0]?.full_name || "Unknown")
-                      : (authorData?.full_name || "Unknown");
+                    const authorName = doc.author?.full_name || "Unknown Author";
 
                     const readTime = estimateReadTime(doc.content || "");
                     const snippet = stripHtmlForSnippet(doc.content || "").slice(0, 180);

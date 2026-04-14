@@ -1,6 +1,5 @@
+import { apiGet } from './client';
 import type { Document } from './documents';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
 export interface KBTenant {
   id: string;
@@ -36,8 +35,8 @@ export interface KBLandingData {
 
 export interface KBDocumentsData {
   documents: (Document & {
-    users?: { id: string; full_name: string; avatar_url: string | null };
-    categories?: { id: string; name: string; color: string };
+    author?: { id: string; full_name: string; avatar_url: string | null };
+    category?: { id: string; name: string; color: string };
   })[];
   pagination: {
     page: number;
@@ -51,8 +50,8 @@ export interface KBDocumentsData {
 
 export interface KBDocumentData {
   document: Document & {
-    users?: { id: string; full_name: string; avatar_url: string | null };
-    categories?: { id: string; name: string; color: string };
+    author?: { id: string; full_name: string; avatar_url: string | null };
+    category?: { id: string; name: string; color: string };
   };
   tenant: KBTenant;
 }
@@ -61,13 +60,7 @@ export interface KBDocumentData {
  * Fetch KB landing page data (tenant info + categories with doc counts)
  */
 export async function getKBLanding(subdomain: string): Promise<KBLandingData> {
-  const res = await fetch(`${API_BASE}/api/public/kb/${subdomain}`);
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || 'Knowledge base not found');
-  }
-  const data = await res.json();
-  return data.data;
+  return apiGet<KBLandingData>(`/api/public/kb/${subdomain}`);
 }
 
 /**
@@ -84,26 +77,14 @@ export async function getKBDocuments(
   if (params?.search) qp.append('search', params.search);
 
   const qs = qp.toString();
-  const res = await fetch(`${API_BASE}/api/public/kb/${subdomain}/documents${qs ? `?${qs}` : ''}`);
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || 'Failed to fetch documents');
-  }
-  const data = await res.json();
-  return data.data;
+  return apiGet<KBDocumentsData>(`/api/public/kb/${subdomain}/documents${qs ? `?${qs}` : ''}`);
 }
 
 /**
  * Fetch a single KB document
  */
 export async function getKBDocument(subdomain: string, id: string): Promise<KBDocumentData> {
-  const res = await fetch(`${API_BASE}/api/public/kb/${subdomain}/documents/${id}`);
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || 'Document not found');
-  }
-  const data = await res.json();
-  return data.data;
+  return apiGet<KBDocumentData>(`/api/public/kb/${subdomain}/documents/${id}`);
 }
 
 /**

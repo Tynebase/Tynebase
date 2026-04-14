@@ -57,13 +57,39 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           .eq('tenant_id', tenant.id)
           .order('sort_order', { ascending: true });
 
-        // Get document counts per category (published + public/community visibility only)
+        // Resolve allowed visibilities based on authentication
+        const allowedVisibilities = ['public', 'community'];
+        const authHeader = request.headers.authorization;
+        if (authHeader) {
+          try {
+            const token = authHeader.replace(/^Bearer\s+/i, '');
+            const { data: { user: authUser } } = await supabaseAdmin.auth.getUser(token);
+            if (authUser) {
+              // Check if user is a member of this tenant
+              const { data: membership } = await supabaseAdmin
+                .from('users')
+                .select('id')
+                .eq('id', authUser.id)
+                .eq('tenant_id', tenant.id)
+                .eq('status', 'active')
+                .maybeSingle();
+              
+              if (membership) {
+                allowedVisibilities.push('team');
+              }
+            }
+          } catch (e) {
+            // Ignore auth errors for public routes
+          }
+        }
+
+        // Get document counts per category
         const { data: docCounts } = await supabaseAdmin
           .from('documents')
           .select('category_id')
           .eq('tenant_id', tenant.id)
           .eq('status', 'published')
-          .in('visibility', ['public', 'community']);
+          .in('visibility', allowedVisibilities);
 
         const countMap: Record<string, number> = {};
         let uncategorizedCount = 0;
@@ -171,6 +197,26 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           });
         }
 
+        // Resolve allowed visibilities based on authentication
+        const allowedVisibilities = ['public', 'community'];
+        const authHeader = request.headers.authorization;
+        if (authHeader) {
+          try {
+            const token = authHeader.replace(/^Bearer\s+/i, '');
+            const { data: { user: authUser } } = await supabaseAdmin.auth.getUser(token);
+            if (authUser) {
+              const { data: membership } = await supabaseAdmin
+                .from('users')
+                .select('id')
+                .eq('id', authUser.id)
+                .eq('tenant_id', tenant.id)
+                .eq('status', 'active')
+                .maybeSingle();
+              if (membership) allowedVisibilities.push('team');
+            }
+          } catch (e) {}
+        }
+
         // Build query
         let dbQuery = supabaseAdmin
           .from('documents')
@@ -183,12 +229,12 @@ export default async function kbRoutes(fastify: FastifyInstance) {
             updated_at,
             published_at,
             view_count,
-            categories:category_id (
+            category:category_id (
               id,
               name,
               color
             ),
-            users (
+            author:author_id (
               id,
               full_name,
               avatar_url
@@ -196,7 +242,7 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           `, { count: 'exact' })
           .eq('tenant_id', tenant.id)
           .eq('status', 'published')
-          .in('visibility', ['public', 'community'])
+          .in('visibility', allowedVisibilities)
           .order('published_at', { ascending: false });
 
         if (query.category_id) {
@@ -226,8 +272,8 @@ export default async function kbRoutes(fastify: FastifyInstance) {
 
         const processedDocs = (documents || []).map((doc: any) => ({
           ...doc,
-          users: Array.isArray(doc.users) ? doc.users[0] : doc.users,
-          categories: Array.isArray(doc.categories) ? doc.categories[0] : doc.categories,
+          author: doc.author || { full_name: 'Unknown Author' },
+          category: doc.category,
           content: rewriteAssetUrlsForPublicAccess(doc.content || '', doc.id, apiBaseUrl),
         }));
 
@@ -297,16 +343,36 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           });
         }
 
+        // Resolve allowed visibilities
+        const allowedVisibilities = ['public', 'community'];
+        const authHeader = request.headers.authorization;
+        if (authHeader) {
+          try {
+            const token = authHeader.replace(/^Bearer\s+/i, '');
+            const { data: { user: authUser } } = await supabaseAdmin.auth.getUser(token);
+            if (authUser) {
+              const { data: membership } = await supabaseAdmin
+                .from('users')
+                .select('id')
+                .eq('id', authUser.id)
+                .eq('tenant_id', tenant.id)
+                .eq('status', 'active')
+                .maybeSingle();
+              if (membership) allowedVisibilities.push('team');
+            }
+          } catch (e) {}
+        }
+
         const { data: document, error } = await supabaseAdmin
           .from('documents')
           .select(`
             id, title, content, created_at, updated_at, published_at, view_count,
-            categories:category_id (id, name, color),
-            users (id, full_name, avatar_url)
+            category:category_id (id, name, color),
+            author:author_id (id, full_name, avatar_url)
           `)
           .eq('id', id)
           .eq('tenant_id', tenant.id)
-          .in('visibility', ['public', 'community'])
+          .in('visibility', allowedVisibilities)
           .eq('status', 'published')
           .single();
 
@@ -326,8 +392,8 @@ export default async function kbRoutes(fastify: FastifyInstance) {
         const rawDoc = document as any;
         const processedDoc = {
           ...rawDoc,
-          users: Array.isArray(rawDoc.users) ? rawDoc.users[0] : rawDoc.users,
-          categories: Array.isArray(rawDoc.categories) ? rawDoc.categories[0] : rawDoc.categories,
+          author: rawDoc.author || { full_name: 'Unknown Author' },
+          category: rawDoc.category,
           content: rewriteAssetUrlsForPublicAccess(rawDoc.content || '', id, apiBaseUrl),
         };
 
