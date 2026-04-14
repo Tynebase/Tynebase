@@ -74,12 +74,13 @@ export async function getKBLanding(subdomain: string): Promise<KBLandingData> {
  */
 export async function getKBDocuments(
   subdomain: string,
-  params?: { page?: number; limit?: number; category_id?: string; search?: string }
+  params?: { page?: number; limit?: number; category_id?: string; search?: string; tag_id?: string }
 ): Promise<KBDocumentsData> {
   const qp = new URLSearchParams();
   if (params?.page) qp.append('page', params.page.toString());
   if (params?.limit) qp.append('limit', params.limit.toString());
   if (params?.category_id) qp.append('category_id', params.category_id);
+  if (params?.tag_id) qp.append('tag_id', params.tag_id);
   if (params?.search) qp.append('search', params.search);
 
   const qs = qp.toString();

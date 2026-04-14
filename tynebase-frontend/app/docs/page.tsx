@@ -117,8 +117,8 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
   const [showTagFilterDropdown, setShowTagFilterDropdown] = useState(false);
 
   // Resizable column widths
-  const defaultColWidths = [4.3, 1, 1.5, 0.8, 0.8, 1.5, 0.8];
-  const COL_WIDTHS_KEY = 'kb_portal_col_widths_v2'; // Bumped version to reset layout
+  const defaultColWidths = [4.3, 1.2, 1.5, 0.8, 1.2, 0.8];
+  const COL_WIDTHS_KEY = 'kb_portal_col_widths_v3'; // Bumped version to reset layout and handle removed columns
   const [colWidths, setColWidths] = useState<number[]>(() => {
     if (typeof window === 'undefined') return defaultColWidths;
     try {
@@ -179,6 +179,7 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
       setDocsLoading(true);
       const data = await getKBDocuments(subdomain, { 
         category_id: selectedCategory === "all" ? undefined : selectedCategory,
+        tag_id: filterTagId || undefined,
         search: searchQuery || undefined,
         limit: 20,
         page: currentPage
@@ -195,7 +196,7 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
 
   useEffect(() => {
     fetchDocuments();
-  }, [fetchDocuments]);
+  }, [fetchDocuments, filterTagId]);
 
   // Resize Handler
   const handleResizeStart = useCallback((e: React.MouseEvent, colIndex: number) => {
@@ -503,7 +504,6 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
                     <div key="doc" className="flex items-center gap-2 pr-2">DOCUMENT</div>,
                     <div key="cat" className="px-2">CATEGORY</div>,
                     <div key="tags" className="px-2">TAGS</div>,
-                    <div key="vis" className="text-center px-2">VISIBILITY</div>,
                     <div key="status" className="text-center px-2">STATUS</div>,
                     <div key="updated" className="px-2">UPDATED</div>,
                     <div key="views" className="text-right pl-2">VIEWS</div>,
@@ -525,7 +525,7 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
                 <div className="divide-y divide-[var(--border-subtle)]">
                   {filteredDocs.map((doc) => (
                     <Link key={doc.id} href={`/docs/${doc.id}`} className="block group hover:bg-[var(--bg-tertiary)] transition-colors">
-                      <div className="hidden md:grid px-6 py-5 items-center" style={gridStyle}>
+                        <div className="hidden md:grid px-6 py-5 items-center" style={gridStyle}>
                         <div className="flex items-center gap-4 min-w-0 pr-4">
                           <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: (doc.category?.color || brandColor) + '15' }}>
                             <FileText className="w-5 h-5" style={{ color: doc.category?.color || brandColor }} />
@@ -535,8 +535,8 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
                             <p className="text-xs text-[var(--text-muted)] truncate mt-0.5">Author: {doc.author?.full_name || 'System'}</p>
                           </div>
                         </div>
-                        <div className="px-2">
-                          <span className="text-xs text-[var(--text-secondary)] font-medium bg-[var(--bg-tertiary)] px-2 py-1 rounded-md">{doc.category?.name || 'Uncategorised'}</span>
+                        <div className="px-2 min-w-0">
+                          <span className="text-xs text-[var(--text-secondary)] font-medium bg-[var(--bg-tertiary)] px-2 py-1 rounded-md truncate block text-center md:text-left">{doc.category?.name || 'Uncategorised'}</span>
                         </div>
                         <div className="px-2 flex gap-1 flex-wrap">
                           {doc.tags?.slice(0, 2).map(tag => (
@@ -545,19 +545,14 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
                           {doc.tags && doc.tags.length > 2 && <span className="text-[10px] text-[var(--text-muted)]">+{doc.tags.length - 2}</span>}
                         </div>
                         <div className="text-center px-2">
-                          <span title={doc.visibility} className="flex justify-center">
-                            {doc.visibility === 'public' ? <Globe className="w-4 h-4 text-[#10b981]" /> : doc.visibility === 'team' ? <Users className="w-4 h-4 text-[var(--brand)]" /> : <Lock className="w-4 h-4 text-[var(--text-muted)]" />}
-                          </span>
-                        </div>
-                        <div className="text-center px-2">
                            <span className={`inline-flex px-2 py-1 text-[10px] font-bold rounded-full uppercase tracking-tight ${getStateColor(doc.status)}`}>
                             {doc.status}
                           </span>
                         </div>
                         <div className="px-2">
-                          <p className="text-xs text-[var(--text-secondary)] font-medium">{formatRelativeTime(doc.updated_at)}</p>
+                          <p className="text-xs text-[var(--text-secondary)] font-medium text-center md:text-left">{formatRelativeTime(doc.updated_at)}</p>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right pr-2">
                           <p className="text-xs font-bold text-[var(--text-primary)]">{doc.view_count || 0}</p>
                         </div>
                       </div>

@@ -154,6 +154,7 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           page: z.coerce.number().int().min(1).default(1),
           limit: z.coerce.number().int().min(1).max(100).default(20),
           category_id: z.string().optional(),
+          tag_id: z.string().uuid().optional(),
           search: z.string().max(200).optional(),
         });
 
@@ -244,6 +245,10 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           } else if (z.string().uuid().safeParse(query.category_id).success) {
             dbQuery = dbQuery.eq('category_id', query.category_id);
           }
+        }
+        if (query.tag_id) {
+          // Use id filtering with a nested document_tags check to only return documents having the tag
+          dbQuery = dbQuery.not('document_tags', 'is', null).eq('document_tags.tag_id', query.tag_id);
         }
         if (query.search) {
           dbQuery = dbQuery.or(`title.ilike.%${query.search}%,content.ilike.%${query.search}%`);
