@@ -157,9 +157,9 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
           document.documentElement.style.setProperty("--brand", data.tenant.branding.primary_color);
         }
 
-        // Fetch available tags for this tenant/community
+        // Fetch document tags for this tenant's KB
         const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
-        const tagsRes = await fetch(`${API_BASE}/api/public/community/${subdomain}/tags?limit=50`);
+        const tagsRes = await fetch(`${API_BASE}/api/public/kb/${subdomain}/tags`);
         if (tagsRes.ok) {
           const tagsData = await tagsRes.json();
           setAvailableTags(tagsData.data?.tags || []);

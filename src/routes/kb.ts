@@ -139,6 +139,82 @@ export default async function kbRoutes(fastify: FastifyInstance) {
   );
 
   /**
+   * GET /api/public/kb/:subdomain/tags
+   * Returns all tags that are attached to at least one published, categorised document
+   * for this tenant. Used to populate the tag filter dropdown on the KB portal.
+   */
+  fastify.get(
+    '/api/public/kb/:subdomain/tags',
+    { preHandler: [rateLimitMiddleware] },
+    async (request, reply) => {
+      try {
+        const { subdomain } = request.params as { subdomain: string };
+
+        const isFullDomain = subdomain.includes('.');
+        let tenantQuery = supabaseAdmin.from('tenants').select('id');
+        if (isFullDomain) {
+          tenantQuery = tenantQuery.eq('custom_domain', subdomain.toLowerCase()).eq('custom_domain_verified', true);
+        } else {
+          tenantQuery = tenantQuery.eq('subdomain', subdomain.toLowerCase());
+        }
+        const { data: tenant, error: tenantError } = await tenantQuery.single();
+        if (tenantError || !tenant) {
+          return reply.code(404).send({ error: { code: 'TENANT_NOT_FOUND', message: 'Knowledge base not found' } });
+        }
+
+        // Resolve hidden category IDs (default, uncategorised)
+        const { data: hiddenCats } = await supabaseAdmin
+          .from('categories')
+          .select('id')
+          .eq('tenant_id', tenant.id)
+          .in('name', ['Default', 'default', 'Uncategorised', 'uncategorised', 'Uncategorized', 'uncategorized']);
+        const hiddenCatIds = (hiddenCats || []).map((c: { id: string }) => c.id);
+
+        // Fetch document IDs that are published, categorised, and publicly visible
+        let docsQuery = supabaseAdmin
+          .from('documents')
+          .select('id')
+          .eq('tenant_id', tenant.id)
+          .eq('status', 'published')
+          .in('visibility', ['public', 'community'])
+          .not('category_id', 'is', null);
+        if (hiddenCatIds.length > 0) {
+          docsQuery = docsQuery.not('category_id', 'in', `(${hiddenCatIds.join(',')})`);
+        }
+        const { data: docs } = await docsQuery;
+
+        const docIds = (docs || []).map((d: { id: string }) => d.id);
+        if (docIds.length === 0) {
+          return reply.code(200).send({ success: true, data: { tags: [] } });
+        }
+
+        // Fetch tags used by those documents
+        const { data: rows, error } = await supabaseAdmin
+          .from('document_tags')
+          .select('tag:tags(id, name)')
+          .in('document_id', docIds);
+
+        if (error) {
+          fastify.log.error({ error }, 'Failed to fetch KB tags');
+          return reply.code(500).send({ error: { code: 'FETCH_FAILED', message: 'Failed to fetch tags' } });
+        }
+
+        // Deduplicate by tag id
+        const seen = new Set<string>();
+        const tags = (rows || [])
+          .map((r: any) => r.tag)
+          .filter((t: any) => t && !seen.has(t.id) && seen.add(t.id))
+          .sort((a: any, b: any) => a.name.localeCompare(b.name));
+
+        return reply.code(200).send({ success: true, data: { tags } });
+      } catch (error) {
+        fastify.log.error({ error }, 'Error in GET /api/public/kb/:subdomain/tags');
+        return reply.code(500).send({ error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' } });
+      }
+    }
+  );
+
+  /**
    * GET /api/public/kb/:subdomain/documents
    * Returns published+public documents for a tenant, optionally filtered by category.
    * Supports pagination and search.
@@ -201,6 +277,34 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           } catch (e) {}
         }
 
+        // Resolve IDs of hidden categories (default, uncategorised) so we can exclude their docs
+        const { data: hiddenCats } = await supabaseAdmin
+          .from('categories')
+          .select('id')
+          .eq('tenant_id', tenant.id)
+          .in('name', ['Default', 'default', 'Uncategorised', 'uncategorised', 'Uncategorized', 'uncategorized']);
+        const hiddenCatIds = (hiddenCats || []).map((c: { id: string }) => c.id);
+
+        // If filtering by tag, resolve document IDs first (PostgREST embedded filters
+        // only filter the joined rows, not the parent rows, so we need a subquery).
+        let tagDocIds: string[] | null = null;
+        if (query.tag_id) {
+          const { data: taggedDocs } = await supabaseAdmin
+            .from('document_tags')
+            .select('document_id')
+            .eq('tag_id', query.tag_id);
+          tagDocIds = taggedDocs?.map((r: { document_id: string }) => r.document_id) ?? [];
+        }
+
+        // If the tag exists but no documents have it, return empty immediately
+        if (tagDocIds !== null && tagDocIds.length === 0) {
+          const totalPages = 0;
+          return reply.send({
+            documents: [],
+            pagination: { page: query.page, limit: query.limit, total: 0, totalPages, hasNextPage: false, hasPrevPage: false },
+          });
+        }
+
         // Build query
         let dbQuery = supabaseAdmin
           .from('documents')
@@ -237,18 +341,21 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           .eq('tenant_id', tenant.id)
           .eq('status', 'published')
           .in('visibility', allowedVisibilities)
+          // Exclude uncategorised and hidden-category documents from the public KB
+          .not('category_id', 'is', null)
           .order('published_at', { ascending: false });
 
+        if (hiddenCatIds.length > 0) {
+          dbQuery = dbQuery.not('category_id', 'in', `(${hiddenCatIds.join(',')})`);
+        }
+
         if (query.category_id) {
-          if (query.category_id === 'uncategorized') {
-            dbQuery = dbQuery.is('category_id', null);
-          } else if (z.string().uuid().safeParse(query.category_id).success) {
+          if (z.string().uuid().safeParse(query.category_id).success) {
             dbQuery = dbQuery.eq('category_id', query.category_id);
           }
         }
-        if (query.tag_id) {
-          // Use id filtering with a nested document_tags check to only return documents having the tag
-          dbQuery = dbQuery.not('document_tags', 'is', null).eq('document_tags.tag_id', query.tag_id);
+        if (tagDocIds !== null && tagDocIds.length > 0) {
+          dbQuery = dbQuery.in('id', tagDocIds);
         }
         if (query.search) {
           dbQuery = dbQuery.or(`title.ilike.%${query.search}%,content.ilike.%${query.search}%`);
