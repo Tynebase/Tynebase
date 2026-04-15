@@ -15,7 +15,8 @@ import {
 } from "lucide-react";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
-import { categories, allArticles } from "@/lib/docs";
+import { categories, allArticles, getArticleBySlug } from "@/lib/docs";
+import { DocsLayout, buildSectionsFromCategories } from "@/components/docs/DocsLayout";
 import { getKBLanding, getKBDocuments, estimateReadTime } from "@/lib/api/kb";
 import type { KBTenant, KBCategory, KBDocumentsData, KBDocumentData } from "@/lib/api/kb";
 import React from "react";
@@ -631,12 +632,69 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
 function MainKBPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const slug = searchParams.get("slug");
   const cat = searchParams.get("cat");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(cat);
 
   const filteredArticles = selectedCategory
     ? allArticles.filter((a) => a.category === selectedCategory)
     : allArticles;
+
+  // When a slug is present, render the article inside the Supabase-style DocsLayout.
+  if (slug) {
+    const article = getArticleBySlug(slug);
+    const sections = buildSectionsFromCategories(categories, iconMap);
+
+    if (!article) {
+      return (
+        <div className="min-h-screen relative">
+          <div className="hero-gradient" />
+          <SiteNavbar currentPage="docs" />
+          <div style={{ paddingTop: '200px', textAlign: 'center', maxWidth: '520px', margin: '0 auto', padding: '200px 20px 0' }}>
+            <AlertCircle className="w-12 h-12 mx-auto" style={{ color: 'var(--text-muted)', marginBottom: '16px' }} />
+            <h1 style={{ fontSize: '24px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>Article not found</h1>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
+              We couldn't find a doc with the slug <code>{slug}</code>.
+            </p>
+            <Link
+              href="/docs"
+              className="inline-flex items-center gap-2 px-4 py-2 text-white rounded-lg"
+              style={{ backgroundColor: 'var(--brand)' }}
+            >
+              Back to docs
+            </Link>
+          </div>
+          <SiteFooter />
+        </div>
+      );
+    }
+
+    const categoryTitle = categories.find((c) =>
+      c.articles.some((a) => a.slug === slug)
+    )?.title;
+
+    return (
+      <DocsLayout
+        sections={sections}
+        currentSlug={article.slug}
+        title={article.title}
+        description={article.description}
+        content={article.content}
+        basePath="/docs"
+        breadcrumbs={[
+          { label: 'Docs', href: '/docs' },
+          ...(categoryTitle ? [{ label: categoryTitle }] : []),
+          { label: article.title },
+        ]}
+        meta={[
+          { label: 'Read time', value: article.readTime },
+          { label: 'Updated', value: article.lastUpdated },
+        ]}
+        header={<SiteNavbar currentPage="docs" />}
+        footer={<SiteFooter />}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen relative">
@@ -678,30 +736,34 @@ function MainKBPage() {
           
           {/* Categories Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" style={{ marginBottom: '80px' }}>
-            {categories.map((category) => (
-              <button
-                key={category.id}
-                onClick={() => setSelectedCategory(category.id)}
-                className={`card-premium transition-all ${selectedCategory === category.id ? 'active' : ''}`}
-                style={{ textAlign: 'left', padding: '40px' }}
-              >
-                <div 
-                  className="w-12 h-12 rounded-xl flex items-center justify-center" 
-                  style={{ backgroundColor: `${category.color}15`, marginBottom: '24px' }}
+            {categories.map((category) => {
+              const firstSlug = category.articles[0]?.slug;
+              const href = firstSlug ? `/docs?slug=${encodeURIComponent(firstSlug)}` : '/docs';
+              return (
+                <Link
+                  key={category.id}
+                  href={href}
+                  className="card-premium transition-all"
+                  style={{ textAlign: 'left', padding: '40px', display: 'block', textDecoration: 'none' }}
                 >
-                  {iconMap[category.icon] && React.createElement(iconMap[category.icon], { 
-                    className: "w-6 h-6", 
-                    style: { color: category.color } 
-                  })}
-                </div>
-                <h3 className="h3-premium" style={{ marginBottom: '12px' }}>{category.name}</h3>
-                <p className="p-premium" style={{ fontSize: '15px' }}>{category.description}</p>
-                <div className="flex items-center gap-2 mt-6 font-medium" style={{ color: category.color }}>
-                  <span>{category.articles.length} articles</span>
-                  <ArrowRight className="w-4 h-4" />
-                </div>
-              </button>
-            ))}
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center"
+                    style={{ backgroundColor: 'var(--brand-faint, rgba(16,185,129,0.1))', marginBottom: '24px' }}
+                  >
+                    {iconMap[category.icon] && React.createElement(iconMap[category.icon], {
+                      className: "w-6 h-6",
+                      style: { color: 'var(--brand)' }
+                    })}
+                  </div>
+                  <h3 className="h3-premium" style={{ marginBottom: '12px' }}>{category.title}</h3>
+                  <p className="p-premium" style={{ fontSize: '15px' }}>{category.description}</p>
+                  <div className="flex items-center gap-2 mt-6 font-medium" style={{ color: 'var(--brand)' }}>
+                    <span>{category.articles.length} articles</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </div>
+                </Link>
+              );
+            })}
           </div>
 
           {/* Featured Sections */}
