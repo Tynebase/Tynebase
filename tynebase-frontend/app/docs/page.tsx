@@ -102,7 +102,7 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [documents, setDocuments] = useState<KBDocumentData[]>([]);
+  const [documents, setDocuments] = useState<KBDocumentsData['documents']>([]);
   const [totalDocs, setTotalDocs] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
