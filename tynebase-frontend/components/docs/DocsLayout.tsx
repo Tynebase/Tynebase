@@ -13,7 +13,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, ChevronRight, Search, Menu, X, ArrowRight, type LucideIcon } from "lucide-react";
+import { ChevronDown, ChevronRight, type LucideIcon } from "lucide-react";
 import { marked } from "marked";
 
 // ---------- Types ----------
@@ -125,14 +125,10 @@ function DocsSidebar({
   sections,
   currentSlug,
   basePath,
-  mobileOpen,
-  onMobileClose,
 }: {
   sections: DocsNavSection[];
   currentSlug: string;
   basePath: string;
-  mobileOpen: boolean;
-  onMobileClose: () => void;
 }) {
   // A section is open by default if it contains the active slug, is marked defaultOpen,
   // or there's no active slug and it's the first section.
@@ -163,22 +159,7 @@ function DocsSidebar({
     article.href ?? `${basePath}?slug=${encodeURIComponent(article.slug)}`;
 
   return (
-    <>
-      {/* Mobile overlay */}
-      {mobileOpen && (
-        <div
-          onClick={onMobileClose}
-          className="lg:hidden"
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.5)",
-            zIndex: 40,
-          }}
-        />
-      )}
-
-      <aside
+    <aside
         className="docs-sidebar"
         style={{
           position: "sticky",
@@ -236,7 +217,6 @@ function DocsSidebar({
                         <li key={article.slug}>
                           <Link
                             href={hrefFor(article)}
-                            onClick={onMobileClose}
                             style={{
                               display: "block",
                               padding: "6px 10px 6px 34px",
@@ -276,85 +256,6 @@ function DocsSidebar({
           })}
         </nav>
       </aside>
-
-      {/* Mobile drawer */}
-      <aside
-        className="docs-sidebar-mobile"
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          bottom: 0,
-          width: "280px",
-          background: "var(--bg-primary)",
-          borderRight: "1px solid var(--border-subtle)",
-          padding: "24px 16px",
-          overflowY: "auto",
-          zIndex: 50,
-          transform: mobileOpen ? "translateX(0)" : "translateX(-100%)",
-          transition: "transform 0.2s ease",
-        }}
-      >
-        <button
-          onClick={onMobileClose}
-          aria-label="Close navigation"
-          style={{
-            position: "absolute",
-            top: "12px",
-            right: "12px",
-            background: "transparent",
-            border: "none",
-            color: "var(--text-secondary)",
-            cursor: "pointer",
-            padding: "4px",
-          }}
-        >
-          <X className="w-5 h-5" />
-        </button>
-        <nav style={{ marginTop: "32px" }}>
-          {sections.map((section) => (
-            <div key={section.id} style={{ marginBottom: "12px" }}>
-              <div
-                style={{
-                  padding: "8px 10px",
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  color: "var(--text-muted)",
-                }}
-              >
-                {section.title}
-              </div>
-              <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                {section.articles.map((article) => {
-                  const active = article.slug === currentSlug;
-                  return (
-                    <li key={article.slug}>
-                      <Link
-                        href={hrefFor(article)}
-                        onClick={onMobileClose}
-                        style={{
-                          display: "block",
-                          padding: "8px 14px",
-                          borderRadius: "6px",
-                          fontSize: "14px",
-                          color: active ? "var(--brand)" : "var(--text-secondary)",
-                          background: active ? "var(--bg-hover)" : "transparent",
-                          textDecoration: "none",
-                        }}
-                      >
-                        {article.title}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
-        </nav>
-      </aside>
-    </>
   );
 }
 
@@ -467,7 +368,6 @@ export function DocsLayout({
   breadcrumbs,
   afterContent,
 }: DocsLayoutProps) {
-  const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -484,41 +384,6 @@ export function DocsLayout({
     <div className="min-h-screen" style={{ background: "var(--bg-primary)" }}>
       {header}
 
-      {/* Mobile nav trigger */}
-      <div
-        className="lg:hidden"
-        style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 30,
-          background: "var(--bg-primary)",
-          borderBottom: "1px solid var(--border-subtle)",
-          padding: "12px 16px",
-          display: "flex",
-          alignItems: "center",
-          gap: "12px",
-        }}
-      >
-        <button
-          onClick={() => setMobileOpen(true)}
-          aria-label="Open navigation"
-          style={{
-            background: "transparent",
-            border: "1px solid var(--border-subtle)",
-            borderRadius: "6px",
-            padding: "6px 10px",
-            color: "var(--text-primary)",
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-            fontSize: "13px",
-            cursor: "pointer",
-          }}
-        >
-          <Menu className="w-4 h-4" /> Docs menu
-        </button>
-      </div>
-
       <div
         className="docs-layout-shell"
         style={{
@@ -530,14 +395,12 @@ export function DocsLayout({
           gap: "40px",
         }}
       >
-        {/* Sidebar (desktop visible, mobile as drawer) */}
+        {/* Sidebar — hidden on narrow viewports */}
         <div className="docs-sidebar-wrap hidden-mobile" style={{ display: "block" }}>
           <DocsSidebar
             sections={sections}
             currentSlug={currentSlug}
             basePath={basePath}
-            mobileOpen={mobileOpen}
-            onMobileClose={() => setMobileOpen(false)}
           />
         </div>
 
@@ -663,11 +526,6 @@ export function DocsLayout({
       <style jsx global>{`
         @media (max-width: 1023px) {
           .docs-layout-shell .hidden-mobile {
-            display: none !important;
-          }
-        }
-        @media (min-width: 1024px) {
-          .docs-sidebar-mobile {
             display: none !important;
           }
         }
