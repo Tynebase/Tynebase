@@ -148,7 +148,7 @@ export default function VideoPage() {
     }
   };
 
-  const MAX_VIDEO_DURATION_SECONDS = 15 * 60; // 15 minutes
+  const MAX_VIDEO_DURATION_SECONDS = 20 * 60; // 20 minutes
 
   const acceptFileIfValid = async (file: File) => {
     if (!validateVideoFile(file)) return;
@@ -156,7 +156,7 @@ export default function VideoPage() {
       const duration = await readMediaDurationSeconds(file, 'video');
       if (Number.isFinite(duration) && duration > MAX_VIDEO_DURATION_SECONDS) {
         const mins = Math.ceil(duration / 60);
-        setError(`Video is ~${mins} minutes. Maximum allowed is 15 minutes.`);
+        setError(`Video is ~${mins} minutes. Maximum allowed is 20 minutes.`);
         return;
       }
     } catch {
@@ -370,7 +370,7 @@ export default function VideoPage() {
           <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-6 sm:p-7">
             <h2 className="text-lg font-semibold text-[var(--dash-text-primary)] mb-2">Select Video Source</h2>
             <p className="text-xs text-[var(--dash-text-tertiary)] mb-5">
-              Maximum video length: <span className="font-medium text-[var(--dash-text-secondary)]">15 minutes</span>. Longer videos will be rejected.
+              Maximum video length: <span className="font-medium text-[var(--dash-text-secondary)]">20 minutes</span>. Longer videos will be rejected.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-7">
@@ -495,7 +495,7 @@ export default function VideoPage() {
                       Drag and drop your video here
                     </p>
                     <p className="text-sm text-[var(--dash-text-tertiary)] mb-4">
-                      Supports MP4, MOV, AVI, WebM (max 500MB, max 15 minutes)
+                      Supports MP4, MOV, AVI, WebM (max 500MB, max 20 minutes)
                     </p>
                     <button
                       onClick={() => fileInputRef.current?.click()}

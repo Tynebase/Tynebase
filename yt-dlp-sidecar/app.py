@@ -22,7 +22,7 @@ PROXY_URL = os.getenv('PROXY_URL', '')
 # YouTube cookies file path (for bypassing bot detection)
 COOKIES_FILE = os.getenv('COOKIES_FILE', '')
 # Maximum allowed media duration in seconds (default: 15 minutes)
-MAX_DURATION_SECONDS = int(os.getenv('MAX_DURATION_SECONDS', '900'))
+MAX_DURATION_SECONDS = int(os.getenv('MAX_DURATION_SECONDS', '1200'))
 
 
 def _probe_duration(video_url: str, proxy_url: str = None):

@@ -142,7 +142,7 @@ export default function AudioPage() {
     }
   };
 
-  const MAX_AUDIO_DURATION_SECONDS = 15 * 60; // 15 minutes
+  const MAX_AUDIO_DURATION_SECONDS = 20 * 60; // 20 minutes
 
   const readAudioDurationSeconds = (file: File): Promise<number> =>
     new Promise((resolve, reject) => {
@@ -166,7 +166,7 @@ export default function AudioPage() {
       const duration = await readAudioDurationSeconds(file);
       if (Number.isFinite(duration) && duration > MAX_AUDIO_DURATION_SECONDS) {
         const mins = Math.ceil(duration / 60);
-        setError(`Audio is ~${mins} minutes. Maximum allowed is 15 minutes.`);
+        setError(`Audio is ~${mins} minutes. Maximum allowed is 20 minutes.`);
         return;
       }
     } catch {
@@ -270,7 +270,7 @@ export default function AudioPage() {
           <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-6 sm:p-7">
             <h2 className="text-lg font-semibold text-[var(--dash-text-primary)] mb-2">Upload Audio</h2>
             <p className="text-xs text-[var(--dash-text-tertiary)] mb-5">
-              Maximum audio length: <span className="font-medium text-[var(--dash-text-secondary)]">15 minutes</span>. Longer files will be rejected.
+              Maximum audio length: <span className="font-medium text-[var(--dash-text-secondary)]">20 minutes</span>. Longer files will be rejected.
             </p>
 
             <div
@@ -332,7 +332,7 @@ export default function AudioPage() {
                     Drag and drop your audio file here
                   </p>
                   <p className="text-sm text-[var(--dash-text-tertiary)] mb-4">
-                    Supports MP3, WAV, OGG, FLAC, AAC, M4A (max 200MB, max 15 minutes)
+                    Supports MP3, WAV, OGG, FLAC, AAC, M4A (max 200MB, max 20 minutes)
                   </p>
                   <button
                     onClick={() => fileInputRef.current?.click()}
