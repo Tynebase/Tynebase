@@ -621,7 +621,7 @@ export function RichTextEditor({
   }, [editor]);
 
   // Fallback: when the Y.js document syncs empty but we have content from the DB,
-  // populate the editor once per session so documents are never blank on open.
+  // populate the editor once per mount so documents are never blank on open.
   useEffect(() => {
     if (!editor || !isReady || hasInitializedFallback.current) return;
 
@@ -633,14 +633,9 @@ export function RichTextEditor({
       const fallback = initialContentRef.current?.trim();
 
       if (!textContent && fallback) {
-        // Guard against double-init across sessions for the same document
-        const sessionKey = `ydoc-init-${documentId}`;
-        if (!sessionStorage.getItem(sessionKey)) {
-          sessionStorage.setItem(sessionKey, '1');
-          // setContent with false keeps TipTap from emitting an extra 'update' event
-          editor.commands.setContent(initialContentRef.current!, false);
-          console.log('[RichTextEditor] Fallback: populated empty Y.js doc with DB content');
-        }
+        // setContent with false keeps TipTap from emitting an extra 'update' event
+        editor.commands.setContent(initialContentRef.current!, false);
+        console.log('[RichTextEditor] Fallback: populated empty Y.js doc with DB content');
       }
 
       hasInitializedFallback.current = true;
