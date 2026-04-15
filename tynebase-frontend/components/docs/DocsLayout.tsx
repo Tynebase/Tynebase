@@ -263,21 +263,21 @@ function DocsSidebar({
 
 function DocsTOC({ toc }: { toc: TocEntry[] }) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const listRef = useRef<HTMLUListElement>(null);
 
+  // Scroll-spy: whichever heading is nearest to the top of the viewport wins.
   useEffect(() => {
     if (!toc.length) return;
     const observer = new IntersectionObserver(
       (entries) => {
         const visible = entries.filter((e) => e.isIntersecting);
         if (visible.length) {
-          // Pick the topmost visible heading.
           visible.sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
           setActiveId(visible[0].target.id);
         }
       },
       { rootMargin: "-80px 0px -70% 0px", threshold: 0 }
     );
-
     toc.forEach((entry) => {
       const el = document.getElementById(entry.id);
       if (el) observer.observe(el);
@@ -285,21 +285,46 @@ function DocsTOC({ toc }: { toc: TocEntry[] }) {
     return () => observer.disconnect();
   }, [toc]);
 
-  if (!toc.length) return <div style={{ width: "220px", flexShrink: 0 }} />;
+  // Keep the active TOC entry in view when the list itself scrolls (long docs).
+  useEffect(() => {
+    if (!activeId || !listRef.current) return;
+    const activeEl = listRef.current.querySelector<HTMLElement>(`a[data-toc-id="${activeId}"]`);
+    if (activeEl) {
+      activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }, [activeId]);
+
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    e.preventDefault();
+    const top = el.getBoundingClientRect().top + window.scrollY - 72;
+    window.scrollTo({ top, behavior: "smooth" });
+    // Reflect the jump in the URL without triggering the default hash jump.
+    history.replaceState(null, "", `#${id}`);
+    setActiveId(id);
+  };
+
+  if (!toc.length) return <div style={{ width: "240px", flexShrink: 0 }} />;
 
   return (
     <aside
       className="docs-toc"
       style={{
         position: "sticky",
-        top: "80px",
+        top: "88px",
         alignSelf: "flex-start",
-        width: "220px",
+        width: "240px",
         flexShrink: 0,
-        maxHeight: "calc(100vh - 80px)",
+        maxHeight: "calc(100vh - 104px)",
         overflowY: "auto",
-        padding: "24px 0 48px 24px",
-        borderLeft: "1px solid var(--border-subtle)",
+        padding: "20px 16px",
+        marginLeft: "16px",
+        background: "var(--bg-secondary)",
+        border: "1px solid var(--border-subtle)",
+        borderRadius: "12px",
+        boxShadow: "0 4px 20px -12px rgba(0,0,0,0.4)",
+        backdropFilter: "blur(8px)",
       }}
     >
       <div
@@ -309,38 +334,47 @@ function DocsTOC({ toc }: { toc: TocEntry[] }) {
           letterSpacing: "0.08em",
           textTransform: "uppercase",
           color: "var(--text-muted)",
-          marginBottom: "12px",
-          paddingLeft: "12px",
+          marginBottom: "14px",
+          paddingLeft: "10px",
         }}
       >
         On this page
       </div>
-      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+      <ul ref={listRef} style={{ listStyle: "none", padding: 0, margin: 0, position: "relative" }}>
         {toc.map((entry) => {
           const active = entry.id === activeId;
           return (
             <li key={entry.id}>
               <a
                 href={`#${entry.id}`}
+                data-toc-id={entry.id}
+                onClick={(e) => handleClick(e, entry.id)}
                 style={{
+                  position: "relative",
                   display: "block",
-                  padding: "4px 12px",
-                  paddingLeft: entry.level === 3 ? "24px" : "12px",
+                  padding: "6px 10px",
+                  paddingLeft: entry.level === 3 ? "22px" : "10px",
                   fontSize: "13px",
-                  lineHeight: 1.4,
+                  lineHeight: 1.45,
+                  borderRadius: "6px",
                   color: active ? "var(--brand)" : "var(--text-secondary)",
-                  borderLeft: active
-                    ? "2px solid var(--brand)"
-                    : "2px solid transparent",
-                  marginLeft: "-1px",
+                  background: active ? "var(--brand-faint, rgba(16,185,129,0.08))" : "transparent",
+                  fontWeight: active ? 600 : 400,
                   textDecoration: "none",
-                  transition: "color 0.15s",
+                  transition: "color 0.18s ease, background 0.18s ease, transform 0.18s ease",
+                  transform: active ? "translateX(2px)" : "translateX(0)",
                 }}
                 onMouseEnter={(e) => {
-                  if (!active) e.currentTarget.style.color = "var(--text-primary)";
+                  if (!active) {
+                    e.currentTarget.style.color = "var(--text-primary)";
+                    e.currentTarget.style.background = "var(--bg-hover)";
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  if (!active) e.currentTarget.style.color = "var(--text-secondary)";
+                  if (!active) {
+                    e.currentTarget.style.color = "var(--text-secondary)";
+                    e.currentTarget.style.background = "transparent";
+                  }
                 }}
               >
                 {entry.text}
