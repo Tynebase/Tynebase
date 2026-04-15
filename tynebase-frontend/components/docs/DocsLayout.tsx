@@ -54,6 +54,8 @@ export interface DocsLayoutProps {
   footer?: React.ReactNode;
   /** Optional breadcrumb e.g. "Documentation / Getting Started". */
   breadcrumbs?: { label: string; href?: string }[];
+  /** Rendered inside the center column immediately after the markdown body — ideal for feedback widgets, related-doc lists, etc. */
+  afterContent?: React.ReactNode;
 }
 
 // ---------- Utilities ----------
@@ -463,6 +465,7 @@ export function DocsLayout({
   header,
   footer,
   breadcrumbs,
+  afterContent,
 }: DocsLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
@@ -645,6 +648,8 @@ export function DocsLayout({
             className="docs-prose"
             dangerouslySetInnerHTML={{ __html: html }}
           />
+
+          {afterContent}
         </main>
 
         {/* Right rail TOC */}
