@@ -261,15 +261,52 @@ function DocsSidebar({
 
 // ---------- Right-rail TOC ----------
 
+/**
+ * Custom eased window scroll using requestAnimationFrame.
+ * Uses a cubic ease-in-out curve so the viewport accelerates away from the
+ * current position and decelerates into the target — the native
+ * `scrollTo({ behavior: 'smooth' })` is linear-ish and feels flat.
+ * While this animation runs we suppress scroll-spy updates so the floating
+ * indicator doesn't flicker across every heading we pass on the way.
+ */
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function smoothScrollTo(targetY: number, duration = 700): Promise<void> {
+  return new Promise((resolve) => {
+    const startY = window.scrollY;
+    const distance = targetY - startY;
+    if (Math.abs(distance) < 2) return resolve();
+    const startTime = performance.now();
+    const step = (now: number) => {
+      const elapsed = now - startTime;
+      const t = Math.min(1, elapsed / duration);
+      window.scrollTo(0, startY + distance * easeInOutCubic(t));
+      if (t < 1) requestAnimationFrame(step);
+      else resolve();
+    };
+    requestAnimationFrame(step);
+  });
+}
+
 function DocsTOC({ toc }: { toc: TocEntry[] }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const listRef = useRef<HTMLUListElement>(null);
+  /** While a click-triggered eased scroll is in flight, freeze the indicator
+   *  on the clicked target so the floating pill glides directly there instead
+   *  of skipping through every heading we pass along the way. */
+  const programmaticScrollRef = useRef(false);
+  // Geometry (y-offset + height) of the active entry so the floating indicator
+  // can animate between positions with a single transform transition.
+  const [indicator, setIndicator] = useState<{ top: number; height: number } | null>(null);
 
-  // Scroll-spy: whichever heading is nearest to the top of the viewport wins.
+  // Scroll-spy — only updates activeId when a programmatic scroll isn't running.
   useEffect(() => {
     if (!toc.length) return;
     const observer = new IntersectionObserver(
       (entries) => {
+        if (programmaticScrollRef.current) return;
         const visible = entries.filter((e) => e.isIntersecting);
         if (visible.length) {
           visible.sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
@@ -285,24 +322,46 @@ function DocsTOC({ toc }: { toc: TocEntry[] }) {
     return () => observer.disconnect();
   }, [toc]);
 
-  // Keep the active TOC entry in view when the list itself scrolls (long docs).
+  // Recompute indicator position whenever the active id changes or the list
+  // reflows (font loading, viewport resize). The indicator is an absolutely
+  // positioned pill that animates between coords — that's the "floating to
+  // the side" behavior.
   useEffect(() => {
-    if (!activeId || !listRef.current) return;
-    const activeEl = listRef.current.querySelector<HTMLElement>(`a[data-toc-id="${activeId}"]`);
-    if (activeEl) {
+    const recompute = () => {
+      if (!activeId || !listRef.current) {
+        setIndicator(null);
+        return;
+      }
+      const activeEl = listRef.current.querySelector<HTMLElement>(
+        `a[data-toc-id="${activeId}"]`
+      );
+      if (!activeEl) return;
+      setIndicator({
+        top: activeEl.offsetTop,
+        height: activeEl.offsetHeight,
+      });
+      // Keep active entry visible inside the TOC panel itself.
       activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    }
-  }, [activeId]);
+    };
+    recompute();
+    window.addEventListener("resize", recompute);
+    return () => window.removeEventListener("resize", recompute);
+  }, [activeId, toc]);
 
-  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+  const handleClick = async (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
     const el = document.getElementById(id);
     if (!el) return;
     e.preventDefault();
-    const top = el.getBoundingClientRect().top + window.scrollY - 72;
-    window.scrollTo({ top, behavior: "smooth" });
-    // Reflect the jump in the URL without triggering the default hash jump.
+    const top = el.getBoundingClientRect().top + window.scrollY - 80;
+    setActiveId(id); // float indicator to target immediately
+    programmaticScrollRef.current = true;
     history.replaceState(null, "", `#${id}`);
-    setActiveId(id);
+    await smoothScrollTo(top, 750);
+    // Brief grace period so post-scroll IntersectionObserver callbacks don't
+    // snap the indicator onto an adjacent heading.
+    setTimeout(() => {
+      programmaticScrollRef.current = false;
+    }, 120);
   };
 
   if (!toc.length) return <div style={{ width: "240px", flexShrink: 0 }} />;
@@ -340,11 +399,63 @@ function DocsTOC({ toc }: { toc: TocEntry[] }) {
       >
         On this page
       </div>
+
       <ul ref={listRef} style={{ listStyle: "none", padding: 0, margin: 0, position: "relative" }}>
+        {/* Floating active-indicator pill. Its top/height animate with a cubic
+            easing, giving the "menu floats to the side" glide between entries. */}
+        {indicator && (
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: indicator.top,
+              height: indicator.height,
+              background: "var(--brand-faint, rgba(16,185,129,0.10))",
+              borderRadius: "6px",
+              transition:
+                "top 420ms cubic-bezier(0.4, 0, 0.2, 1), height 420ms cubic-bezier(0.4, 0, 0.2, 1)",
+              pointerEvents: "none",
+              zIndex: 0,
+            }}
+          />
+        )}
+        {/* Vertical rail + traveling accent bar */}
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            left: -16,
+            top: 0,
+            bottom: 0,
+            width: "2px",
+            background: "var(--border-subtle)",
+            borderRadius: "2px",
+          }}
+        />
+        {indicator && (
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: -16,
+              width: "2px",
+              top: indicator.top + 4,
+              height: Math.max(indicator.height - 8, 8),
+              background: "var(--brand)",
+              borderRadius: "2px",
+              transition:
+                "top 420ms cubic-bezier(0.4, 0, 0.2, 1), height 420ms cubic-bezier(0.4, 0, 0.2, 1)",
+              boxShadow: "0 0 12px var(--brand)",
+            }}
+          />
+        )}
+
         {toc.map((entry) => {
           const active = entry.id === activeId;
           return (
-            <li key={entry.id}>
+            <li key={entry.id} style={{ position: "relative", zIndex: 1 }}>
               <a
                 href={`#${entry.id}`}
                 data-toc-id={entry.id}
@@ -358,23 +469,15 @@ function DocsTOC({ toc }: { toc: TocEntry[] }) {
                   lineHeight: 1.45,
                   borderRadius: "6px",
                   color: active ? "var(--brand)" : "var(--text-secondary)",
-                  background: active ? "var(--brand-faint, rgba(16,185,129,0.08))" : "transparent",
                   fontWeight: active ? 600 : 400,
                   textDecoration: "none",
-                  transition: "color 0.18s ease, background 0.18s ease, transform 0.18s ease",
-                  transform: active ? "translateX(2px)" : "translateX(0)",
+                  transition: "color 280ms cubic-bezier(0.4, 0, 0.2, 1)",
                 }}
                 onMouseEnter={(e) => {
-                  if (!active) {
-                    e.currentTarget.style.color = "var(--text-primary)";
-                    e.currentTarget.style.background = "var(--bg-hover)";
-                  }
+                  if (!active) e.currentTarget.style.color = "var(--text-primary)";
                 }}
                 onMouseLeave={(e) => {
-                  if (!active) {
-                    e.currentTarget.style.color = "var(--text-secondary)";
-                    e.currentTarget.style.background = "transparent";
-                  }
+                  if (!active) e.currentTarget.style.color = "var(--text-secondary)";
                 }}
               >
                 {entry.text}
