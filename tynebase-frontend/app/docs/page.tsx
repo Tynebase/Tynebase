@@ -71,8 +71,10 @@ function getSubdomainFromHost(): string | null {
   if (parts.length > baseParts.length && hostname.endsWith(`.${baseDomain}`)) {
     const sub = parts.slice(0, parts.length - baseParts.length).join('.');
     if (sub && sub !== 'www') return sub;
+    // www.tynebase.com or other reserved subdomains — no KB
+    return null;
   }
-  
+
   if (hostname !== 'localhost' && hostname !== baseDomain) {
     return hostname;
   }
