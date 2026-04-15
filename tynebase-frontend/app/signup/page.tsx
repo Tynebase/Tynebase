@@ -208,7 +208,7 @@ export default function SignupPage() {
       localStorage.removeItem("pending_signup");
       return;
     }
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/auth/callback?redirect=/auth/complete-signup`,
@@ -216,13 +216,19 @@ export default function SignupPage() {
           access_type: "offline",
           prompt: "consent",
         },
+        skipBrowserRedirect: true,
       },
     });
 
-    if (error) {
-      addToast({ type: "error", title: "Google sign-in failed", description: error.message });
+    if (error || !data?.url) {
+      addToast({ type: "error", title: "Google sign-in failed", description: error?.message ?? "No redirect URL returned." });
       localStorage.removeItem("pending_signup");
+      return;
     }
+
+    // Navigate after the SDK has flushed the PKCE verifier cookie to avoid a
+    // race on Firefox where navigation can outrun the cookie write.
+    window.location.assign(data.url);
   };
 
   const inputClasses = "w-full px-4 py-3.5 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-xl text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none transition-all focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/10";

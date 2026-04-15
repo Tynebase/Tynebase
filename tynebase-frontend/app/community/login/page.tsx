@@ -76,17 +76,23 @@ export default function CommunityLoginPage() {
     // The final destination after the callback process
     const finalRedirect = `${window.location.origin}/community/join/finalize?subdomain=${currentSubdomain}`;
 
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: `${redirectTo}?redirect=${encodeURIComponent(finalRedirect)}`,
         queryParams: { access_type: "offline", prompt: "consent" },
+        skipBrowserRedirect: true,
       },
     });
 
-    if (error) {
-      addToast({ type: "error", title: "Error", description: error.message });
+    if (error || !data?.url) {
+      addToast({ type: "error", title: "Error", description: error?.message ?? "No redirect URL returned." });
+      return;
     }
+
+    // Navigate after the SDK has flushed the PKCE verifier cookie to avoid a
+    // race on Firefox where navigation can outrun the cookie write.
+    window.location.assign(data.url);
   };
 
   const inputClasses = "w-full pl-11 pr-4 py-3 bg-[var(--surface-subtle)] border border-[var(--border-subtle)] rounded-xl text-[15px] outline-none transition-all focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/10";

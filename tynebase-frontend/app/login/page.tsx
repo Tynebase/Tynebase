@@ -50,17 +50,23 @@ function LoginPageInner() {
     }
     // Use current origin for OAuth redirect to ensure PKCE verifier cookie is accessible
     const redirectOrigin = window.location.origin;
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: `${redirectOrigin}/auth/callback?redirect=${encodeURIComponent(redirect)}`,
         queryParams: { access_type: 'offline', prompt: 'consent' },
+        skipBrowserRedirect: true,
       },
     });
-    if (error) {
-      setErrorMessage(error.message);
+    if (error || !data?.url) {
+      setErrorMessage(error?.message ?? 'No redirect URL returned.');
       setShowErrorModal(true);
+      return;
     }
+
+    // Navigate after the SDK has flushed the PKCE verifier cookie to avoid a
+    // race on Firefox where navigation can outrun the cookie write.
+    window.location.assign(data.url);
   };
 
   const handleEmailLogin = async (e: React.FormEvent) => {
