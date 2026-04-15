@@ -323,7 +323,7 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
   const companyName = tenant.branding.company_name || tenant.name;
 
   return (
-    <div className="min-h-screen relative pb-20">
+    <div className="min-h-screen relative flex flex-col">
       <div className="hero-gradient" />
 
       {/* Branded Portal Header */}
@@ -351,8 +351,8 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
         </div>
       </header>
 
-      <div className="container" style={{ maxWidth: '1400px', margin: '40px auto', padding: '0 24px' }}>
-        
+      <div className="container" style={{ maxWidth: '1400px', margin: '40px auto', padding: '0 24px', flex: 1, width: '100%' }}>
+
         {/* Category Pills (Top Navigation) */}
         <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
           <button
