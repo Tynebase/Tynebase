@@ -395,8 +395,9 @@ export function DocsLayout({
           gap: "40px",
         }}
       >
-        {/* Sidebar — hidden on narrow viewports */}
-        <div className="docs-sidebar-wrap hidden-mobile" style={{ display: "block" }}>
+        {/* Sidebar — hidden on narrow viewports. Wrapper stretches so the sticky
+            inner aside has scroll range across the full article. */}
+        <div className="docs-sidebar-wrap hidden-mobile" style={{ display: "block", alignSelf: "stretch" }}>
           <DocsSidebar
             sections={sections}
             currentSlug={currentSlug}
@@ -515,8 +516,9 @@ export function DocsLayout({
           {afterContent}
         </main>
 
-        {/* Right rail TOC */}
-        <div className="hidden-mobile" style={{ display: "block" }}>
+        {/* Right rail TOC — wrapper stretches to the main column's height so the
+            inner `position: sticky` aside has scroll range to stick against. */}
+        <div className="hidden-mobile" style={{ display: "block", alignSelf: "stretch" }}>
           <DocsTOC toc={toc} />
         </div>
       </div>
