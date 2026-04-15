@@ -21,6 +21,36 @@ PROXY_URLS = os.getenv('PROXY_URLS', '').split(',') if os.getenv('PROXY_URLS') e
 PROXY_URL = os.getenv('PROXY_URL', '')
 # YouTube cookies file path (for bypassing bot detection)
 COOKIES_FILE = os.getenv('COOKIES_FILE', '')
+# Maximum allowed media duration in seconds (default: 15 minutes)
+MAX_DURATION_SECONDS = int(os.getenv('MAX_DURATION_SECONDS', '900'))
+
+
+def _probe_duration(video_url: str, proxy_url: str = None):
+    """
+    Pre-flight metadata probe. Returns duration in seconds (or None if unknown).
+    Raises ValueError with code='DURATION_EXCEEDED' if duration > MAX_DURATION_SECONDS.
+    """
+    probe_opts = {
+        'quiet': True,
+        'no_warnings': True,
+        'skip_download': True,
+        'noplaylist': True,
+    }
+    if proxy_url:
+        probe_opts['proxy'] = proxy_url
+    if COOKIES_FILE:
+        probe_opts['cookiefile'] = COOKIES_FILE
+
+    with yt_dlp.YoutubeDL(probe_opts) as ydl:
+        info = ydl.extract_info(video_url, download=False)
+        duration = info.get('duration')
+        if duration is not None and duration > MAX_DURATION_SECONDS:
+            raise ValueError(
+                f'DURATION_EXCEEDED: media is {int(duration)}s, '
+                f'maximum allowed is {MAX_DURATION_SECONDS}s '
+                f'({MAX_DURATION_SECONDS // 60} minutes)'
+            )
+        return duration
 
 # Combine PROXY_URL (if set) with PROXY_URLS for rotation
 if PROXY_URL and PROXY_URL not in PROXY_URLS:
@@ -58,9 +88,22 @@ def download_youtube():
         video_url = data['url']
         format_spec = data.get('format', 'bestaudio[ext=m4a]/bestaudio[ext=mp3]/bestaudio')
         extract_audio = data.get('extract_audio', True)
-        
+
         logger.info(f"Downloading: {video_url}")
-        
+
+        # Pre-flight duration check — reject >15 min before downloading anything
+        try:
+            probe_proxy = PROXY_URLS[current_proxy_index] if PROXY_URLS else None
+            duration = _probe_duration(video_url, probe_proxy)
+            logger.info(f"Probed duration: {duration}s (limit: {MAX_DURATION_SECONDS}s)")
+        except ValueError as ve:
+            logger.warning(f"Duration rejected: {ve}")
+            return jsonify({
+                'error': str(ve),
+                'code': 'DURATION_EXCEEDED',
+                'max_duration_seconds': MAX_DURATION_SECONDS,
+            }), 413
+
         # If no proxies configured, try without proxy
         if not PROXY_URLS:
             logger.warning('No proxy URLs configured - attempting download without proxy')
@@ -200,9 +243,21 @@ def download_generic():
         video_url = data['url']
         format_spec = data.get('format', 'bestaudio[ext=m4a]/bestaudio[ext=mp3]/bestaudio')
         extract_audio = data.get('extract_audio', True)
-        
+
         logger.info(f"Generic download: {video_url}")
-        
+
+        # Pre-flight duration check — reject >15 min before downloading anything
+        try:
+            duration = _probe_duration(video_url, PROXY_URL or None)
+            logger.info(f"Probed duration: {duration}s (limit: {MAX_DURATION_SECONDS}s)")
+        except ValueError as ve:
+            logger.warning(f"Duration rejected: {ve}")
+            return jsonify({
+                'error': str(ve),
+                'code': 'DURATION_EXCEEDED',
+                'max_duration_seconds': MAX_DURATION_SECONDS,
+            }), 413
+
         # Create temp directory for download
         temp_dir = tempfile.mkdtemp()
         output_template = os.path.join(temp_dir, '%(title)s.%(ext)s')
@@ -301,10 +356,14 @@ def check_supported():
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(video_url, download=False)
+            duration = info.get('duration')
             return jsonify({
                 'supported': True,
                 'extractor': info.get('extractor', 'unknown'),
                 'title': info.get('title', ''),
+                'duration': duration,
+                'max_duration_seconds': MAX_DURATION_SECONDS,
+                'duration_exceeded': bool(duration is not None and duration > MAX_DURATION_SECONDS),
             }), 200
             
     except Exception as e:

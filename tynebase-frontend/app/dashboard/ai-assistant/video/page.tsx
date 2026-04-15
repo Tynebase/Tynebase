@@ -137,37 +137,65 @@ export default function VideoPage() {
     
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
-      if (validateVideoFile(file)) {
-        setSelectedFile(file);
-        setError(null);
-      }
+      void acceptFileIfValid(file);
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (validateVideoFile(file)) {
-        setSelectedFile(file);
-        setError(null);
-      }
+      void acceptFileIfValid(file);
     }
   };
+
+  const MAX_VIDEO_DURATION_SECONDS = 15 * 60; // 15 minutes
+
+  const acceptFileIfValid = async (file: File) => {
+    if (!validateVideoFile(file)) return;
+    try {
+      const duration = await readMediaDurationSeconds(file, 'video');
+      if (Number.isFinite(duration) && duration > MAX_VIDEO_DURATION_SECONDS) {
+        const mins = Math.ceil(duration / 60);
+        setError(`Video is ~${mins} minutes. Maximum allowed is 15 minutes.`);
+        return;
+      }
+    } catch {
+      // If we can't determine duration client-side, defer to server-side check
+    }
+    setSelectedFile(file);
+    setError(null);
+  };
+
+  const readMediaDurationSeconds = (file: File, kind: 'video' | 'audio'): Promise<number> =>
+    new Promise((resolve, reject) => {
+      const el = document.createElement(kind);
+      el.preload = 'metadata';
+      const url = URL.createObjectURL(file);
+      el.onloadedmetadata = () => {
+        URL.revokeObjectURL(url);
+        resolve(el.duration);
+      };
+      el.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Could not read media metadata'));
+      };
+      el.src = url;
+    });
 
   const validateVideoFile = (file: File): boolean => {
     const maxSize = 500 * 1024 * 1024; // 500MB
     const allowedTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm'];
-    
+
     if (file.size > maxSize) {
       setError('File size must be less than 500MB');
       return false;
     }
-    
+
     if (!allowedTypes.includes(file.type)) {
       setError('Only MP4, MOV, AVI, and WebM files are supported');
       return false;
     }
-    
+
     return true;
   };
 
@@ -340,7 +368,10 @@ export default function VideoPage() {
         <div className="xl:col-span-8 flex flex-col gap-8 min-h-0">
           {/* Source Selection */}
           <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-6 sm:p-7">
-            <h2 className="text-lg font-semibold text-[var(--dash-text-primary)] mb-5">Select Video Source</h2>
+            <h2 className="text-lg font-semibold text-[var(--dash-text-primary)] mb-2">Select Video Source</h2>
+            <p className="text-xs text-[var(--dash-text-tertiary)] mb-5">
+              Maximum video length: <span className="font-medium text-[var(--dash-text-secondary)]">15 minutes</span>. Longer videos will be rejected.
+            </p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-7">
               {sourceOptions.map((source) => (
@@ -464,7 +495,7 @@ export default function VideoPage() {
                       Drag and drop your video here
                     </p>
                     <p className="text-sm text-[var(--dash-text-tertiary)] mb-4">
-                      Supports MP4, MOV, AVI, WebM (max 500MB)
+                      Supports MP4, MOV, AVI, WebM (max 500MB, max 15 minutes)
                     </p>
                     <button
                       onClick={() => fileInputRef.current?.click()}

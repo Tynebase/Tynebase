@@ -131,21 +131,49 @@ export default function AudioPage() {
     
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
-      if (validateAudioFile(file)) {
-        setSelectedFile(file);
-        setError(null);
-      }
+      void acceptFileIfValid(file);
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (validateAudioFile(file)) {
-        setSelectedFile(file);
-        setError(null);
-      }
+      void acceptFileIfValid(file);
     }
+  };
+
+  const MAX_AUDIO_DURATION_SECONDS = 15 * 60; // 15 minutes
+
+  const readAudioDurationSeconds = (file: File): Promise<number> =>
+    new Promise((resolve, reject) => {
+      const el = document.createElement('audio');
+      el.preload = 'metadata';
+      const url = URL.createObjectURL(file);
+      el.onloadedmetadata = () => {
+        URL.revokeObjectURL(url);
+        resolve(el.duration);
+      };
+      el.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Could not read audio metadata'));
+      };
+      el.src = url;
+    });
+
+  const acceptFileIfValid = async (file: File) => {
+    if (!validateAudioFile(file)) return;
+    try {
+      const duration = await readAudioDurationSeconds(file);
+      if (Number.isFinite(duration) && duration > MAX_AUDIO_DURATION_SECONDS) {
+        const mins = Math.ceil(duration / 60);
+        setError(`Audio is ~${mins} minutes. Maximum allowed is 15 minutes.`);
+        return;
+      }
+    } catch {
+      // If we can't determine duration client-side, defer to server-side check
+    }
+    setSelectedFile(file);
+    setError(null);
   };
 
   const validateAudioFile = (file: File): boolean => {
@@ -240,7 +268,10 @@ export default function AudioPage() {
         <div className="xl:col-span-8 flex flex-col gap-8 min-h-0">
           {/* Upload Section */}
           <div className="bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl p-6 sm:p-7">
-            <h2 className="text-lg font-semibold text-[var(--dash-text-primary)] mb-5">Upload Audio</h2>
+            <h2 className="text-lg font-semibold text-[var(--dash-text-primary)] mb-2">Upload Audio</h2>
+            <p className="text-xs text-[var(--dash-text-tertiary)] mb-5">
+              Maximum audio length: <span className="font-medium text-[var(--dash-text-secondary)]">15 minutes</span>. Longer files will be rejected.
+            </p>
 
             <div
               onDragEnter={handleDrag}
@@ -301,7 +332,7 @@ export default function AudioPage() {
                     Drag and drop your audio file here
                   </p>
                   <p className="text-sm text-[var(--dash-text-tertiary)] mb-4">
-                    Supports MP3, WAV, OGG, FLAC, AAC, M4A (max 200MB)
+                    Supports MP3, WAV, OGG, FLAC, AAC, M4A (max 200MB, max 15 minutes)
                   </p>
                   <button
                     onClick={() => fileInputRef.current?.click()}

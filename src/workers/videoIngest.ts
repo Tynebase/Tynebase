@@ -661,7 +661,20 @@ async function downloadFromSidecar(
       },
       responseType: 'stream',
       timeout: 300000, // 5 minutes timeout
+      validateStatus: () => true,
     });
+
+    if (response.status === 413) {
+      // Duration exceeded — read the JSON error body from the stream
+      const chunks: Buffer[] = [];
+      for await (const chunk of response.data) chunks.push(Buffer.from(chunk));
+      let body: any = {};
+      try { body = JSON.parse(Buffer.concat(chunks).toString('utf-8')); } catch {}
+      throw new Error(body.error || 'Video exceeds the 15-minute maximum duration');
+    }
+    if (response.status >= 400) {
+      throw new Error(`Sidecar returned HTTP ${response.status}`);
+    }
     
     // Extract base path from template
     const basePath = outputTemplate.replace('.%(ext)s', '');
@@ -726,7 +739,20 @@ async function downloadVideoFromURL(
         },
         responseType: 'stream',
         timeout: 300000, // 5 minutes
+        validateStatus: () => true,
       });
+
+      if (response.status === 413) {
+        const chunks: Buffer[] = [];
+        for await (const chunk of response.data) chunks.push(Buffer.from(chunk));
+        let body: any = {};
+        try { body = JSON.parse(Buffer.concat(chunks).toString('utf-8')); } catch {}
+        // Propagate a clear, non-fallback error — don't try HTTP fallback for duration rejection
+        throw new Error(body.error || 'Video exceeds the 15-minute maximum duration');
+      }
+      if (response.status >= 400) {
+        throw new Error(`Sidecar returned HTTP ${response.status}`);
+      }
 
       const writer = fs.createWriteStream(outputPath);
       response.data.pipe(writer);
@@ -743,6 +769,10 @@ async function downloadVideoFromURL(
       }
       console.warn(`[Worker ${workerId}] Sidecar returned empty file, falling back to HTTP download`);
     } catch (sidecarError: any) {
+      // Duration rejection must NOT fall back to HTTP (we'd bypass the check)
+      if (/exceeds the 15-minute|DURATION_EXCEEDED/i.test(sidecarError?.message || '')) {
+        throw sidecarError;
+      }
       console.warn(`[Worker ${workerId}] Sidecar generic download failed: ${sidecarError.message}, falling back to HTTP download`);
     }
   }
