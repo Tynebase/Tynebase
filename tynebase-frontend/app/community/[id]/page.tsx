@@ -397,7 +397,7 @@ export default function PublicDiscussionPage() {
                       <button
                         key={option.id}
                         onClick={() => handleVote(option.id)}
-                        disabled={!user || (discussion.poll!.ends_at && new Date(discussion.poll!.ends_at) < new Date())}
+                        disabled={!user || !!(discussion.poll!.ends_at && new Date(discussion.poll!.ends_at) < new Date())}
                         style={{ 
                           position: 'relative',
                           width: '100%',

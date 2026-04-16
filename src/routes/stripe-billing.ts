@@ -113,15 +113,20 @@ export default async function stripeBillingRoutes(fastify: FastifyInstance) {
           .eq('id', tenant.id);
       }
 
-      // If the customer already has an active subscription, upgrade it in-place
-      // (Stripe prorates automatically) to avoid double-charging.
+      // If the customer already has a billable subscription, upgrade it in-place
+      // (Stripe prorates automatically) to avoid double-charging. We include
+      // `trialing` and `past_due` alongside `active` because both states still
+      // represent a live subscription that would otherwise be duplicated if we
+      // opened a fresh checkout session.
       const existingSubscriptions = await stripe.subscriptions.list({
         customer: customerId,
-        status: 'active',
-        limit: 5,
+        status: 'all',
+        limit: 10,
       });
 
-      const activeSubscription = existingSubscriptions.data[0] ?? null;
+      const BILLABLE_STATUSES = new Set(['active', 'trialing', 'past_due']);
+      const activeSubscription =
+        existingSubscriptions.data.find((s) => BILLABLE_STATUSES.has(s.status)) ?? null;
 
       if (activeSubscription) {
         // Upgrade the existing subscription item to the new price
@@ -130,6 +135,8 @@ export default async function stripeBillingRoutes(fastify: FastifyInstance) {
           const updatedSub = await stripe.subscriptions.update(activeSubscription.id, {
             items: [{ id: itemId, price: priceId }],
             proration_behavior: 'create_prorations',
+            // Clear any pending cancellation so the upgrade also reactivates
+            cancel_at_period_end: false,
             metadata: { tenant_id: tenant.id, tier: target_tier },
           });
 
@@ -139,10 +146,31 @@ export default async function stripeBillingRoutes(fastify: FastifyInstance) {
             stripe_customer_id: customerId,
             stripe_subscription_id: updatedSub.id,
           };
+          // Clear any stored cancellation state since we just reactivated
+          delete (settings as any).stripe_cancel_at_period_end;
+          delete (settings as any).stripe_current_period_end;
+
           await supabaseAdmin
             .from('tenants')
             .update({ tier: target_tier, settings })
             .eq('id', tenant.id);
+
+          // Top up the credit pool to the new tier for the current month so
+          // users aren't stuck on the lower-tier credit cap until the next cycle.
+          const newCredits = TIER_CREDITS[target_tier] ?? 10;
+          const monthYear = new Date().toISOString().slice(0, 7);
+          const { error: creditError } = await supabaseAdmin
+            .from('credit_pools')
+            .upsert(
+              { tenant_id: tenant.id, month_year: monthYear, total_credits: newCredits },
+              { onConflict: 'tenant_id,month_year', ignoreDuplicates: false }
+            );
+          if (creditError) {
+            fastify.log.warn(
+              { error: creditError, tenantId: tenant.id },
+              'Failed to upsert credit pool after in-place tier upgrade'
+            );
+          }
 
           fastify.log.info(
             { tenantId: tenant.id, from: tenant.tier, to: target_tier, subscriptionId: updatedSub.id },
@@ -358,17 +386,54 @@ export default async function stripeBillingRoutes(fastify: FastifyInstance) {
           const tenantId = subscription.metadata?.tenant_id;
           const tier = subscription.metadata?.tier;
 
-          if (tenantId && tier) {
-            const { error } = await supabaseAdmin
-              .from('tenants')
-              .update({ tier })
-              .eq('id', tenantId);
+          if (!tenantId) {
+            fastify.log.warn({ subscriptionId: subscription.id }, 'Subscription update missing tenant_id metadata');
+            break;
+          }
 
-            if (error) {
-              fastify.log.error({ error, tenantId }, 'Failed to update tenant tier from subscription update');
-            } else {
-              fastify.log.info({ tenantId, tier }, 'Tenant tier updated via subscription change');
-            }
+          // Load current tenant settings so we can patch cancellation state
+          // without clobbering other keys (stripe_customer_id, etc).
+          const { data: currentTenant } = await supabaseAdmin
+            .from('tenants')
+            .select('settings')
+            .eq('id', tenantId)
+            .single();
+
+          const settings: Record<string, any> = { ...(currentTenant?.settings || {}) };
+
+          // Persist cancel-at-period-end state so the UI can show a banner.
+          // `current_period_end` is a unix timestamp in seconds.
+          if (subscription.cancel_at_period_end) {
+            settings.stripe_cancel_at_period_end = true;
+            settings.stripe_current_period_end = (subscription as any).current_period_end ?? null;
+          } else {
+            // Reactivation (or any non-cancelling update) — clear the flag
+            delete settings.stripe_cancel_at_period_end;
+            delete settings.stripe_current_period_end;
+          }
+
+          const updatePayload: Record<string, any> = { settings };
+          if (tier) {
+            updatePayload.tier = tier;
+          }
+
+          const { error } = await supabaseAdmin
+            .from('tenants')
+            .update(updatePayload)
+            .eq('id', tenantId);
+
+          if (error) {
+            fastify.log.error({ error, tenantId }, 'Failed to update tenant from subscription update');
+          } else {
+            fastify.log.info(
+              {
+                tenantId,
+                tier,
+                cancelAtPeriodEnd: subscription.cancel_at_period_end,
+                status: subscription.status,
+              },
+              'Tenant updated via subscription change'
+            );
           }
           break;
         }

@@ -194,9 +194,24 @@ function BillingPageInner() {
   const currentPlan = PLANS.find((p) => p.key === currentTier) || PLANS[0];
   const isAdmin = user?.role === 'admin' || user?.is_super_admin;
   const hasPaidPlan = currentTier !== 'free';
-  const hasStripeCustomer = !!(tenant?.settings as any)?.stripe_customer_id;
+  const tenantSettings = (tenant?.settings as any) || {};
+  const hasStripeCustomer = !!tenantSettings.stripe_customer_id;
   // Only show the portal button when we know there's a real active Stripe subscription
-  const hasStripeSubscription = hasStripeCustomer && !!(tenant?.settings as any)?.stripe_subscription_id;
+  const hasStripeSubscription = hasStripeCustomer && !!tenantSettings.stripe_subscription_id;
+  // Cancellation state — set by the customer.subscription.updated webhook when
+  // the user schedules a cancellation in the Stripe Customer Portal.
+  const cancelAtPeriodEnd: boolean = !!tenantSettings.stripe_cancel_at_period_end;
+  const currentPeriodEndTs: number | null = tenantSettings.stripe_current_period_end ?? null;
+  const currentPeriodEndDate = currentPeriodEndTs
+    ? new Date(currentPeriodEndTs * 1000)
+    : null;
+  const formattedPeriodEnd = currentPeriodEndDate
+    ? currentPeriodEndDate.toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : null;
 
   // Plans that are available to upgrade to
   const upgradablePlans = PLANS.filter(
@@ -328,6 +343,33 @@ function BillingPageInner() {
         </div>
       )}
 
+      {/* Scheduled cancellation notice */}
+      {cancelAtPeriodEnd && hasPaidPlan && (
+        <div className="flex items-start gap-3 rounded-lg border border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/30 p-4 text-sm text-orange-800 dark:text-orange-300">
+          <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="font-medium mb-0.5">
+              Your {currentPlan.name} plan is scheduled to cancel
+              {formattedPeriodEnd ? ` on ${formattedPeriodEnd}` : ''}.
+            </p>
+            <p className="text-orange-700 dark:text-orange-400">
+              You&apos;ll keep full access until then, after which your workspace will move to the Free plan.
+              Change your mind? Reactivate from the billing portal.
+            </p>
+          </div>
+          {isAdmin && hasStripeSubscription && (
+            <Button variant="outline" size="sm" onClick={handleOpenPortal} disabled={openingPortal}>
+              {openingPortal ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <ExternalLink className="h-4 w-4 mr-2" />
+              )}
+              Manage
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* ------------------------------------------------------------------- */}
       {/* Current Plan                                                          */}
       {/* ------------------------------------------------------------------- */}
@@ -344,9 +386,15 @@ function BillingPageInner() {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <h3 className="text-2xl font-bold">{currentPlan.name}</h3>
-                <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                  Active
-                </Badge>
+                {cancelAtPeriodEnd && hasPaidPlan ? (
+                  <Badge variant="secondary" className="bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300">
+                    Cancelling{formattedPeriodEnd ? ` · ${formattedPeriodEnd}` : ''}
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                    Active
+                  </Badge>
+                )}
               </div>
               <p className="text-sm text-muted-foreground mb-4">
                 {currentTier === 'free'

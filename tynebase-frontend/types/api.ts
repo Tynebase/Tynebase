@@ -95,6 +95,11 @@ export interface TenantSettings {
     rag_chat_enabled?: boolean;
     document_export_enabled?: boolean;
   };
+  // Stripe billing state (populated by webhook handlers)
+  stripe_customer_id?: string;
+  stripe_subscription_id?: string;
+  stripe_cancel_at_period_end?: boolean;
+  stripe_current_period_end?: number; // unix timestamp (seconds)
 }
 
 export interface User {
