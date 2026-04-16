@@ -247,7 +247,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
               },
               tenant: {
                 id: tenantId,
-                subdomain,
+                subdomain: finalSubdomain,
                 name: tenant_name,
                 tier: 'free',
               },
@@ -315,7 +315,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
             },
             tenant: {
               id: tenantId,
-              subdomain,
+              subdomain: finalSubdomain,
               name: tenant_name,
               tier: tier,
             },

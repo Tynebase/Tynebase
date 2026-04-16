@@ -503,7 +503,7 @@ export default function UsersPage() {
             <Link
               href="/dashboard/settings/billing"
               className="flex items-center justify-center gap-2 px-6 py-3 bg-white rounded-2xl font-semibold hover:bg-white/90 transition-colors shadow-md whitespace-nowrap"
-              style={{ color: '#E85002' }}
+              style={{ color: 'var(--brand)' }}
             >
               Upgrade Plan
               <ArrowRight className="w-4 h-4" />

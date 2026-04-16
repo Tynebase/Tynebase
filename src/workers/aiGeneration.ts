@@ -77,6 +77,22 @@ export async function processAIGenerationJob(job: Job): Promise<void> {
     let lastProvider = '';
     let lastModel: AIModel | null = null;
 
+    // Resolve the shared "Uncategorised" category once, before the loop,
+    // so every document from this generation gets the same category_id.
+    let uncategorisedCategoryId: string | null = null;
+    {
+      const { data: catId, error: catErr } = await supabaseAdmin
+        .rpc('get_or_create_uncategorized_category', {
+          p_tenant_id: job.tenant_id,
+          p_user_id: validated.user_id,
+        });
+      if (catErr) {
+        console.warn(`[Worker ${workerId}] Could not resolve Uncategorised category:`, catErr);
+      } else {
+        uncategorisedCategoryId = catId;
+      }
+    }
+
     for (const outputType of outputTypes) {
       console.log(`[Worker ${workerId}] Generating output type: ${outputType}`);
 
@@ -122,6 +138,7 @@ export async function processAIGenerationJob(job: Job): Promise<void> {
           content: sanitizedContent,
           status: 'draft',
           author_id: validated.user_id,
+          ...(uncategorisedCategoryId ? { category_id: uncategorisedCategoryId } : {}),
         })
         .select()
         .single();
