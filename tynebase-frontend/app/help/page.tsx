@@ -73,7 +73,7 @@ export default function HelpPage() {
         </div>
       </section>
 
-      <section style={{ position: 'relative', zIndex: 10, paddingTop: '32px', paddingBottom: '64px' }}>
+      <section style={{ position: 'relative', zIndex: 10, paddingTop: '8px', paddingBottom: '64px' }}>
         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 24px' }}>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" style={{ width: '100%', maxWidth: '1024px' }}>
             {categories.map((category) => (

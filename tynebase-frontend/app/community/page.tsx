@@ -117,9 +117,10 @@ function CommunityContent() {
     if (subdomain) fetchDiscussions(1);
   }, [subdomain, fetchDiscussions]);
 
-  const filteredDiscussions = discussions.filter((d) =>
-    !searchQuery || d.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredDiscussions = discussions.filter((d) => {
+    if (sortBy === 'unanswered' && d.is_resolved) return false;
+    return !searchQuery || d.title.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   // Derive trending topics from loaded discussions
   const trendingTopics = (() => {

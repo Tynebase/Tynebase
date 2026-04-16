@@ -505,12 +505,19 @@ export default function TemplatesPage() {
                               {template.title}
                             </h3>
                             <p className="text-xs text-[var(--dash-text-tertiary)] line-clamp-2 mb-3">{template.description || 'No description'}</p>
-                            <div className="flex items-center justify-between text-xs text-[var(--dash-text-muted)]">
-                              <span className="flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                {new Date(template.created_at).toLocaleDateString()}
-                              </span>
-                              <span className="capitalize">{template.category || 'General'}</span>
+                            <div className="flex flex-col gap-1.5">
+                              <div className="flex items-center justify-between text-xs text-[var(--dash-text-muted)]">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  Updated {new Date(template.updated_at).toLocaleDateString()}
+                                </span>
+                                <span className="capitalize px-1.5 py-0.5 rounded bg-[var(--surface-card)] text-[var(--dash-text-secondary)]">{template.category || 'General'}</span>
+                              </div>
+                              {template.users && (
+                                <span className="text-xs text-[var(--dash-text-muted)] truncate">
+                                  By {template.users.full_name || template.users.email}
+                                </span>
+                              )}
                             </div>
                           </div>
                         );

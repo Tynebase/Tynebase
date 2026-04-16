@@ -67,7 +67,7 @@ export default function PublicDiscussionPage() {
   const params = useParams();
   const discussionId = params.id as string;
   const subdomain = getSubdomainFromHost();
-  const { user, signOut: authSignOut } = useAuth();
+  const { user, isLoading: authLoading, signOut: authSignOut } = useAuth();
 
   const signOut = async () => {
     await authSignOut();
@@ -448,7 +448,7 @@ export default function PublicDiscussionPage() {
                     );
                   })}
                 </div>
-                {!user && (
+                {!user && !authLoading && (
                   <p style={{ marginTop: '16px', fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center' }}>
                     Please <Link href="/community/login" style={{ color: 'var(--brand)', fontWeight: 500 }}>sign in</Link> to vote.
                   </p>
@@ -477,7 +477,7 @@ export default function PublicDiscussionPage() {
             )}
 
             <div style={{ marginTop: '32px', paddingTop: '24px', borderTop: '1px solid var(--border-subtle)' }}>
-              {user ? (
+              {authLoading ? null : user ? (
                 <form onSubmit={handleSubmitReply}>
                   <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px' }}>Leave a reply</p>
                   <textarea

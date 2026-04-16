@@ -23,7 +23,8 @@
       "Bash(npx tsc:*)",
       "Bash(ls C:\\\\Users\\\\Mai\\\\Desktop\\\\TyneBase\\\\tynebase-frontend\\\\middleware*)",
       "Bash(npm run:*)",
-      "Bash(wc -l /c/Users/Mai/Desktop/TyneBase/src/routes/*.ts)"
+      "Bash(wc -l /c/Users/Mai/Desktop/TyneBase/src/routes/*.ts)",
+      "Bash(grep -n \"Want to reply\\\\|Sign in\\\\|sign.*in\\\\|{user ?\\\\|!user\" /c/Users/Mai/Desktop/TyneBase/tynebase-frontend/app/community/[id]/page.tsx)"
     ]
   }
 }

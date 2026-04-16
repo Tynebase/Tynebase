@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
 import { createClient } from "@/lib/supabase/client";
 import { setAuthTokens, setTenantSubdomain } from "@/lib/api/client";
+import { createCheckoutSession } from "@/lib/api/billing";
 import { TierType } from "@/types/api";
 import { validateSubdomain } from "@/lib/utils";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
@@ -185,6 +186,22 @@ export default function CompleteSignupPage() {
 
       // Clean up
       localStorage.removeItem("pending_signup");
+
+      // For paid tiers, redirect to Stripe checkout before granting dashboard access
+      if (selectedTier === "base" || selectedTier === "pro") {
+        addToast({ type: "success", title: "Account created!", description: "Redirecting to payment..." });
+        try {
+          const checkoutResult = await createCheckoutSession(selectedTier, 'monthly');
+          if (checkoutResult?.url) {
+            window.location.href = checkoutResult.url;
+            return;
+          }
+        } catch {
+          // If Stripe redirect fails, fall through to billing page
+        }
+        window.location.href = "/dashboard/settings/billing";
+        return;
+      }
 
       addToast({ type: "success", title: "Welcome to TyneBase!", description: "Redirecting to your dashboard..." });
       await new Promise(r => setTimeout(r, 400));

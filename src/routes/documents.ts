@@ -1349,45 +1349,26 @@ export default async function documentRoutes(fastify: FastifyInstance) {
         // Check if document has draft changes to merge
         const hasDraftChanges = existingDoc.has_draft && (existingDoc.draft_content || existingDoc.draft_title);
 
-        // Auto-create "Default" category if document has no category
+        // Use the shared "Uncategorised" system category if document has no category
         let categoryId = existingDoc.category_id;
         if (!categoryId) {
-          // Check if "Default" category already exists for this tenant
-          const { data: defaultCategory } = await supabaseAdmin
-            .from('categories')
-            .select('id')
-            .eq('tenant_id', tenant.id)
-            .eq('name', 'Default')
-            .single();
+          const { data: uncategorisedId, error: rpcError } = await supabaseAdmin
+            .rpc('get_or_create_uncategorized_category', {
+              p_tenant_id: tenant.id,
+              p_user_id: user.id,
+            });
 
-          if (defaultCategory) {
-            categoryId = defaultCategory.id;
+          if (rpcError) {
+            fastify.log.warn(
+              { error: rpcError, tenantId: tenant.id },
+              'Failed to resolve Uncategorised category for published document'
+            );
           } else {
-            // Create "Default" category
-            const { data: newCategory, error: createCategoryError } = await supabaseAdmin
-              .from('categories')
-              .insert({
-                name: 'Default',
-                description: 'Default category for published documents',
-                color: '#6B7280',
-                tenant_id: tenant.id,
-                author_id: user.id,
-              })
-              .select('id')
-              .single();
-
-            if (createCategoryError) {
-              fastify.log.error(
-                { error: createCategoryError, tenantId: tenant.id },
-                'Failed to create default category'
-              );
-            } else {
-              categoryId = newCategory.id;
-              fastify.log.info(
-                { categoryId: newCategory.id, tenantId: tenant.id },
-                'Created default category for published document'
-              );
-            }
+            categoryId = uncategorisedId;
+            fastify.log.info(
+              { categoryId: uncategorisedId, tenantId: tenant.id },
+              'Assigned Uncategorised category to published document'
+            );
           }
         }
 

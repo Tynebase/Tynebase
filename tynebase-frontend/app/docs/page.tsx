@@ -120,8 +120,8 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
   const [showTagFilterDropdown, setShowTagFilterDropdown] = useState(false);
 
   // Resizable column widths
-  const defaultColWidths = [4.3, 1.2, 1.5, 0.8, 1.2, 0.8];
-  const COL_WIDTHS_KEY = 'kb_portal_col_widths_v3'; // Bumped version to reset layout and handle removed columns
+  const defaultColWidths = [4.3, 1.2, 0.8, 1.2, 0.8];
+  const COL_WIDTHS_KEY = 'kb_portal_col_widths_v4'; // Bumped version to reset layout and handle removed columns
   const [colWidths, setColWidths] = useState<number[]>(() => {
     if (typeof window === 'undefined') return defaultColWidths;
     try {
@@ -369,7 +369,7 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
               {totalDocs}
             </span>
           </button>
-          {categories.map(cat => (
+          {categories.filter(cat => !['Default', 'default', 'Uncategorised', 'Uncategorized', 'uncategorised', 'uncategorized'].includes(cat.name)).map(cat => (
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
@@ -502,7 +502,6 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
                 <div className="hidden md:grid px-6 py-4 bg-[var(--bg-tertiary)] border-b border-[var(--border-subtle)] text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider" style={gridStyle}>
                   <div className="flex items-center gap-2 pr-4">DOCUMENT</div>
                   <div className="px-2">CATEGORY</div>
-                  <div className="px-2">TAGS</div>
                   <div className="text-center px-2">STATUS</div>
                   <div className="px-2">UPDATED</div>
                   <div className="text-right pl-2">VIEWS</div>
@@ -523,12 +522,6 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
                         </div>
                         <div className="px-2 min-w-0">
                           <span className="text-xs text-[var(--text-secondary)] font-medium bg-[var(--bg-tertiary)] px-2 py-1 rounded-md truncate block text-center md:text-left">{doc.category?.name || 'Uncategorised'}</span>
-                        </div>
-                        <div className="px-2 flex gap-1 flex-wrap">
-                          {doc.tags?.slice(0, 2).map(tag => (
-                            <span key={tag.id} className="text-[10px] text-[var(--text-muted)] border border-[var(--border-subtle)] px-1.5 py-0.5 rounded-full">#{tag.name}</span>
-                          ))}
-                          {doc.tags && doc.tags.length > 2 && <span className="text-[10px] text-[var(--text-muted)]">+{doc.tags.length - 2}</span>}
                         </div>
                         <div className="text-center px-2">
                            <span className={`inline-flex px-2 py-1 text-[10px] font-bold rounded-full uppercase tracking-tight ${getStateColor(doc.status)}`}>
