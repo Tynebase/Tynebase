@@ -239,7 +239,8 @@ export function SimpleRichTextEditor({
 
   // Convert YouTube watch URL to embed URL to avoid X-Frame-Options issues
   const getYouTubeEmbedUrl = (url: string) => {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    // Handle both regular YouTube URLs and Shorts URLs
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/)([^#&?]*).*/;
     const match = url.match(regExp);
     const videoId = match && match[2].length === 11 ? match[2] : null;
     return videoId ? `https://www.youtube.com/embed/${videoId}` : url;

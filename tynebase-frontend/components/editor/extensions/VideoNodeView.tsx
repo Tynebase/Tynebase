@@ -25,7 +25,8 @@ export default function VideoNodeView({ node, selected, deleteNode }: NodeViewPr
   const getYouTubeEmbedUrl = (url: string) => {
     // If already an embed URL, return as-is
     if (url.includes('youtube.com/embed/')) return url;
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    // Handle both regular YouTube URLs and Shorts URLs
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/)([^#&?]*).*/;
     const match = url.match(regExp);
     const videoId = match && match[2].length === 11 ? match[2] : null;
     return videoId ? `https://www.youtube.com/embed/${videoId}` : url;

@@ -540,7 +540,7 @@ export function RichTextEditor({
     SlashCommands,
     Markdown.configure({
       html: true,
-      transformPastedText: true,
+      transformPastedText: false,
       transformCopiedText: true,
     }),
   ];
@@ -591,7 +591,8 @@ export function RichTextEditor({
         // First check if pasted text is a YouTube URL
         const text = event.clipboardData?.getData('text/plain');
         if (text) {
-          const youtubeRegex = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+          // Handle both regular YouTube URLs and Shorts URLs
+          const youtubeRegex = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/)([^#&?]*).*/;
           const match = text.match(youtubeRegex);
           if (match && match[2].length === 11) {
             event.preventDefault();
@@ -721,7 +722,8 @@ export function RichTextEditor({
 
   // Convert YouTube watch URL to embed URL to avoid X-Frame-Options issues
   const getYouTubeEmbedUrl = useCallback((url: string) => {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    // Handle both regular YouTube URLs and Shorts URLs
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/)([^#&?]*).*/;
     const match = url.match(regExp);
     const videoId = match && match[2].length === 11 ? match[2] : null;
     return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
