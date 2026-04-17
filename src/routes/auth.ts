@@ -178,6 +178,20 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
         fastify.log.info({ userId, tenantId }, 'User profile created');
 
+        // Stamp tenant.created_by = this user. Authoritative "workspace
+        // creator" marker — consulted by is_original_admin logic instead of
+        // the old `original_tenant_id IS NULL` heuristic, which incorrectly
+        // matched freshly-invited admins who had no prior workspace.
+        {
+          const { error: createdByError } = await supabaseAdmin
+            .from('tenants')
+            .update({ created_by: userId })
+            .eq('id', tenantId);
+          if (createdByError) {
+            fastify.log.warn({ error: createdByError, tenantId }, 'Failed to stamp tenants.created_by (non-critical)');
+          }
+        }
+
         // Create storage buckets for tenant
         const bucketNames = [
           `tenant-${tenantId}-uploads`,
@@ -505,6 +519,18 @@ export default async function authRoutes(fastify: FastifyInstance) {
         fastify.log.error({ error: userError }, 'Failed to create user profile for OAuth user');
         await supabaseAdmin.from('tenants').delete().eq('id', tenantId);
         throw userError;
+      }
+
+      // Stamp tenants.created_by so the OAuth creator is flagged as the
+      // workspace owner. See notes in the password-signup path above.
+      {
+        const { error: createdByError } = await supabaseAdmin
+          .from('tenants')
+          .update({ created_by: userId })
+          .eq('id', tenantId);
+        if (createdByError) {
+          fastify.log.warn({ error: createdByError, tenantId }, 'Failed to stamp tenants.created_by on OAuth signup (non-critical)');
+        }
       }
 
       // Create storage buckets
@@ -931,7 +957,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
       // Get tenant info separately
       const { data: tenant, error: tenantError } = await supabaseAdmin
         .from('tenants')
-        .select('id, subdomain, name, tier, settings, storage_limit')
+        .select('id, subdomain, name, tier, settings, storage_limit, created_by')
         .eq('id', userProfile.tenant_id)
         .single();
 
@@ -954,8 +980,15 @@ export default async function authRoutes(fastify: FastifyInstance) {
         .eq('id', userId)
         .eq('tenant_id', userProfile.tenant_id);
 
-      // User is original admin if they are admin AND have no original_tenant_id (they created this workspace)
-      const isOriginalAdmin = userProfile.role === 'admin' && userProfile.original_tenant_id === null;
+      // Authoritative workspace-creator flag. We use tenants.created_by,
+      // which is stamped once at signup and never overwritten. The previous
+      // heuristic (`original_tenant_id IS NULL`) also matched freshly-invited
+      // admins with no prior workspace, causing ownership swap in the UI.
+      // Fall back to the legacy heuristic only when created_by is NULL
+      // (pre-migration tenants that the backfill couldn't resolve).
+      const isOriginalAdmin = (tenant as any).created_by
+        ? (tenant as any).created_by === userProfile.id
+        : userProfile.role === 'admin' && userProfile.original_tenant_id === null;
 
       return reply.code(200).send({
         success: true,

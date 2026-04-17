@@ -18,6 +18,7 @@ export interface Tenant {
   storage_limit: number;
   created_at: string;
   updated_at: string;
+  created_by?: string | null; // Authoritative workspace-creator marker
 }
 
 // Tier configuration with features and limits

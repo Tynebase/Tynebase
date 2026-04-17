@@ -364,6 +364,10 @@ export default function TemplatesPage() {
                             Try adjusting your search or changing categories.
                           </p>
                           <div className="mt-5 flex flex-wrap gap-3">
+                            <Button size="md" onClick={() => router.push('/dashboard/templates/new')} className="gap-2">
+                              <Plus className="w-4 h-4" />
+                              Create a Template
+                            </Button>
                             <Button variant="secondary" size="md" onClick={() => setSearchQuery("")}>Clear search</Button>
                             <Button variant="secondary" size="md" onClick={() => setActiveCategory("all")}>Show all</Button>
                           </div>

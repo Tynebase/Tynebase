@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useToast } from "@/components/ui/Toast";
 import { createClient } from "@/lib/supabase/client";
 import { SiteNavbar } from "@/components/layout/SiteNavbar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
-import { ArrowRight, Lock, Eye, EyeOff, Check } from "lucide-react";
+import { ArrowRight, Lock, Eye, EyeOff, Check, Loader2 } from "lucide-react";
 
 export default function UpdatePasswordPage() {
   const router = useRouter();
@@ -16,7 +16,46 @@ export default function UpdatePasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
+  const [sessionError, setSessionError] = useState(false);
   const supabase = createClient();
+
+  // Initialize the Supabase session from our locally stored tokens.
+  // The custom setAuthTokens() helper stores tokens in localStorage under
+  // 'access_token' / 'refresh_token'. The Supabase JS client uses its own
+  // storage format, so we bridge them via setSession() on mount.
+  useEffect(() => {
+    async function initSession() {
+      if (!supabase) {
+        setSessionError(true);
+        return;
+      }
+      // First try: maybe supabase already has a session (e.g., direct email link)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setSessionReady(true);
+        return;
+      }
+
+      // Second try: bridge from our custom localStorage tokens
+      const accessToken = localStorage.getItem('access_token');
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (accessToken && refreshToken) {
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (!error) {
+          setSessionReady(true);
+          return;
+        }
+      }
+
+      // No valid session found
+      setSessionError(true);
+    }
+    initSession();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,6 +134,26 @@ export default function UpdatePasswordPage() {
             padding: '48px 40px',
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
           }}>
+            {/* Session loading / error states */}
+            {!sessionReady && !sessionError && (
+              <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                <Loader2 style={{ width: '40px', height: '40px', margin: '0 auto 16px', color: 'var(--brand)' }} className="animate-spin" />
+                <p style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>Verifying your reset link…</p>
+              </div>
+            )}
+            {sessionError && (
+              <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                <p style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '18px', marginBottom: '12px' }}>Link expired or invalid</p>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '15px', marginBottom: '24px' }}>
+                  This password reset link has expired. Please request a new one.
+                </p>
+                <Link href="/auth/reset-password" style={{ color: 'var(--brand)', fontWeight: 500 }}>
+                  Request new reset link →
+                </Link>
+              </div>
+            )}
+            {sessionReady && (
+            <>
             <div style={{ textAlign: 'center', marginBottom: '32px' }}>
               <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'rgba(255, 77, 0, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px auto' }}>
                 <Lock style={{ width: '32px', height: '32px', color: 'var(--brand)' }} />
@@ -199,6 +258,8 @@ export default function UpdatePasswordPage() {
               Remember your password?{" "}
               <Link href="/login" style={{ color: 'var(--brand)', fontWeight: 500 }}>Sign in</Link>
             </p>
+            </>
+            )}
           </div>
         </div>
       </div>

@@ -41,8 +41,12 @@ export function DocumentImportModal({ isOpen, onClose, onSuccess }: DocumentImpo
     const allowedTypes = [
       'application/pdf',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/msword',
+      'application/zip',
+      'application/x-zip-compressed',
       'text/markdown',
       'text/plain',
+      'application/octet-stream',
     ];
 
     const allowedExtensions = ['.pdf', '.docx', '.md', '.txt'];

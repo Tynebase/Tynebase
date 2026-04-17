@@ -61,6 +61,20 @@ function getTurndownService(): TurndownService {
       filter: 'br',
       replacement: () => '  \n',
     });
+
+    // Preserve custom TipTap container divs (like data-video or data-youtube-video)
+    turndownInstance.addRule('preserveCustomDivs', {
+      filter: (node) => {
+        if (node.nodeName !== 'DIV') return false;
+        return node.hasAttribute('data-video') || node.hasAttribute('data-youtube-video');
+      },
+      replacement: (content, node) => {
+        return `\n\n${(node as HTMLElement).outerHTML}\n\n`;
+      }
+    });
+
+    // Ask Turndown to keep raw HTML for these tags instead of stripping them
+    turndownInstance.keep(['video', 'iframe']);
   }
   
   return turndownInstance;

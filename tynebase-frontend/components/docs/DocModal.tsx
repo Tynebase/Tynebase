@@ -479,7 +479,7 @@ export function DocModal({ article: initialArticle, isOpen, onClose }: DocModalP
             }}
           >
             <ArrowLeft style={{ width: '16px', height: '16px' }} />
-            Back to Docs
+            Back to Documentation
           </button>
           
           <div className="hidden md:flex items-center gap-2" style={{ color: '#888888', fontSize: '13px' }}>

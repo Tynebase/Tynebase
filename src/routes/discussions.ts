@@ -14,6 +14,7 @@ const createDiscussionSchema = z.object({
   content: z.string().min(1).max(50000),
   category: z.enum(['Announcements', 'Questions', 'Ideas', 'General']),
   tags: z.array(z.string().max(50)).max(10).optional(),
+  is_public: z.boolean().optional(),
   poll: z.object({
     question: z.string().min(1).max(500),
     options: z.array(z.string().min(1).max(200)).min(2).max(10),
@@ -30,6 +31,7 @@ const updateDiscussionSchema = z.object({
   content: z.string().min(1).max(50000).optional(),
   category: z.enum(['Announcements', 'Questions', 'Ideas', 'General']).optional(),
   tags: z.array(z.string().max(50)).max(10).optional(),
+  is_public: z.boolean().optional(),
 });
 
 const createReplySchema = z.object({
@@ -66,14 +68,22 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
         const category = query.category;
         const sortBy = query.sortBy || 'recent';
 
+        const user = (request as any).user;
+        const isAdmin = user?.role === 'admin' || user?.is_super_admin;
+
         let discussionsQuery = supabaseAdmin
           .from('discussions')
           .select(`
-            id, title, content, category, is_pinned, is_resolved, is_locked,
+            id, title, content, category, is_pinned, is_resolved, is_locked, is_public,
             replies_count, views_count, likes_count, tags, created_at, updated_at, author_id,
             author:users!discussions_author_id_fkey (id, email, full_name, avatar_url)
-          `, { count: 'exact' })
-;
+          `, { count: 'exact' });
+
+        // Visibility filter: non-admins see public discussions + their own
+        // private ones. Admins see everything in the tenant.
+        if (!isAdmin) {
+          discussionsQuery = discussionsQuery.or(`is_public.eq.true,author_id.eq.${user.id}`);
+        }
 
         if (category && category !== 'all') {
           discussionsQuery = discussionsQuery.eq('category', category);
@@ -149,9 +159,10 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
             content: body.content,
             category: body.category,
             tags: body.tags || [],
+            is_public: body.is_public ?? true,
           })
           .select(`
-            id, title, content, category, is_pinned, is_resolved, is_locked,
+            id, title, content, category, is_pinned, is_resolved, is_locked, is_public,
             replies_count, views_count, likes_count, tags, created_at, updated_at,
             author:users!discussions_author_id_fkey (id, email, full_name, avatar_url)
           `)
@@ -263,7 +274,7 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
         const { data: discussion, error } = await supabaseAdmin
           .from('discussions')
           .select(`
-            id, title, content, category, is_pinned, is_resolved, is_locked,
+            id, title, content, category, is_pinned, is_resolved, is_locked, is_public,
             replies_count, views_count, likes_count, tags, created_at, updated_at, author_id,
             author:users!discussions_author_id_fkey (id, email, full_name, avatar_url)
           `)
@@ -271,6 +282,12 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
           .single();
 
         if (error || !discussion) {
+          return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Discussion not found', details: {} } });
+        }
+
+        // Enforce visibility for private discussions
+        const isAdmin = user?.role === 'admin' || user?.is_super_admin;
+        if ((discussion as any).is_public === false && discussion.author_id !== user.id && !isAdmin) {
           return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Discussion not found', details: {} } });
         }
 

@@ -407,19 +407,27 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Get current credit pool
+        // Get current month's credit pool (pools are per-month)
+        const currentMonth = new Date().toISOString().slice(0, 7); // e.g. "2026-04"
         const { data: pool, error: poolError } = await supabaseAdmin
           .from('credit_pools')
           .select('id, total_credits, used_credits')
           .eq('tenant_id', targetUser.tenant_id)
-          .single();
+          .eq('month_year', currentMonth)
+          .maybeSingle();
 
-        if (poolError || !pool) {
-          // Create a new credit pool if it doesn't exist
+        if (poolError) {
+          request.log.error({ error: poolError }, 'Failed to fetch credit pool');
+          throw poolError;
+        }
+
+        if (!pool) {
+          // Create a new credit pool for this month if it doesn't exist
           const { error: createError } = await supabaseAdmin
             .from('credit_pools')
             .insert({
               tenant_id: targetUser.tenant_id,
+              month_year: currentMonth,
               total_credits: credits,
               used_credits: 0,
             });
@@ -431,7 +439,7 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
 
           return {
             success: true,
-            message: `Created credit pool with ${credits} credits for tenant`,
+            message: `Created credit pool with ${credits} credits for tenant (${currentMonth})`,
             data: { total_credits: credits, used_credits: 0 },
           };
         }

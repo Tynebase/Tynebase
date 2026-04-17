@@ -58,7 +58,7 @@ export function EnhanceSuggestionsPanel({
   editor,
   onApplySuggestion,
 }: EnhanceSuggestionsPanelProps) {
-  const { decrementCredits, creditsRemaining } = useCredits();
+  const { decrementCredits, creditsRemaining, refreshCredits } = useCredits();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [suggestions, setSuggestions] = useState<SuggestionWithStatus[]>([]);
   const [score, setScore] = useState<number | null>(null);
@@ -162,6 +162,7 @@ export function EnhanceSuggestionsPanel({
       setError(err instanceof Error ? err.message : 'Failed to analyse document');
     } finally {
       setIsAnalyzing(false);
+      refreshCredits();
     }
   };
 

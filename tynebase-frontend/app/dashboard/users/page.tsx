@@ -149,7 +149,7 @@ function UsersStats({ totalCount, activeCount, pendingCount }: { totalCount: num
               <Shield className="w-5 h-5 text-purple-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-[var(--text-primary)]">3</p>
+              <p className="text-2xl font-bold text-[var(--text-primary)]">5</p>
               <p className="text-sm text-[var(--text-tertiary)]">Roles</p>
             </div>
           </div>

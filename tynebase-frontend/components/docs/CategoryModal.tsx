@@ -184,7 +184,7 @@ export function CategoryModal({ categoryTitle, articles, isOpen, onClose, onSele
             }}
           >
             <ArrowLeft style={{ width: '16px', height: '16px' }} />
-            Back to Docs
+            Back to Documentation
           </button>
         </div>
       </div>

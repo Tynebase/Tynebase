@@ -83,6 +83,7 @@ export interface CreateDiscussionData {
   content: string;
   category: string;
   tags?: string[];
+  is_public?: boolean;
   poll?: {
     question: string;
     options: string[];

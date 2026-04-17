@@ -10,7 +10,7 @@ import { SimpleRichTextEditor } from "@/components/editor/SimpleRichTextEditor";
 import { DashboardPageHeader } from "@/components/layout/DashboardPageHeader";
 import { createDiscussion, createDraftDiscussion, uploadDiscussionAsset, updateDiscussion, deleteDiscussion } from "@/lib/api/discussions";
 import { listTemplates, Template } from "@/lib/api/templates";
-import { ArrowLeft, Plus, Send, Tag, Loader2, AlertCircle, BarChart3, X, FileText, Search, Quote } from "lucide-react";
+import { ArrowLeft, Plus, Send, Tag, Loader2, AlertCircle, BarChart3, X, FileText, Search, Quote, Globe, Lock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const categories = [
@@ -50,6 +50,7 @@ export default function NewDiscussionPage() {
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
   const [hasPoll, setHasPoll] = useState(false);
+  const [isPublic, setIsPublic] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [draftId, setDraftId] = useState<string | null>(null);
@@ -219,6 +220,7 @@ export default function NewDiscussionPage() {
           content: content.trim(),
           category,
           tags: parsedTags,
+          is_public: isPublic,
           poll: {
             question: pollQuestion.trim(),
             options: pollOptions.filter(o => o.trim().length > 0),
@@ -232,6 +234,7 @@ export default function NewDiscussionPage() {
           content: content.trim(),
           category,
           tags: parsedTags,
+          is_public: isPublic,
         });
         router.push(`/dashboard/community/${draftId}`);
       }
@@ -528,6 +531,46 @@ export default function NewDiscussionPage() {
                   <Tag className="w-3.5 h-3.5" />
                   {category}
                 </span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="font-semibold text-[var(--dash-text-primary)] mb-3">Visibility</div>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setIsPublic(true)}
+                  className={
+                    "w-full flex items-start gap-3 rounded-lg border p-3 text-left transition-colors " +
+                    (isPublic
+                      ? "border-[var(--brand)] bg-[var(--brand)]/5"
+                      : "border-[var(--dash-border-subtle)] hover:bg-[var(--surface-ground)]")
+                  }
+                >
+                  <Globe className={"w-5 h-5 mt-0.5 flex-shrink-0 " + (isPublic ? "text-[var(--brand)]" : "text-[var(--dash-text-muted)]")} />
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-[var(--dash-text-primary)]">Public</div>
+                    <div className="text-xs text-[var(--dash-text-tertiary)] mt-0.5">Everyone in this workspace can see and reply.</div>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsPublic(false)}
+                  className={
+                    "w-full flex items-start gap-3 rounded-lg border p-3 text-left transition-colors " +
+                    (!isPublic
+                      ? "border-[var(--brand)] bg-[var(--brand)]/5"
+                      : "border-[var(--dash-border-subtle)] hover:bg-[var(--surface-ground)]")
+                  }
+                >
+                  <Lock className={"w-5 h-5 mt-0.5 flex-shrink-0 " + (!isPublic ? "text-[var(--brand)]" : "text-[var(--dash-text-muted)]")} />
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-[var(--dash-text-primary)]">Private</div>
+                    <div className="text-xs text-[var(--dash-text-tertiary)] mt-0.5">Only you and workspace admins can see this thread.</div>
+                  </div>
+                </button>
               </div>
             </CardContent>
           </Card>

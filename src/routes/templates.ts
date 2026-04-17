@@ -5,6 +5,7 @@ import { tenantContextMiddleware } from '../middleware/tenantContext';
 import { authMiddleware } from '../middleware/auth';
 import { membershipGuard } from '../middleware/membershipGuard';
 import { rateLimitMiddleware } from '../middleware/rateLimit';
+import { writeAuditLog, getClientIp } from '../lib/auditLog';
 
 /**
  * Zod schema for GET /api/templates query parameters
@@ -620,7 +621,7 @@ export default async function templateRoutes(fastify: FastifyInstance) {
         // User can access: (1) approved global templates OR (2) tenant's own templates
         const { data: template, error: templateError } = await supabaseAdmin
           .from('templates')
-          .select('id, tenant_id, title, content, is_approved')
+          .select('id, tenant_id, title, content, is_approved, visibility')
           .eq('id', templateId)
           .single();
 
@@ -638,11 +639,13 @@ export default async function templateRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Verify access: global approved template OR tenant's own template
+        // Verify access: (1) approved global template (tenant_id IS NULL + is_approved),
+        // (2) tenant's own template, or (3) any public template from any tenant.
         const isGlobalApproved = template.tenant_id === null && template.is_approved === true;
         const isTenantTemplate = template.tenant_id === tenant.id;
+        const isPublicTemplate = (template as any).visibility === 'public';
 
-        if (!isGlobalApproved && !isTenantTemplate) {
+        if (!isGlobalApproved && !isTenantTemplate && !isPublicTemplate) {
           fastify.log.warn(
             {
               templateId,
@@ -944,10 +947,10 @@ export default async function templateRoutes(fastify: FastifyInstance) {
         const params = useTemplateParamsSchema.parse(request.params);
         const { id: templateId } = params;
 
-        // Fetch existing template to verify ownership
+        // Fetch existing template to verify ownership and capture title for audit log
         const { data: existing, error: fetchError } = await supabaseAdmin
           .from('templates')
-          .select('id, tenant_id')
+          .select('id, tenant_id, title')
           .eq('id', templateId)
           .single();
 
@@ -995,6 +998,16 @@ export default async function templateRoutes(fastify: FastifyInstance) {
           { templateId, tenantId: tenant.id, userId: user.id },
           'Template deleted successfully'
         );
+
+        writeAuditLog({
+          tenantId: tenant.id,
+          actorId: user.id,
+          action: 'template.deleted',
+          actionType: 'template',
+          targetName: (existing as any).title || templateId,
+          ipAddress: getClientIp(request),
+          metadata: { template_id: templateId },
+        });
 
         return reply.code(204).send();
       } catch (error) {

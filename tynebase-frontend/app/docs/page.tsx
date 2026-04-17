@@ -341,7 +341,7 @@ function TenantKBPage({ subdomain }: { subdomain: string }) {
               <h1 style={{ fontWeight: 600, fontSize: '18px', color: 'var(--text-primary)' }}>{companyName}</h1>
             </div>
             <nav style={{ display: 'flex', gap: '16px' }}>
-              <Link href="/docs" style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 500, textDecoration: 'none' }}>Docs</Link>
+              <Link href="/docs" style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 500, textDecoration: 'none' }}>Documentation</Link>
               <Link href="/community" style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: 500, textDecoration: 'none' }}>Community</Link>
             </nav>
           </div>
@@ -675,7 +675,7 @@ function MainKBPage() {
         content={article.content}
         basePath="/docs"
         breadcrumbs={[
-          { label: 'Docs', href: '/docs' },
+          { label: 'Documentation', href: '/docs' },
           ...(categoryTitle ? [{ label: categoryTitle }] : []),
           { label: article.title },
         ]}
@@ -700,7 +700,7 @@ function MainKBPage() {
           <div style={{ textAlign: 'center', maxWidth: '800px', margin: '0 auto' }}>
             <div className="badge-modern mx-auto" style={{ marginBottom: '24px' }}>
               <Zap className="w-4 h-4 text-[var(--brand)]" />
-              <span>Knowledge Base & Docs</span>
+              <span>Knowledge Base & Documentation</span>
             </div>
             <h1 className="h1-premium" style={{ marginBottom: '24px' }}>
               The smartest way to <span className="text-gradient">document</span> your work.

@@ -429,6 +429,19 @@ export async function processVideoIngestJob(job: Job): Promise<Record<string, an
       console.log(`[Worker ${workerId}] Lineage event created for document ${primaryDocId}`);
     }
 
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const { error: creditError } = await supabaseAdmin.rpc('deduct_credits', {
+      p_tenant_id: job.tenant_id,
+      p_credits: totalCredits,
+      p_month_year: currentMonth,
+    });
+
+    if (creditError) {
+      console.error(`[Worker ${workerId}] Failed to deduct credits:`, creditError);
+    } else {
+      console.log(`[Worker ${workerId}] Successfully deducted ${totalCredits} credits`);
+    }
+
     const { error: usageError } = await supabaseAdmin
       .from('query_usage')
       .insert({

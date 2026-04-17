@@ -331,22 +331,19 @@ export default async function chatRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Build query
+        // Build query — fetch raw fields only (no FK join: users has composite PK
+        // (id, tenant_id) since the multi-tenant migration, so PostgREST FK hints
+        // like !chat_messages_author_id_fkey no longer resolve reliably).
         let messagesQuery = supabaseAdmin
           .from('chat_messages')
           .select(`
             id,
             content,
             parent_id,
+            author_id,
             edited_at,
             deleted_at,
-            created_at,
-            author:users!chat_messages_author_id_fkey (
-              id,
-              full_name,
-              email,
-              avatar_url
-            )
+            created_at
           `)
           .eq('channel_id', id)
           .is('deleted_at', null);
@@ -381,21 +378,42 @@ export default async function chatRoutes(fastify: FastifyInstance) {
           });
         }
 
+        // Resolve author info via manual lookup scoped to the tenant.
+        // This avoids broken FK hints caused by composite PK on users(id, tenant_id).
+        const authorIds = [...new Set((messages || []).map((m: any) => m.author_id).filter(Boolean))];
+        const { data: authorRows } = authorIds.length > 0
+          ? await supabaseAdmin
+              .from('users')
+              .select('id, full_name, email, avatar_url')
+              .eq('tenant_id', tenant.id)
+              .in('id', authorIds)
+          : { data: [] };
+        const authorMap: Record<string, any> = {};
+        (authorRows || []).forEach((u: any) => { authorMap[u.id] = u; });
+
         // Get reactions for these messages
-        const messageIds = (messages || []).map(m => m.id);
+        const messageIds = (messages || []).map((m: any) => m.id);
         const { data: reactions } = await supabaseAdmin
           .from('chat_reactions')
           .select(`
             id,
             message_id,
             emoji,
-            user_id,
-            user:users!chat_reactions_user_id_fkey (
-              id,
-              full_name
-            )
+            user_id
           `)
           .in('message_id', messageIds);
+
+        // Resolve reaction user names
+        const reactionUserIds = [...new Set((reactions || []).map((r: any) => r.user_id).filter(Boolean))];
+        const { data: reactionUserRows } = reactionUserIds.length > 0
+          ? await supabaseAdmin
+              .from('users')
+              .select('id, full_name')
+              .eq('tenant_id', tenant.id)
+              .in('id', reactionUserIds)
+          : { data: [] };
+        const reactionUserMap: Record<string, any> = {};
+        (reactionUserRows || []).forEach((u: any) => { reactionUserMap[u.id] = u; });
 
         // Get reply counts for top-level messages
         const replyCounts: Record<string, number> = {};
@@ -415,16 +433,20 @@ export default async function chatRoutes(fastify: FastifyInstance) {
 
         // Group reactions by message
         const reactionsMap: Record<string, any[]> = {};
-        (reactions || []).forEach(r => {
+        (reactions || []).forEach((r: any) => {
           if (!reactionsMap[r.message_id]) {
             reactionsMap[r.message_id] = [];
           }
-          reactionsMap[r.message_id].push(r);
+          reactionsMap[r.message_id].push({
+            ...r,
+            user: reactionUserMap[r.user_id] || null,
+          });
         });
 
-        // Attach reactions and reply counts to messages
-        const messagesWithReactions = (messages || []).map(m => ({
+        // Attach author, reactions and reply counts to messages
+        const messagesWithReactions = (messages || []).map((m: any) => ({
           ...m,
+          author: authorMap[m.author_id] || null,
           reactions: reactionsMap[m.id] || [],
           reply_count: replyCounts[m.id] || 0,
         }));
@@ -516,20 +538,7 @@ export default async function chatRoutes(fastify: FastifyInstance) {
             content: body.content,
             parent_id: body.parent_id || null,
           })
-          .select(`
-            id,
-            content,
-            parent_id,
-            edited_at,
-            deleted_at,
-            created_at,
-            author:users!chat_messages_author_id_fkey (
-              id,
-              full_name,
-              email,
-              avatar_url
-            )
-          `)
+          .select('id, content, parent_id, edited_at, deleted_at, created_at, author_id')
           .single();
 
         if (error) {
@@ -542,6 +551,14 @@ export default async function chatRoutes(fastify: FastifyInstance) {
             },
           });
         }
+
+        // Build author object from the authenticated user (avoids FK join issues)
+        const authorForResponse = {
+          id: user.id,
+          full_name: user.full_name || null,
+          email: user.email || null,
+          avatar_url: user.avatar_url || null,
+        };
 
         // Notify other tenant users about the new message (fire-and-forget)
         (async () => {
@@ -582,6 +599,7 @@ export default async function chatRoutes(fastify: FastifyInstance) {
           data: {
             message: {
               ...message,
+              author: authorForResponse,
               reactions: [],
               reply_count: 0,
             },
@@ -670,20 +688,7 @@ export default async function chatRoutes(fastify: FastifyInstance) {
             edited_at: new Date().toISOString(),
           })
           .eq('id', id)
-          .select(`
-            id,
-            content,
-            parent_id,
-            edited_at,
-            deleted_at,
-            created_at,
-            author:users!chat_messages_author_id_fkey (
-              id,
-              full_name,
-              email,
-              avatar_url
-            )
-          `)
+          .select('id, content, parent_id, author_id, edited_at, deleted_at, created_at')
           .single();
 
         if (error) {
@@ -697,9 +702,20 @@ export default async function chatRoutes(fastify: FastifyInstance) {
           });
         }
 
+        // Attach author from authenticated user (no FK join needed)
+        const editedMessageWithAuthor = {
+          ...message,
+          author: {
+            id: user.id,
+            full_name: user.full_name || null,
+            email: user.email || null,
+            avatar_url: user.avatar_url || null,
+          },
+        };
+
         return reply.code(200).send({
           success: true,
-          data: { message },
+          data: { message: editedMessageWithAuthor },
         });
       } catch (error) {
         if (error instanceof z.ZodError) {

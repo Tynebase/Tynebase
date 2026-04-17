@@ -30,6 +30,8 @@ export async function GET(request: Request) {
   const redirect = searchParams.get("redirect") || "/dashboard";
   const errorParam = searchParams.get("error");
   const errorDescription = searchParams.get("error_description");
+  // Supabase sends `type=recovery` for password reset links, `type=invite` for invites
+  const type = searchParams.get("type");
 
   // 1. Supabase-side errors (expired links, user denied consent, etc.)
   if (errorParam) {
@@ -80,7 +82,20 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/login?error=auth_failed`);
   }
 
-  // 3. Pass tokens to /auth/oauth-login via a URL fragment. Fragments are
+  // 3a. Password recovery flow: route to update-password, not the dashboard
+  if (type === 'recovery') {
+    console.log('[Auth Callback] Password recovery — redirecting to update-password');
+    const recoveryPayload = Buffer.from(
+      JSON.stringify({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        redirect: '/auth/update-password',
+      })
+    ).toString('base64url');
+    return NextResponse.redirect(`${origin}/auth/oauth-login#t=${recoveryPayload}`);
+  }
+
+  // 3b. Normal flow: pass tokens to /auth/oauth-login via a URL fragment. Fragments are
   //    never sent to servers, never logged, and are unaffected by cross-site
   //    cookie restrictions — this is our Firefox TCP workaround.
   const payload = Buffer.from(

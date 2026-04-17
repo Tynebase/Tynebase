@@ -7,6 +7,7 @@ import { authMiddleware } from '../middleware/auth';
 import { membershipGuard } from '../middleware/membershipGuard';
 import { sendRoleChangeEmail, sendUserRemovedEmail, sendUserLeftEmail, sendUserLeftAdminNotification } from '../services/email';
 import { WORKSPACE_ROLE_INPUTS, normalizeWorkspaceRole } from '../lib/roles';
+import { writeAuditLog, getClientIp } from '../lib/auditLog';
 
 /**
  * Zod schema for GET /api/users query parameters
@@ -119,12 +120,29 @@ export default async function usersRoutes(fastify: FastifyInstance) {
           }
         }
 
+        // Fetch the authoritative workspace creator from tenants.created_by.
+        // This replaces the old `original_tenant_id IS NULL` heuristic, which
+        // misfired for freshly-invited admins (their row is legitimately
+        // created with original_tenant_id = NULL when they have no prior
+        // workspace, which made them look indistinguishable from the creator).
+        let tenantCreatedBy: string | null = null;
+        {
+          const { data: tenantRow } = await supabaseAdmin
+            .from('tenants')
+            .select('created_by')
+            .eq('id', tenant.id)
+            .maybeSingle();
+          tenantCreatedBy = (tenantRow as any)?.created_by || null;
+        }
+
         // Enrich users with document counts and original admin flag
         const enrichedUsers = users?.map(u => ({
           ...u,
           role: normalizeWorkspaceRole(u.role as any),
           documents_count: documentCounts[u.id] || 0,
-          is_original_admin: u.role === 'admin' && u.original_tenant_id === null,
+          is_original_admin: tenantCreatedBy
+            ? u.id === tenantCreatedBy
+            : u.role === 'admin' && u.original_tenant_id === null,
         })) || [];
 
         const total = count || 0;
@@ -214,8 +232,17 @@ export default async function usersRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Protect original admin: user whose original_tenant_id is NULL is the workspace creator
-        const isOriginalAdmin = targetUser.role === 'admin' && targetUser.original_tenant_id === null;
+        // Protect the workspace creator. Authoritative via tenants.created_by;
+        // fall back to the legacy heuristic for pre-backfill tenants only.
+        const { data: tenantCreator } = await supabaseAdmin
+          .from('tenants')
+          .select('created_by')
+          .eq('id', tenant.id)
+          .maybeSingle();
+        const creatorId = (tenantCreator as any)?.created_by as string | null;
+        const isOriginalAdmin = creatorId
+          ? targetUser.id === creatorId
+          : targetUser.role === 'admin' && targetUser.original_tenant_id === null;
         if (isOriginalAdmin && body.role && body.role !== 'admin') {
           return reply.code(403).send({
             error: { code: 'CANNOT_MODIFY_ORIGINAL_ADMIN', message: 'Cannot change the role of the original workspace administrator' },
@@ -315,8 +342,18 @@ export default async function usersRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Protect original admin from being removed
-        const isOriginalAdmin = targetUser.role === 'admin' && targetUser.original_tenant_id === null;
+        // Protect the workspace creator from being removed. Authoritative via
+        // tenants.created_by; fall back to the legacy heuristic only when the
+        // column is NULL (pre-migration tenants).
+        const { data: tenantCreator } = await supabaseAdmin
+          .from('tenants')
+          .select('created_by')
+          .eq('id', tenant.id)
+          .maybeSingle();
+        const creatorId = (tenantCreator as any)?.created_by as string | null;
+        const isOriginalAdmin = creatorId
+          ? targetUser.id === creatorId
+          : targetUser.role === 'admin' && targetUser.original_tenant_id === null;
         if (isOriginalAdmin) {
           return reply.code(403).send({
             error: { code: 'CANNOT_REMOVE_ORIGINAL_ADMIN', message: 'Cannot remove the original workspace administrator' },
@@ -337,6 +374,17 @@ export default async function usersRoutes(fastify: FastifyInstance) {
             error: { code: 'DELETE_FAILED', message: 'Failed to remove user' },
           });
         }
+
+        // Audit log the removal
+        writeAuditLog({
+          tenantId: tenant.id,
+          actorId: currentUser.id,
+          action: 'user.removed',
+          actionType: 'user',
+          targetName: targetUser.full_name || targetUser.email,
+          ipAddress: getClientIp(request),
+          metadata: { removed_user_id: id, removed_user_email: targetUser.email, removed_user_role: targetUser.role },
+        });
 
         // Send email notification to removed user
         sendUserRemovedEmail({
@@ -416,12 +464,17 @@ export default async function usersRoutes(fastify: FastifyInstance) {
             .single();
 
           if (tenantError || !originalTenant) {
-            // Original tenant no longer exists - soft delete instead
+            // Original tenant no longer exists - soft delete instead.
+            // IMPORTANT: scope by BOTH id AND tenant_id. The composite PK
+            // means omitting tenant_id would rewrite every row this user
+            // owns across all tenants — the exact multi-tenant auth
+            // regression class this codebase has hit before.
             fastify.log.warn({ userId: id, originalTenantId: userRecord.original_tenant_id }, 'Original tenant not found, soft deleting user');
             await supabaseAdmin
               .from('users')
               .update({ status: 'deleted' })
-              .eq('id', id);
+              .eq('id', id)
+              .eq('tenant_id', tenant.id);
 
             return reply.code(200).send({
               success: true,
@@ -432,22 +485,69 @@ export default async function usersRoutes(fastify: FastifyInstance) {
             });
           }
 
-          // Restore user to their original workspace
-          const { error: restoreError } = await supabaseAdmin
+          // Restore user to their original workspace.
+          //
+          // The user has (or had) a row in their original tenant plus a row
+          // in the current tenant they're leaving. Both rows are independent
+          // under the composite PK `(id, tenant_id)`.
+          //
+          // CRITICAL: the previous implementation did
+          //   .update({ tenant_id: original_tenant_id, ... }).eq('id', id)
+          // which (a) touched EVERY row the user owns across all tenants,
+          // wiping memberships, and (b) tried to change `tenant_id`, which is
+          // part of the composite PK and would collide with the existing
+          // original-tenant row. That's the exact invariant MEMORY.md warns
+          // about. Fix: scoped delete of the row in the tenant being left,
+          // then scoped upsert/update on the original-tenant row.
+          const { error: leaveError } = await supabaseAdmin
             .from('users')
-            .update({
-              tenant_id: userRecord.original_tenant_id,
-              original_tenant_id: null, // Clear since they're back home
-              role: 'admin', // Restore as admin of their own workspace
-              status: 'active',
-            })
-            .eq('id', id);
+            .update({ status: 'deleted' })
+            .eq('id', id)
+            .eq('tenant_id', tenant.id);
 
-          if (restoreError) {
-            fastify.log.error({ error: restoreError, userId: id }, 'Failed to restore user to original workspace');
+          if (leaveError) {
+            fastify.log.error({ error: leaveError, userId: id, tenantId: tenant.id }, 'Failed to mark membership deleted');
             return reply.code(500).send({
               error: { code: 'LEAVE_FAILED', message: 'Failed to leave workspace' },
             });
+          }
+
+          // Ensure the original-tenant row exists and is active. We upsert
+          // scoped to (id, tenant_id) so we never disturb other memberships.
+          const { data: homeRow } = await supabaseAdmin
+            .from('users')
+            .select('id')
+            .eq('id', id)
+            .eq('tenant_id', userRecord.original_tenant_id)
+            .maybeSingle();
+
+          if (homeRow) {
+            const { error: restoreError } = await supabaseAdmin
+              .from('users')
+              .update({
+                status: 'active',
+                // NOTE: is_super_admin intentionally omitted — platform flag.
+              })
+              .eq('id', id)
+              .eq('tenant_id', userRecord.original_tenant_id);
+            if (restoreError) {
+              fastify.log.error({ error: restoreError, userId: id }, 'Failed to reactivate home-workspace row');
+            }
+          } else {
+            // Home row is gone (e.g., originally soft-deleted). Recreate it.
+            const { error: insertError } = await supabaseAdmin
+              .from('users')
+              .insert({
+                id,
+                tenant_id: userRecord.original_tenant_id,
+                email: currentUser.email,
+                full_name: currentUser.full_name,
+                role: 'admin',
+                status: 'active',
+              });
+            if (insertError) {
+              fastify.log.error({ error: insertError, userId: id }, 'Failed to recreate home-workspace row');
+            }
           }
 
           // Update Supabase Auth user_metadata with restored tenant info
@@ -461,6 +561,16 @@ export default async function usersRoutes(fastify: FastifyInstance) {
           });
 
           fastify.log.info({ userId: id, fromTenantId: tenant.id, toTenantId: originalTenant.id }, 'User restored to original workspace');
+
+          writeAuditLog({
+            tenantId: tenant.id,
+            actorId: currentUser.id,
+            action: 'user.left_workspace',
+            actionType: 'user',
+            targetName: currentUser.full_name || currentUser.email,
+            ipAddress: getClientIp(request),
+            metadata: { user_id: id, restored_to_tenant_id: originalTenant.id },
+          });
 
           // Send leave emails (fire and forget)
           const leavingUserName = currentUser.full_name || currentUser.email.split('@')[0];
@@ -522,6 +632,16 @@ export default async function usersRoutes(fastify: FastifyInstance) {
         }
 
         fastify.log.info({ userId: id, tenantId: tenant.id }, 'User left workspace (no original to restore)');
+
+        writeAuditLog({
+          tenantId: tenant.id,
+          actorId: currentUser.id,
+          action: 'user.left_workspace',
+          actionType: 'user',
+          targetName: currentUser.full_name || currentUser.email,
+          ipAddress: getClientIp(request),
+          metadata: { user_id: id, restored: false },
+        });
 
         // Send leave emails (fire and forget)
         const leavingUserName = currentUser.full_name || currentUser.email.split('@')[0];

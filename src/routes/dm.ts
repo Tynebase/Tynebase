@@ -81,19 +81,13 @@ export default async function dmRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Get participants for each conversation
-        const { data: allParticipants, error: participantsError } = await supabaseAdmin
+        // Get participants for each conversation.
+        // NOTE: dm_participants_user_id_fkey is a simple FK referencing users(id),
+        // but after the composite PK migration users has (id, tenant_id) as PK so
+        // PostgREST join hints are unreliable. Fetch user_ids directly and look them up.
+        const { data: allParticipantRows, error: participantsError } = await supabaseAdmin
           .from('dm_participants')
-          .select(`
-            conversation_id,
-            user_id,
-            user:users!dm_participants_user_id_fkey (
-              id,
-              full_name,
-              email,
-              avatar_url
-            )
-          `)
+          .select('conversation_id, user_id')
           .in('conversation_id', conversationIds);
 
         if (participantsError) {
@@ -102,6 +96,18 @@ export default async function dmRoutes(fastify: FastifyInstance) {
             error: { code: 'FETCH_FAILED', message: 'Failed to fetch participants', details: {} },
           });
         }
+
+        // Resolve participant user info
+        const participantUserIds = [...new Set((allParticipantRows || []).map((p: any) => p.user_id).filter(Boolean))];
+        const { data: participantUsers } = participantUserIds.length > 0
+          ? await supabaseAdmin
+              .from('users')
+              .select('id, full_name, email, avatar_url')
+              .eq('tenant_id', tenant.id)
+              .in('id', participantUserIds)
+          : { data: [] };
+        const participantUsersMap: Record<string, any> = {};
+        (participantUsers || []).forEach((u: any) => { participantUsersMap[u.id] = u; });
 
         // Get unread counts
         const participationMap = new Map(
@@ -155,10 +161,11 @@ export default async function dmRoutes(fastify: FastifyInstance) {
               }
             }
 
-            // Get participants for this conversation (filter out null users from broken foreign keys)
-            const participants = (allParticipants || [])
-              .filter(p => p.conversation_id === conv.id && p.user)
-              .map(p => p.user);
+            // Get participants for this conversation
+            const participants = (allParticipantRows || [])
+              .filter((p: any) => p.conversation_id === conv.id)
+              .map((p: any) => participantUsersMap[p.user_id])
+              .filter(Boolean);
 
             // Get the other user for 1:1 conversations
             const otherParticipant = participants.find((p: any) => p.id !== user.id);
@@ -320,21 +327,16 @@ export default async function dmRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Build query
+        // Build query — no FK join (composite PK on users breaks them)
         let messagesQuery = supabaseAdmin
           .from('dm_messages')
           .select(`
             id,
             content,
+            author_id,
             edited_at,
             deleted_at,
-            created_at,
-            author:users!dm_messages_author_id_fkey (
-              id,
-              full_name,
-              email,
-              avatar_url
-            )
+            created_at
           `)
           .eq('conversation_id', id)
           .is('deleted_at', null);
@@ -356,34 +358,58 @@ export default async function dmRoutes(fastify: FastifyInstance) {
           });
         }
 
+        // Resolve author info via tenant-scoped lookup
+        const dmAuthorIds = [...new Set((messages || []).map((m: any) => m.author_id).filter(Boolean))];
+        const { data: dmAuthorRows } = dmAuthorIds.length > 0
+          ? await supabaseAdmin
+              .from('users')
+              .select('id, full_name, email, avatar_url')
+              .eq('tenant_id', (request as any).tenant.id)
+              .in('id', dmAuthorIds)
+          : { data: [] };
+        const dmAuthorMap: Record<string, any> = {};
+        (dmAuthorRows || []).forEach((u: any) => { dmAuthorMap[u.id] = u; });
+
         // Get reactions for these messages
-        const messageIds = (messages || []).map(m => m.id);
+        const messageIds = (messages || []).map((m: any) => m.id);
         const { data: reactions } = await supabaseAdmin
           .from('dm_reactions')
           .select(`
             id,
             message_id,
             emoji,
-            user_id,
-            user:users!dm_reactions_user_id_fkey (
-              id,
-              full_name
-            )
+            user_id
           `)
           .in('message_id', messageIds);
 
+        // Resolve reaction user names
+        const dmReactionUserIds = [...new Set((reactions || []).map((r: any) => r.user_id).filter(Boolean))];
+        const { data: dmReactionUserRows } = dmReactionUserIds.length > 0
+          ? await supabaseAdmin
+              .from('users')
+              .select('id, full_name')
+              .eq('tenant_id', (request as any).tenant.id)
+              .in('id', dmReactionUserIds)
+          : { data: [] };
+        const dmReactionUserMap: Record<string, any> = {};
+        (dmReactionUserRows || []).forEach((u: any) => { dmReactionUserMap[u.id] = u; });
+
         // Group reactions by message
         const reactionsMap: Record<string, any[]> = {};
-        (reactions || []).forEach(r => {
+        (reactions || []).forEach((r: any) => {
           if (!reactionsMap[r.message_id]) {
             reactionsMap[r.message_id] = [];
           }
-          reactionsMap[r.message_id].push(r);
+          reactionsMap[r.message_id].push({
+            ...r,
+            user: dmReactionUserMap[r.user_id] || null,
+          });
         });
 
-        // Attach reactions to messages
-        const messagesWithReactions = (messages || []).map(m => ({
+        // Attach author + reactions to messages
+        const messagesWithReactions = (messages || []).map((m: any) => ({
           ...m,
+          author: dmAuthorMap[m.author_id] || null,
           reactions: reactionsMap[m.id] || [],
         }));
 
@@ -445,19 +471,7 @@ export default async function dmRoutes(fastify: FastifyInstance) {
             author_id: user.id,
             content: body.content,
           })
-          .select(`
-            id,
-            content,
-            edited_at,
-            deleted_at,
-            created_at,
-            author:users!dm_messages_author_id_fkey (
-              id,
-              full_name,
-              email,
-              avatar_url
-            )
-          `)
+          .select('id, content, edited_at, deleted_at, created_at, author_id')
           .single();
 
         if (error) {
@@ -466,6 +480,14 @@ export default async function dmRoutes(fastify: FastifyInstance) {
             error: { code: 'SEND_FAILED', message: 'Failed to send message', details: {} },
           });
         }
+
+        // Build author from authenticated user info
+        const dmSendAuthor = {
+          id: user.id,
+          full_name: user.full_name || null,
+          email: user.email || null,
+          avatar_url: user.avatar_url || null,
+        };
 
         // Notify other participants about the new DM (fire-and-forget)
         (async () => {
@@ -498,6 +520,7 @@ export default async function dmRoutes(fastify: FastifyInstance) {
           data: {
             message: {
               ...message,
+              author: dmSendAuthor,
               reactions: [],
             },
           },
@@ -557,19 +580,7 @@ export default async function dmRoutes(fastify: FastifyInstance) {
             edited_at: new Date().toISOString(),
           })
           .eq('id', id)
-          .select(`
-            id,
-            content,
-            edited_at,
-            deleted_at,
-            created_at,
-            author:users!dm_messages_author_id_fkey (
-              id,
-              full_name,
-              email,
-              avatar_url
-            )
-          `)
+          .select('id, content, author_id, edited_at, deleted_at, created_at')
           .single();
 
         if (error) {
@@ -579,9 +590,20 @@ export default async function dmRoutes(fastify: FastifyInstance) {
           });
         }
 
+        // Attach author from authenticated user
+        const editedDMWithAuthor = {
+          ...message,
+          author: {
+            id: user.id,
+            full_name: user.full_name || null,
+            email: user.email || null,
+            avatar_url: user.avatar_url || null,
+          },
+        };
+
         return reply.code(200).send({
           success: true,
-          data: { message },
+          data: { message: editedDMWithAuthor },
         });
       } catch (error) {
         if (error instanceof z.ZodError) {

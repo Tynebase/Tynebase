@@ -166,6 +166,21 @@ async function processConversion(job: Job, workerId: string): Promise<void> {
       console.error(`[Worker ${workerId}] Failed to create lineage event:`, lineageError);
     }
 
+    console.log(`[Worker ${workerId}] Deducting credits...`);
+    
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const { error: creditError } = await supabaseAdmin.rpc('deduct_credits', {
+      p_tenant_id: job.tenant_id,
+      p_credits: 1, // Document conversion costs 1 credit
+      p_month_year: currentMonth,
+    });
+
+    if (creditError) {
+      console.error(`[Worker ${workerId}] Failed to deduct credits:`, creditError);
+    } else {
+      console.log(`[Worker ${workerId}] Successfully deducted 1 credit`);
+    }
+
     console.log(`[Worker ${workerId}] Logging credit usage...`);
     
     const { error: usageError } = await supabaseAdmin

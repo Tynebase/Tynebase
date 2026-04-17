@@ -8,10 +8,13 @@ import { dispatchJob } from '../utils/dispatchJob';
 const ALLOWED_DOCUMENT_TYPES = [
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/msword', // older .doc
+  'application/zip', // Some browsers send docx as zip
+  'application/x-zip-compressed',
   'text/markdown',
   'text/x-markdown',
   'text/plain',
-  'application/octet-stream', // Browsers often send .md files as this
+  'application/octet-stream', // Browsers often send .md or .docx files as this
 ];
 
 const ALLOWED_DOCUMENT_EXTENSIONS = ['.pdf', '.docx', '.md', '.markdown', '.txt'];
@@ -109,10 +112,13 @@ export default async function documentImportRoutes(fastify: FastifyInstance) {
         const fileBuffer = await data.toBuffer();
         const fileSize = fileBuffer.length;
 
-        // Override MIME type for markdown files since browsers often send them as application/octet-stream
+        // Override MIME types when browsers send generic ones (like application/octet-stream or zip)
         let uploadMimetype = mimetype;
         if ((fileExtension === '.md' || fileExtension === '.markdown') && mimetype === 'application/octet-stream') {
           uploadMimetype = 'text/markdown';
+        } else if ((fileExtension === '.docx' || fileExtension === '.doc') && 
+                   (mimetype === 'application/octet-stream' || mimetype === 'application/zip' || mimetype === 'application/x-zip-compressed')) {
+          uploadMimetype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
         }
 
         if (fileSize > MAX_FILE_SIZE) {
@@ -193,7 +199,7 @@ export default async function documentImportRoutes(fastify: FastifyInstance) {
             storage_path: uploadData.path,
             original_filename: sanitizedFilename,
             file_size: fileSize,
-            mimetype: mimetype,
+            mimetype: uploadMimetype,
             user_id: user.id,
             file_extension: fileExtension,
           },

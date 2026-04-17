@@ -1,6 +1,6 @@
 import { supabaseAdmin } from './supabase';
 
-export type AuditActionType = 'auth' | 'document' | 'user' | 'settings' | 'chat';
+export type AuditActionType = 'auth' | 'document' | 'template' | 'user' | 'settings' | 'chat';
 
 interface AuditLogParams {
   tenantId: string;

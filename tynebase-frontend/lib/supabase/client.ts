@@ -18,12 +18,26 @@ export function createClient() {
     supabaseUrl,
     supabaseKey,
     {
-      cookieOptions: {
-        path: "/",
-        domain: cookieDomain,
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
-      },
-    },
+      cookies: {
+        get(name: string) {
+          if (typeof document === 'undefined') return undefined;
+          const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+          return v ? decodeURIComponent(v[2]) : undefined;
+        },
+        set(name: string, value: string, options: any) {
+          if (typeof document === 'undefined') return;
+          const maxAgeStr = options.maxAge ? `; max-age=${options.maxAge}` : '';
+          const domainStr = cookieDomain ? `; domain=${cookieDomain}` : '';
+          const secureStr = process.env.NODE_ENV === "production" ? '; secure' : '';
+          const sameSiteStr = `; samesite=${options.sameSite || 'lax'}`;
+          document.cookie = `${name}=${encodeURIComponent(value)}; path=${options.path || '/'}${domainStr}${maxAgeStr}${sameSiteStr}${secureStr}`;
+        },
+        remove(name: string, options: any) {
+          if (typeof document === 'undefined') return;
+          const domainStr = cookieDomain ? `; domain=${cookieDomain}` : '';
+          document.cookie = `${name}=; path=${options.path || '/'}${domainStr}; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+        }
+      }
+    }
   );
 }

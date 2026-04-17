@@ -177,7 +177,17 @@ export function TiptapReader({ content, title, className = "", isHtml = false }:
             .tiptap-reader div[style*="display: grid"] > div[style*="font-weight: 600"] {
               background-color: var(--bg-secondary) !important;
             }
-            /* Remove flex display that caused misalignment */
+            /* Hyperlink styles */
+            .tiptap-reader a {
+              color: var(--brand) !important;
+              text-decoration: underline !important;
+              text-underline-offset: 4px;
+              cursor: pointer !important;
+              transition: opacity 0.2s;
+            }
+            .tiptap-reader a:hover {
+              opacity: 0.8;
+            }
           `}</style>
           {title && (
             <h1 
