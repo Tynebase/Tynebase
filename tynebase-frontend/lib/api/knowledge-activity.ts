@@ -13,7 +13,8 @@ export type ActivityType =
   | 'published'
   | 'unpublished'
   | 'ai_enhanced'
-  | 'edited';
+  | 'edited'
+  | 'deleted';
 
 export interface ActivityItem {
   id: string;

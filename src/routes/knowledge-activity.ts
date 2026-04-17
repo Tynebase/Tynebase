@@ -20,6 +20,7 @@ const ACTIVITY_TYPES = [
   'unpublished',
   'ai_enhanced',
   'edited',
+  'deleted',
 ] as const;
 
 /**
@@ -111,6 +112,8 @@ function generateActivityDetail(
       return metadata.change_summary
         ? String(metadata.change_summary)
         : 'Edited document';
+    case 'deleted':
+      return 'Deleted document';
     default:
       return null;
   }
@@ -156,13 +159,13 @@ export default async function knowledgeActivityRoutes(fastify: FastifyInstance) 
         // Calculate offset for pagination
         const offset = (page - 1) * limit;
 
-        // Build base query for counting
+        // Build base query for counting - filter by tenant_id on lineage table
         let countQuery = supabaseAdmin
           .from('document_lineage')
-          .select('id, documents!inner(tenant_id)', { count: 'exact', head: true })
-          .eq('documents.tenant_id', tenant.id);
+          .select('id', { count: 'exact', head: true })
+          .eq('tenant_id', tenant.id);
 
-        // Build base query for fetching data
+        // Build base query for fetching data - use Left Join for documents
         let dataQuery = supabaseAdmin
           .from('document_lineage')
           .select(`
@@ -172,9 +175,10 @@ export default async function knowledgeActivityRoutes(fastify: FastifyInstance) 
             actor_id,
             metadata,
             document_id,
-            documents!inner(id, title, tenant_id)
+            tenant_id,
+            documents(id, title, tenant_id)
           `)
-          .eq('documents.tenant_id', tenant.id)
+          .eq('tenant_id', tenant.id)
           .order('created_at', { ascending: false })
           .range(offset, offset + limit - 1);
 
@@ -277,7 +281,7 @@ export default async function knowledgeActivityRoutes(fastify: FastifyInstance) 
               },
               target: {
                 id: item.documents?.id || item.document_id,
-                title: item.documents?.title || 'Unknown Document',
+                title: item.documents?.title || (item.metadata as any)?.title || 'Unknown Document',
               },
               detail: generateActivityDetail(
                 item.event_type as ActivityType,

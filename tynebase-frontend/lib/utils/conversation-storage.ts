@@ -39,7 +39,7 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     id: 'claude-sonnet-4.5',
     name: 'Claude Sonnet 4.5',
     provider: 'AWS Bedrock',
-    credits: 4,
+    credits: 5,
     description: 'Highest quality, complex reasoning',
     speed: 'slow',
   },

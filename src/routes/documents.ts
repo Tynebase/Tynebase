@@ -1178,7 +1178,30 @@ export default async function documentRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Delete document (cascade deletes embeddings and lineage)
+        // Create lineage event for document deletion BEFORE hard delete
+        // This ensures the record is created while the FK is still valid or at least the actor context is fresh
+        const { error: lineageError } = await supabaseAdmin
+          .from('document_lineage')
+          .insert({
+            document_id: id,
+            tenant_id: tenant.id, // Explicitly store tenant_id for history retention
+            event_type: 'deleted',
+            actor_id: user.id,
+            metadata: {
+              title: existingDoc.title,
+              deleted_at: new Date().toISOString(),
+              deleted_by_role: user.role,
+            },
+          });
+
+        if (lineageError) {
+          fastify.log.error(
+            { error: lineageError, documentId: id, userId: user.id },
+            'Failed to create lineage event for document deletion'
+          );
+        }
+
+        // Delete document (FK now set to SET NULL, so lineage record persists)
         const { error: deleteError } = await supabaseAdmin
           .from('documents')
           .delete()

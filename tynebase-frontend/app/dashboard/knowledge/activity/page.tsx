@@ -21,6 +21,7 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
+  Trash2,
 } from "lucide-react";
 import {
   getKnowledgeActivity,
@@ -49,6 +50,8 @@ function TypeIcon({ type }: { type: ActivityType }) {
       return <LinkIcon className="w-4 h-4" />;
     case "edited":
       return <Edit className="w-4 h-4" />;
+    case "deleted":
+      return <Trash2 className="w-4 h-4" />;
     case "created":
     default:
       return <FileText className="w-4 h-4" />;
@@ -71,6 +74,8 @@ function TypeColor({ type }: { type: ActivityType }) {
       return { fg: "#3b82f6", bg: "#3b82f615" };
     case "created":
       return { fg: "#f59e0b", bg: "#f59e0b15" };
+    case "deleted":
+      return { fg: "#ef4444", bg: "#ef444415" };
     case "edited":
     default:
       return { fg: "#6b7280", bg: "#6b728015" };
@@ -90,6 +95,35 @@ function formatRelativeTime(dateString: string): string {
   if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
   if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
   return date.toLocaleDateString();
+}
+
+function ActivityRow({ item, colors }: { item: ActivityItem; colors: { fg: string; bg: string } }) {
+  return (
+    <div className="flex items-start gap-4">
+      <div
+        className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+        style={{ backgroundColor: colors.bg }}
+      >
+        <span style={{ color: colors.fg }}>
+          <TypeIcon type={item.type} />
+        </span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-[var(--dash-text-secondary)]">
+          <span className="font-semibold text-[var(--dash-text-primary)]">{item.actor.name}</span>{" "}
+          {item.type.replace(/_/g, " ")}{" "}
+          <span className="font-semibold text-[var(--dash-text-primary)]">{item.target.title}</span>
+        </p>
+        {item.detail && (
+          <p className="text-sm text-[var(--dash-text-tertiary)] mt-1 truncate">{item.detail}</p>
+        )}
+        <p className="text-xs text-[var(--dash-text-muted)] mt-2 flex items-center gap-1">
+          <Clock className="w-3.5 h-3.5" />
+          {formatRelativeTime(item.created_at)}
+        </p>
+      </div>
+    </div>
+  );
 }
 
 export default function KnowledgeActivityPage() {
@@ -266,36 +300,20 @@ export default function KnowledgeActivityPage() {
             {activities.map((item) => {
               const colors = TypeColor({ type: item.type });
               return (
-                <Link
+                <div
                   key={item.id}
-                  href={`/dashboard/knowledge/${item.target.id}`}
-                  className="block px-5 py-4 hover:bg-[var(--surface-hover)] transition-colors"
+                  className={`block px-5 py-4 transition-colors ${
+                    item.type === "deleted" ? "cursor-default" : "hover:bg-[var(--surface-hover)]"
+                  }`}
                 >
-                  <div className="flex items-start gap-4">
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: colors.bg }}
-                    >
-                      <span style={{ color: colors.fg }}>
-                        <TypeIcon type={item.type} />
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-[var(--dash-text-secondary)]">
-                        <span className="font-semibold text-[var(--dash-text-primary)]">{item.actor.name}</span>{" "}
-                        {item.type.replace(/_/g, " ")}{" "}
-                        <span className="font-semibold text-[var(--dash-text-primary)]">{item.target.title}</span>
-                      </p>
-                      {item.detail && (
-                        <p className="text-sm text-[var(--dash-text-tertiary)] mt-1 truncate">{item.detail}</p>
-                      )}
-                      <p className="text-xs text-[var(--dash-text-muted)] mt-2 flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5" />
-                        {formatRelativeTime(item.created_at)}
-                      </p>
-                    </div>
-                  </div>
-                </Link>
+                  {item.type !== "deleted" ? (
+                    <Link href={`/dashboard/knowledge/${item.target.id}`} className="group">
+                      <ActivityRow item={item} colors={colors} />
+                    </Link>
+                  ) : (
+                    <ActivityRow item={item} colors={colors} />
+                  )}
+                </div>
               );
             })}
           </div>
