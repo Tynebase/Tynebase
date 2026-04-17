@@ -294,7 +294,7 @@ export default async function kbRoutes(fastify: FastifyInstance) {
               name,
               color
             ),
-            users!author_id (
+            author_id (
               id,
               full_name,
               avatar_url
@@ -346,8 +346,8 @@ export default async function kbRoutes(fastify: FastifyInstance) {
 
         const processedDocs = (documents || []).map((doc: any) => ({
           ...doc,
-          author: doc.users || { full_name: 'Unknown Author' },
-          users: undefined, // Remove users field to avoid confusion
+          author: doc.author_id || { full_name: 'Unknown Author' },
+          author_id: undefined, // Remove author_id field to avoid confusion
           category: doc.category,
           tags: (doc.tags || []).map((jt: any) => jt.tag).filter(Boolean),
           content: rewriteAssetUrlsForPublicAccess(doc.content || '', doc.id, apiBaseUrl),
@@ -444,7 +444,7 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           .select(`
             id, title, content, created_at, updated_at, published_at, view_count,
             category:categories (id, name, color),
-            users!author_id (id, full_name, avatar_url),
+            author_id (id, full_name, avatar_url),
             tags:document_tags (
               tag:tags (id, name, description)
             )
@@ -471,8 +471,8 @@ export default async function kbRoutes(fastify: FastifyInstance) {
         const rawDoc = document as any;
         const processedDoc = {
           ...rawDoc,
-          author: rawDoc.users || { full_name: 'Unknown Author' },
-          users: undefined, // Remove users field to avoid confusion
+          author: rawDoc.author_id || { full_name: 'Unknown Author' },
+          author_id: undefined, // Remove author_id field to avoid confusion
           category: rawDoc.category,
           tags: (rawDoc.tags || []).map((t: any) => t.tag).filter(Boolean),
           content: rewriteAssetUrlsForPublicAccess(rawDoc.content || '', id, apiBaseUrl),
