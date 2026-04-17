@@ -197,7 +197,7 @@ export default async function kbRoutes(fastify: FastifyInstance) {
 
         const querySchema = z.object({
           page: z.coerce.number().int().min(1).default(1),
-          limit: z.coerce.number().int().min(1).max(100).default(20),
+          limit: z.coerce.number().int().min(1).max(500).default(20),
           category_id: z.string().optional(),
           tag_id: z.string().uuid().optional(),
           search: z.string().max(200).optional(),
