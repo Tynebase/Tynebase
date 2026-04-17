@@ -163,7 +163,6 @@ export default function VideoNodeView({ node, selected, deleteNode }: NodeViewPr
             title={title || 'YouTube video'}
             className="w-full rounded-lg"
             style={{ height: '400px' }}
-            allow="fullscreen"
             allowFullScreen
           />
         ) : (

@@ -50,7 +50,6 @@ const VideoNodeViewReadonly = ({ node }: any) => {
         title={node.attrs.title || 'YouTube video'}
         className="w-full rounded-lg"
         style={{ height: '400px' }}
-        allow="fullscreen"
         allowFullScreen
       />
     );
