@@ -629,20 +629,28 @@ export function RichTextEditor({
     const timer = setTimeout(() => {
       if (editor.isDestroyed) return;
 
+      // Get Y.js state directly for most reliable check
+      const fragment = ydoc?.getXmlFragment('default');
+      const fragmentLength = fragment?.length || 0;
+      
+      // Also check TipTap's view of "empty"
+      const editorIsEmpty = editor.isEmpty;
       const textContent = editor.getText().trim();
       const fallback = initialContentRef.current?.trim();
 
-      if (!textContent && fallback) {
+      console.log(`[RichTextEditor] Sync Check: fragment=${fragmentLength}, editorEmpty=${editorIsEmpty}, textLength=${textContent.length}, hasFallback=${!!fallback}`);
+
+      if ((fragmentLength === 0 || editorIsEmpty) && fallback) {
+        console.log('[RichTextEditor] Fallback: Y.js doc is empty, populating with DB content');
         // setContent with false keeps TipTap from emitting an extra 'update' event
         editor.commands.setContent(initialContentRef.current!, false);
-        console.log('[RichTextEditor] Fallback: populated empty Y.js doc with DB content');
       }
 
       hasInitializedFallback.current = true;
-    }, 400);
+    }, 600); // Slightly longer delay to allow server sync to settle
 
     return () => clearTimeout(timer);
-  }, [editor, isReady, documentId]);
+  }, [editor, isReady, documentId, ydoc]);
 
   // Update editable state when readOnly changes without recreating the editor
   useEffect(() => {

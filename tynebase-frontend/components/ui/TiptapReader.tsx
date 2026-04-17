@@ -49,15 +49,35 @@ interface TiptapReaderProps {
  */
 function markdownToHtml(raw: string): string {
   if (!raw) return "";
+
+  // Helper to convert YouTube URLs to embed format
+  const convertToEmbed = (url: string) => {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    const videoId = match && match[2].length === 11 ? match[2] : null;
+    return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
+  };
+
   // Convert any remaining Markdown image syntax to img tags
   // (in case content was saved before the collab server fix)
   let processed = raw.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />');
+
+  // Find iframes and fix YouTube URLs if necessary
+  processed = processed.replace(/<iframe\s+([^>]*)src="([^"]+)"([^>]*)><\/iframe>/gi, (match, p1, src, p2) => {
+    if (src.includes('youtube.com') || src.includes('youtu.be')) {
+      const embedUrl = convertToEmbed(src);
+      return `<iframe ${p1}src="${embedUrl}"${p2}></iframe>`;
+    }
+    return match;
+  });
+
   // Wrap bare YouTube iframes with div[data-youtube-video] for TipTap's YouTube extension
   // Matches <iframe> not already inside a div[data-youtube-video]
   processed = processed.replace(
     /(?<!<div data-youtube-video>)(<iframe\s[^>]*(?:youtube\.com|youtu\.be)[^>]*><\/iframe>)/g,
     '<div data-youtube-video>$1</div>'
   );
+
   // Convert Markdown to HTML using marked
   const html = marked.parse(processed);
   return typeof html === "string" ? html : "";
