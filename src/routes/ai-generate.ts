@@ -196,6 +196,24 @@ export default async function aiGenerateRoutes(fastify: FastifyInstance) {
           },
         });
 
+        // Log query_usage for dashboard stats
+        try {
+          await supabaseAdmin.from('query_usage').insert({
+            tenant_id: tenant.id,
+            user_id: user.id,
+            query_type: 'ai_generation',
+            month_year: currentMonth,
+            credits_charged: creditsToDeduct,
+            metadata: {
+              model: validated.model,
+              job_id: job.id,
+              output_types: validated.output_types,
+            },
+          });
+        } catch (err) {
+          request.log.error({ err }, 'Failed to log query_usage for ai_generation');
+        }
+
         request.log.info(
           {
             jobId: job.id,

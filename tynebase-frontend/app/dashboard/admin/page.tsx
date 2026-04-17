@@ -199,6 +199,11 @@ export default function SuperAdminPage() {
   const handleHardDeleteUser = async (targetUser: PlatformUser) => {
     setActionLoading(`hard-delete-${targetUser.id}`);
     try {
+      // If user is active, first archive (soft delete) them
+      if (targetUser.status === "active") {
+        await deleteUser(targetUser.id);
+      }
+      // Then hard delete permanently
       await hardDeleteUser(targetUser.id);
       addToast({ type: "success", title: `${targetUser.email} has been permanently deleted`, persistent: true });
       setConfirmHardDeleteUser(null);
@@ -672,6 +677,20 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                                 </button>
                               )}
                               {/* Delete (hard delete - permanently remove user) */}
+                              {u.status === "active" && !u.is_super_admin && (
+                                <button
+                                  onClick={() => setConfirmHardDeleteUser(u)}
+                                  disabled={actionLoading === `hard-delete-${u.id}`}
+                                  className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-red-500 transition-colors disabled:opacity-30"
+                                  title="Permanently delete user (cannot be undone)"
+                                >
+                                  {actionLoading === `hard-delete-${u.id}` ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-4 h-4" />
+                                  )}
+                                </button>
+                              )}
                               {u.status !== "active" && !u.is_super_admin && (
                                 <button
                                   onClick={() => setConfirmHardDeleteUser(u)}
@@ -1033,6 +1052,11 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
               <p className="text-sm text-[var(--dash-text-secondary)]">
                 Permanently delete <strong>{confirmHardDeleteUser.email}</strong>?
               </p>
+              {confirmHardDeleteUser.status === "active" && (
+                <p className="text-xs text-[var(--dash-text-muted)] bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2 text-orange-600">
+                  ℹ️ Active users will be archived first, then permanently deleted.
+                </p>
+              )}
               <p className="text-xs text-[var(--dash-text-muted)] bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 text-red-600">
                 ⚠️ This action cannot be undone. The user will be permanently removed from the database and cannot be recovered.
               </p>
