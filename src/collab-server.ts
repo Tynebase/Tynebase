@@ -585,8 +585,13 @@ function convertYjsToMarkdown(state: Buffer): string | null {
                 const videoSrc = child.getAttribute('src') || '';
                 const videoType = child.getAttribute('videoType') || '';
                 if (videoSrc) {
-                  // Include videoType as a data attribute so the reader can detect YouTube videos
-                  markdown += `<video src="${videoSrc}" data-video-type="${videoType}" controls></video>\n\n`;
+                  // For YouTube videos, output iframe directly
+                  if (videoType === 'youtube' || videoSrc.includes('youtube.com/embed')) {
+                    markdown += `<iframe src="${videoSrc}" frameborder="0" allowfullscreen style="width:100%;height:400px"></iframe>\n\n`;
+                  } else {
+                    // For uploaded videos, output video tag
+                    markdown += `<video src="${videoSrc}" controls></video>\n\n`;
+                  }
                 }
                 break;
               }

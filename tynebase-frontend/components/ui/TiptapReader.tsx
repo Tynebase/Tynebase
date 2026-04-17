@@ -178,6 +178,7 @@ export function TiptapReader({ content, title, className = "", isHtml = false }:
             tag: 'iframe[src]',
             getAttrs: node => {
               const src = (node as HTMLElement).getAttribute('src');
+              // Accept all YouTube iframes as video nodes
               if (src && (src.includes('youtube.com/embed') || src.includes('youtu.be'))) {
                 return { src, videoType: 'youtube' };
               }
