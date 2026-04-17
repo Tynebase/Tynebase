@@ -31,6 +31,8 @@ import { marked } from "marked";
 const VideoNodeViewReadonly = ({ node }: any) => {
   const { src, videoType } = node.attrs;
 
+  console.log('[VideoNodeViewReadonly] node.attrs:', { src, videoType });
+
   // Convert YouTube URL to embed format
   const getYouTubeEmbedUrl = (url: string) => {
     if (url.includes('youtube.com/embed/')) return url;
@@ -40,10 +42,20 @@ const VideoNodeViewReadonly = ({ node }: any) => {
     return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
   };
 
-  const isYouTube = videoType === 'youtube' || src.includes('youtube.com') || src.includes('youtu.be');
+  // Stronger YouTube detection - check URL patterns first
+  const isYouTube = src && (
+    videoType === 'youtube' ||
+    src.includes('youtube.com/embed') ||
+    src.includes('youtube.com/watch') ||
+    src.includes('youtu.be/')
+  );
+
+  console.log('[VideoNodeViewReadonly] isYouTube:', isYouTube, 'src:', src);
+
   const embedSrc = isYouTube ? getYouTubeEmbedUrl(src) : src;
 
   if (isYouTube) {
+    console.log('[VideoNodeViewReadonly] Rendering iframe with src:', embedSrc);
     return (
       <iframe
         src={embedSrc}
@@ -55,6 +67,7 @@ const VideoNodeViewReadonly = ({ node }: any) => {
     );
   }
 
+  console.log('[VideoNodeViewReadonly] Rendering video tag with src:', src);
   return (
     <video
       src={src}
