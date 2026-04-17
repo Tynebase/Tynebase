@@ -17,6 +17,8 @@ export default function VideoNodeView({ node, selected, deleteNode }: NodeViewPr
   });
   const { src, title, videoType } = node.attrs;
 
+  console.log('[VideoNodeView] Video node attrs:', { src, title, videoType });
+
   // Detect if this is a YouTube URL
   const isYouTube = src.includes('youtube.com') || src.includes('youtu.be');
 
@@ -33,6 +35,8 @@ export default function VideoNodeView({ node, selected, deleteNode }: NodeViewPr
 
   // Convert URL once for both key and src
   const embedSrc = isYouTube ? getYouTubeEmbedUrl(src) : src;
+
+  console.log('[VideoNodeView] Final embedSrc:', embedSrc);
 
   const handleAddToRAGClick = () => {
     // Get document ID from URL path - format: /dashboard/knowledge/[id]
