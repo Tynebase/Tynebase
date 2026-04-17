@@ -69,6 +69,27 @@ export const Video = Node.create<VideoOptions>({
           return false;
         },
       },
+      {
+        // Handle legacy TipTap Youtube extension tags
+        tag: 'youtube',
+        getAttrs: node => {
+          const el = node as HTMLElement;
+          const src = el.getAttribute('src');
+          if (!src) return false;
+          
+          // Convert YouTube watch URL to embed URL
+          const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/)([^#&?]*).*/;
+          const match = src.match(regExp);
+          const videoId = match && match[2].length === 11 ? match[2] : null;
+          const embedUrl = videoId ? `https://www.youtube.com/embed/${videoId}` : src;
+          
+          return {
+            src: embedUrl,
+            videoType: 'youtube',
+            title: el.getAttribute('title') || null,
+          };
+        },
+      },
     ];
   },
   

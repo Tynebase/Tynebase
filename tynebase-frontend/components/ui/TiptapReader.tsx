@@ -135,6 +135,47 @@ export function TiptapReader({ content, title, className = "", isHtml = false }:
       addNodeView() {
         return ReactNodeViewRenderer(VideoNodeViewReadonly);
       },
+      parseHTML() {
+        return [
+          {
+            tag: 'div[data-video]',
+          },
+          {
+            tag: 'video[src]',
+          },
+          {
+            tag: 'iframe[src]',
+            getAttrs: node => {
+              const src = (node as HTMLElement).getAttribute('src');
+              if (src && (src.includes('youtube.com/embed') || src.includes('youtu.be'))) {
+                return { src, videoType: 'youtube' };
+              }
+              return false;
+            },
+          },
+          {
+            // Handle legacy TipTap Youtube extension tags
+            tag: 'youtube',
+            getAttrs: node => {
+              const el = node as HTMLElement;
+              const src = el.getAttribute('src');
+              if (!src) return false;
+              
+              // Convert YouTube watch URL to embed URL
+              const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/)([^#&?]*).*/;
+              const match = src.match(regExp);
+              const videoId = match && match[2].length === 11 ? match[2] : null;
+              const embedUrl = videoId ? `https://www.youtube.com/embed/${videoId}` : src;
+              
+              return {
+                src: embedUrl,
+                videoType: 'youtube',
+                title: el.getAttribute('title') || null,
+              };
+            },
+          },
+        ];
+      },
     }).configure({ HTMLAttributes: { class: "video-wrapper" } }),
   ];
 
