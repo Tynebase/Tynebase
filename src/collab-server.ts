@@ -583,8 +583,10 @@ function convertYjsToMarkdown(state: Buffer): string | null {
               
               case 'video': {
                 const videoSrc = child.getAttribute('src') || '';
+                const videoType = child.getAttribute('videoType') || '';
                 if (videoSrc) {
-                  markdown += `<video src="${videoSrc}" controls></video>\n\n`;
+                  // Include videoType as a data attribute so the reader can detect YouTube videos
+                  markdown += `<video src="${videoSrc}" data-video-type="${videoType}" controls></video>\n\n`;
                 }
                 break;
               }
