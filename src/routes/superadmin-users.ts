@@ -293,6 +293,79 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
   );
 
   /**
+   * DELETE /api/superadmin/users/:userId/hard
+   *
+   * Permanently deletes a user (hard delete) - cannot be undone
+   * This removes the user record from the database entirely
+   */
+  fastify.delete(
+    '/api/superadmin/users/:userId/hard',
+    {
+      preHandler: [authMiddleware, superAdminGuard],
+    },
+    async (request, reply) => {
+      try {
+        const { userId } = userIdParamsSchema.parse(request.params);
+
+        // Verify user exists (handle multiple rows per ID)
+        const { data: users, error: fetchError } = await supabaseAdmin
+          .from('users')
+          .select('id, email, full_name, is_super_admin, status, tenant_id')
+          .eq('id', userId)
+          .order('tenant_id', { ascending: true })
+          .limit(1);
+
+        const targetUser = users?.[0];
+
+        if (fetchError || !targetUser) {
+          return reply.status(404).send({
+            error: { code: 'USER_NOT_FOUND', message: 'User not found' },
+          });
+        }
+
+        // Prevent deleting super admins
+        if (targetUser.is_super_admin) {
+          return reply.status(403).send({
+            error: { code: 'FORBIDDEN', message: 'Cannot permanently delete a super admin user' },
+          });
+        }
+
+        // Hard delete - remove the user record entirely
+        const { error: deleteError } = await supabaseAdmin
+          .from('users')
+          .delete()
+          .eq('id', userId)
+          .eq('tenant_id', targetUser.tenant_id);
+
+        if (deleteError) {
+          request.log.error({ error: deleteError }, 'Failed to hard delete user');
+          throw deleteError;
+        }
+
+        request.log.info(
+          { superAdminId: request.user?.id, deletedUserId: userId, deletedEmail: targetUser.email },
+          'Super admin permanently deleted user'
+        );
+
+        return {
+          success: true,
+          message: `User ${targetUser.email} has been permanently deleted`,
+        };
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.status(400).send({
+            error: { code: 'INVALID_PARAMS', message: 'Invalid parameters' },
+          });
+        }
+        request.log.error({ error }, 'Error permanently deleting user');
+        return reply.status(500).send({
+          error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to permanently delete user' },
+        });
+      }
+    }
+  );
+
+  /**
    * POST /api/superadmin/users/:userId/recovery
    *
    * Sends a password reset email to the user via Supabase Auth SMTP.

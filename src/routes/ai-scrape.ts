@@ -149,7 +149,7 @@ export default async function aiScrapeRoutes(fastify: FastifyInstance) {
       try {
         const validated = ScrapeRequestSchema.parse(request.body);
 
-        // Calculate credits: 3 base + AI model cost × number of AI outputs
+        // Calculate credits: 2 base + AI model cost × number of AI outputs
         const aiModelCost = getModelCreditCost(validated.ai_model);
         const aiOutputCount = validated.output_types.filter(t => t !== 'raw').length;
         const totalCredits = SCRAPE_BASE_CREDITS + (aiModelCost * aiOutputCount);
