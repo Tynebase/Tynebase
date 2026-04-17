@@ -22,7 +22,6 @@ import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
 import TextStyle from "@tiptap/extension-text-style";
 import Color from "@tiptap/extension-color";
-import Youtube from "@tiptap/extension-youtube";
 import { Markdown } from "tiptap-markdown";
 import { HocuspocusProvider } from "@hocuspocus/provider";
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -537,7 +536,6 @@ export function RichTextEditor({
     Color,
     FontSize,
     FontFamily,
-    Youtube.configure({ HTMLAttributes: { class: "w-full aspect-video rounded-lg my-4" } }),
     Video.configure({ HTMLAttributes: { class: "video-wrapper" } }),
     SlashCommands,
     Markdown.configure({
@@ -589,6 +587,31 @@ export function RichTextEditor({
       },
       handlePaste: (view, event) => {
         if (readOnly) return false;
+
+        // First check if pasted text is a YouTube URL
+        const text = event.clipboardData?.getData('text/plain');
+        if (text) {
+          const youtubeRegex = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+          const match = text.match(youtubeRegex);
+          if (match && match[2].length === 11) {
+            event.preventDefault();
+            const videoId = match[2];
+            const embedUrl = `https://www.youtube.com/embed/${videoId}`;
+            const { from } = view.state.selection;
+            view.dispatch(
+              view.state.tr.insert(
+                from,
+                view.state.schema.nodes.video.create({
+                  src: embedUrl,
+                  videoType: 'youtube',
+                })
+              )
+            );
+            return true;
+          }
+        }
+
+        // Then handle image pasting
         const items = event.clipboardData?.items;
         if (!items) return false;
         const imageItem = Array.from(items).find((item) => item.type.startsWith('image/'));
