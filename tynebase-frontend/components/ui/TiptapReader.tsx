@@ -139,9 +139,32 @@ export function TiptapReader({ content, title, className = "", isHtml = false }:
         return [
           {
             tag: 'div[data-video]',
+            getAttrs: node => {
+              const el = node as HTMLElement;
+              const iframe = el.querySelector('iframe');
+              const video = el.querySelector('video');
+              
+              if (iframe) {
+                const src = iframe.getAttribute('src');
+                if (src && (src.includes('youtube.com/embed') || src.includes('youtu.be'))) {
+                  return { src, videoType: 'youtube' };
+                }
+              }
+              
+              if (video) {
+                const src = video.getAttribute('src');
+                if (src) return { src, videoType: 'uploaded' };
+              }
+              
+              return false;
+            },
           },
           {
             tag: 'video[src]',
+            getAttrs: node => ({
+              src: (node as HTMLElement).getAttribute('src'),
+              videoType: 'uploaded',
+            }),
           },
           {
             tag: 'iframe[src]',
