@@ -598,16 +598,11 @@ export function RichTextEditor({
             event.preventDefault();
             const videoId = match[2];
             const embedUrl = `https://www.youtube.com/embed/${videoId}`;
-            const { from } = view.state.selection;
-            view.dispatch(
-              view.state.tr.insert(
-                from,
-                view.state.schema.nodes.video.create({
-                  src: embedUrl,
-                  videoType: 'youtube',
-                })
-              )
-            );
+            // Use chain() API for proper Y.js collaboration integration
+            editorRefForDrag.current?.chain().focus().setVideo({
+              src: embedUrl,
+              videoType: 'youtube',
+            }).run();
             return true;
           }
         }
