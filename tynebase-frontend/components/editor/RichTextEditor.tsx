@@ -597,7 +597,6 @@ export function RichTextEditor({
             event.preventDefault();
             const videoId = match[2];
             const embedUrl = `https://www.youtube.com/embed/${videoId}`;
-            console.log('[RichTextEditor] Pasted YouTube URL:', text, '-> Embed URL:', embedUrl);
             const { from } = view.state.selection;
             view.dispatch(
               view.state.tr.insert(

@@ -17,10 +17,8 @@ export default function VideoNodeView({ node, selected, deleteNode }: NodeViewPr
   });
   const { src, title, videoType } = node.attrs;
 
-  console.log('[VideoNodeView] Video node attrs:', { src, title, videoType });
-
-  // Detect if this is a YouTube URL
-  const isYouTube = src.includes('youtube.com') || src.includes('youtu.be');
+  // Detect if this is a YouTube URL (check both watch URLs and embed URLs)
+  const isYouTube = videoType === 'youtube' || src.includes('youtube.com') || src.includes('youtu.be');
 
   // Convert YouTube watch URL to embed URL (fallback for legacy documents)
   // New videos now store embed URLs directly in RichTextEditor
@@ -35,8 +33,6 @@ export default function VideoNodeView({ node, selected, deleteNode }: NodeViewPr
 
   // Convert URL once for both key and src
   const embedSrc = isYouTube ? getYouTubeEmbedUrl(src) : src;
-
-  console.log('[VideoNodeView] Final embedSrc:', embedSrc);
 
   const handleAddToRAGClick = () => {
     // Get document ID from URL path - format: /dashboard/knowledge/[id]
