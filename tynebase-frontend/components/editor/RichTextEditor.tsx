@@ -696,16 +696,26 @@ export function RichTextEditor({
     setShowImageInput(false);
   }, [editor, imageUrl]);
 
+  // Convert YouTube watch URL to embed URL to avoid X-Frame-Options issues
+  const getYouTubeEmbedUrl = useCallback((url: string) => {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    const videoId = match && match[2].length === 11 ? match[2] : null;
+    return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
+  }, []);
+
   const addYoutube = useCallback(() => {
     if (!editor || !youtubeUrl) return;
+    // Convert to embed URL to avoid X-Frame-Options blocking
+    const embedUrl = getYouTubeEmbedUrl(youtubeUrl);
     // Use custom Video node instead of YouTube extension for RAG support
     editor.chain().focus().setVideo({ 
-      src: youtubeUrl, 
+      src: embedUrl, 
       videoType: 'youtube' as const 
     }).run();
     setYoutubeUrl("");
     setShowYoutubeInput(false);
-  }, [editor, youtubeUrl]);
+  }, [editor, youtubeUrl, getYouTubeEmbedUrl]);
 
   const handleImageFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

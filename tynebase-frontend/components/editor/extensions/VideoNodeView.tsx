@@ -19,9 +19,12 @@ export default function VideoNodeView({ node, selected, deleteNode }: NodeViewPr
 
   // Detect if this is a YouTube URL
   const isYouTube = src.includes('youtube.com') || src.includes('youtu.be');
-  
-  // Extract YouTube video ID
+
+  // Convert YouTube watch URL to embed URL (fallback for legacy documents)
+  // New videos now store embed URLs directly in RichTextEditor
   const getYouTubeEmbedUrl = (url: string) => {
+    // If already an embed URL, return as-is
+    if (url.includes('youtube.com/embed/')) return url;
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
     const match = url.match(regExp);
     const videoId = match && match[2].length === 11 ? match[2] : null;
