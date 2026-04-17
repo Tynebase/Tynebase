@@ -120,6 +120,11 @@ export async function deleteUser(userId: string): Promise<{ message: string }> {
   return response;
 }
 
+export async function hardDeleteUser(userId: string): Promise<{ message: string }> {
+  const response = await apiDelete<{ message: string }>(`/api/superadmin/users/${userId}/hard`);
+  return response;
+}
+
 export async function restoreUser(userId: string): Promise<{ message: string }> {
   const response = await apiPost<{ message: string }>(`/api/superadmin/users/${userId}/restore`);
   return response;

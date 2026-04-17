@@ -574,6 +574,7 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
         const now = new Date();
         const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
         const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const currentMonthYear = now.toISOString().slice(0, 7); // Format: YYYY-MM
 
         // Parallel queries for all KPIs
         const [
@@ -593,7 +594,7 @@ export default async function superAdminUsersRoutes(fastify: FastifyInstance) {
           supabaseAdmin.from('users').select('*', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo.toISOString()).neq('status', 'suspended'),
           supabaseAdmin.from('documents').select('*', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo.toISOString()),
           supabaseAdmin.from('query_usage').select('credits_charged').gte('created_at', thirtyDaysAgo.toISOString()),
-          supabaseAdmin.from('credit_pools').select('total_credits, used_credits'),
+          supabaseAdmin.from('credit_pools').select('total_credits, used_credits').eq('month_year', currentMonthYear),
         ]);
 
         const totalCreditsUsed = creditPoolsResult.data?.reduce((sum, p) => sum + (p.used_credits || 0), 0) || 0;

@@ -26,7 +26,7 @@ const outputOptions = [
 const aiProviders = [
   { id: 'deepseek', name: 'DeepSeek', desc: 'Fast and efficient via AWS Bedrock', badge: 'Recommended', credits: 1 },
   { id: 'gemini', name: 'Gemini 2.5', desc: 'Advanced reasoning via Google Vertex', badge: null, credits: 2 },
-  { id: 'claude', name: 'Claude Sonnet 4.5', desc: 'Best for analysis & nuanced writing', badge: null, credits: 5 },
+  { id: 'claude', name: 'Claude Sonnet 4.5', desc: 'Best for analysis & nuanced writing', badge: null, credits: 4 },
 ];
 
 export default function AIAssistantPage() {

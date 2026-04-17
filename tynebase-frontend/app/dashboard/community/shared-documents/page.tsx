@@ -6,10 +6,11 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import {
-  FileText, Search, Eye, Clock, User, Loader2, FolderOpen, BookOpen
+  FileText, Search, Eye, Clock, User, Loader2, FolderOpen, BookOpen, Edit
 } from "lucide-react";
 import { listSharedDocuments, Document } from "@/lib/api/documents";
 import { listPublicTemplates, Template } from "@/lib/api/templates";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Strip markdown/HTML for plain text preview
 const stripMarkdown = (text: string): string => {
@@ -37,6 +38,7 @@ type TabType = "documents" | "templates";
 export default function SharedDocumentsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   const tabFromUrl = searchParams.get('tab') as TabType | null;
   const [activeTab, setActiveTab] = useState<TabType>(tabFromUrl === 'templates' ? 'templates' : 'documents');
 
@@ -225,25 +227,36 @@ export default function SharedDocumentsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
                 {filteredDocuments.map((doc) => {
                   const authorName = doc.users?.full_name || doc.users?.email || "Unknown";
+                  const canEdit = user?.is_super_admin;
                   return (
-                    <Link
-                      key={doc.id}
-                      href={`/docs/${doc.id}`}
-                      className="block bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl p-5 hover:shadow-md hover:border-[var(--brand)] transition-all group"
-                    >
-                      <div className="flex items-start gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-lg bg-[var(--brand-primary-muted)] flex items-center justify-center flex-shrink-0">
-                          <FileText className="w-5 h-5 text-[var(--brand)]" />
+                    <div key={doc.id} className="bg-[var(--surface-ground)] border border-[var(--dash-border-subtle)] rounded-xl p-5 hover:shadow-md hover:border-[var(--brand)] transition-all group">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <div className="w-10 h-10 rounded-lg bg-[var(--brand-primary-muted)] flex items-center justify-center flex-shrink-0">
+                            <FileText className="w-5 h-5 text-[var(--brand)]" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <Link
+                              href={`/docs/${doc.id}`}
+                              className="font-semibold text-[var(--dash-text-primary)] group-hover:text-[var(--brand)] transition-colors truncate block"
+                            >
+                              {doc.title}
+                            </Link>
+                            <p className="text-xs text-[var(--dash-text-muted)] flex items-center gap-1 mt-1">
+                              <User className="w-3 h-3" />
+                              {authorName}
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-[var(--dash-text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
-                            {doc.title}
-                          </h3>
-                          <p className="text-xs text-[var(--dash-text-muted)] flex items-center gap-1 mt-1">
-                            <User className="w-3 h-3" />
-                            {authorName}
-                          </p>
-                        </div>
+                        {canEdit && (
+                          <Link
+                            href={`/dashboard/knowledge/${doc.id}`}
+                            className="p-2 rounded-lg hover:bg-[var(--surface-hover)] text-[var(--dash-text-muted)] hover:text-[var(--brand)] transition-colors"
+                            title="Edit document"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Link>
+                        )}
                       </div>
                       <p className="text-sm text-[var(--dash-text-tertiary)] line-clamp-2 mb-3">
                         {doc.content ? stripMarkdown(doc.content).slice(0, 150) : "No content preview available"}
@@ -258,7 +271,7 @@ export default function SharedDocumentsPage() {
                           {doc.view_count || 0} views
                         </span>
                       </div>
-                    </Link>
+                    </div>
                   );
                 })}
               </div>

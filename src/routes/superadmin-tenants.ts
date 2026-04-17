@@ -148,6 +148,7 @@ export default async function superAdminTenantsRoutes(fastify: FastifyInstance) 
         }
 
         const tenantIds = tenants.map(t => t.id);
+        const currentMonthYear = new Date().toISOString().slice(0, 7); // Format: YYYY-MM
 
         // Query 2: Get user counts per tenant
         const { data: userCounts, error: userCountsError } = await supabaseAdmin
@@ -186,7 +187,8 @@ export default async function superAdminTenantsRoutes(fastify: FastifyInstance) 
         const { data: creditPools, error: creditPoolsError } = await supabaseAdmin
           .from('credit_pools')
           .select('tenant_id, used_credits, total_credits')
-          .in('tenant_id', tenantIds);
+          .in('tenant_id', tenantIds)
+          .eq('month_year', currentMonthYear);
 
         if (creditPoolsError) {
           request.log.error({ error: creditPoolsError }, 'Failed to fetch credit pools');

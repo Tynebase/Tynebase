@@ -35,7 +35,7 @@ export type AIModel =
  * Model credit costs (v1 pricing - whole numbers)
  * - DeepSeek: 1 credit (cheapest, great for bulk ops)
  * - Gemini: 2 credits (good balance of cost/quality)
- * - Claude: 5 credits (highest quality)
+ * - Claude: 4 credits (highest quality)
  */
 const MODEL_CREDITS: Record<string, number> = {
   // DeepSeek models: 1 credit
@@ -48,12 +48,12 @@ const MODEL_CREDITS: Record<string, number> = {
   'gemini': 2,
   'gemini-3-flash': 2,
   
-  // Claude models: 5 credits
-  'claude-sonnet-4.5': 5,
-  'claude-3-sonnet': 5,
-  'claude-3-opus': 5,
+  // Claude models: 4 credits
+  'claude-sonnet-4.5': 4,
+  'claude-3-sonnet': 4,
+  'claude-3-opus': 4,
   'claude-3-haiku': 3,
-  'claude': 5,
+  'claude': 4,
   
   // GPT models (legacy): 1 credit
   'gpt-4': 1,
@@ -79,8 +79,8 @@ const MODEL_MULTIPLIERS: Record<string, number> = {
   'gemini-2.5-flash': 2,
   'gemini-2.5': 2,
   'gemini': 2,
-  'claude-sonnet-4.5': 5,
-  'claude': 5,
+  'claude-sonnet-4.5': 4,
+  'claude': 4,
 };
 
 /**

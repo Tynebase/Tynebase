@@ -11,6 +11,7 @@ import {
   listAllUsers,
   listAllTenants,
   deleteUser,
+  hardDeleteUser,
   restoreUser,
   sendRecoveryEmail,
   assignCredits,
@@ -100,6 +101,7 @@ export default function SuperAdminPage() {
   // Modal state
   const [creditsModal, setCreditsModal] = useState<CreditsModal | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<PlatformUser | null>(null);
+  const [confirmHardDeleteUser, setConfirmHardDeleteUser] = useState<PlatformUser | null>(null);
   const [tierModal, setTierModal] = useState<TierModal | null>(null);
   const [confirmSuspend, setConfirmSuspend] = useState<TenantListItem | null>(null);
   const [confirmHardDelete, setConfirmHardDelete] = useState<TenantListItem | null>(null);
@@ -189,6 +191,21 @@ export default function SuperAdminPage() {
       fetchUsers();
     } catch (err: any) {
       addToast({ type: "error", title: err.message || "Failed to archive user" });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleHardDeleteUser = async (targetUser: PlatformUser) => {
+    setActionLoading(`hard-delete-${targetUser.id}`);
+    try {
+      await hardDeleteUser(targetUser.id);
+      addToast({ type: "success", title: `${targetUser.email} has been permanently deleted`, persistent: true });
+      setConfirmHardDeleteUser(null);
+      fetchUsers();
+      fetchKPIs();
+    } catch (err: any) {
+      addToast({ type: "error", title: err.message || "Failed to permanently delete user" });
     } finally {
       setActionLoading(null);
     }
@@ -654,6 +671,21 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                                   <ArchiveX className="w-4 h-4" />
                                 </button>
                               )}
+                              {/* Delete (hard delete - permanently remove user) */}
+                              {u.status !== "active" && !u.is_super_admin && (
+                                <button
+                                  onClick={() => setConfirmHardDeleteUser(u)}
+                                  disabled={actionLoading === `hard-delete-${u.id}`}
+                                  className="p-2 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-muted)] hover:text-red-500 transition-colors disabled:opacity-30"
+                                  title="Permanently delete user (cannot be undone)"
+                                >
+                                  {actionLoading === `hard-delete-${u.id}` ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-4 h-4" />
+                                  )}
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -976,6 +1008,48 @@ Filter: {usersFilter === "new30d" ? "New Users (30d)" : "Active Users (7d)"}</sp
                 >
                   {actionLoading === confirmDelete.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArchiveX className="w-4 h-4" />}
                   Archive User
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== HARD DELETE USER CONFIRM MODAL ==================== */}
+      {confirmHardDeleteUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setConfirmHardDeleteUser(null)} />
+          <div className="relative w-full max-w-md bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-xl shadow-xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--dash-border-subtle)]">
+              <h2 className="text-lg font-semibold text-red-500 flex items-center gap-2">
+                <Trash2 className="w-5 h-5" />
+                Permanently Delete User
+              </h2>
+              <button onClick={() => setConfirmHardDeleteUser(null)} className="p-1.5 rounded-lg hover:bg-[var(--surface-ground)] text-[var(--dash-text-tertiary)]">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <p className="text-sm text-[var(--dash-text-secondary)]">
+                Permanently delete <strong>{confirmHardDeleteUser.email}</strong>?
+              </p>
+              <p className="text-xs text-[var(--dash-text-muted)] bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 text-red-600">
+                ⚠️ This action cannot be undone. The user will be permanently removed from the database and cannot be recovered.
+              </p>
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  onClick={() => setConfirmHardDeleteUser(null)}
+                  className="px-4 py-2 text-sm text-[var(--dash-text-secondary)] hover:text-[var(--dash-text-primary)] transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleHardDeleteUser(confirmHardDeleteUser)}
+                  disabled={actionLoading === `hard-delete-${confirmHardDeleteUser.id}`}
+                  className="flex items-center gap-2 px-5 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50"
+                >
+                  {actionLoading === `hard-delete-${confirmHardDeleteUser.id}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  Permanently Delete
                 </button>
               </div>
             </div>
