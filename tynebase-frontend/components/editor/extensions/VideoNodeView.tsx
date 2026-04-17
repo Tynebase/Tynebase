@@ -23,13 +23,22 @@ export default function VideoNodeView({ node, selected, deleteNode }: NodeViewPr
   // Convert YouTube watch URL to embed URL (fallback for legacy documents)
   // New videos now store embed URLs directly in RichTextEditor
   const getYouTubeEmbedUrl = (url: string) => {
+    console.log('[VideoNodeView] Converting URL:', url);
     // If already an embed URL, return as-is
-    if (url.includes('youtube.com/embed/')) return url;
+    if (url.includes('youtube.com/embed/')) {
+      console.log('[VideoNodeView] Already embed URL, returning as-is');
+      return url;
+    }
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
     const match = url.match(regExp);
     const videoId = match && match[2].length === 11 ? match[2] : null;
-    return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
+    const embedUrl = videoId ? `https://www.youtube.com/embed/${videoId}` : url;
+    console.log('[VideoNodeView] Converted to:', embedUrl);
+    return embedUrl;
   };
+
+  // Convert URL once for both key and src
+  const embedSrc = isYouTube ? getYouTubeEmbedUrl(src) : src;
 
   const handleAddToRAGClick = () => {
     // Get document ID from URL path - format: /dashboard/knowledge/[id]
@@ -154,7 +163,8 @@ export default function VideoNodeView({ node, selected, deleteNode }: NodeViewPr
         {/* Video or YouTube Embed */}
         {isYouTube ? (
           <iframe
-            src={getYouTubeEmbedUrl(src)}
+            key={embedSrc}
+            src={embedSrc}
             title={title || 'YouTube video'}
             className="w-full rounded-lg"
             style={{ height: '400px' }}

@@ -1179,9 +1179,9 @@ export default async function documentRoutes(fastify: FastifyInstance) {
         }
 
         // Delete document first (lineage record will be created after with null document_id)
-        const { error: deleteError } = await supabaseAdmin
+        const { error: deleteError, count } = await supabaseAdmin
           .from('documents')
-          .delete()
+          .delete({ count: 'exact' })
           .eq('id', id)
           .eq('tenant_id', tenant.id);
 
@@ -1200,6 +1200,21 @@ export default async function documentRoutes(fastify: FastifyInstance) {
                 details: deleteError.details,
                 hint: deleteError.hint,
               },
+            },
+          });
+        }
+
+        // Check if document was actually deleted (count === 1)
+        if (count === 0) {
+          fastify.log.warn(
+            { documentId: id, tenantId: tenant.id, userId: user.id },
+            'Document not found - already deleted or does not exist'
+          );
+          return reply.code(404).send({
+            error: {
+              code: 'DOCUMENT_NOT_FOUND',
+              message: 'Document not found',
+              details: {},
             },
           });
         }
