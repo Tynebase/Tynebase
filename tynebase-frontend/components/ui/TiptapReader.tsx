@@ -25,7 +25,49 @@ import { common, createLowlight } from "lowlight";
 import { FontSize } from "@/components/editor/extensions/FontSize";
 import { FontFamily } from "@/components/editor/extensions/FontFamily";
 import { Video } from "@/components/editor/extensions/Video";
+import { ReactNodeViewRenderer } from "@tiptap/react";
 import { marked } from "marked";
+
+// Custom NodeView for Video in read-only mode that converts YouTube URLs
+const VideoNodeViewReadonly = ({ node }: any) => {
+  const { src, videoType } = node.attrs;
+
+  // Convert YouTube URL to embed format
+  const getYouTubeEmbedUrl = (url: string) => {
+    if (url.includes('youtube.com/embed/')) return url;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/)([^#&?]*).*/;
+    const match = url.match(regExp);
+    const videoId = match && match[2].length === 11 ? match[2] : null;
+    return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
+  };
+
+  const isYouTube = videoType === 'youtube' || src.includes('youtube.com') || src.includes('youtu.be');
+  const embedSrc = isYouTube ? getYouTubeEmbedUrl(src) : src;
+
+  if (isYouTube) {
+    return (
+      <iframe
+        src={embedSrc}
+        title={node.attrs.title || 'YouTube video'}
+        className="w-full rounded-lg"
+        style={{ height: '400px' }}
+        allow="fullscreen"
+        allowFullScreen
+      />
+    );
+  }
+
+  return (
+    <video
+      src={src}
+      title={node.attrs.title}
+      controls
+      preload="metadata"
+      className="w-full rounded-lg"
+      style={{ maxHeight: '500px' }}
+    />
+  );
+};
 
 const lowlight = createLowlight(common);
 
@@ -50,9 +92,9 @@ interface TiptapReaderProps {
 function markdownToHtml(raw: string): string {
   if (!raw) return "";
 
-  // Helper to convert YouTube URLs to embed format
+  // Helper to convert YouTube URLs to embed format (including Shorts)
   const convertToEmbed = (url: string) => {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/)([^#&?]*).*/;
     const match = url.match(regExp);
     const videoId = match && match[2].length === 11 ? match[2] : null;
     return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
@@ -115,7 +157,11 @@ export function TiptapReader({ content, title, className = "", isHtml = false }:
     FontSize,
     FontFamily,
     Youtube.configure({ HTMLAttributes: { class: "w-full aspect-video rounded-lg my-4" } }),
-    Video.configure({ HTMLAttributes: { class: "video-wrapper" } }),
+    Video.extend({
+      addNodeView() {
+        return ReactNodeViewRenderer(VideoNodeViewReadonly);
+      },
+    }).configure({ HTMLAttributes: { class: "video-wrapper" } }),
   ];
 
   const editor = useEditor({
