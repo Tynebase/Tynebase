@@ -1217,7 +1217,12 @@ export default async function documentRoutes(fastify: FastifyInstance) {
             error: {
               code: 'DELETE_FAILED',
               message: 'Failed to delete document',
-              details: {},
+              details: {
+                databaseError: deleteError.message,
+                code: deleteError.code,
+                details: deleteError.details,
+                hint: deleteError.hint,
+              },
             },
           });
         }
