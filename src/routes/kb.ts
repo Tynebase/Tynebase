@@ -294,7 +294,7 @@ export default async function kbRoutes(fastify: FastifyInstance) {
               name,
               color
             ),
-            users (
+            users!documents_author_id_fkey (
               id,
               full_name,
               avatar_url
@@ -444,7 +444,7 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           .select(`
             id, title, content, created_at, updated_at, published_at, view_count,
             category:categories (id, name, color),
-            users (id, full_name, avatar_url),
+            users!documents_author_id_fkey (id, full_name, avatar_url),
             tags:document_tags (
               tag:tags (id, name, description)
             )
