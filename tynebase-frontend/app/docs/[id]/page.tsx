@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { User, Clock, Eye, ArrowLeft, Loader2, AlertCircle, ThumbsUp, ThumbsDown, FolderOpen } from "lucide-react";
 import { getPublicDocument, Document } from "@/lib/api/documents";
@@ -89,7 +89,9 @@ function buildTenantSections(
 
 export default function PublicDocumentPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const documentId = params.id as string;
+  const fromDashboard = searchParams.get('from') === 'dashboard';
 
   const [doc, setDoc] = useState<Document | null>(null);
   const [tenant, setTenant] = useState<KBTenant | null>(null);
@@ -151,8 +153,8 @@ export default function PublicDocumentPage() {
   const isTenantKB = !!subdomain;
   const brandColor = tenant?.branding.primary_color || "var(--brand)";
   const companyName = tenant?.branding.company_name || tenant?.name;
-  const backHref = isTenantKB ? "/docs" : "/public-documents";
-  const backLabel = isTenantKB ? `Back to ${companyName || 'Knowledge Base'}` : "Back to Public Documents";
+  const backHref = fromDashboard ? "/dashboard/community/shared-documents" : (isTenantKB ? "/docs" : "/public-documents");
+  const backLabel = fromDashboard ? "Back to Shared Documents" : (isTenantKB ? `Back to ${companyName || 'Knowledge Base'}` : "Back to Public Documents");
 
   const sections = useMemo(
     () => buildTenantSections(tenantCategories, tenantDocuments),
