@@ -56,6 +56,18 @@ export interface DocsLayoutProps {
   breadcrumbs?: { label: string; href?: string }[];
   /** Rendered inside the center column immediately after the markdown body — ideal for feedback widgets, related-doc lists, etc. */
   afterContent?: React.ReactNode;
+  /**
+   * When DocsLayout is embedded inside a scrollable container (e.g. the dashboard
+   * content area) instead of using window scroll, pass a ref to that container.
+   * Sticky sidebars and TOC click-scroll will target it instead of the window.
+   */
+  scrollContainerRef?: React.RefObject<HTMLElement | null>;
+  /**
+   * How far from the top of the scroll container the sticky sidebars should sit.
+   * Defaults to 80 (full-page navbar height). Pass 0 when embedded in a layout
+   * that has no internal fixed header above the content area.
+   */
+  stickyTopOffset?: number;
 }
 
 // ---------- Utilities ----------
@@ -125,10 +137,12 @@ function DocsSidebar({
   sections,
   currentSlug,
   basePath,
+  stickyTopOffset = 80,
 }: {
   sections: DocsNavSection[];
   currentSlug: string;
   basePath: string;
+  stickyTopOffset?: number;
 }) {
   // A section is open by default if it contains the active slug, is marked defaultOpen,
   // or there's no active slug and it's the first section.
@@ -163,11 +177,11 @@ function DocsSidebar({
         className="docs-sidebar"
         style={{
           position: "sticky",
-          top: "80px",
+          top: `${stickyTopOffset}px`,
           alignSelf: "flex-start",
           width: "260px",
           flexShrink: 0,
-          height: "calc(100vh - 80px)",
+          height: `calc(100vh - ${stickyTopOffset}px)`,
           overflowY: "auto",
           padding: "24px 16px 48px 0",
           borderRight: "1px solid var(--border-subtle)",
@@ -273,16 +287,22 @@ function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
-function smoothScrollTo(targetY: number, duration = 700): Promise<void> {
+function smoothScrollTo(
+  targetY: number,
+  duration = 700,
+  container?: HTMLElement | null
+): Promise<void> {
   return new Promise((resolve) => {
-    const startY = window.scrollY;
+    const startY = container ? container.scrollTop : window.scrollY;
     const distance = targetY - startY;
     if (Math.abs(distance) < 2) return resolve();
     const startTime = performance.now();
     const step = (now: number) => {
       const elapsed = now - startTime;
       const t = Math.min(1, elapsed / duration);
-      window.scrollTo(0, startY + distance * easeInOutCubic(t));
+      const y = startY + distance * easeInOutCubic(t);
+      if (container) container.scrollTop = y;
+      else window.scrollTo(0, y);
       if (t < 1) requestAnimationFrame(step);
       else resolve();
     };
@@ -290,7 +310,15 @@ function smoothScrollTo(targetY: number, duration = 700): Promise<void> {
   });
 }
 
-function DocsTOC({ toc }: { toc: TocEntry[] }) {
+function DocsTOC({
+  toc,
+  scrollContainerRef,
+  stickyTopOffset = 80,
+}: {
+  toc: TocEntry[];
+  scrollContainerRef?: React.RefObject<HTMLElement | null>;
+  stickyTopOffset?: number;
+}) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const listRef = useRef<HTMLUListElement>(null);
   /** While a click-triggered eased scroll is in flight, freeze the indicator
@@ -304,6 +332,8 @@ function DocsTOC({ toc }: { toc: TocEntry[] }) {
   // Scroll-spy — only updates activeId when a programmatic scroll isn't running.
   useEffect(() => {
     if (!toc.length) return;
+    const container = scrollContainerRef?.current ?? null;
+    const topMargin = stickyTopOffset > 0 ? `-${stickyTopOffset}px` : "0px";
     const observer = new IntersectionObserver(
       (entries) => {
         if (programmaticScrollRef.current) return;
@@ -313,14 +343,14 @@ function DocsTOC({ toc }: { toc: TocEntry[] }) {
           setActiveId(visible[0].target.id);
         }
       },
-      { rootMargin: "-80px 0px -70% 0px", threshold: 0 }
+      { root: container, rootMargin: `${topMargin} 0px -70% 0px`, threshold: 0 }
     );
     toc.forEach((entry) => {
       const el = document.getElementById(entry.id);
       if (el) observer.observe(el);
     });
     return () => observer.disconnect();
-  }, [toc]);
+  }, [toc, scrollContainerRef, stickyTopOffset]);
 
   // Recompute indicator position whenever the active id changes or the list
   // reflows (font loading, viewport resize). The indicator is an absolutely
@@ -352,11 +382,14 @@ function DocsTOC({ toc }: { toc: TocEntry[] }) {
     const el = document.getElementById(id);
     if (!el) return;
     e.preventDefault();
-    const top = el.getBoundingClientRect().top + window.scrollY - 80;
+    const container = scrollContainerRef?.current ?? null;
+    const containerTop = container ? container.getBoundingClientRect().top : 0;
+    const scrollY = container ? container.scrollTop : window.scrollY;
+    const top = el.getBoundingClientRect().top - containerTop + scrollY - stickyTopOffset;
     setActiveId(id); // float indicator to target immediately
     programmaticScrollRef.current = true;
     history.replaceState(null, "", `#${id}`);
-    await smoothScrollTo(top, 750);
+    await smoothScrollTo(top, 750, container);
     // Brief grace period so post-scroll IntersectionObserver callbacks don't
     // snap the indicator onto an adjacent heading.
     setTimeout(() => {
@@ -371,11 +404,11 @@ function DocsTOC({ toc }: { toc: TocEntry[] }) {
       className="docs-toc"
       style={{
         position: "sticky",
-        top: "88px",
+        top: `${stickyTopOffset + 8}px`,
         alignSelf: "flex-start",
         width: "240px",
         flexShrink: 0,
-        maxHeight: "calc(100vh - 104px)",
+        maxHeight: `calc(100vh - ${stickyTopOffset + 24}px)`,
         overflowY: "auto",
         padding: "20px 16px",
         marginLeft: "16px",
@@ -504,6 +537,8 @@ export function DocsLayout({
   footer,
   breadcrumbs,
   afterContent,
+  scrollContainerRef,
+  stickyTopOffset = 80,
 }: DocsLayoutProps) {
   const pathname = usePathname();
   const contentRef = useRef<HTMLDivElement>(null);
@@ -513,12 +548,14 @@ export function DocsLayout({
   // Scroll to top when navigating between articles.
   useEffect(() => {
     if (typeof window !== "undefined") {
-      window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+      const container = scrollContainerRef?.current;
+      if (container) container.scrollTop = 0;
+      else window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
     }
-  }, [currentSlug, pathname]);
+  }, [currentSlug, pathname, scrollContainerRef]);
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--bg-primary)" }}>
+    <div className="min-h-full" style={{ background: "var(--bg-primary)" }}>
       {header}
 
       <div
@@ -539,6 +576,7 @@ export function DocsLayout({
             sections={sections}
             currentSlug={currentSlug}
             basePath={basePath}
+            stickyTopOffset={stickyTopOffset}
           />
         </div>
 
@@ -656,7 +694,11 @@ export function DocsLayout({
         {/* Right rail TOC — wrapper stretches to the main column's height so the
             inner `position: sticky` aside has scroll range to stick against. */}
         <div className="hidden-mobile" style={{ display: "block", alignSelf: "stretch" }}>
-          <DocsTOC toc={toc} />
+          <DocsTOC
+            toc={toc}
+            scrollContainerRef={scrollContainerRef}
+            stickyTopOffset={stickyTopOffset}
+          />
         </div>
       </div>
 
