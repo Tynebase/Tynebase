@@ -121,15 +121,26 @@ export default function SharedDocumentPage() {
   ];
 
   return (
-    <DocsLayout
-      sections={finalSections}
-      currentSlug={documentId}
-      title={doc.title}
-      content={doc.content || "No content available."}
-      meta={meta}
-      basePath="/dashboard/community/shared-documents"
-      breadcrumbs={breadcrumbs}
-      header={header}
-    />
+    <div style={{ maxWidth: '100%' }}>
+      <style>{`
+        .docs-layout-shell {
+          max-width: 100% !important;
+          padding: 0 !important;
+        }
+        .docs-layout-shell > div:nth-child(2) {
+          max-width: 100% !important;
+        }
+      `}</style>
+      <DocsLayout
+        sections={finalSections}
+        currentSlug={documentId}
+        title={doc.title}
+        content={doc.content || "No content available."}
+        meta={meta}
+        basePath="/dashboard/community/shared-documents"
+        breadcrumbs={breadcrumbs}
+        header={header}
+      />
+    </div>
   );
 }
