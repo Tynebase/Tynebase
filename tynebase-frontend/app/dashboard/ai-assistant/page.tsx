@@ -97,7 +97,7 @@ export default function AIAssistantPage() {
   
   const BASE_FILE_CREDITS = 1;
   const LARGE_FILE_CREDITS = 3;
-  const LARGE_FILE_THRESHOLD = 50 * 1024 * 1024; // 50MB
+  const LARGE_FILE_THRESHOLD = 20 * 1024 * 1024; // 20MB
   const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB hard limit
   const EXTRA_CREDIT_PER_OPTION = 1;
   
@@ -902,8 +902,8 @@ export default function AIAssistantPage() {
                   </div>
                 </div>
                 <p className="text-xs text-[var(--dash-text-muted)]">
-                  Base: {selectedFile.size > LARGE_FILE_THRESHOLD ? LARGE_FILE_CREDITS : BASE_FILE_CREDITS} credits 
-                  {selectedFile.size > LARGE_FILE_THRESHOLD && ' (file &gt;50MB)'} • AI outputs: +{aiProviders.find(p => p.id === selectedProvider)?.credits || 1} {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1) === 1 ? 'credit' : 'credits'} each ({selectedProvider})
+                  Base: {selectedFile.size > LARGE_FILE_THRESHOLD ? LARGE_FILE_CREDITS : BASE_FILE_CREDITS} credits
+                  {selectedFile.size > LARGE_FILE_THRESHOLD && ' (file &gt;20MB)'} • AI outputs: +{aiProviders.find(p => p.id === selectedProvider)?.credits || 1} {(aiProviders.find(p => p.id === selectedProvider)?.credits || 1) === 1 ? 'credit' : 'credits'} each ({selectedProvider})
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <label className={`flex items-start gap-3 p-4 border-2 rounded-2xl cursor-pointer transition-colors ${
