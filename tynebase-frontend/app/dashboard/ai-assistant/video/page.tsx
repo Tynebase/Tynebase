@@ -35,7 +35,7 @@ const CLAUDE_BASE_CREDITS = 6;
 const aiProviders = [
   { id: 'gemini', name: 'Gemini 2.5', desc: 'Gemini transcription + generation', credits: 2, baseCredits: BASE_CREDITS },
   { id: 'deepseek', name: 'DeepSeek', desc: 'Gemini transcription + DeepSeek generation', credits: 1, baseCredits: BASE_CREDITS },
-  { id: 'claude', name: 'Claude Sonnet 4.5', desc: 'Gemini transcription + Claude generation', credits: 5, baseCredits: CLAUDE_BASE_CREDITS },
+  { id: 'claude', name: 'Claude Sonnet 4.5', desc: 'Gemini transcription + Claude generation', credits: 4, baseCredits: CLAUDE_BASE_CREDITS },
 ];
 
 function formatTimeAgo(dateString: string): string {
