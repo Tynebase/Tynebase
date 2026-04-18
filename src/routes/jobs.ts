@@ -136,16 +136,20 @@ export default async function jobRoutes(fastify: FastifyInstance) {
           const now = Date.now();
           const elapsed = now - startedAt;
           
-          // Estimate: AI generation typically takes 5-15 seconds
-          // Progress curve: 10% -> 30% -> 60% -> 90% over ~10 seconds
-          if (elapsed < 2000) {
-            jobData.progress = 10;
-          } else if (elapsed < 4000) {
-            jobData.progress = 30;
-          } else if (elapsed < 7000) {
-            jobData.progress = 60;
-          } else if (elapsed < 10000) {
-            jobData.progress = 80;
+          // Progress curve spread over ~90s to match typical download+transcode time.
+          // Never reaches 100 — that's set only on status=completed.
+          if (elapsed < 3000) {
+            jobData.progress = 5;
+          } else if (elapsed < 8000) {
+            jobData.progress = 15;
+          } else if (elapsed < 20000) {
+            jobData.progress = 35;
+          } else if (elapsed < 40000) {
+            jobData.progress = 55;
+          } else if (elapsed < 65000) {
+            jobData.progress = 72;
+          } else if (elapsed < 90000) {
+            jobData.progress = 83;
           } else {
             jobData.progress = 90;
           }

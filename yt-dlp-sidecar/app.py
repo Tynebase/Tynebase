@@ -21,7 +21,7 @@ PROXY_URLS = os.getenv('PROXY_URLS', '').split(',') if os.getenv('PROXY_URLS') e
 PROXY_URL = os.getenv('PROXY_URL', '')
 # YouTube cookies file path (for bypassing bot detection)
 COOKIES_FILE = os.getenv('COOKIES_FILE', '')
-# Maximum allowed media duration in seconds (default: 15 minutes)
+# Maximum allowed media duration in seconds (default: 20 minutes)
 MAX_DURATION_SECONDS = int(os.getenv('MAX_DURATION_SECONDS', '1200'))
 
 
@@ -58,6 +58,9 @@ if PROXY_URL and PROXY_URL not in PROXY_URLS:
 
 # Track current proxy index for rotation
 current_proxy_index = 0
+
+# Log proxy configuration
+logger.info(f"Loaded {len(PROXY_URLS)} proxy URLs for rotation")
 
 @app.route('/health', methods=['GET'])
 def health():
@@ -103,27 +106,53 @@ def download_youtube():
                 'code': 'DURATION_EXCEEDED',
                 'max_duration_seconds': MAX_DURATION_SECONDS,
             }), 413
+        except Exception as probe_err:
+            # Probe failed (likely proxy issue) — log and continue to rotation loop
+            logger.warning(f"Duration probe failed (will attempt download anyway): {probe_err}")
 
         # If no proxies configured, try without proxy
         if not PROXY_URLS:
             logger.warning('No proxy URLs configured - attempting download without proxy')
             return download_with_proxy(video_url, format_spec, extract_audio, None)
-        
+
+        logger.info(f"Starting proxy rotation with {len(PROXY_URLS)} proxies, current index: {current_proxy_index}")
+
         # Try each proxy in rotation until one succeeds
         last_error = None
         for attempt in range(len(PROXY_URLS)):
             proxy = PROXY_URLS[current_proxy_index]
-            logger.info(f"Attempt {attempt + 1}/{len(PROXY_URLS)}: Using proxy {proxy.split('@')[-1] if '@' in proxy else proxy}")
-            
+            proxy_display = proxy.split('@')[-1] if '@' in proxy else proxy
+            logger.info(f"Attempt {attempt + 1}/{len(PROXY_URLS)}: Using proxy {proxy_display}")
+
+            # Try to probe duration first to fail fast for large videos
+            try:
+                duration = _probe_duration(video_url, proxy)
+                logger.info(f"Probed duration: {duration}s (limit: {MAX_DURATION_SECONDS}s)")
+            except ValueError as ve:
+                # Duration exceeded - fail immediately
+                logger.warning(f"Duration rejected: {ve}")
+                return jsonify({
+                    'error': str(ve),
+                    'code': 'DURATION_EXCEEDED',
+                    'max_duration_seconds': MAX_DURATION_SECONDS,
+                }), 413
+            except Exception as probe_err:
+                # Probe failed (bot detection, network error) - will attempt download anyway
+                logger.warning(f"Duration probe failed with proxy {proxy_display} (will attempt download anyway): {probe_err}")
+
             try:
                 result = download_with_proxy(video_url, format_spec, extract_audio, proxy)
                 # Success - keep this proxy as current for next request
+                logger.info(f"Success with proxy {proxy_display}")
                 return result
             except Exception as e:
                 last_error = e
-                logger.warning(f"Proxy {proxy.split('@')[-1] if '@' in proxy else proxy} failed: {str(e)}")
+                logger.warning(f"Proxy {proxy_display} failed: {str(e)}")
                 # Rotate to next proxy
                 current_proxy_index = (current_proxy_index + 1) % len(PROXY_URLS)
+                logger.info(f"Rotated to proxy index {current_proxy_index}")
+
+        logger.error(f"All {len(PROXY_URLS)} proxies exhausted")
         
         # All proxies failed
         error_msg = f"All {len(PROXY_URLS)} proxies failed. Last error: {str(last_error)}"
