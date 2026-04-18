@@ -235,7 +235,7 @@ export default function SharedDocumentsPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <Link
-                            href={`/docs/${doc.id}?from=dashboard`}
+                            href={`/dashboard/knowledge/${doc.id}`}
                             className="font-semibold text-[var(--dash-text-primary)] group-hover:text-[var(--brand)] transition-colors truncate block"
                           >
                             {doc.title}
