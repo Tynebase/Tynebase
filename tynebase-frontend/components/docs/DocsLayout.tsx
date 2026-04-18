@@ -586,7 +586,6 @@ export function DocsLayout({
             flex: 1,
             minWidth: 0,
             padding: "32px 0 96px",
-            maxWidth: "760px",
           }}
         >
           {breadcrumbs && breadcrumbs.length > 0 && (
