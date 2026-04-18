@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import {
   FileText, Search, Eye, Clock, User, Loader2, FolderOpen, BookOpen, X
 } from "lucide-react";
-import { TiptapReader } from "@/components/ui/TiptapReader";
+import { DocsLayout, type DocsNavSection } from "@/components/docs/DocsLayout";
 import { getPublicDocument } from "@/lib/api/documents";
 import { listSharedDocuments, Document } from "@/lib/api/documents";
 import { listPublicTemplates, Template } from "@/lib/api/templates";
@@ -384,13 +384,22 @@ export default function SharedDocumentsPage() {
             </div>
 
             {/* Modal Content */}
-            <div className="flex-1 overflow-auto p-4">
+            <div className="flex-1 overflow-auto">
               {docLoading ? (
                 <div className="flex items-center justify-center py-20">
                   <Loader2 className="w-8 h-8 text-[var(--brand)] animate-spin" />
                 </div>
               ) : (
-                <TiptapReader content={docContent} />
+                <DocsLayout
+                  sections={[]}
+                  currentSlug={selectedDoc.id}
+                  title={selectedDoc.title}
+                  content={docContent}
+                  meta={[
+                    { label: "Author", value: selectedDoc.users?.full_name || selectedDoc.users?.email || "Unknown" },
+                    { label: "Views", value: String(selectedDoc.view_count || 0) },
+                  ]}
+                />
               )}
             </div>
           </div>
