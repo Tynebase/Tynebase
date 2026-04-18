@@ -75,8 +75,8 @@ interface Job {
 const PROCESSING_TIMEOUT_MS = 120000;
 
 const LARGE_FILE_THRESHOLD = 50 * 1024 * 1024; // 50MB
-const BASE_CREDITS = 3;
-const LARGE_FILE_CREDITS = 5;
+const BASE_CREDITS = 1;
+const LARGE_FILE_CREDITS = 3;
 
 function verifyChecksum(buffer: Buffer, expectedHash: string, algorithm: 'sha256' | 'md5'): boolean {
   const actualHash = crypto.createHash(algorithm).update(buffer).digest('hex');
