@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import {
-  FileText, Search, Eye, Clock, User, Loader2, FolderOpen, BookOpen, X
+  FileText, Search, Eye, Clock, User, Loader2, FolderOpen, BookOpen, X, ArrowLeft
 } from "lucide-react";
 import { DocsLayout, type DocsNavSection } from "@/components/docs/DocsLayout";
 import { getPublicDocument } from "@/lib/api/documents";
@@ -196,7 +196,7 @@ export default function SharedDocumentsPage() {
       </div>
 
       {/* Content */}
-      <Card className="flex-1 min-h-0 flex flex-col">
+      <Card className="flex-1 min-h-0 flex flex-col relative">
         <CardHeader className="px-5 py-3 border-b border-[var(--dash-border-subtle)]">
           <CardTitle className="text-base flex items-center gap-2">
             {activeTab === "documents" ? (
@@ -365,43 +365,46 @@ export default function SharedDocumentsPage() {
       {/* Document Viewer Modal */}
       {selectedDoc && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          className="absolute inset-0 bg-[var(--surface-card)] z-10 flex flex-col"
           onClick={() => setSelectedDoc(null)}
         >
-          <div
-            className="bg-[var(--surface-card)] rounded-xl w-full max-w-7xl max-h-[90vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 border-b border-[var(--dash-border-subtle)] flex-shrink-0">
-              <h3 className="text-lg font-semibold text-[var(--dash-text-primary)]">{selectedDoc.title}</h3>
+          {/* Modal Header */}
+          <div className="flex items-center justify-between p-4 border-b border-[var(--dash-border-subtle)] flex-shrink-0">
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => setSelectedDoc(null)}
                 className="p-2 hover:bg-[var(--dash-border-subtle)] rounded-lg transition-colors"
               >
-                <X className="w-5 h-5 text-[var(--dash-text-secondary)]" />
+                <ArrowLeft className="w-5 h-5 text-[var(--dash-text-secondary)]" />
               </button>
+              <h3 className="text-lg font-semibold text-[var(--dash-text-primary)]">{selectedDoc.title}</h3>
             </div>
+            <button
+              onClick={() => setSelectedDoc(null)}
+              className="p-2 hover:bg-[var(--dash-border-subtle)] rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5 text-[var(--dash-text-secondary)]" />
+            </button>
+          </div>
 
-            {/* Modal Content - Scrollable for DocsLayout */}
-            <div className="flex-1 overflow-auto">
-              {docLoading ? (
-                <div className="flex items-center justify-center py-20">
-                  <Loader2 className="w-8 h-8 text-[var(--brand)] animate-spin" />
-                </div>
-              ) : (
-                <DocsLayout
-                  sections={[]}
-                  currentSlug={selectedDoc.id}
-                  title={selectedDoc.title}
-                  content={docContent}
-                  meta={[
-                    { label: "Author", value: selectedDoc.users?.full_name || selectedDoc.users?.email || "Unknown" },
-                    { label: "Views", value: String(selectedDoc.view_count || 0) },
-                  ]}
-                />
-              )}
-            </div>
+          {/* Modal Content - Scrollable for DocsLayout */}
+          <div className="flex-1 overflow-auto">
+            {docLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 text-[var(--brand)] animate-spin" />
+              </div>
+            ) : (
+              <DocsLayout
+                sections={[]}
+                currentSlug={selectedDoc.id}
+                title={selectedDoc.title}
+                content={docContent}
+                meta={[
+                  { label: "Author", value: selectedDoc.users?.full_name || selectedDoc.users?.email || "Unknown" },
+                  { label: "Views", value: String(selectedDoc.view_count || 0) },
+                ]}
+              />
+            )}
           </div>
         </div>
       )}
