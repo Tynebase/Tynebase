@@ -356,6 +356,7 @@ export default async function legalDocumentUploadRoutes(fastify: FastifyInstance
           .storage
           .from('tenant-uploads')
           .upload(storagePath, fileBuffer, {
+            contentType: mimetype,
             upsert: false,
           });
 
