@@ -83,6 +83,15 @@ export default function SharedDocumentPage() {
     },
   ] : [];
 
+  // Fallback to prevent layout collapse when no related docs
+  const finalSections: DocsNavSection[] = sections.length > 0
+    ? sections
+    : [{
+        id: '__current__',
+        title: 'Documents',
+        articles: [{ slug: documentId, title: doc?.title || 'Document', href: `/dashboard/community/shared-documents/${documentId}` }],
+      }];
+
   const header = (
     <div className="flex items-center gap-4 px-4 py-3 border-b border-[var(--dash-border-subtle)]">
       <button
@@ -105,13 +114,21 @@ export default function SharedDocumentPage() {
     { label: "Updated", value: formatDate(doc.updated_at || doc.created_at) },
   ];
 
+  const breadcrumbs = [
+    { label: "Community", href: "/dashboard/community" },
+    { label: "Shared Documents", href: "/dashboard/community/shared-documents" },
+    { label: doc.title },
+  ];
+
   return (
     <DocsLayout
-      sections={sections}
+      sections={finalSections}
       currentSlug={documentId}
       title={doc.title}
       content={doc.content || "No content available."}
       meta={meta}
+      basePath="/dashboard/community/shared-documents"
+      breadcrumbs={breadcrumbs}
       header={header}
     />
   );
