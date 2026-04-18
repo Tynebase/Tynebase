@@ -455,6 +455,8 @@ export default async function kbRoutes(fastify: FastifyInstance) {
           .eq('status', 'published')
           .single();
 
+        fastify.log.info({ document, error }, 'Supabase query result for document author');
+
         if (error || !document) {
           return reply.code(404).send({
             error: { code: 'NOT_FOUND', message: 'Document not found' },
