@@ -570,7 +570,62 @@ async function extractWordContent(
       console.log(`[Worker ${workerId}] DOCX conversion warnings:`, result.messages);
     }
     
-    const markdown = result.value.trim();
+    let markdown = result.value.trim();
+    
+    // Process base64 images: extract, upload to storage, and replace with URLs
+    const base64ImageRegex = /!\[([^\]]*)\]\(data:image\/([^;]+);base64,([a-zA-Z0-9+/=]+)\)/g;
+    const imageMatches = [...markdown.matchAll(base64ImageRegex)];
+    
+    if (imageMatches.length > 0) {
+      console.log(`[Worker ${workerId}] Found ${imageMatches.length} base64 images, uploading to storage...`);
+      
+      for (let i = 0; i < imageMatches.length; i++) {
+        const match = imageMatches[i];
+        const altText = match[1];
+        const imageType = match[2]; // e.g., png, jpeg
+        const base64Data = match[3];
+        const fullMatch = match[0];
+        
+        try {
+          // Decode base64 to buffer
+          const imageBuffer = Buffer.from(base64Data, 'base64');
+          
+          // Generate storage path
+          const timestamp = Date.now();
+          const storagePath = `tenant-documents/images/${timestamp}-image-${i}.${imageType}`;
+          
+          // Upload to Supabase storage
+          const { error: uploadError } = await supabaseAdmin
+            .storage
+            .from('tenant-documents')
+            .upload(storagePath, imageBuffer, {
+              contentType: `image/${imageType}`,
+              upsert: false,
+            });
+          
+          if (uploadError) {
+            console.error(`[Worker ${workerId}] Failed to upload image ${i}:`, uploadError);
+            // Keep original base64 if upload fails
+            continue;
+          }
+          
+          // Get public URL
+          const { data: publicUrlData } = supabaseAdmin
+            .storage
+            .from('tenant-documents')
+            .getPublicUrl(storagePath);
+          
+          // Replace base64 with storage URL in markdown
+          markdown = markdown.replace(fullMatch, `![${altText}](${publicUrlData.publicUrl})`);
+          
+          console.log(`[Worker ${workerId}] Uploaded image ${i}/${imageMatches.length}: ${storagePath}`);
+        } catch (error) {
+          console.error(`[Worker ${workerId}] Error processing image ${i}:`, error);
+        }
+      }
+      
+      console.log(`[Worker ${workerId}] Image processing complete`);
+    }
     
     console.log(`[Worker ${workerId}] Word document converted: ${markdown.length} chars`);
     
@@ -578,6 +633,7 @@ async function extractWordContent(
       content: markdown,
       metadata: {
         conversion_warnings: result.messages,
+        images_processed: imageMatches.length,
       },
     };
   } catch (error) {
