@@ -179,11 +179,11 @@ function DocsSidebar({
           position: "sticky",
           top: `${stickyTopOffset}px`,
           alignSelf: "flex-start",
-          width: "260px",
+          width: "200px",
           flexShrink: 0,
           height: `calc(100vh - ${stickyTopOffset}px)`,
           overflowY: "auto",
-          padding: "24px 16px 48px 0",
+          padding: "24px 8px 48px 0",
           borderRight: "1px solid var(--border-subtle)",
         }}
       >
@@ -397,7 +397,7 @@ function DocsTOC({
     }, 120);
   };
 
-  if (!toc.length) return <div style={{ width: "240px", flexShrink: 0 }} />;
+  if (!toc.length) return <div style={{ width: "180px", flexShrink: 0 }} />;
 
   return (
     <aside
@@ -406,12 +406,12 @@ function DocsTOC({
         position: "sticky",
         top: `${stickyTopOffset + 8}px`,
         alignSelf: "flex-start",
-        width: "240px",
+        width: "180px",
         flexShrink: 0,
         maxHeight: `calc(100vh - ${stickyTopOffset + 24}px)`,
         overflowY: "auto",
-        padding: "20px 16px",
-        marginLeft: "16px",
+        padding: "20px 12px",
+        marginLeft: "4px",
         background: "var(--bg-secondary)",
         border: "1px solid var(--border-subtle)",
         borderRadius: "12px",
@@ -563,10 +563,10 @@ export function DocsLayout({
         style={{
           maxWidth: "1400px",
           margin: "0 auto",
-          padding: "0 24px",
+          padding: "0 12px",
           display: "flex",
           alignItems: "flex-start",
-          gap: "40px",
+          gap: "16px",
         }}
       >
         {/* Sidebar — hidden on narrow viewports. Wrapper stretches so the sticky
