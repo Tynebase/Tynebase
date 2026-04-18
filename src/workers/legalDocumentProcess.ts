@@ -161,7 +161,7 @@ async function processDocument(job: Job, workerId: string): Promise<void> {
         break;
 
       case 'word':
-        const wordResult = await extractWordContent(tempFilePath, workerId, processing_options.enable_ocr);
+        const wordResult = await extractWordContent(tempFilePath, workerId, processing_options.enable_ocr, job.tenant_id);
         extractedContent = wordResult.content;
         extractedMetadata = wordResult.metadata;
         lineageEventType = 'imported_from_word';
@@ -562,7 +562,8 @@ async function extractPdfContent(
 async function extractWordContent(
   filePath: string,
   workerId: string,
-  enableOcr: boolean = false
+  enableOcr: boolean = false,
+  tenantId: string
 ): Promise<{ content: string; metadata: Record<string, any> }> {
   try {
     const result = await mammoth.convertToMarkdown({ path: filePath });
@@ -591,9 +592,9 @@ async function extractWordContent(
           // Decode base64 to buffer
           const imageBuffer = Buffer.from(base64Data, 'base64');
           
-          // Generate storage path (relative to bucket, don't include bucket name)
+          // Generate storage path with tenant prefix (required by RLS policy)
           const timestamp = Date.now();
-          const storagePath = `images/${timestamp}-image-${i}.${imageType}`;
+          const storagePath = `tenant-${tenantId}/images/${timestamp}-image-${i}.${imageType}`;
           
           // Upload to Supabase storage
           const { error: uploadError } = await supabaseAdmin
@@ -610,16 +611,19 @@ async function extractWordContent(
             continue;
           }
           
-          // Get public URL
-          const { data: publicUrlData } = supabaseAdmin
+          // Create signed URL valid for 1 year
+          const { data: signedUrlData } = await supabaseAdmin
             .storage
             .from('tenant-documents')
-            .getPublicUrl(storagePath);
+            .createSignedUrl(storagePath, 60 * 60 * 24 * 365); // 1 year
           
-          // Replace base64 with storage URL in markdown
-          markdown = markdown.replace(fullMatch, `![${altText}](${publicUrlData.publicUrl})`);
-          
-          console.log(`[Worker ${workerId}] Uploaded image ${i}/${imageMatches.length}: ${storagePath}`);
+          if (signedUrlData) {
+            // Replace base64 with signed URL in markdown
+            markdown = markdown.replace(fullMatch, `![${altText}](${signedUrlData.signedUrl})`);
+            console.log(`[Worker ${workerId}] Uploaded image ${i}/${imageMatches.length}: ${storagePath}`);
+          } else {
+            console.error(`[Worker ${workerId}] Failed to create signed URL for image ${i}`);
+          }
         } catch (error) {
           console.error(`[Worker ${workerId}] Error processing image ${i}:`, error);
         }
@@ -632,9 +636,14 @@ async function extractWordContent(
     const textOnly = markdown.replace(/!\[([^\]]*)\]\([^)]+\)/g, '').replace(/[#*_`\-\[\]]/g, '').trim();
     const isImageBasedDoc = textOnly.length < 50;
     
-    if (isImageBasedDoc && enableOcr) {
-      console.log(`[Worker ${workerId}] Word document appears to be image-based (only ${textOnly.length} chars text)`);
-      markdown += '\n\n---\n\n**Note:** This Word document appears to be image-based (scanned). OCR processing for Word documents is not currently supported. Please convert the document to PDF format and re-upload with OCR enabled for text extraction.\n\n';
+    if (enableOcr) {
+      console.log(`[Worker ${workerId}] OCR requested for Word document (${textOnly.length} chars text)`);
+      if (isImageBasedDoc) {
+        markdown += '\n\n---\n\n**Note:** This Word document appears to be image-based (scanned). OCR processing for Word documents is not currently supported. Please convert the document to PDF format and re-upload with OCR enabled for text extraction.\n\n';
+      } else {
+        // For mixed documents, add a note that OCR is available for PDFs
+        markdown += '\n\n---\n\n**Note:** This document contains both text and images. For OCR processing of embedded images, please convert the document to PDF format and re-upload with OCR enabled.\n\n';
+      }
     }
     
     console.log(`[Worker ${workerId}] Word document converted: ${markdown.length} chars`);
