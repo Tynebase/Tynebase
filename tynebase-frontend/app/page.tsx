@@ -206,7 +206,7 @@ export default function Home() {
                 <CanvasImage
                   src="/mainhero.png"
                   alt="Platform Preview Coming Soon"
-                  fit="cover"
+                  fit="contain"
                 />
               </div>
             </div>
@@ -453,7 +453,7 @@ export default function Home() {
                 <CanvasImage
                   src={knowledgeFeatures[activeFeature].image}
                   alt={knowledgeFeatures[activeFeature].title}
-                  fit="cover"
+                  fit="contain"
                 />
               </div>
             </div>
