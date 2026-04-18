@@ -161,7 +161,7 @@ async function processDocument(job: Job, workerId: string): Promise<void> {
         break;
 
       case 'word':
-        const wordResult = await extractWordContent(tempFilePath, workerId);
+        const wordResult = await extractWordContent(tempFilePath, workerId, processing_options.enable_ocr);
         extractedContent = wordResult.content;
         extractedMetadata = wordResult.metadata;
         lineageEventType = 'imported_from_word';
@@ -561,7 +561,8 @@ async function extractPdfContent(
  */
 async function extractWordContent(
   filePath: string,
-  workerId: string
+  workerId: string,
+  enableOcr: boolean = false
 ): Promise<{ content: string; metadata: Record<string, any> }> {
   try {
     const result = await mammoth.convertToMarkdown({ path: filePath });
@@ -590,9 +591,9 @@ async function extractWordContent(
           // Decode base64 to buffer
           const imageBuffer = Buffer.from(base64Data, 'base64');
           
-          // Generate storage path
+          // Generate storage path (relative to bucket, don't include bucket name)
           const timestamp = Date.now();
-          const storagePath = `tenant-documents/images/${timestamp}-image-${i}.${imageType}`;
+          const storagePath = `images/${timestamp}-image-${i}.${imageType}`;
           
           // Upload to Supabase storage
           const { error: uploadError } = await supabaseAdmin
@@ -627,6 +628,15 @@ async function extractWordContent(
       console.log(`[Worker ${workerId}] Image processing complete`);
     }
     
+    // Check if document appears to be image-based (very little text extracted)
+    const textOnly = markdown.replace(/!\[([^\]]*)\]\([^)]+\)/g, '').replace(/[#*_`\-\[\]]/g, '').trim();
+    const isImageBasedDoc = textOnly.length < 50;
+    
+    if (isImageBasedDoc && enableOcr) {
+      console.log(`[Worker ${workerId}] Word document appears to be image-based (only ${textOnly.length} chars text)`);
+      markdown += '\n\n---\n\n**Note:** This Word document appears to be image-based (scanned). OCR processing for Word documents is not currently supported. Please convert the document to PDF format and re-upload with OCR enabled for text extraction.\n\n';
+    }
+    
     console.log(`[Worker ${workerId}] Word document converted: ${markdown.length} chars`);
     
     return {
@@ -634,6 +644,7 @@ async function extractWordContent(
       metadata: {
         conversion_warnings: result.messages,
         images_processed: imageMatches.length,
+        is_image_based: isImageBasedDoc,
       },
     };
   } catch (error) {
