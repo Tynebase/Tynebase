@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useParams } from "next/navigation";
-import { Loader2, AlertCircle } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { Loader2, AlertCircle, ArrowLeft } from "lucide-react";
 import { DocsLayout, DocsNavSection } from "@/components/docs/DocsLayout";
 import { getPublicDocument, listSharedDocuments, Document } from "@/lib/api/documents";
 import { estimateReadTime } from "@/lib/api/kb";
@@ -13,6 +13,7 @@ function formatDate(dateString: string): string {
 
 export default function SharedDocumentPage() {
   const params = useParams();
+  const router = useRouter();
   const documentId = params.id as string;
 
   const [doc, setDoc] = useState<Document | null>(null);
@@ -109,6 +110,37 @@ export default function SharedDocumentPage() {
         title={doc.title}
         content={doc.content || "No content available."}
         meta={meta}
+        header={
+          <div style={{ padding: "12px 12px 0" }}>
+            <button
+              onClick={() => router.push("/dashboard/community/shared-documents")}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 10px",
+                borderRadius: "6px",
+                border: "none",
+                background: "transparent",
+                color: "var(--text-secondary)",
+                fontSize: "13px",
+                cursor: "pointer",
+                transition: "background 0.15s, color 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "var(--bg-hover)";
+                e.currentTarget.style.color = "var(--text-primary)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "var(--text-secondary)";
+              }}
+            >
+              <ArrowLeft style={{ width: "14px", height: "14px" }} />
+              Shared Documents
+            </button>
+          </div>
+        }
         breadcrumbs={[
           { label: "Community", href: "/dashboard/community" },
           { label: "Shared Documents", href: "/dashboard/community/shared-documents" },
