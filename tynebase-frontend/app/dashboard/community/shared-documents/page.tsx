@@ -365,11 +365,11 @@ export default function SharedDocumentsPage() {
       {/* Document Viewer Modal */}
       {selectedDoc && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex"
           onClick={() => setSelectedDoc(null)}
         >
           <div
-            className="bg-[var(--surface-card)] rounded-xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+            className="bg-[var(--surface-card)] w-full h-full flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -383,8 +383,8 @@ export default function SharedDocumentsPage() {
               </button>
             </div>
 
-            {/* Modal Content */}
-            <div className="flex-1 overflow-auto">
+            {/* Modal Content - Full width for DocsLayout */}
+            <div className="flex-1 overflow-hidden">
               {docLoading ? (
                 <div className="flex items-center justify-center py-20">
                   <Loader2 className="w-8 h-8 text-[var(--brand)] animate-spin" />
