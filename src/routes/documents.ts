@@ -2499,6 +2499,11 @@ export default async function documentRoutes(fastify: FastifyInstance) {
               name,
               color
             ),
+            users!documents_author_id_fkey (
+              id,
+              full_name,
+              avatar_url
+            ),
             tenants:tenant_id (
               id,
               name,
@@ -2560,6 +2565,8 @@ export default async function documentRoutes(fastify: FastifyInstance) {
         const apiBaseUrl = process.env.API_BASE_URL || 'https://tynebase-backend.fly.dev';
         const documentsWithRewrittenUrls = (documents || []).map((doc: any) => ({
           ...doc,
+          author: doc.users || { full_name: 'Unknown Author' },
+          users: undefined, // Remove users field to avoid confusion
           content: rewriteAssetUrlsForPublicAccess(doc.content || '', doc.id, apiBaseUrl),
         }));
 
@@ -2713,7 +2720,8 @@ export default async function documentRoutes(fastify: FastifyInstance) {
           .from('documents')
           .select(`
             id, title, content, created_at, updated_at, view_count,
-            categories:category_id (id, name, color)
+            categories:category_id (id, name, color),
+            users!documents_author_id_fkey (id, full_name, avatar_url)
           `)
           .eq('id', id)
           .in('visibility', ['public', 'community'])
@@ -2732,7 +2740,14 @@ export default async function documentRoutes(fastify: FastifyInstance) {
           .update({ view_count: (document.view_count || 0) + 1 })
           .eq('id', id);
 
-        return reply.code(200).send({ document });
+        const rawDoc = document as any;
+        const processedDoc = {
+          ...rawDoc,
+          author: rawDoc.users || { full_name: 'Unknown Author' },
+          users: undefined, // Remove users field to avoid confusion
+        };
+
+        return reply.code(200).send({ document: processedDoc });
       } catch (error) {
         fastify.log.error({ error }, 'Error fetching public document');
         return reply.code(500).send({
