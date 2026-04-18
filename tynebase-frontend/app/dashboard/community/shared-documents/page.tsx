@@ -6,8 +6,10 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import {
-  FileText, Search, Eye, Clock, User, Loader2, FolderOpen, BookOpen
+  FileText, Search, Eye, Clock, User, Loader2, FolderOpen, BookOpen, X
 } from "lucide-react";
+import { TiptapReader } from "@/components/ui/TiptapReader";
+import { getPublicDocument } from "@/lib/api/documents";
 import { listSharedDocuments, Document } from "@/lib/api/documents";
 import { listPublicTemplates, Template } from "@/lib/api/templates";
 import { useAuth } from "@/contexts/AuthContext";
@@ -53,6 +55,9 @@ export default function SharedDocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
+  const [docContent, setDocContent] = useState<string>("");
+  const [docLoading, setDocLoading] = useState(false);
 
   const fetchDocuments = useCallback(async (page = 1) => {
     try {
@@ -91,6 +96,20 @@ export default function SharedDocumentsPage() {
       setLoading(false);
     }
   }, []);
+
+  const handleOpenDocument = async (doc: Document) => {
+    setSelectedDoc(doc);
+    setDocLoading(true);
+    try {
+      const response = await getPublicDocument(doc.id);
+      setDocContent(response.document.content || "");
+    } catch (err) {
+      console.error("Failed to fetch document:", err);
+      setDocContent("");
+    } finally {
+      setDocLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (activeTab === "documents") {
@@ -234,12 +253,12 @@ export default function SharedDocumentsPage() {
                           <FileText className="w-5 h-5 text-[var(--brand)]" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <Link
-                            href={`/dashboard/knowledge/${doc.id}`}
-                            className="font-semibold text-[var(--dash-text-primary)] group-hover:text-[var(--brand)] transition-colors truncate block"
+                          <button
+                            onClick={() => handleOpenDocument(doc)}
+                            className="font-semibold text-[var(--dash-text-primary)] group-hover:text-[var(--brand)] transition-colors truncate block text-left"
                           >
                             {doc.title}
-                          </Link>
+                          </button>
                           <p className="text-xs text-[var(--dash-text-muted)] flex items-center gap-1 mt-1">
                             <User className="w-3 h-3" />
                             {authorName}
@@ -340,6 +359,41 @@ export default function SharedDocumentsPage() {
           >
             Next
           </Button>
+        </div>
+      )}
+
+      {/* Document Viewer Modal */}
+      {selectedDoc && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setSelectedDoc(null)}
+        >
+          <div
+            className="bg-[var(--surface-card)] rounded-xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-[var(--dash-border-subtle)]">
+              <h3 className="text-lg font-semibold text-[var(--dash-text-primary)]">{selectedDoc.title}</h3>
+              <button
+                onClick={() => setSelectedDoc(null)}
+                className="p-2 hover:bg-[var(--dash-border-subtle)] rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-[var(--dash-text-secondary)]" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-auto p-4">
+              {docLoading ? (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="w-8 h-8 text-[var(--brand)] animate-spin" />
+                </div>
+              ) : (
+                <TiptapReader content={docContent} />
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
