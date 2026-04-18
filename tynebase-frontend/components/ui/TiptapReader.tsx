@@ -97,18 +97,13 @@ interface TiptapReaderProps {
 async function markdownToHtml(raw: string): Promise<string> {
   if (!raw) return "";
 
-  console.log('[TiptapReader] Converting markdown to HTML, raw length:', raw.length);
-
   // Convert any remaining Markdown image syntax to img tags
   // (in case content was saved before the collab server fix)
   // Handle URLs with query parameters (like signed URLs)
   let processed = raw.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />');
 
-  console.log('[TiptapReader] After image regex, processed length:', processed.length);
-
   // Convert Markdown to HTML using marked
   const html = await marked.parse(processed);
-  console.log('[TiptapReader] After marked.parse, html length:', html?.length);
   return typeof html === "string" ? html : "";
 }
 
