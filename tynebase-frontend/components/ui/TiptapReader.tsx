@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -94,15 +94,21 @@ interface TiptapReaderProps {
  * By converting to HTML first, TipTap's DOMParser uses parseHTML rules
  * which ResizableImage inherits from Image (matching <img> tags).
  */
-function markdownToHtml(raw: string): string {
+async function markdownToHtml(raw: string): Promise<string> {
   if (!raw) return "";
+
+  console.log('[TiptapReader] Converting markdown to HTML, raw length:', raw.length);
 
   // Convert any remaining Markdown image syntax to img tags
   // (in case content was saved before the collab server fix)
+  // Handle URLs with query parameters (like signed URLs)
   let processed = raw.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />');
 
+  console.log('[TiptapReader] After image regex, processed length:', processed.length);
+
   // Convert Markdown to HTML using marked
-  const html = marked.parse(processed);
+  const html = await marked.parse(processed);
+  console.log('[TiptapReader] After marked.parse, html length:', html?.length);
   return typeof html === "string" ? html : "";
 }
 
@@ -114,7 +120,15 @@ function markdownToHtml(raw: string): string {
  * so native parseHTML rules handle all node types correctly.
  */
 export function TiptapReader({ content, title, className = "", isHtml = false }: TiptapReaderProps) {
-  const htmlContent = useMemo(() => isHtml ? (content || "") : markdownToHtml(content), [content, isHtml]);
+  const [htmlContent, setHtmlContent] = useState(isHtml ? (content || "") : "");
+
+  useEffect(() => {
+    if (isHtml) {
+      setHtmlContent(content || "");
+    } else {
+      markdownToHtml(content || "").then(setHtmlContent);
+    }
+  }, [content, isHtml]);
 
   const extensions = [
     StarterKit.configure({ history: false, codeBlock: false }),
