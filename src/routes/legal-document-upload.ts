@@ -356,7 +356,6 @@ export default async function legalDocumentUploadRoutes(fastify: FastifyInstance
           .storage
           .from('tenant-uploads')
           .upload(storagePath, fileBuffer, {
-            contentType: 'application/octet-stream', // Use generic type to bypass Supabase MIME restrictions
             upsert: false,
           });
 
