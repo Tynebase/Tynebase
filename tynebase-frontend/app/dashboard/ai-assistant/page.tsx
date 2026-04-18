@@ -95,8 +95,8 @@ export default function AIAssistantPage() {
   const [recentGenerations, setRecentGenerations] = useState<GenerationJob[]>([]);
   const [recentGenerationsLoading, setRecentGenerationsLoading] = useState(false);
   
-  const BASE_FILE_CREDITS = 3;
-  const LARGE_FILE_CREDITS = 5;
+  const BASE_FILE_CREDITS = 1;
+  const LARGE_FILE_CREDITS = 3;
   const LARGE_FILE_THRESHOLD = 50 * 1024 * 1024; // 50MB
   const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB hard limit
   const EXTRA_CREDIT_PER_OPTION = 1;
