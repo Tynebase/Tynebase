@@ -419,7 +419,7 @@ export default function SharedDocumentsPage() {
           </div>
 
           {/* Modal Content - Scrollable for DocsLayout */}
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 overflow-auto" onClick={(e) => e.stopPropagation()}>
             {docLoading ? (
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="w-8 h-8 text-[var(--brand)] animate-spin" />
