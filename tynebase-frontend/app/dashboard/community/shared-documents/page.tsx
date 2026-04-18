@@ -6,10 +6,8 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import {
-  FileText, Search, Eye, Clock, User, Loader2, FolderOpen, BookOpen, X, ArrowLeft
+  FileText, Search, Eye, Clock, User, Loader2, FolderOpen, BookOpen
 } from "lucide-react";
-import { DocsLayout, type DocsNavSection } from "@/components/docs/DocsLayout";
-import { getPublicDocument } from "@/lib/api/documents";
 import { listSharedDocuments, Document } from "@/lib/api/documents";
 import { listPublicTemplates, Template } from "@/lib/api/templates";
 import { useAuth } from "@/contexts/AuthContext";
@@ -55,9 +53,6 @@ export default function SharedDocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
-  const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
-  const [docContent, setDocContent] = useState<string>("");
-  const [docLoading, setDocLoading] = useState(false);
 
   const fetchDocuments = useCallback(async (page = 1) => {
     try {
@@ -97,26 +92,6 @@ export default function SharedDocumentsPage() {
     }
   }, []);
 
-  const handleOpenDocument = async (doc: Document) => {
-    setSelectedDoc(doc);
-    setDocLoading(true);
-    router.push(`/dashboard/community/shared-documents?doc=${doc.id}`, { scroll: false });
-    try {
-      const response = await getPublicDocument(doc.id);
-      setDocContent(response.document.content || "");
-    } catch (err) {
-      console.error("Failed to fetch document:", err);
-      setDocContent("");
-    } finally {
-      setDocLoading(false);
-    }
-  };
-
-  const handleCloseDocument = () => {
-    setSelectedDoc(null);
-    router.push(`/dashboard/community/shared-documents`, { scroll: false });
-  };
-
   useEffect(() => {
     if (activeTab === "documents") {
       fetchDocuments(1);
@@ -124,31 +99,6 @@ export default function SharedDocumentsPage() {
       fetchTemplates(1);
     }
   }, [activeTab, fetchDocuments, fetchTemplates]);
-
-  // Sync modal state with URL query parameter
-  useEffect(() => {
-    const docId = searchParams.get('doc');
-    if (docId && !selectedDoc) {
-      // If URL has doc param but no selected doc, find and open it
-      const doc = documents.find(d => d.id === docId);
-      if (doc) {
-        setSelectedDoc(doc);
-        setDocLoading(true);
-        getPublicDocument(doc.id).then(response => {
-          setDocContent(response.document.content || "");
-        }).catch(err => {
-          console.error("Failed to fetch document:", err);
-          setDocContent("");
-        }).finally(() => {
-          setDocLoading(false);
-        });
-      }
-    } else if (!docId && selectedDoc) {
-      // If URL has no doc param but selected doc exists, close it
-      setSelectedDoc(null);
-      setDocContent("");
-    }
-  }, [searchParams, documents, selectedDoc]);
 
   const filteredDocuments = documents.filter((d) =>
     d.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -227,7 +177,7 @@ export default function SharedDocumentsPage() {
       </div>
 
       {/* Content */}
-      <Card className="flex-1 min-h-0 flex flex-col relative">
+      <Card className="flex-1 min-h-0 flex flex-col">
         <CardHeader className="px-5 py-3 border-b border-[var(--dash-border-subtle)]">
           <CardTitle className="text-base flex items-center gap-2">
             {activeTab === "documents" ? (
@@ -284,12 +234,12 @@ export default function SharedDocumentsPage() {
                           <FileText className="w-5 h-5 text-[var(--brand)]" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <button
-                            onClick={() => handleOpenDocument(doc)}
-                            className="font-semibold text-[var(--dash-text-primary)] group-hover:text-[var(--brand)] transition-colors truncate block text-left"
+                          <Link
+                            href={`/dashboard/community/shared-documents/${doc.id}`}
+                            className="font-semibold text-[var(--dash-text-primary)] group-hover:text-[var(--brand)] transition-colors truncate block"
                           >
                             {doc.title}
-                          </button>
+                          </Link>
                           <p className="text-xs text-[var(--dash-text-muted)] flex items-center gap-1 mt-1">
                             <User className="w-3 h-3" />
                             {authorName}
@@ -390,53 +340,6 @@ export default function SharedDocumentsPage() {
           >
             Next
           </Button>
-        </div>
-      )}
-
-      {/* Document Viewer Modal */}
-      {selectedDoc && (
-        <div
-          className="absolute inset-0 bg-[var(--surface-card)] z-10 flex flex-col"
-          onClick={handleCloseDocument}
-        >
-          {/* Modal Header */}
-          <div className="flex items-center justify-between p-4 border-b border-[var(--dash-border-subtle)] flex-shrink-0">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleCloseDocument}
-                className="p-2 hover:bg-[var(--dash-border-subtle)] rounded-lg transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5 text-[var(--dash-text-secondary)]" />
-              </button>
-              <h3 className="text-lg font-semibold text-[var(--dash-text-primary)]">{selectedDoc.title}</h3>
-            </div>
-            <button
-              onClick={handleCloseDocument}
-              className="p-2 hover:bg-[var(--dash-border-subtle)] rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5 text-[var(--dash-text-secondary)]" />
-            </button>
-          </div>
-
-          {/* Modal Content - Scrollable for DocsLayout */}
-          <div className="flex-1 overflow-auto" onClick={(e) => e.stopPropagation()}>
-            {docLoading ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 className="w-8 h-8 text-[var(--brand)] animate-spin" />
-              </div>
-            ) : (
-              <DocsLayout
-                sections={[]}
-                currentSlug={selectedDoc.id}
-                title={selectedDoc.title}
-                content={docContent}
-                meta={[
-                  { label: "Author", value: selectedDoc.users?.full_name || selectedDoc.users?.email || "Unknown" },
-                  { label: "Views", value: String(selectedDoc.view_count || 0) },
-                ]}
-              />
-            )}
-          </div>
         </div>
       )}
     </div>
