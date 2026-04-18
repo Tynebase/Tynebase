@@ -100,6 +100,7 @@ export default function SharedDocumentsPage() {
   const handleOpenDocument = async (doc: Document) => {
     setSelectedDoc(doc);
     setDocLoading(true);
+    router.push(`/dashboard/community/shared-documents?doc=${doc.id}`, { scroll: false });
     try {
       const response = await getPublicDocument(doc.id);
       setDocContent(response.document.content || "");
@@ -111,6 +112,11 @@ export default function SharedDocumentsPage() {
     }
   };
 
+  const handleCloseDocument = () => {
+    setSelectedDoc(null);
+    router.push(`/dashboard/community/shared-documents`, { scroll: false });
+  };
+
   useEffect(() => {
     if (activeTab === "documents") {
       fetchDocuments(1);
@@ -118,6 +124,31 @@ export default function SharedDocumentsPage() {
       fetchTemplates(1);
     }
   }, [activeTab, fetchDocuments, fetchTemplates]);
+
+  // Sync modal state with URL query parameter
+  useEffect(() => {
+    const docId = searchParams.get('doc');
+    if (docId && !selectedDoc) {
+      // If URL has doc param but no selected doc, find and open it
+      const doc = documents.find(d => d.id === docId);
+      if (doc) {
+        setSelectedDoc(doc);
+        setDocLoading(true);
+        getPublicDocument(doc.id).then(response => {
+          setDocContent(response.document.content || "");
+        }).catch(err => {
+          console.error("Failed to fetch document:", err);
+          setDocContent("");
+        }).finally(() => {
+          setDocLoading(false);
+        });
+      }
+    } else if (!docId && selectedDoc) {
+      // If URL has no doc param but selected doc exists, close it
+      setSelectedDoc(null);
+      setDocContent("");
+    }
+  }, [searchParams, documents, selectedDoc]);
 
   const filteredDocuments = documents.filter((d) =>
     d.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -366,13 +397,13 @@ export default function SharedDocumentsPage() {
       {selectedDoc && (
         <div
           className="absolute inset-0 bg-[var(--surface-card)] z-10 flex flex-col"
-          onClick={() => setSelectedDoc(null)}
+          onClick={handleCloseDocument}
         >
           {/* Modal Header */}
           <div className="flex items-center justify-between p-4 border-b border-[var(--dash-border-subtle)] flex-shrink-0">
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setSelectedDoc(null)}
+                onClick={handleCloseDocument}
                 className="p-2 hover:bg-[var(--dash-border-subtle)] rounded-lg transition-colors"
               >
                 <ArrowLeft className="w-5 h-5 text-[var(--dash-text-secondary)]" />
@@ -380,7 +411,7 @@ export default function SharedDocumentsPage() {
               <h3 className="text-lg font-semibold text-[var(--dash-text-primary)]">{selectedDoc.title}</h3>
             </div>
             <button
-              onClick={() => setSelectedDoc(null)}
+              onClick={handleCloseDocument}
               className="p-2 hover:bg-[var(--dash-border-subtle)] rounded-lg transition-colors"
             >
               <X className="w-5 h-5 text-[var(--dash-text-secondary)]" />
