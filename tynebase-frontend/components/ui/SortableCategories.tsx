@@ -22,9 +22,10 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   horizontalListSortingStrategy,
+  verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, ChevronLeft, ChevronRight } from "lucide-react";
+import { GripVertical, ChevronLeft, ChevronRight, ChevronDown, Check } from "lucide-react";
 import { Category, updateCategory } from "@/lib/api/folders";
 
 interface SortableCategoryItemProps {
@@ -73,75 +74,42 @@ function SortableCategoryItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-1 ${isActive ? "opacity-90" : ""}`}
+      className={`flex items-center gap-2 p-2 rounded-xl group transition-colors ${
+        isActive ? "opacity-40" : "hover:bg-[var(--surface-hover)]"
+      } ${isDragOverlay ? "bg-[var(--surface-card)] shadow-lg ring-1 ring-[var(--brand)]/30" : ""}`}
     >
-      {/* Keyboard reorder buttons - visible when focused/hovered */}
-      {showReorderButtons && (
-        <div className="flex items-center gap-0.5">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onMoveLeft?.();
-            }}
-            disabled={isFirst}
-            className="p-1 rounded hover:bg-[var(--surface-hover)] disabled:opacity-30 disabled:cursor-not-allowed text-[var(--dash-text-tertiary)]"
-            aria-label={`Move ${category.name} left`}
-            title="Move left"
-          >
-            <ChevronLeft className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onMoveRight?.();
-            }}
-            disabled={isLast}
-            className="p-1 rounded hover:bg-[var(--surface-hover)] disabled:opacity-30 disabled:cursor-not-allowed text-[var(--dash-text-tertiary)]"
-            aria-label={`Move ${category.name} right`}
-            title="Move right"
-          >
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
-
-      {/* Drag handle */}
       <button
         {...attributes}
         {...listeners}
-        className="p-1.5 rounded hover:bg-[var(--surface-hover)] cursor-grab active:cursor-grabbing text-[var(--dash-text-muted)] opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+        className="p-1 cursor-grab active:cursor-grabbing text-[var(--dash-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity"
         aria-label={`Drag to reorder ${category.name}`}
-        title="Drag to reorder"
       >
         <GripVertical className="w-4 h-4" />
       </button>
 
-      {/* Category button */}
       <button
         onClick={() => onSelect(category.id)}
-        className={`px-5 py-3 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${
-          isSelected
-            ? "bg-[var(--brand)] text-white shadow-sm"
-            : "bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] text-[var(--dash-text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)]"
-        } ${isActive ? "shadow-lg ring-2 ring-[var(--brand)]/20" : ""}`}
+        className="flex-1 flex items-center justify-between min-w-0"
       >
-        <span
-          className="w-3 h-3 rounded-sm"
-          style={{
-            backgroundColor: isSelected ? "white" : category.color,
-          }}
-        />
-        {category.name}
-        <span
-          className={`px-1.5 py-0.5 text-xs rounded-md ${
-            isSelected
-              ? "bg-white/20 text-white"
-              : "bg-[var(--surface-ground)] text-[var(--dash-text-muted)]"
-          }`}
-        >
-          {category.count}
-        </span>
+        <div className="flex items-center gap-2 truncate">
+          <span
+            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+            style={{ backgroundColor: category.color }}
+          />
+          <span
+            className={`text-sm truncate transition-colors ${
+              isSelected ? "font-semibold text-[var(--dash-text-primary)]" : "font-medium text-[var(--dash-text-secondary)] group-hover:text-[var(--dash-text-primary)]"
+            }`}
+          >
+            {category.name}
+          </span>
+        </div>
+        {isSelected && <Check className="w-4 h-4 text-[var(--brand)] flex-shrink-0 ml-2" />}
       </button>
+
+      <span className="text-xs font-medium text-[var(--dash-text-muted)] bg-[var(--surface-ground)] px-2 py-0.5 rounded-full">
+        {category.count}
+      </span>
     </div>
   );
 }
@@ -152,6 +120,7 @@ interface SortableCategoriesProps {
   onSelectCategory: (id: string) => void;
   onReorder: (categories: (Category & { count: number })[]) => void;
   disabled?: boolean;
+  totalDocumentsCount?: number;
 }
 
 export function SortableCategories({
@@ -160,29 +129,35 @@ export function SortableCategories({
   onSelectCategory,
   onReorder,
   disabled = false,
+  totalDocumentsCount = 0,
 }: SortableCategoriesProps) {
   const [items, setItems] = useState(categories);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isReordering, setIsReordering] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isOpen, setIsOpen] = React.useState(false);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
 
-  // Update items when categories prop changes
   React.useEffect(() => {
     setItems(categories);
   }, [categories]);
 
-  // Configure sensors for drag detection
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
+      activationConstraint: { delay: 100, tolerance: 8 },
     }),
     useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 200,
-        tolerance: 8,
-      },
+      activationConstraint: { delay: 200, tolerance: 8 },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
@@ -196,7 +171,6 @@ export function SortableCategories({
 
   const handleDragOver = useCallback((event: DragOverEvent) => {
     const { active, over } = event;
-
     if (over && active.id !== over.id) {
       setItems((items) => {
         const oldIndex = items.findIndex((item) => item.id === active.id);
@@ -223,26 +197,22 @@ export function SortableCategories({
             const newItems = arrayMove(items, oldIndex, newIndex);
             setItems(newItems);
 
-            // Update sort_order in backend
             const updates = newItems.map((item, index) => ({
               id: item.id,
               sort_order: index,
             }));
 
-            // Update all affected categories
             await Promise.all(
               updates.map((update) =>
                 updateCategory(update.id, { sort_order: update.sort_order })
               )
             );
 
-            // Notify parent of new order
             onReorder(newItems);
           }
         } catch (err) {
           console.error("Failed to reorder categories:", err);
           setError("Failed to save new order. Please try again.");
-          // Revert to original order
           setItems(categories);
         } finally {
           setIsReordering(false);
@@ -252,123 +222,116 @@ export function SortableCategories({
     [items, categories, onReorder]
   );
 
-  // Handle keyboard reordering
-  const handleMoveCategory = useCallback(
-    async (index: number, direction: "left" | "right") => {
-      if (isReordering) return;
-
-      const newIndex = direction === "left" ? index - 1 : index + 1;
-      if (newIndex < 0 || newIndex >= items.length) return;
-
-      setIsReordering(true);
-      setError(null);
-
-      try {
-        const newItems = arrayMove(items, index, newIndex);
-        setItems(newItems);
-
-        // Update sort_order in backend
-        const updates = newItems.map((item, idx) => ({
-          id: item.id,
-          sort_order: idx,
-        }));
-
-        await Promise.all(
-          updates.map((update) =>
-            updateCategory(update.id, { sort_order: update.sort_order })
-          )
-        );
-
-        onReorder(newItems);
-      } catch (err) {
-        console.error("Failed to reorder categories:", err);
-        setError("Failed to save new order. Please try again.");
-        setItems(categories);
-      } finally {
-        setIsReordering(false);
-      }
-    },
-    [items, categories, onReorder, isReordering]
-  );
-
   const dropAnimation: DropAnimation = {
     sideEffects: defaultDropAnimationSideEffects({
-      styles: {
-        active: {
-          opacity: "0.5",
-        },
-      },
+      styles: { active: { opacity: "0.5" } },
     }),
   };
 
   const activeItem = activeId ? items.find((item) => item.id === activeId) : null;
 
+  const selectedCategory = selectedCategoryId === 'all' 
+    ? { id: 'all', name: 'All Categories', color: '#6b7280', count: totalDocumentsCount }
+    : items.find(c => c.id === selectedCategoryId) || { id: 'unknown', name: 'Unknown', color: '#6b7280', count: 0 };
+
   return (
-    <div className="relative">
-      {/* Error message */}
-      {error && (
-        <div className="mb-2 px-3 py-2 bg-[var(--status-error-bg)] border border-[var(--status-error)]/30 rounded-lg text-sm text-[var(--status-error)]">
-          {error}
-        </div>
-      )}
-
-      {/* Reordering indicator */}
-      {isReordering && (
-        <div className="absolute inset-0 bg-[var(--surface-card)]/50 backdrop-blur-sm rounded-xl flex items-center justify-center z-20">
-          <div className="flex items-center gap-2 px-4 py-2 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-lg shadow-lg">
-            <div className="w-4 h-4 border-2 border-[var(--brand)] border-t-transparent rounded-full animate-spin" />
-            <span className="text-sm text-[var(--dash-text-secondary)]">Saving order...</span>
-          </div>
-        </div>
-      )}
-
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEnd}
+    <div className="relative" ref={dropdownRef}>
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-3 px-5 py-3 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-full hover:border-[var(--brand)] hover:shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
       >
-        <SortableContext
-          items={items.map((item) => item.id)}
-          strategy={horizontalListSortingStrategy}
-        >
-          <div className="flex flex-wrap gap-2">
-            {items.map((category, index) => (
-              <div key={category.id} className="group relative">
-                <SortableCategoryItem
-                  category={category}
-                  isSelected={selectedCategoryId === category.id}
-                  onSelect={onSelectCategory}
-                  isDragging={activeId === category.id}
-                  showReorderButtons={!disabled}
-                  onMoveLeft={() => handleMoveCategory(index, "left")}
-                  onMoveRight={() => handleMoveCategory(index, "right")}
-                  isFirst={index === 0}
-                  isLast={index === items.length - 1}
-                />
+        <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: selectedCategory.color }} />
+        <span className="text-sm font-medium text-[var(--dash-text-primary)]">
+          {selectedCategory.name}
+        </span>
+        <span className="text-xs font-medium text-[var(--dash-text-muted)] bg-[var(--surface-ground)] px-2 py-0.5 rounded-full ml-1">
+          {selectedCategory.count}
+        </span>
+        <ChevronDown className={`w-4 h-4 text-[var(--dash-text-muted)] transition-transform ml-1 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-2 w-72 bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] rounded-2xl shadow-xl z-50 overflow-hidden flex flex-col max-h-[60vh]">
+          {/* Header & All Categories */}
+          <div className="p-2 border-b border-[var(--dash-border-subtle)]">
+            <button
+              onClick={() => {
+                onSelectCategory('all');
+                setIsOpen(false);
+              }}
+              className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-[var(--surface-hover)] transition-colors group"
+            >
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-gray-400" />
+                <span className={`text-sm transition-colors ${selectedCategoryId === 'all' ? 'font-semibold text-[var(--dash-text-primary)]' : 'font-medium text-[var(--dash-text-secondary)] group-hover:text-[var(--dash-text-primary)]'}`}>
+                  All Categories
+                </span>
               </div>
-            ))}
+              <div className="flex items-center">
+                {selectedCategoryId === 'all' && <Check className="w-4 h-4 text-[var(--brand)] mr-2" />}
+                <span className="text-xs font-medium text-[var(--dash-text-muted)] bg-[var(--surface-ground)] px-2 py-0.5 rounded-full">
+                  {totalDocumentsCount}
+                </span>
+              </div>
+            </button>
           </div>
-        </SortableContext>
 
-        <DragOverlay dropAnimation={dropAnimation}>
-          {activeItem ? (
-            <SortableCategoryItem
-              category={activeItem}
-              isSelected={selectedCategoryId === activeItem.id}
-              onSelect={() => {}}
-              isDragOverlay
-            />
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+          {/* Error and Loading States */}
+          {error && (
+            <div className="p-2">
+              <div className="px-3 py-2 bg-[var(--status-error-bg)] border border-[var(--status-error)]/30 rounded-lg text-xs text-[var(--status-error)]">
+                {error}
+              </div>
+            </div>
+          )}
+          {isReordering && (
+            <div className="p-2 border-b border-[var(--dash-border-subtle)] bg-[var(--surface-hover)]">
+              <div className="flex items-center gap-2 px-2 py-1 text-xs text-[var(--dash-text-secondary)]">
+                <div className="w-3 h-3 border-2 border-[var(--brand)] border-t-transparent rounded-full animate-spin" />
+                Saving order...
+              </div>
+            </div>
+          )}
 
-      {/* Instructions for screen readers */}
-      <div className="sr-only" role="status" aria-live="polite">
-        Categories can be reordered by dragging or using the arrow buttons that appear on focus.
-        {activeId && `Currently dragging ${items.find((i) => i.id === activeId)?.name}.`}
-      </div>
+          {/* Sortable List */}
+          <div className="p-2 overflow-y-auto overflow-x-hidden flex-1">
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={items.map((item) => item.id)} strategy={verticalListSortingStrategy}>
+                <div className="flex flex-col gap-0.5">
+                  {items.map((category) => (
+                    <SortableCategoryItem
+                      key={category.id}
+                      category={category}
+                      isSelected={selectedCategoryId === category.id}
+                      onSelect={(id) => {
+                        onSelectCategory(id);
+                        setIsOpen(false);
+                      }}
+                      isDragging={activeId === category.id}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+              <DragOverlay dropAnimation={dropAnimation}>
+                {activeItem ? (
+                  <SortableCategoryItem
+                    category={activeItem}
+                    isSelected={selectedCategoryId === activeItem.id}
+                    onSelect={() => {}}
+                    isDragOverlay
+                  />
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

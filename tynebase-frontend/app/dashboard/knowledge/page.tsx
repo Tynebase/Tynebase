@@ -891,34 +891,8 @@ export default function KnowledgePage() {
         </div>
       </div>
 
-      {/* Categories with Drag and Drop */}
-      <div className="flex flex-wrap gap-2">
-        {/* Static "All" button — not draggable/reorderable */}
-        <button
-          onClick={() => setSelectedCategory("all")}
-          className={`px-5 py-3 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${
-            selectedCategory === "all"
-              ? "bg-[var(--brand)] text-white shadow-sm"
-              : "bg-[var(--surface-card)] border border-[var(--dash-border-subtle)] text-[var(--dash-text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)]"
-          }`}
-        >
-          <span
-            className="w-3 h-3 rounded-sm"
-            style={{ backgroundColor: selectedCategory === "all" ? "white" : "#6b7280" }}
-          />
-          All
-          <span
-            className={`px-1.5 py-0.5 text-xs rounded-md ${
-              selectedCategory === "all"
-                ? "bg-white/20 text-white"
-                : "bg-[var(--surface-ground)] text-[var(--dash-text-muted)]"
-            }`}
-          >
-            {documents.length}
-          </span>
-        </button>
-
-        {/* Only real API categories (with UUID IDs) go into SortableCategories */}
+      {/* Categories Dropdown */}
+      <div className="flex items-center gap-2 z-20">
         <SortableCategories
           categories={apiCategories.map((cat) => ({
             id: cat.id,
@@ -937,6 +911,7 @@ export default function KnowledgePage() {
           }))}
           selectedCategoryId={selectedCategory}
           onSelectCategory={setSelectedCategory}
+          totalDocumentsCount={documents.length}
           onReorder={(newCategories) => {
             // Update the categories order in the local state
             const updatedCategories = newCategories.map((cat) => ({
@@ -945,7 +920,6 @@ export default function KnowledgePage() {
               color: cat.color,
               count: cat.count,
             }));
-            // We don't need to do anything else since the API already updated the sort_order
             console.log('Categories reordered:', updatedCategories);
           }}
         />
