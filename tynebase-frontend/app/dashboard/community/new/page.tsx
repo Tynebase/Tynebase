@@ -552,7 +552,7 @@ export default function NewDiscussionPage() {
                   <Globe className={"w-5 h-5 mt-0.5 flex-shrink-0 " + (isPublic ? "text-[var(--brand)]" : "text-[var(--dash-text-muted)]")} />
                   <div className="min-w-0">
                     <div className="text-sm font-medium text-[var(--dash-text-primary)]">Public</div>
-                    <div className="text-xs text-[var(--dash-text-tertiary)] mt-0.5">Everyone in this workspace can see and reply.</div>
+                    <div className="text-xs text-[var(--dash-text-tertiary)] mt-0.5">Everyone in the TyneBase community can see and reply.</div>
                   </div>
                 </button>
                 <button
@@ -568,7 +568,7 @@ export default function NewDiscussionPage() {
                   <Lock className={"w-5 h-5 mt-0.5 flex-shrink-0 " + (!isPublic ? "text-[var(--brand)]" : "text-[var(--dash-text-muted)]")} />
                   <div className="min-w-0">
                     <div className="text-sm font-medium text-[var(--dash-text-primary)]">Private</div>
-                    <div className="text-xs text-[var(--dash-text-tertiary)] mt-0.5">Only you and workspace admins can see this thread.</div>
+                    <div className="text-xs text-[var(--dash-text-tertiary)] mt-0.5">Only members of your workspace can see and reply.</div>
                   </div>
                 </button>
               </div>

@@ -69,21 +69,19 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
         const sortBy = query.sortBy || 'recent';
 
         const user = (request as any).user;
+        const tenant = (request as any).tenant;
         const isAdmin = user?.role === 'admin' || user?.is_super_admin;
 
         let discussionsQuery = supabaseAdmin
           .from('discussions')
           .select(`
-            id, title, content, category, is_pinned, is_resolved, is_locked, is_public,
+            id, title, content, category, is_pinned, is_resolved, is_locked, is_public, tenant_id,
             replies_count, views_count, likes_count, tags, created_at, updated_at, author_id,
             author:users!discussions_author_id_fkey (id, email, full_name, avatar_url)
           `, { count: 'exact' });
 
-        // Visibility filter: non-admins see public discussions + their own
-        // private ones. Admins see everything in the tenant.
-        if (!isAdmin) {
-          discussionsQuery = discussionsQuery.or(`is_public.eq.true,author_id.eq.${user.id}`);
-        }
+        // Visibility filter: Public means whole tynebase community, Private means workspace only.
+        discussionsQuery = discussionsQuery.or(`is_public.eq.true,tenant_id.eq.${tenant.id}`);
 
         if (category && category !== 'all') {
           discussionsQuery = discussionsQuery.eq('category', category);
@@ -268,13 +266,14 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
     { preHandler: [rateLimitMiddleware, tenantContextMiddleware, authMiddleware, membershipGuard] },
     async (request, reply) => {
       try {
+        const tenant = (request as any).tenant;
         const user = (request as any).user;
         const { id } = request.params as { id: string };
 
         const { data: discussion, error } = await supabaseAdmin
           .from('discussions')
           .select(`
-            id, title, content, category, is_pinned, is_resolved, is_locked, is_public,
+            id, title, content, category, is_pinned, is_resolved, is_locked, is_public, tenant_id,
             replies_count, views_count, likes_count, tags, created_at, updated_at, author_id,
             author:users!discussions_author_id_fkey (id, email, full_name, avatar_url)
           `)
@@ -286,8 +285,7 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
         }
 
         // Enforce visibility for private discussions
-        const isAdmin = user?.role === 'admin' || user?.is_super_admin;
-        if ((discussion as any).is_public === false && discussion.author_id !== user.id && !isAdmin) {
+        if ((discussion as any).is_public === false && (discussion as any).tenant_id !== tenant.id) {
           return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Discussion not found', details: {} } });
         }
 
