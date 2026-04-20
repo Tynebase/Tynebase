@@ -70,7 +70,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
 
         const user = (request as any).user;
         const tenant = (request as any).tenant;
-        const isAdmin = user?.role === 'admin' || user?.is_super_admin;
 
         let discussionsQuery = supabaseAdmin
           .from('discussions')
