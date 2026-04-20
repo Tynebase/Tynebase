@@ -68,7 +68,6 @@ export default async function discussionsRoutes(fastify: FastifyInstance) {
         const category = query.category;
         const sortBy = query.sortBy || 'recent';
 
-        const user = (request as any).user;
         const tenant = (request as any).tenant;
 
         let discussionsQuery = supabaseAdmin
